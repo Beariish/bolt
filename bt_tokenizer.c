@@ -1,0 +1,294 @@
+#include "bt_tokenizer.h"
+#include "bt_context.h"
+
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#include <assert.h>
+
+static bt_bool can_start_identifier(char character) {
+	return isalpha(character) || character == '_';
+}
+
+static bt_bool can_contain_identifier(char character) {
+	return isdigit(character) || can_start_identifier(character);
+}
+
+bt_Tokenizer bt_open_tokenizer(bt_Context* context)
+{
+	bt_Tokenizer tok;
+	tok.context = context;
+	tok.source = tok.current = tok.last_consumed = 0;
+	tok.line = tok.col = 0;
+	tok.tokens = BT_BUFFER_WITH_CAPACITY(context, bt_Token*, 32);
+	tok.literals = BT_BUFFER_WITH_CAPACITY(context, bt_Literal, 16);
+
+	return tok;
+}
+
+void bt_close_tokenizer(bt_Tokenizer* tok)
+{
+	tok->source = tok->current = 0;
+	tok->line = tok->col = 0;
+
+	for (uint32_t i = 0; i < tok->tokens.length; i++)
+	{
+		tok->context->free(*(bt_Token**)bt_buffer_at(&tok->tokens, i));
+	}
+
+	bt_buffer_destroy(tok->context, &tok->tokens);
+	bt_buffer_destroy(tok->context, &tok->literals);
+}
+
+void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
+{
+	tok->source = tok->current = source;
+	tok->line = tok->col = 1;
+}
+
+static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
+{
+	bt_Token* new_token = ctx->alloc(sizeof(bt_Token));
+	new_token->source = source;
+	new_token->line = line;
+	new_token->col = col;
+	new_token->idx = idx;
+	new_token->type = type;
+
+	return new_token;
+}
+
+bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok)
+{
+	if (tok->last_consumed < tok->tokens.length)
+	{
+		return *(bt_Token**)bt_buffer_at(&tok->tokens, tok->last_consumed++);
+	}
+
+eat_whitespace:
+	switch (*tok->current) {
+	case ' ':
+		tok->current++; tok->col++;
+		goto eat_whitespace;
+	case '\t':
+		tok->current++; tok->col += 3;
+		goto eat_whitespace;
+	case '\n':
+		tok->current++; tok->line++; tok->col = 1;
+		goto eat_whitespace;
+	case '\r':
+		tok->current++;
+		goto eat_whitespace;
+	case '/':
+		if (*(tok->current + 1) == '/') {
+			while (*tok->current != '\n') tok->current++;
+			tok->line++; tok->col = 1;
+			goto eat_whitespace;
+		}
+		else if (*(tok->current + 1) == '*') {
+			uint8_t depth = 1;
+			tok->current += 2; tok->col += 2;
+			while (depth > 0) {
+				if (*tok->current == '*' && *(tok->current + 1) == '/') depth--;
+				if (*tok->current == '/' && *(tok->current + 1) == '*') depth++;
+				if (*tok->current == '\n') { tok->line++; tok->col = 1; }
+				tok->current++; tok->col++;
+			}
+			tok->current++; tok->col++;
+			goto eat_whitespace;
+		}
+	}
+
+#define BT_SIMPLE_TOKEN(character, token_type)                \
+	case (character): {                                       \
+		bt_Token* token = make_token(                         \
+			tok->context,                                     \
+			(bt_StrSlice) { tok->current, 1 },				  \
+			tok->line, tok->col, 0,							  \
+			token_type										  \
+		);													  \
+		tok->current++; tok->col++;							  \
+		bt_buffer_push(tok->context, &tok->tokens, &token);	  \
+		tok->last_consumed = tok->tokens.length;          \
+		return *(bt_Token**)bt_buffer_last(&tok->tokens);	  \
+	}
+
+#define BT_COMPOSITE_TOKEN(character, once, second, twice)        \
+	case (character): {										      \
+		uint8_t len = 1;										  \
+		bt_TokenType type = once;					              \
+		if (*(tok->current + 1) == (second)) {			          \
+			len = 2;											  \
+			type = twice;								          \
+		}														  \
+		bt_Token* token = make_token(                             \
+			tok->context,                                         \
+			(bt_StrSlice) { tok->current, 1 },				      \
+			tok->line, tok->col, 0,							      \
+			type										          \
+		);													      \
+		tok->current += len; tok->col += len;					  \
+		bt_buffer_push(tok->context, &tok->tokens, &token);		  \
+		tok->last_consumed = tok->tokens.length;			  \
+		return *(bt_Token**)bt_buffer_last(&tok->tokens);		  \
+	}
+
+#define BT_DOUBLEABLE_TOKEN(character, once, twice)               \
+	BT_COMPOSITE_TOKEN(character, once, character, twice)
+
+	switch (*tok->current) {
+		BT_SIMPLE_TOKEN('(', BT_TOKEN_LEFTPAREN);   BT_SIMPLE_TOKEN(')', BT_TOKEN_RIGHTPAREN);
+		BT_SIMPLE_TOKEN('{', BT_TOKEN_LEFTBRACE);   BT_SIMPLE_TOKEN('}', BT_TOKEN_RIGHTBRACE);
+		BT_SIMPLE_TOKEN('[', BT_TOKEN_LEFTBRACKET); BT_SIMPLE_TOKEN(']', BT_TOKEN_RIGHTBRACKET);
+		
+		BT_SIMPLE_TOKEN(':', BT_TOKEN_COLON);
+
+		BT_SIMPLE_TOKEN(',', BT_TOKEN_COMMA);
+		BT_SIMPLE_TOKEN(';', BT_TOKEN_SEMICOLON);
+		
+		BT_DOUBLEABLE_TOKEN('.', BT_TOKEN_PERIOD, BT_TOKEN_VARARG);
+		BT_DOUBLEABLE_TOKEN('?', BT_TOKEN_QUESTION, BT_TOKEN_NULLCOALESCE);
+		BT_DOUBLEABLE_TOKEN('=', BT_TOKEN_ASSIGN, BT_TOKEN_EQUALS);
+
+		BT_COMPOSITE_TOKEN('!', BT_TOKEN_BANG, '=', BT_TOKEN_NOTEQ);
+		BT_COMPOSITE_TOKEN('+', BT_TOKEN_PLUS, '=', BT_TOKEN_PLUSEQ);
+		BT_COMPOSITE_TOKEN('-', BT_TOKEN_MINUS, '=', BT_TOKEN_MINUSEQ);
+		BT_COMPOSITE_TOKEN('*', BT_TOKEN_MUL, '=', BT_TOKEN_MULEQ);
+		BT_COMPOSITE_TOKEN('/', BT_TOKEN_DIV, '=', BT_TOKEN_DIVEQ);
+	}
+
+#define BT_TEST_KEYWORD(keyword, token, ttype) \
+	if(strncmp(token->source.source, keyword, sizeof(keyword) - 1) == 0) \
+		token->type = ttype;
+
+	if (can_start_identifier(*tok->current)) {
+		char* current = tok->current;
+
+		while (can_contain_identifier(*current)) current++;
+
+		uint8_t length = current - tok->current;
+		
+		bt_Token* token = make_token(
+			tok->context, 
+			(bt_StrSlice) { tok->current, length },
+			tok->line, tok->col, 0, 
+			BT_TOKEN_IDENTIFIER
+		);													      
+
+		     BT_TEST_KEYWORD("let", token, BT_TOKEN_LET)
+		else BT_TEST_KEYWORD("var", token, BT_TOKEN_VAR)
+		else BT_TEST_KEYWORD("const", token, BT_TOKEN_CONST)
+		else BT_TEST_KEYWORD("fn", token, BT_TOKEN_FN)
+		else BT_TEST_KEYWORD("return", token, BT_TOKEN_RETURN)
+		else BT_TEST_KEYWORD("type", token, BT_TOKEN_TYPE)
+		else BT_TEST_KEYWORD("method", token, BT_TOKEN_METHOD)
+		else BT_TEST_KEYWORD("if", token, BT_TOKEN_IF)
+		else BT_TEST_KEYWORD("else", token, BT_TOKEN_ELSE)
+		else BT_TEST_KEYWORD("for", token, BT_TOKEN_FOR)
+		else BT_TEST_KEYWORD("in", token, BT_TOKEN_IN)
+		else BT_TEST_KEYWORD("new", token, BT_TOKEN_NEW)
+		else BT_TEST_KEYWORD("true", token, BT_TOKEN_TRUE_LITERAL)
+		else BT_TEST_KEYWORD("false", token, BT_TOKEN_FALSE_LITERAL)
+		else BT_TEST_KEYWORD("null", token, BT_TOKEN_NULL_LITERAL)
+		else BT_TEST_KEYWORD("is", token, BT_TOKEN_EQUALS)
+		else BT_TEST_KEYWORD("isnt", token, BT_TOKEN_NOTEQ)
+		else BT_TEST_KEYWORD("and", token, BT_TOKEN_AND)
+		else BT_TEST_KEYWORD("or", token, BT_TOKEN_OR)
+		else BT_TEST_KEYWORD("not", token, BT_TOKEN_NOT)
+
+		tok->current += length; tok->col += length;
+		bt_buffer_push(tok->context, &tok->tokens, &token);
+		tok->last_consumed = tok->tokens.length;
+		return *(bt_Token**)bt_buffer_last(&tok->tokens);					  
+	}
+
+	if (isdigit(*tok->current)) {
+		char* end = NULL;
+		bt_number num = strtod(tok->current, &end);
+		if (end != tok->current) {
+			uint8_t length = end - tok->current;
+
+			bt_Literal lit = {
+				BT_TOKEN_NUMBER_LITERAL
+			};
+			lit.as_num = num;
+
+			bt_buffer_push(tok->context, &tok->literals, &lit);
+
+			bt_Token* token = make_token(
+				tok->context,
+				(bt_StrSlice) { tok->current, length },
+				tok->line, tok->col, tok->literals.length - 1,
+				BT_TOKEN_NUMBER_LITERAL
+			);
+
+			tok->current += length; tok->col += length;
+		
+			bt_buffer_push(tok->context, &tok->tokens, &token);
+			tok->last_consumed = tok->tokens.length;
+			return *(bt_Token**)bt_buffer_last(&tok->tokens);
+		}
+	}
+
+	if (*tok->current == '"') {
+		uint16_t start_line = tok->line, start_col = tok->col;
+
+		tok->current++; tok->col++;
+
+		char* start = tok->current;
+		while (*tok->current != '"' && *tok->current) {
+			if (*tok->current == '\\') {
+				if (*(tok->current + 1) == '"') {
+					tok->current++; tok->col++;
+				}
+			}
+			else if (*tok->current == '\n') {
+				tok->col = 1; tok->line++;
+			}
+
+			tok->current++; tok->col++;
+		}
+
+		if (*tok->current) {
+			tok->current++; tok->col++;
+		}
+
+		uint16_t length = tok->current - start - 1;
+
+		bt_Literal lit = { BT_TOKEN_STRING_LITERAL };
+		lit.as_str = (bt_StrSlice) { start, length };
+
+		bt_buffer_push(tok->context, &tok->literals, &lit);
+		bt_Token* token = make_token(
+			tok->context,
+			(bt_StrSlice) { start - 1, length + 2 },
+			start_line, start_col, tok->literals.length - 1,
+			BT_TOKEN_STRING_LITERAL
+		);
+
+		bt_buffer_push(tok->context, &tok->tokens, &token);
+		tok->last_consumed = tok->tokens.length;
+		return *(bt_Token**)bt_buffer_last(&tok->tokens);
+	}
+
+	return NULL;
+}
+
+bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok)
+{
+	if (tok->last_consumed == tok->tokens.length)
+	{
+		if (!bt_tokenizer_emit(tok)) return NULL;
+		tok->last_consumed--;
+	}
+
+	return *(bt_Token**)bt_buffer_at(&tok->tokens, tok->last_consumed);
+}
+
+bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type)
+{
+	bt_Token* token = bt_tokenizer_emit(tok);
+	bt_bool result = token->type == type;
+	assert(result); // TODO: throw tokenizer error
+	return result;
+}
