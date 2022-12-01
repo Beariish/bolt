@@ -13,6 +13,8 @@ typedef enum {
 	BT_OP_LOAD_SMALL,		 // R(a) = tonumber(ibc)
 	BT_OP_LOAD_NULL,		 // R(a) = null
 	BT_OP_LOAD_BOOL,		 // R(a) = b ? BT_TRUE : BT_FALSE
+	BT_OP_TABLE,             // R(a) = new tablesize(b)
+	BT_OP_ARRAY,             // R(a) = new array[b]
 							 
 	BT_OP_MOVE,				 // R(a) = R(b)
 							 

@@ -33,9 +33,9 @@ int main(int argc, char** argv) {
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
 	const char* source = "let a: number = 10 + 10\n"
-		"let const b = a * 2\n"
+		"let const b = \"this is also a string\"\n"
 		"let c = null\n"
-		"let d: number? = c\n"
+		"let d: string? = \"this is a string!\"\n"
 		"let e = d ?? b";
 
 	bt_tokenizer_set_source(&tokenizer, source);

@@ -172,7 +172,10 @@ static bt_bool compile_expression(bt_Compiler* compiler, BlockContext* ctx, bt_A
             // TODO - small constant optimisation
         } break;
         case BT_TOKEN_STRING_LITERAL: {
-            assert(0); // implement context string hashing
+            bt_Literal* lit = (bt_Literal*)bt_buffer_at(&compiler->input->tokenizer->literals, inner->idx);
+            uint8_t idx = push(compiler, 
+                BT_VALUE_STRING(bt_make_string_hashed_len(compiler->context, lit->as_str.source, lit->as_str.length)));
+            emit_ab(compiler, BT_OP_LOAD, result_loc, idx);
         } break;
         }
     } break;

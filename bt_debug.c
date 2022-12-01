@@ -2,6 +2,8 @@
 
 #include "bt_value.h"
 
+#include <assert.h>
+
 static const char* ast_node_type_to_string(bt_AstNode* node)
 {
 	switch (node->type) {
@@ -103,6 +105,14 @@ void bt_debug_print_compiler_output(bt_Compiler* compiler)
 		if (BT_IS_NUMBER(val))
 		{
 			printf("[%d]: 0x%llx (%.f)\n", i, val, BT_AS_NUMBER(val));
+		}
+		else if (BT_IS_STRING(val))
+		{
+			bt_String* str = BT_AS_STRING(val);
+			printf("[%d]: 0x%llx ('%.*s')\n", i, val, str->len, str->str);
+		}
+		else {
+			assert(0 && "Unknown literal type!");
 		}
 	}
 
