@@ -19,17 +19,17 @@ typedef enum {
 } bt_ObjectType;
 
 typedef struct bt_Object {
-	bt_ObjectType type;
-	uint32_t heap_idx;
-	// TODO: gc information
+	uint32_t heap_idx : 25;
+	bt_ObjectType type : 5;
+	uint32_t mark : 1;
+	uint32_t gray : 1;
 } bt_Object;
 
 typedef struct bt_String {
 	bt_Object obj;
-
+	uint32_t len;
 	char* str;
 	uint64_t hash;
-	uint32_t len;
 } bt_String;
 
 typedef struct bt_TablePair {
@@ -37,6 +37,8 @@ typedef struct bt_TablePair {
 } bt_TablePair;
 
 typedef struct bt_Table {
+	bt_Object obj;
+
 	bt_Buffer pairs;
 	struct bt_Table* prototype;
 } bt_Table;

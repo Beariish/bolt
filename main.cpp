@@ -40,8 +40,6 @@ int main(int argc, char** argv) {
 
 	bt_tokenizer_set_source(&tokenizer, source);
 
-	bt_Token* current = NULL;
-
 	bt_Parser parser = bt_open_parser(&tokenizer);
 	bt_parse(&parser);
 
@@ -59,6 +57,8 @@ int main(int argc, char** argv) {
 
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
+
+	printf("Object size is %d\n", sizeof(bt_Table));
 
 	return 0;
 }

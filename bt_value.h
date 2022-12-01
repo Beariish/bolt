@@ -42,7 +42,7 @@ typedef uint64_t bt_Value;
 #define BT_IS_FN(x)       (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_FN)
 #define BT_IS_SHARED(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_SHARED)
 
-#define BT_EPSILON 0.001
+#define BT_EPSILON 0.000001
 
 #define BT_AS_NUMBER(x) ((bt_number)((union { bt_Value u; bt_number n; }) { ((bt_Value)x) }.n))
 #define BT_AS_STRING(x) (bt_String*)(BT_VALUE_MASK & ((bt_Value)x))
