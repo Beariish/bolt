@@ -14,9 +14,21 @@ extern "C" {
 
 #include <malloc.h>
 
+static size_t bytes_allocated = 0;
+static void* malloc_tracked(size_t size) {
+	if (size == 0) __debugbreak();
+	bytes_allocated += size;
+	return malloc(size);
+}
+
+static void free_tracked(void* mem) {
+	bytes_allocated -= _msize(mem);
+	free(mem);
+}
+
 int main(int argc, char** argv) {
 	bt_Context context;
-	bt_open(&context, malloc, free);
+	bt_open(&context, malloc_tracked, free_tracked);
 
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
@@ -24,7 +36,7 @@ int main(int argc, char** argv) {
 		"let const b = a * 2\n"
 		"let c = null\n"
 		"let d: number? = c\n"
-		"var e = a\n";
+		"let e = d ?? b";
 
 	bt_tokenizer_set_source(&tokenizer, source);
 
@@ -34,7 +46,7 @@ int main(int argc, char** argv) {
 	bt_parse(&parser);
 
 	printf("-----------------------------------------------------\n");
-	printf("expression is '%s'\n", source);
+	printf("%s\n", source);
 	printf("-----------------------------------------------------\n");
 
 	bt_debug_print_parse_tree(&parser);
@@ -44,6 +56,9 @@ int main(int argc, char** argv) {
 	bt_compile(&compiler);
 
 	bt_debug_print_compiler_output(&compiler);
+
+	printf("-----------------------------------------------------\n");
+	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
 
 	return 0;
 }

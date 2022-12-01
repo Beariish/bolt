@@ -23,7 +23,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->types.any->is_optional = BT_TRUE;
 
 	context->types.null = make_primitive_type(context, "null", bt_type_satisfier_null);
-	context->types.any->is_optional = BT_TRUE;
+	context->types.null->is_optional = BT_TRUE;
 
 	context->types.array = make_primitive_type(context, "array", bt_type_satisfier_array);
 	context->types.array->category = BT_TYPE_CATEGORY_ARRAY;
@@ -60,3 +60,30 @@ bt_Type* bt_find_type(bt_Context* context, bt_Value name)
 {
 	return BT_AS_OBJECT(bt_table_get(context->type_registry, name));
 }
+
+/*
+import sqrt from "math"
+
+type Vec2 = { x: number, y: number }
+
+method Vec2.__new(x: number, y: number) {
+	this.x = x
+	this.y = y
+}
+
+method Vec2.__add(rhs: Vec2): Vec2 {
+	return new Vec2(
+		this.x + rhs.x,
+		this.y + rhs.y)
+}
+
+method Vec2.length: number {
+	return sqrt(this.x * this.x + this.y * this.y)
+}
+
+let a = new Vec2(10, 20)
+let b = new Vec2(4, 5)
+
+print((a + b).length()) 
+
+*/

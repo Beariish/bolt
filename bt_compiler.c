@@ -26,7 +26,7 @@ typedef struct BlockContext {
     RegisterState registers;
     uint8_t register_top;
 
-    RegisterState temps[64];
+    RegisterState temps[32];
     uint8_t temp_top;
 
     struct FunctionContext* fn;
@@ -35,7 +35,7 @@ typedef struct BlockContext {
 typedef struct FunctionContext {
     uint8_t min_top_register;
 
-    BlockContext blocks[16];
+    BlockContext block;
     uint8_t block_top;
 } FunctionContext;
 
@@ -103,6 +103,11 @@ static void emit_ab(bt_Compiler* compiler, bt_OpCode code, uint8_t a, uint8_t b)
 static void emit_a(bt_Compiler* compiler, bt_OpCode code, uint8_t a)
 {
     emit_abc(compiler, code, a, 0, 0);
+}
+
+static void emit(bt_Compiler* compiler, bt_OpCode code)
+{
+    emit_abc(compiler, code, 0, 0, 0);
 }
 
 static uint8_t push(bt_Compiler* compiler, bt_Value value)
@@ -176,6 +181,29 @@ static bt_bool compile_expression(bt_Compiler* compiler, BlockContext* ctx, bt_A
         if (loc == INVALID_BINDING) assert(0);
         emit_ab(compiler, BT_OP_MOVE, result_loc, loc);
     } break;
+    case BT_AST_NODE_UNARY_OP: {
+        push_registers(ctx);
+        bt_AstNode* operand = expr->as.unary_op.operand;
+
+        uint8_t operand_loc = INVALID_BINDING;
+        if (operand->type == BT_AST_NODE_IDENTIFIER) {
+            operand_loc = find_binding(ctx, operand->source->source);
+            if (operand_loc == INVALID_BINDING) assert(0 && "Compiler error: Can't find identifier!");
+        }
+        else {
+            operand_loc = get_register(ctx);
+            if (!compile_expression(compiler, ctx, operand, operand_loc)) assert(0 && "Compiler error: Failed to compile operand.");
+        }
+
+        switch (expr->source->type) {
+        case BT_TOKEN_QUESTION:
+            emit_ab(compiler, BT_OP_EXISTS, result_loc, operand_loc);
+            break;
+        default: assert(0 && "Unimplemented unary operator!");
+        }
+
+        restore_registers(ctx);
+    } break;
     case BT_AST_NODE_BINARY_OP: {
         push_registers(ctx);
 
@@ -215,7 +243,16 @@ static bt_bool compile_expression(bt_Compiler* compiler, BlockContext* ctx, bt_A
         case BT_TOKEN_DIV:
             emit_abc(compiler, BT_OP_DIV, result_loc, lhs_loc, rhs_loc);
             break;
-        default: assert(0);
+        case BT_TOKEN_AND:
+            emit_abc(compiler, BT_OP_AND, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_OR:
+            emit_abc(compiler, BT_OP_OR, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_NULLCOALESCE:
+            emit_abc(compiler, BT_OP_COALESCE, result_loc, lhs_loc, rhs_loc);
+            break;
+        default: assert(0 && "Unimplemented binary operator!");
         }
 
         restore_registers(ctx);
@@ -238,6 +275,12 @@ static bt_bool compile_statement(bt_Compiler* compiler, BlockContext* ctx, bt_As
 
         return BT_TRUE;
     } break;
+    case BT_AST_NODE_RETURN: {
+        uint8_t ret_loc = get_register(ctx);
+        if(!compile_expression(compiler, ctx, stmt->as.ret.expr, ret_loc)) return BT_FALSE;
+        emit_a(compiler, BT_OP_RETURN, ret_loc);
+        return BT_TRUE;
+    } break;
     default:
         return compile_expression(compiler, ctx, stmt, get_register(ctx));
     }
@@ -249,23 +292,25 @@ bt_bool bt_compile(bt_Compiler* compiler)
 {
     bt_Buffer* body = &compiler->input->root->as.module.body;
 
-    FunctionContext* fn = compiler->context->alloc(sizeof(FunctionContext));
-    fn->min_top_register = 0;
-    fn->block_top = 0;
-    fn->blocks[0].fn = fn;
-    fn->blocks[0].registers.regs[0] = 0;
-    fn->blocks[0].registers.regs[1] = 0;
-    fn->blocks[0].registers.regs[2] = 0;
-    fn->blocks[0].registers.regs[3] = 0;
-    fn->blocks[0].temp_top = 0;
-    fn->blocks[0].register_top = 0;
-    fn->blocks[0].binding_top = 0;
+    FunctionContext fn;
+    fn.min_top_register = 0;
+    fn.block_top = 0;
+    fn.block.fn = &fn;
+    fn.block.registers.regs[0] = 0;
+    fn.block.registers.regs[1] = 0;
+    fn.block.registers.regs[2] = 0;
+    fn.block.registers.regs[3] = 0;
+    fn.block.temp_top = 0;
+    fn.block.register_top = 0;
+    fn.block.binding_top = 0;
 
     for (uint32_t i = 0; i < body->length; ++i)
     {
         bt_AstNode* stmt = *(bt_AstNode**)bt_buffer_at(body, i);
-        compile_statement(compiler, &fn->blocks[0], stmt);
+        compile_statement(compiler, &fn.block, stmt);
     }
+
+    emit(compiler, BT_OP_HALT);
 
     return BT_TRUE;
 }

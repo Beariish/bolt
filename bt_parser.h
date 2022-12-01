@@ -51,6 +51,10 @@ typedef struct bt_AstNode {
 			bt_AstNode* initializer;
 			bt_bool is_const;
 		} let;
+
+		struct {
+			bt_AstNode* expr;
+		} ret;
 	} as; 
 } bt_AstNode;
 

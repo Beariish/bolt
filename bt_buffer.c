@@ -35,6 +35,8 @@ bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
 
     if (buffer->length == buffer->capacity) {
         uint32_t new_capacity = (buffer->capacity * 3) / 2; // * 1.5 in integer form
+        new_capacity = new_capacity == 0 ? 8 : new_capacity;
+
         void* new_data = context->alloc(buffer->element_size * (size_t)new_capacity);
         
         if (buffer->capacity > 0) {

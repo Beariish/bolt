@@ -56,3 +56,4 @@ bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category, bt_bool is_optional);
 bt_Type* bt_derive_type(bt_Context* context, bt_Type* original);
 bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable);
+bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull);

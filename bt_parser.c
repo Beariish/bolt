@@ -22,7 +22,7 @@ static void push_scope(bt_Parser* parser)
     new_scope->last = parser->scope;
     parser->scope = new_scope;
 
-    new_scope->bindings = BT_BUFFER_WITH_CAPACITY(parser->context, bt_ParseBinding, 8);
+    new_scope->bindings = BT_BUFFER_NEW(parser->context, bt_ParseBinding);
 }
 
 static void pop_scope(bt_Parser* parser)
@@ -298,13 +298,41 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         if (node->resulting_type == NULL)
             assert(0);
         break;
-    case BT_AST_NODE_UNARY_OP:
-        node->resulting_type = type_check(parse, node->as.unary_op.operand)->resulting_type;
-        break;
+    case BT_AST_NODE_UNARY_OP: {
+        switch (node->source->type) {
+        case BT_TOKEN_QUESTION:
+            if (!type_check(parse, node->as.unary_op.operand)->resulting_type->is_optional) {
+                assert(0 && "Unary operator ? can only be applied to nullable types.");
+            }
+            node->resulting_type = parse->context->types.boolean;
+            break;
+        default:
+            node->resulting_type = type_check(parse, node->as.unary_op.operand)->resulting_type;
+            break;
+        }
+    } break;
     case BT_AST_NODE_BINARY_OP:
-        node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
-        if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
-            assert(0);
+        switch (node->source->type) {
+        case BT_TOKEN_NULLCOALESCE: {
+            node->resulting_type = type_check(parse, node->as.binary_op.right)->resulting_type;
+            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
+
+            if (!lhs->is_optional) {
+                assert(0 && "Lhs is non-optional, cannot coalesce!");
+            }
+
+            lhs = bt_remove_nullable(parse->context, lhs);
+
+            if(!lhs->satisfier(node->resulting_type, lhs)) {
+                assert(0 && "Unable to coalesce rhs into lhs");
+            }
+        } break;
+        default:
+            node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
+            if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
+                assert(0);
+            }
+            break;
         }
         break;
     }
@@ -397,6 +425,14 @@ static bt_AstNode* parse_var(bt_Parser* parse)
     return node;
 }
 
+static bt_AstNode* parse_return(bt_Parser* parse)
+{
+    bt_AstNode* node = make_node(parse->context, BT_AST_NODE_RETURN);
+    node->as.ret.expr = pratt_parse(parse, 0);
+    node->resulting_type = type_check(parse, node->as.ret.expr)->resulting_type;
+    return node;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -409,6 +445,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_VAR: {
         bt_tokenizer_emit(tok);
         return parse_var(parse);
+    } break;
+    case BT_TOKEN_RETURN: {
+        bt_tokenizer_emit(tok);
+        return parse_return(parse);
     } break;
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);

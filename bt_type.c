@@ -79,3 +79,7 @@ bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
 	new_type->satisfier = type_satisifer_nullable;
 	return new_type;
 }
+
+bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
+	return to_unnull->as.nullable.base;
+}

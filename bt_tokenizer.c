@@ -21,7 +21,7 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 	tok.source = tok.current = tok.last_consumed = 0;
 	tok.line = tok.col = 0;
 	tok.tokens = BT_BUFFER_WITH_CAPACITY(context, bt_Token*, 32);
-	tok.literals = BT_BUFFER_WITH_CAPACITY(context, bt_Literal, 16);
+	tok.literals = BT_BUFFER_WITH_CAPACITY(context, bt_Literal, 4);
 
 	return tok;
 }
