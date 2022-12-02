@@ -58,8 +58,6 @@ int main(int argc, char** argv) {
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
 
-	printf("Object size is %d\n", sizeof(bt_Table));
-
 	return 0;
 }
 
