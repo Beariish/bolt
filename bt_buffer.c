@@ -29,6 +29,13 @@ void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer)
     }
 }
 
+bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer)
+{
+    bt_Buffer result = bt_buffer_with_capacity(context, buffer->element_size, buffer->length);
+    memcpy(result.data, buffer->data, bt_buffer_size(&result));
+    return result;
+}
+
 bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
 {
     bt_bool allocated = BT_FALSE;
@@ -63,6 +70,11 @@ void* bt_buffer_at(bt_Buffer* buffer, uint32_t index)
 void* bt_buffer_last(bt_Buffer* buffer)
 {
     return bt_buffer_at(buffer, buffer->length - 1);
+}
+
+uint32_t bt_buffer_size(bt_Buffer* buffer)
+{
+    return buffer->element_size * buffer->length;
 }
 
 static bt_Bucket* make_bucket(bt_Context* context, uint32_t bucket_size, uint32_t element_size, uint32_t base_index)

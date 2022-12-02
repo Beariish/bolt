@@ -58,7 +58,7 @@ void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
 
 bt_Type* bt_find_type(bt_Context* context, bt_Value name)
 {
-	return BT_AS_OBJECT(bt_table_get(context->type_registry, name));
+	return (bt_Type*)BT_AS_OBJECT(bt_table_get(context->type_registry, name));
 }
 
 /*

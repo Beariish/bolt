@@ -5,6 +5,8 @@
 #include "bt_value.h"
 #include "bt_buffer.h"
 
+typedef struct bt_Type bt_Type;
+
 typedef enum {
 	BT_OBJECT_TYPE_NONE,
 	BT_OBJECT_TYPE_TYPE,
@@ -43,12 +45,20 @@ typedef struct bt_Table {
 	struct bt_Table* prototype;
 } bt_Table;
 
-bt_String* bt_make_string(bt_Context* ctx, char* str);
-bt_String* bt_make_string_len(bt_Context* ctx, char* str, uint32_t len);
-bt_String* bt_make_string_hashed(bt_Context* ctx, char* str);
-bt_String* bt_make_string_hashed_len(bt_Context* ctx, char* str, uint32_t len);
+typedef struct bt_Fn {
+	bt_Type* signature;
+	bt_Buffer instructions;
+	uint8_t stack_size;
+} bt_Fn;
+
+bt_String* bt_make_string(bt_Context* ctx, const char* str);
+bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
+bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
+bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_hash_string(bt_String* str);
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value); 
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
+
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* instructions, uint8_t stack_size);

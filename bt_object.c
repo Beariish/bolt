@@ -15,12 +15,12 @@ static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 }
 
 
-bt_String* bt_make_string(bt_Context* ctx, char* str)
+bt_String* bt_make_string(bt_Context* ctx, const char* str)
 {
     return bt_make_string_len(ctx, str, strlen(str));
 }
 
-bt_String* bt_make_string_len(bt_Context* ctx, char* str, uint32_t len)
+bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
 {
     bt_String* result = BT_ALLOCATE(ctx, STRING, bt_String);
     result->str = ctx->alloc(len);
@@ -30,12 +30,12 @@ bt_String* bt_make_string_len(bt_Context* ctx, char* str, uint32_t len)
     return result;
 }
 
-bt_String* bt_make_string_hashed(bt_Context* ctx, char* str)
+bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str)
 {
     return bt_make_string_hashed_len(ctx, str, strlen(str));
 }
 
-bt_String* bt_make_string_hashed_len(bt_Context* ctx, char* str, uint32_t len)
+bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len)
 {
     bt_String* result = bt_make_string_len(ctx, str, len);
     return bt_hash_string(result);
@@ -91,4 +91,16 @@ bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
     }
 
     return BT_VALUE_NULL;
+}
+
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* instructions, uint8_t stack_size)
+{
+    bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
+    
+    result->signature = signature;
+    result->stack_size = stack_size;
+
+    result->instructions = bt_buffer_clone(ctx, instructions);
+
+    return result;
 }

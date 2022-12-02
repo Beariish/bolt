@@ -3,6 +3,7 @@
 #include "bt_prelude.h"
 
 typedef uint64_t bt_Value;
+typedef union { bt_Value u; bt_number n; } bt_BitCast;
 
 // IEEE 756 DOUBLE       S[Exponent-][Mantissa------------------------------------------]
 #define BT_SIGN_BIT   (0b1000000000000000000000000000000000000000000000000000000000000000)
@@ -25,7 +26,7 @@ typedef uint64_t bt_Value;
 #define BT_VALUE_NULL       ((bt_Value)(BT_NAN_MASK | BT_TYPE_NULL))
 #define BT_VALUE_FALSE      ((bt_Value)(BT_NAN_MASK | BT_TYPE_BOOL))
 #define BT_VALUE_TRUE       ((bt_Value)(BT_NAN_MASK | (BT_TYPE_BOOL | 1)))
-#define BT_VALUE_NUMBER(x)  ((bt_Value)((union { bt_number n; bt_Value u; }) { ((bt_number)x) }.u))
+#define BT_VALUE_NUMBER(x)  ((bt_Value)((bt_BitCast){ .n = x }.u))
 #define BT_VALUE_STRING(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_STRING | (bt_Value)x)))
 #define BT_VALUE_OBJECT(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_OBJECT | (bt_Value)x)))
 
@@ -44,7 +45,7 @@ typedef uint64_t bt_Value;
 
 #define BT_EPSILON 0.000001
 
-#define BT_AS_NUMBER(x) ((bt_number)((union { bt_Value u; bt_number n; }) { ((bt_Value)x) }.n))
+#define BT_AS_NUMBER(x) ((bt_number)(bt_BitCast){ .u = x}.n)
 #define BT_AS_STRING(x) (bt_String*)(BT_VALUE_MASK & ((bt_Value)x))
 #define BT_AS_OBJECT(x) (bt_Object*)(BT_VALUE_MASK & ((bt_Value)x))
 

@@ -2,6 +2,7 @@
 
 #include "bt_value.h"
 
+#include <stdio.h>
 #include <assert.h>
 
 static const char* ast_node_type_to_string(bt_AstNode* node)
@@ -51,6 +52,8 @@ static const char* ast_node_op_to_string(bt_AstNode* node)
 		}
 	} break;
 	}
+
+	return "[WHAT]";
 }
 
 static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)

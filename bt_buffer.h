@@ -13,6 +13,8 @@ bt_Buffer bt_buffer_new(bt_Context* context, uint32_t element_size);
 
 void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer);
 
+bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer);
+
 #define BT_BUFFER_NEW(context, type) bt_buffer_new(context, sizeof(type))
 #define BT_BUFFER_WITH_CAPACITY(context, type, capacity) bt_buffer_with_capacity(context, sizeof(type), capacity)
 
@@ -21,6 +23,8 @@ bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output);
 
 void* bt_buffer_at(bt_Buffer* buffer, uint32_t index);
 void* bt_buffer_last(bt_Buffer* buffer);
+
+uint32_t bt_buffer_size(bt_Buffer* buffer);
 
 typedef struct bt_Bucket {
 	void* data;
