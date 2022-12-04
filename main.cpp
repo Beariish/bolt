@@ -33,8 +33,8 @@ int main(int argc, char** argv) {
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
 	const char* source = 
-		"let test_fn = fn(x: number, y: number): number { return x + y }\n"
-		"let a: number = 10 + 10\n"
+		"let test_fn = fn(x: number, y: number) { return x + y }\n"
+		"let a = test_fn(10, 10)\n"
 		"let const b = \"this is also a string\"\n"
 		"let c = null\n"
 		"let d: string? = \"this is a string!\"\n"
