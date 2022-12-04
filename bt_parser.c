@@ -5,8 +5,9 @@
 
 #include <assert.h>
 
-static void parse_block(bt_Buffer* result, bt_Parser* parse);
+static void parse_block(bt_Buffer* result, bt_Parser* parse, bt_Type* expected_return);
 static bt_AstNode* parse_statement(bt_Parser* parse);
+static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
@@ -287,7 +288,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
             push_arg(parse, (bt_FnArg*)bt_buffer_at(&result->as.fn.args, i));
         }
 
-        parse_block(&result->as.fn.body, parse);
+        parse_block(&result->as.fn.body, parse, result->as.fn.ret_type);
         
         pop_scope(parse);
     }
@@ -310,7 +311,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     return result;
 }
 
-static void parse_block(bt_Buffer* result, bt_Parser* parse)
+static void parse_block(bt_Buffer* result, bt_Parser* parse, bt_Type* expected_return)
 {
     push_scope(parse);
 
@@ -320,6 +321,20 @@ static void parse_block(bt_Buffer* result, bt_Parser* parse)
     {
         bt_AstNode* expression = parse_statement(parse);
         bt_buffer_push(parse->context, result, &expression);
+
+        if (expression->type == BT_AST_NODE_RETURN) {
+            if (expected_return && expression->resulting_type == NULL) {
+                assert(0 && "Expected block to return value!");
+            }
+
+            if (!expected_return && expression->resulting_type) {
+                assert(0 && "Didn't expect block to return value!");
+            }
+
+            if (!expected_return->satisfier(expected_return, expression->resulting_type)) {
+                assert(0 && "Block returns wrong type!");
+            }
+        }
 
         next = bt_tokenizer_peek(parse->tokenizer);
     }
@@ -415,14 +430,17 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         }
     } break;
     case BT_AST_NODE_LITERAL:
-        if (node->resulting_type == NULL)
+        if (node->resulting_type == NULL) {
             assert(0);
+            return NULL;
+        }
         break;
     case BT_AST_NODE_UNARY_OP: {
         switch (node->source->type) {
         case BT_TOKEN_QUESTION:
             if (!type_check(parse, node->as.unary_op.operand)->resulting_type->is_optional) {
                 assert(0 && "Unary operator ? can only be applied to nullable types.");
+                return NULL;
             }
             node->resulting_type = parse->context->types.boolean;
             break;
@@ -439,18 +457,21 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             if (!lhs->is_optional) {
                 assert(0 && "Lhs is non-optional, cannot coalesce!");
+                return NULL;
             }
 
             lhs = bt_remove_nullable(parse->context, lhs);
 
             if(!lhs->satisfier(node->resulting_type, lhs)) {
                 assert(0 && "Unable to coalesce rhs into lhs");
+                return NULL;
             }
         } break;
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
                 assert(0);
+                return NULL;
             }
             break;
         }
