@@ -27,6 +27,11 @@ typedef enum {
 
 typedef struct bt_AstNode bt_AstNode;
 
+typedef struct bt_FnArg {
+	bt_StrSlice name;
+	bt_Type* type;
+} bt_FnArg;
+
 typedef struct bt_AstNode {
 	bt_AstNodeType type;
 	bt_Token* source;
@@ -55,6 +60,12 @@ typedef struct bt_AstNode {
 		struct {
 			bt_AstNode* expr;
 		} ret;
+
+		struct {
+			bt_Buffer args;
+			bt_Buffer body;
+			bt_Type* ret_type;
+		} fn;
 	} as; 
 } bt_AstNode;
 

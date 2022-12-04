@@ -5,6 +5,9 @@
 
 #include <assert.h>
 
+static void parse_block(bt_Buffer* result, bt_Parser* parse);
+static bt_AstNode* parse_statement(bt_Parser* parse);
+
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
     bt_Parser result;
@@ -41,6 +44,23 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     new_binding.is_const = node->as.let.is_const;
     new_binding.name = node->as.let.name;
     new_binding.type = node->resulting_type;
+
+    bt_ParseScope* topmost = parse->scope;
+    for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
+        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&topmost->bindings, i);
+        if (bt_strslice_compare(binding->name, new_binding.name)) {
+            assert(0); // Binding redifinition
+        }
+    }
+
+    bt_buffer_push(parse->context, &topmost->bindings, &new_binding);
+}
+
+static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
+    bt_ParseBinding new_binding;
+    new_binding.is_const = BT_TRUE;
+    new_binding.name = arg->name;
+    new_binding.type = arg->type;
 
     bt_ParseScope* topmost = parse->scope;
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
@@ -210,6 +230,103 @@ static bt_Type* parse_type(bt_Tokenizer* tok)
     }
 }
 
+static bt_AstNode* parse_function_literal(bt_Parser* parse)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+
+    bt_AstNode* result = make_node(parse->context, BT_AST_NODE_FUNCTION);
+    result->as.fn.args = BT_BUFFER_NEW(parse->context, bt_FnArg);
+    result->as.fn.body = BT_BUFFER_WITH_CAPACITY(parse->context, bt_AstNode*, 8);
+    result->as.fn.ret_type = NULL;
+
+    bt_Token* next = bt_tokenizer_peek(tok);
+
+    if (next->type == BT_TOKEN_LEFTPAREN) {
+        bt_tokenizer_emit(tok);
+
+        do {
+            next = bt_tokenizer_emit(tok);
+
+            bt_FnArg this_arg;
+            if (next->type == BT_TOKEN_IDENTIFIER) {
+                this_arg.name = next->source;
+                next = bt_tokenizer_emit(tok);
+            }
+            else {
+                assert(0 && "Malformed parameter list!");
+            }
+
+            if (next->type != BT_TOKEN_COLON) {
+                assert(0 && "Type must follow argument name!");
+            }
+
+            this_arg.type = parse_type(tok);
+
+            bt_buffer_push(parse->context, &result->as.fn.args, &this_arg);
+
+            next = bt_tokenizer_emit(tok);
+        } while (next && next->type == BT_TOKEN_COMMA);
+    }
+
+    if (next->type != BT_TOKEN_RIGHTPAREN) {
+        assert(0 && "Cannot find end of parameter list!");
+    }
+
+    next = bt_tokenizer_emit(tok);
+    
+    if (next->type == BT_TOKEN_COLON) {
+        result->as.fn.ret_type = parse_type(tok);
+    }
+
+    next = bt_tokenizer_emit(tok);
+
+    if (next->type == BT_TOKEN_LEFTBRACE) {
+        push_scope(parse);
+
+        for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
+            push_arg(parse, (bt_FnArg*)bt_buffer_at(&result->as.fn.args, i));
+        }
+
+        parse_block(&result->as.fn.body, parse);
+        
+        pop_scope(parse);
+    }
+    else {
+        assert(0 && "Found function without body!");
+    }
+    
+    next = bt_tokenizer_emit(tok);
+    if (next->type != BT_TOKEN_RIGHTBRACE) {
+        assert(0 && "Expected end of function!");
+    }
+
+    bt_Type* args[16];
+
+    for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
+        args[i] = ((bt_FnArg*)bt_buffer_at(&result->as.fn.args, i))->type;
+    }
+
+    result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+    return result;
+}
+
+static void parse_block(bt_Buffer* result, bt_Parser* parse)
+{
+    push_scope(parse);
+
+    bt_Token* next = bt_tokenizer_peek(parse->tokenizer);
+
+    while (next->type != BT_TOKEN_RIGHTBRACE)
+    {
+        bt_AstNode* expression = parse_statement(parse);
+        bt_buffer_push(parse->context, result, &expression);
+
+        next = bt_tokenizer_peek(parse->tokenizer);
+    }
+
+    pop_scope(parse);
+}
+
 static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -217,7 +334,10 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
     bt_AstNode* lhs_node;
 
-    if (lhs->type == BT_TOKEN_LEFTPAREN) {
+    if (lhs->type == BT_TOKEN_FN) {
+        lhs_node = parse_function_literal(parse);
+    }
+    else if (lhs->type == BT_TOKEN_LEFTPAREN) {
         lhs_node = pratt_parse(parse, 0);
         assert(bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN));
     }

@@ -13,9 +13,8 @@
 #define BT_TRUE 1
 #define BT_FALSE 0
 
-typedef unsigned char bt_bool;
+typedef uint8_t bt_bool;
 typedef double bt_number;
-typedef unsigned char bt_enum;
 
 typedef struct {
 	const char* source;
