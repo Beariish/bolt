@@ -14,6 +14,7 @@ static const char* ast_node_type_to_string(bt_AstNode* node)
 	case BT_AST_NODE_UNARY_OP: return "UNARY OP";
 	case BT_AST_NODE_LET: return "LET";
 	case BT_AST_NODE_RETURN: return "RETURN";
+	case BT_AST_NODE_CALL: return "CALL";
 	default: return "<UNKNOWN>";
 	}
 }
@@ -84,6 +85,14 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 		break;
 	case BT_AST_NODE_FUNCTION:
 		printf("%*s<fn: 0x%llx>\n", depth * 4, "", node);
+		break;
+	case BT_AST_NODE_CALL:
+		printf("%*s%s\n", depth * 4, "", name);
+		recursive_print_ast_node(node->as.call.fn, depth + 1);
+		for (uint8_t i = 0; i < node->as.call.args.length; ++i) {
+			bt_AstNode* arg = *(bt_AstNode**)bt_buffer_at(&node->as.call.args, i);
+			recursive_print_ast_node(arg, depth + 1);
+		}
 		break;
 	default:
 		printf("<unsupported node type!>\n");

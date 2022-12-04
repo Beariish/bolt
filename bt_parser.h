@@ -66,6 +66,11 @@ typedef struct bt_AstNode {
 			bt_Buffer body;
 			bt_Type* ret_type;
 		} fn;
+
+		struct {
+			bt_AstNode* fn;
+			bt_Buffer args;
+		} call;
 	} as; 
 } bt_AstNode;
 

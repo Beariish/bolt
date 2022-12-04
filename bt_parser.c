@@ -399,7 +399,50 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             }
             else if (op->type == BT_TOKEN_LEFTPAREN)
             {
-                assert(0);
+                bt_Type* to_call = type_check(parse, lhs_node)->resulting_type;
+                
+                if (!to_call || (to_call->category != BT_TYPE_CATEGORY_SIGNATURE && to_call != parse->context->types.any)) {
+                    assert(0 && "Trying to call non-callable type!");
+                }
+
+                bt_AstNode* args[16];
+                uint8_t max_arg = 0;
+
+                bt_Token* next = bt_tokenizer_peek(tok);
+                while (next && next->type != BT_TOKEN_RIGHTPAREN) {
+                    args[max_arg++] = pratt_parse(parse, 0);
+                    next = bt_tokenizer_emit(tok);
+
+                    if (!next || (next->type != BT_TOKEN_COMMA && next->type != BT_TOKEN_RIGHTPAREN)) {
+                        assert(0 && "Invalid token in parameter list!");
+                    }
+                }
+
+                if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
+                    assert(0 && "Couldn't find end of function call!");
+                }
+
+                if (max_arg != to_call->as.fn.args.length) {
+                    assert(0 && "Incorrect number of arguments!");
+                }
+
+                bt_AstNode* call = make_node(parse->context, BT_AST_NODE_CALL);
+                call->as.call.fn = lhs_node;
+                call->as.call.args = BT_BUFFER_WITH_CAPACITY(parse->context, bt_AstNode*, max_arg);
+                
+                for (uint8_t i = 0; i < max_arg; i++) {
+                    bt_Type* arg_type = type_check(parse, args[i])->resulting_type;
+                    bt_Type* fn_type = *(bt_Type**)bt_buffer_at(&to_call->as.fn.args, i);
+                    if (!fn_type->satisfier(fn_type, arg_type)) {
+                        assert(0 && "Invalid argument type!");
+                    }
+                    else {
+                        bt_buffer_push(parse->context, &call->as.call.args, &args[i]);
+                    }
+                }
+
+                call->resulting_type = to_call->as.fn.return_type;
+                lhs_node = call;
             }
             else
             {
