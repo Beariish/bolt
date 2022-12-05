@@ -4,4 +4,5 @@
 #include "bt_compiler.h"
 
 void bt_debug_print_parse_tree(bt_Parser* parser);
-void bt_debug_print_compiler_output(bt_Compiler* compiler);
+void bt_debug_print_module(bt_Module* module);
+void bt_debug_print_fn(bt_Fn* module);

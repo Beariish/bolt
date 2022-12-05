@@ -93,13 +93,25 @@ bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
     return BT_VALUE_NULL;
 }
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* instructions, uint8_t stack_size)
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
     
     result->signature = signature;
     result->stack_size = stack_size;
 
+    result->constants = bt_buffer_clone(ctx, constants);
+    result->instructions = bt_buffer_clone(ctx, instructions);
+
+    return result;
+}
+
+bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
+{
+    bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
+
+    result->stack_size = stack_size;
+    result->constants = bt_buffer_clone(ctx, constants);
     result->instructions = bt_buffer_clone(ctx, instructions);
 
     return result;

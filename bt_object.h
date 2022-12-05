@@ -11,6 +11,7 @@ typedef enum {
 	BT_OBJECT_TYPE_NONE,
 	BT_OBJECT_TYPE_TYPE,
 	BT_OBJECT_TYPE_STRING,
+	BT_OBJECT_TYPE_MODULE,
 	BT_OBJECT_TYPE_FN,
 	BT_OBJECT_TYPE_CLOSURE,
 	BT_OBJECT_TYPE_METHOD,
@@ -46,10 +47,22 @@ typedef struct bt_Table {
 } bt_Table;
 
 typedef struct bt_Fn {
-	bt_Type* signature;
+	bt_Object obj;
+
+	bt_Buffer constants;
 	bt_Buffer instructions;
+
+	bt_Type* signature;
 	uint8_t stack_size;
 } bt_Fn;
+
+typedef struct bt_Module {
+	bt_Object obj;
+
+	bt_Buffer constants;
+	bt_Buffer instructions;
+	uint8_t stack_size;
+} bt_Module;
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
@@ -61,4 +74,5 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value); 
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* instructions, uint8_t stack_size);
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
+bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);

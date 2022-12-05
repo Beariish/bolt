@@ -36,6 +36,8 @@ typedef enum {
 	BT_OP_EXISTS,			 // R(a) = R(b) != null
 	BT_OP_COALESCE,			 // R(a) = R(b) == null ? R(c) : R(b)
 							 
+	BT_OP_CALL,              // R(a) = R(b)(R(b + 1) .. R(b + c))
+
 	BT_OP_RETURN,			 // R(frame->ret_pos) = R(a)
 	BT_OP_END,               // return without value
 

@@ -32,6 +32,7 @@ void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer)
 bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer)
 {
     bt_Buffer result = bt_buffer_with_capacity(context, buffer->element_size, buffer->length);
+    result.length = buffer->length;
     memcpy(result.data, buffer->data, bt_buffer_size(&result));
     return result;
 }

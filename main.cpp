@@ -33,8 +33,8 @@ int main(int argc, char** argv) {
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
 	const char* source = 
-		"let test_fn = fn(x: number, y: number?) { return \"This is awesome!\" }\n"
-		"let a = test_fn(10, null)\n"
+		"let test_fn = fn(x: number, y: number?) { return x + (y ?? 0) }\n"
+		"let a = test_fn(0.25, null)\n"
 		"let const b = \"this is also a string\"\n"
 		"let c = null\n"
 		"let d: string? = \"this is a string!\"\n"
@@ -53,9 +53,9 @@ int main(int argc, char** argv) {
 	printf("-----------------------------------------------------\n");
 
 	bt_Compiler compiler = bt_open_compiler(&parser);
-	bt_compile(&compiler);
+	bt_Module* mod = bt_compile(&compiler);
 
-	bt_debug_print_compiler_output(&compiler);
+	bt_debug_print_module(mod);
 
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
