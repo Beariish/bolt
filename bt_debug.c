@@ -10,6 +10,7 @@ static const char* ast_node_type_to_string(bt_AstNode* node)
 	switch (node->type) {
 	case BT_AST_NODE_LITERAL: return "LITERAL";
 	case BT_AST_NODE_IDENTIFIER: return "IDENTIFIER";
+	case BT_AST_NODE_IMPORT_REFERENCE: return "IMPORT";
 	case BT_AST_NODE_BINARY_OP: return "BINARY OP";
 	case BT_AST_NODE_UNARY_OP: return "UNARY OP";
 	case BT_AST_NODE_LET: return "LET";
@@ -61,7 +62,7 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 {
 	const char* name = ast_node_type_to_string(node);
 	switch (node->type) {
-	case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER:
+	case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: case BT_AST_NODE_IMPORT_REFERENCE:
 		printf("%*s%s %.*s\n", depth * 4, "", name, node->source->source.length, node->source->source.source);
 		break;
 	case BT_AST_NODE_UNARY_OP:
@@ -150,23 +151,25 @@ static void print_code(bt_Buffer* code)
 	{
 		bt_Op op = *(bt_Op*)bt_buffer_at(code, i);
 		switch (op.op) {
-		case BT_OP_LOAD:       printf("[%.3d]: LOAD   %d, %d\n", i, op.a, op.b);           break;
-		case BT_OP_LOAD_SMALL: printf("[%.3d]: LOADS  %d, %d\n", i, op.a, op.ibc);         break;
-		case BT_OP_LOAD_NULL:  printf("[%.3d]: NULL   %d\n", i, op.a);                     break;
-		case BT_OP_LOAD_BOOL:  printf("[%.3d]: BOOL   %d, %d\n", i, op.a, op.b);           break;
-		case BT_OP_ADD:        printf("[%.3d]: ADD    %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_SUB:        printf("[%.3d]: SUB    %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_MUL:        printf("[%.3d]: MUL    %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_DIV:        printf("[%.3d]: DIV    %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_AND:        printf("[%.3d]: AND    %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_OR:         printf("[%.3d]: OR     %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_COALESCE:   printf("[%.3d]: COALES %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_MOVE:       printf("[%.3d]: MOVE   %d, %d\n", i, op.a, op.b);	       break;
-		case BT_OP_CALL:       printf("[%.3d]: CALL   %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_RETURN:     printf("[%.3d]: RETURN %d\n", i, op.a);	                   break;
-		case BT_OP_EXISTS:     printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	       break;
-		case BT_OP_NEG:        printf("[%.3d]: NEG    %d, %d\n", i, op.a, op.b);	       break;
-		case BT_OP_HALT:       printf("[%.3d]: HALT\n", i);	                               break;
+		case BT_OP_LOAD:        printf("[%.3d]: LOAD   %d, %d\n", i, op.a, op.b);           break;
+		case BT_OP_LOAD_IMPORT: printf("[%.3d]: IMPORT %d, %d\n", i, op.a, op.ubc);         break;
+		case BT_OP_LOAD_SMALL:  printf("[%.3d]: LOADS  %d, %d\n", i, op.a, op.ibc);         break;
+		case BT_OP_LOAD_NULL:   printf("[%.3d]: NULL   %d\n", i, op.a);                     break;
+		case BT_OP_LOAD_BOOL:   printf("[%.3d]: BOOL   %d, %d\n", i, op.a, op.b);           break;
+		case BT_OP_ADD:         printf("[%.3d]: ADD    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_SUB:         printf("[%.3d]: SUB    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_MUL:         printf("[%.3d]: MUL    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_DIV:         printf("[%.3d]: DIV    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_AND:         printf("[%.3d]: AND    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_OR:          printf("[%.3d]: OR     %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_COALESCE:    printf("[%.3d]: COALES %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_MOVE:        printf("[%.3d]: MOVE   %d, %d\n", i, op.a, op.b);	       break;
+		case BT_OP_CALL:        printf("[%.3d]: CALL   %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_RETURN:      printf("[%.3d]: RETURN %d\n", i, op.a);	                   break;
+		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	       break;
+		case BT_OP_NEG:         printf("[%.3d]: NEG    %d, %d\n", i, op.a, op.b);	       break;
+		case BT_OP_END:         printf("[%.3d]: END\n", i);	                               break;
+		case BT_OP_HALT:        printf("[%.3d]: HALT\n", i);	                               break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}
 	}

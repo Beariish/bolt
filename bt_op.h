@@ -13,10 +13,12 @@ typedef enum {
 	BT_OP_LOAD_SMALL,		 // R(a) = tonumber(ibc)
 	BT_OP_LOAD_NULL,		 // R(a) = null
 	BT_OP_LOAD_BOOL,		 // R(a) = b ? BT_TRUE : BT_FALSE
+	BT_OP_LOAD_IMPORT,       // R(a) = imports[ubc]
 	BT_OP_TABLE,             // R(a) = new tablesize(b)
 	BT_OP_ARRAY,             // R(a) = new array[b]
 							 
 	BT_OP_MOVE,				 // R(a) = R(b)
+	BT_OP_EXPORT,            // exports[R(a)] = R(b)
 							 
 	BT_OP_NEG,				 // R(a) = -R(b)
 	BT_OP_ADD,				 // R(a) = R(b) + R(c)
@@ -26,6 +28,8 @@ typedef enum {
 							 
 	BT_OP_EQ,                // R(a) = R(b) == R(c)
 	BT_OP_NEQ,	             // R(a) = R(b) != R(c)
+	BT_OP_LT,                // R(a) = R(b) < R(c)
+	BT_OP_LTE,               // R(a) = R(b) <= R(c)
 	BT_OP_AND,               // R(a) = R(b) and R(c)
 	BT_OP_OR,	             // R(a) = R(b) or R(c)
 	BT_OP_NOT,				 // R(a) = not R(b)

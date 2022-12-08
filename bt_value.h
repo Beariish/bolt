@@ -3,7 +3,10 @@
 #include "bt_prelude.h"
 
 typedef uint64_t bt_Value;
-typedef union { bt_Value u; bt_number n; } bt_BitCast;
+typedef union { bt_Value u; bt_number n; } bt_Val2Num;
+typedef union { bt_number n; bt_Value u; } bt_Num2Val;
+
+typedef struct bt_Type bt_Type;
 
 // IEEE 756 DOUBLE       S[Exponent-][Mantissa------------------------------------------]
 #define BT_SIGN_BIT   (0b1000000000000000000000000000000000000000000000000000000000000000)
@@ -26,7 +29,7 @@ typedef union { bt_Value u; bt_number n; } bt_BitCast;
 #define BT_VALUE_NULL       ((bt_Value)(BT_NAN_MASK | BT_TYPE_NULL))
 #define BT_VALUE_FALSE      ((bt_Value)(BT_NAN_MASK | BT_TYPE_BOOL))
 #define BT_VALUE_TRUE       ((bt_Value)(BT_NAN_MASK | (BT_TYPE_BOOL | 1)))
-#define BT_VALUE_NUMBER(x)  ((bt_Value)((bt_BitCast){ .n = x }.u))
+#define BT_VALUE_NUMBER(x)  (bt_make_number((bt_number)x))
 #define BT_VALUE_STRING(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_STRING | (bt_Value)x)))
 #define BT_VALUE_OBJECT(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_OBJECT | (bt_Value)x)))
 
@@ -43,10 +46,15 @@ typedef union { bt_Value u; bt_number n; } bt_BitCast;
 #define BT_IS_FN(x)       (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_FN)
 #define BT_IS_SHARED(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_SHARED)
 
+#define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
+
 #define BT_EPSILON 0.000001
 
-#define BT_AS_NUMBER(x) ((bt_number)(bt_BitCast){ .u = x}.n)
+#define BT_AS_NUMBER(x) (bt_get_number((bt_Value)x))
 #define BT_AS_STRING(x) (bt_String*)(BT_VALUE_MASK & ((bt_Value)x))
 #define BT_AS_OBJECT(x) (bt_Object*)(BT_VALUE_MASK & ((bt_Value)x))
 
 bt_bool bt_value_is_equal(bt_Value a, bt_Value b);
+
+__forceinline bt_Value bt_make_number(bt_number num) { bt_Num2Val u; u.n = num; return u.u; }
+__forceinline bt_number bt_get_number(bt_Value val) { bt_Num2Val u; u.u = val; return u.n; }

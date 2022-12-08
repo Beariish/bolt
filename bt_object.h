@@ -12,6 +12,8 @@ typedef enum {
 	BT_OBJECT_TYPE_TYPE,
 	BT_OBJECT_TYPE_STRING,
 	BT_OBJECT_TYPE_MODULE,
+	BT_OBJECT_TYPE_IMPORT,
+	BT_OBJECT_TYPE_EXPORT,
 	BT_OBJECT_TYPE_FN,
 	BT_OBJECT_TYPE_CLOSURE,
 	BT_OBJECT_TYPE_METHOD,
@@ -56,23 +58,48 @@ typedef struct bt_Fn {
 	uint8_t stack_size;
 } bt_Fn;
 
+typedef struct bt_ModuleImport {
+	bt_String* name;
+	bt_Type* type;
+	bt_Value value;
+} bt_ModuleImport;
+
+typedef struct bt_ModuleExport {
+	bt_Object obj;
+
+	bt_Type* type;
+	bt_Value value;
+} bt_ModuleExport;
+
 typedef struct bt_Module {
 	bt_Object obj;
 
 	bt_Buffer constants;
 	bt_Buffer instructions;
 	uint8_t stack_size;
+
+	bt_Buffer imports;
+	bt_Table* exports;
 } bt_Module;
+
+typedef union {
+	bt_Object obj;
+	bt_Fn fn;
+	bt_Module module;
+} bt_Callable;
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_hash_string(bt_String* str);
+bt_StrSlice bt_as_strslice(bt_String* str);
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
-bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value); 
+bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
+bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value);
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
+bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
 
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
-bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
+bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);

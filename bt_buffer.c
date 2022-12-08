@@ -37,6 +37,17 @@ bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer)
     return result;
 }
 
+bt_Buffer bt_buffer_move(bt_Buffer* buffer)
+{
+    bt_Buffer result;
+    memcpy(&result, buffer, sizeof(bt_Buffer));
+    buffer->data = 0;
+    buffer->capacity = 0;
+    buffer->length = 0;
+
+    return result;
+}
+
 bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
 {
     bt_bool allocated = BT_FALSE;

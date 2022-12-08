@@ -6,11 +6,11 @@
 
 bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 {
-	if ((a & BT_TYPE_MASK) != (b & BT_TYPE_MASK)) return BT_FALSE;
-
 	if (BT_IS_NUMBER(a)) {
 		return fabs(BT_AS_NUMBER(a) - BT_AS_NUMBER(b)) < BT_EPSILON;
 	}
+
+	if (BT_TYPEOF(a) != BT_TYPEOF(b)) return BT_FALSE;
 
 	if (BT_IS_STRING(a)) {
 		bt_String* a_str = BT_AS_STRING(a);

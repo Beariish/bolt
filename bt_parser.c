@@ -94,6 +94,22 @@ static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
     return NULL;
 }
 
+static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
+{
+    assert(identifier->type == BT_AST_NODE_IDENTIFIER);
+
+    bt_Buffer* imports = &parser->root->as.module.imports;
+    for (uint32_t i = 0; i < imports->length; ++i) {
+        bt_ModuleImport* import = bt_buffer_at(imports, i);
+        if (bt_strslice_compare(bt_as_strslice(import->name), identifier->source->source)) {
+            identifier->type = BT_AST_NODE_IMPORT_REFERENCE;
+            return import;
+        }
+    }
+
+    return NULL;
+}
+
 static bt_AstNode* make_node(bt_Context* ctx, bt_AstNodeType type)
 {
     bt_AstNode* new_node = ctx->alloc(sizeof(bt_AstNode));
@@ -485,6 +501,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         if (binding) {
             node->resulting_type = binding->type;
         }
+        else {
+            bt_ModuleImport* import = find_import(parse, node);
+            if (import) {
+                node->resulting_type = import->type;
+            }
+        }
     } break;
     case BT_AST_NODE_LITERAL:
         if (node->resulting_type == NULL) {
@@ -658,6 +680,14 @@ bt_bool bt_parse(bt_Parser* parser)
     parser->root = (bt_AstNode*)parser->context->alloc(sizeof(bt_AstNode));
     parser->root->type = BT_AST_NODE_MODULE;
     parser->root->as.module.body = bt_buffer_new(parser->context, sizeof(bt_AstNode*));
+    parser->root->as.module.imports = bt_buffer_new(parser->context, sizeof(bt_ModuleImport));
+
+    bt_Table* prelude = parser->context->prelude;
+    for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
+        bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
+
+        bt_buffer_push(parser->context, &parser->root->as.module.imports, entry);
+    }
 
     push_scope(parser);
 

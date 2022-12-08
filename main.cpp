@@ -30,15 +30,26 @@ int main(int argc, char** argv) {
 	bt_Context context;
 	bt_open(&context, malloc_tracked, free_tracked);
 
+	bt_register_prelude(&context,
+		BT_VALUE_STRING(bt_make_string(&context, "global_number")),
+		context.types.number,
+		BT_VALUE_NUMBER(100));
+
+	bt_register_prelude(&context,
+		BT_VALUE_STRING(bt_make_string(&context, "global_string")),
+		context.types.string,
+		BT_VALUE_STRING(bt_make_string(&context, "Awesome string sent from C!")));
+
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
 	const char* source = 
 		"let test_fn = fn(x: number, y: number?) { return x + (y ?? 0) }\n"
-		"let a = test_fn(0.25, null)\n"
+		"let a = test_fn(0.25, global_number)\n"
 		"let const b = \"this is also a string\"\n"
 		"let c = null\n"
 		"let d: string? = \"this is a string!\"\n"
-		"let e = d ?? b";
+		"let e = d ?? b\n"
+		"return global_string\n";
 
 	bt_tokenizer_set_source(&tokenizer, source);
 
@@ -59,6 +70,9 @@ int main(int argc, char** argv) {
 
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
+	printf("-----------------------------------------------------\n");
+
+	bt_execute(&context, mod);
 
 	return 0;
 }

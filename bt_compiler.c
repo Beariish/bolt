@@ -32,6 +32,7 @@ typedef struct FunctionContext {
     RegisterState temps[32];
     uint8_t temp_top;
 
+    bt_Buffer imports;
     bt_Buffer constants;
     bt_Buffer output;
 
@@ -63,6 +64,18 @@ static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name)
     for (uint32_t i = 0; i < ctx->binding_top; ++i) {
         CompilerBinding* binding = ctx->bindnings + i;
         if (bt_strslice_compare(binding->name, name)) return binding->loc;
+    }
+
+    return INVALID_BINDING;
+}
+
+static uint16_t find_import(FunctionContext* ctx, bt_StrSlice name)
+{
+    for (uint32_t i = 0; i < ctx->imports.length; ++i) {
+        bt_ModuleImport* import = bt_buffer_at(&ctx->imports, i);
+        if (bt_strslice_compare(bt_as_strslice(import->name), name)) {
+            return i;
+        }
     }
 
     return INVALID_BINDING;
@@ -264,6 +277,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         if (loc == INVALID_BINDING) assert(0);
         emit_ab(ctx, BT_OP_MOVE, result_loc, loc);
     } break;
+    case BT_AST_NODE_IMPORT_REFERENCE: {
+        uint16_t loc = find_import(ctx, expr->source->source);
+        if (loc == INVALID_BINDING) assert(0);
+        emit_ab(ctx, BT_OP_LOAD_IMPORT, result_loc, loc);
+    } break;
     case BT_AST_NODE_CALL: {
         bt_AstNode* lhs = expr->as.call.fn;
         bt_Buffer* args = &expr->as.call.args;
@@ -359,8 +377,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         return BT_TRUE;
     } break;
     case BT_AST_NODE_RETURN: {
-        uint8_t ret_loc = get_register(ctx);
-        if(!compile_expression(ctx, stmt->as.ret.expr, ret_loc)) return BT_FALSE;
+        uint8_t ret_loc = find_binding_or_compile_temp(ctx, stmt->as.ret.expr);
         emit_a(ctx, BT_OP_RETURN, ret_loc);
         return BT_TRUE;
     } break;
@@ -374,6 +391,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 bt_Module* bt_compile(bt_Compiler* compiler)
 {
     bt_Buffer* body = &compiler->input->root->as.module.body;
+    bt_Buffer* imports = &compiler->input->root->as.module.imports;
 
     FunctionContext fn;
     fn.min_top_register = 0;
@@ -383,6 +401,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.registers.regs[3] = 0;
     fn.temp_top = 0;
     fn.binding_top = 0;
+    fn.imports = bt_buffer_move(imports);
     fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
     fn.constants = BT_BUFFER_NEW(compiler->context, bt_Value);
     fn.context = compiler->context;
@@ -394,12 +413,13 @@ bt_Module* bt_compile(bt_Compiler* compiler)
         compile_statement(&fn, stmt);
     }
 
-    emit(&fn, BT_OP_HALT);
+    emit(&fn, BT_OP_END);
 
-    bt_Module* result = bt_make_module(compiler->context, &fn.constants, &fn.output, fn.min_top_register);
+    bt_Module* result = bt_make_module(compiler->context, &fn.imports, &fn.constants, &fn.output, fn.min_top_register);
 
     bt_buffer_destroy(compiler->context, &fn.constants);
     bt_buffer_destroy(compiler->context, &fn.output);
+    bt_buffer_destroy(compiler->context, &fn.imports);
 
     return result;
 }

@@ -6,8 +6,12 @@
 typedef enum {
 	BT_AST_NODE_MODULE,
 
+	BT_AST_NODE_IMPORT,
+	BT_AST_NODE_EXPORT,
+
 	BT_AST_NODE_LITERAL,
 	BT_AST_NODE_IDENTIFIER,
+	BT_AST_NODE_IMPORT_REFERENCE,
 	BT_AST_NODE_ARRAY,
 	BT_AST_NODE_TABLE,
 	BT_AST_NODE_INDEX,
@@ -40,6 +44,7 @@ typedef struct bt_AstNode {
 	union {
 		struct {
 			bt_Buffer body;
+			bt_Buffer imports;
 		} module;
 
 		struct {

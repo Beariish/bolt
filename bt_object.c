@@ -23,8 +23,9 @@ bt_String* bt_make_string(bt_Context* ctx, const char* str)
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
 {
     bt_String* result = BT_ALLOCATE(ctx, STRING, bt_String);
-    result->str = ctx->alloc(len);
+    result->str = ctx->alloc(len + 1);
     memcpy(result->str, str, len);
+    result->str[len] = 0;
     result->len = len;
     result->hash = 0;
     return result;
@@ -48,6 +49,14 @@ bt_String* bt_hash_string(bt_String* str)
     }
 
     return str;
+}
+
+bt_StrSlice bt_as_strslice(bt_String* str)
+{
+    bt_StrSlice result;
+    result.source = str->str;
+    result.length = str->len;
+    return result;
 }
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
@@ -77,6 +86,12 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
     return BT_FALSE;
 }
 
+bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value)
+{
+    bt_Value str = BT_VALUE_STRING(bt_make_string_hashed(ctx, key));
+    return bt_table_set(ctx, tbl, str, value);
+}
+
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
@@ -93,6 +108,12 @@ bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
     return BT_VALUE_NULL;
 }
 
+bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
+{
+    bt_Value str = BT_VALUE_STRING(bt_make_string_hashed(ctx, key));
+    return bt_table_get(tbl, str);
+}
+
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
@@ -106,11 +127,12 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_
     return result;
 }
 
-bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
+bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
 {
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
 
     result->stack_size = stack_size;
+    result->imports = bt_buffer_clone(ctx, imports);
     result->constants = bt_buffer_clone(ctx, constants);
     result->instructions = bt_buffer_clone(ctx, instructions);
 
