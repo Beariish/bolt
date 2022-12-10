@@ -54,11 +54,7 @@ int main(int argc, char** argv) {
 		"import test as number_giver\n"
 		"let test_fn = fn(x: number, y: number?) { return x + (y ?? 0) }\n"
 		"let a = test_fn(number_giver.num, global_number)\n"
-		"let const b = \"this is also a string\"\n"
-		"let c = null\n"
-		"let d: string? = \"this is a string!\"\n"
-		"let e = d ?? b\n"
-		"return a\n";
+		"return a";
 
 	bt_tokenizer_set_source(&tokenizer, source);
 

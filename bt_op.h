@@ -6,7 +6,7 @@ typedef enum {
 	/*
 		R: function-local register array, starting from 0
 		L: function-specific literal array, containing precomputed literal values
-		frame: vm call frame, has info about current invocation 
+		frame: vm call frame, has info about current invocation
 	*/
 
 	BT_OP_LOAD,              // R(a) = L[ubc]
@@ -16,16 +16,16 @@ typedef enum {
 	BT_OP_LOAD_IMPORT,       // R(a) = imports[ubc]
 	BT_OP_TABLE,             // R(a) = new tablesize(b)
 	BT_OP_ARRAY,             // R(a) = new array[b]
-							 
+
 	BT_OP_MOVE,				 // R(a) = R(b)
 	BT_OP_EXPORT,            // exports[R(a)] = R(b)
-							 
+
 	BT_OP_NEG,				 // R(a) = -R(b)
 	BT_OP_ADD,				 // R(a) = R(b) + R(c)
 	BT_OP_SUB,				 // R(a) = R(b) - R(c)
 	BT_OP_MUL,				 // R(a) = R(b) * R(c)
 	BT_OP_DIV,				 // R(a) = R(b) / R(c)
-							 
+
 	BT_OP_EQ,                // R(a) = R(b) == R(c)
 	BT_OP_NEQ,	             // R(a) = R(b) != R(c)
 	BT_OP_LT,                // R(a) = R(b) < R(c)
@@ -33,13 +33,13 @@ typedef enum {
 	BT_OP_AND,               // R(a) = R(b) and R(c)
 	BT_OP_OR,	             // R(a) = R(b) or R(c)
 	BT_OP_NOT,				 // R(a) = not R(b)
-							 
-	BT_OP_LOAD_IDX,			 // R(a) = b[c]
-	BT_OP_STORE_IDX,		 // b[c] = R(a)
-							 
+
+	BT_OP_LOAD_IDX,			 // R(a) = b.[c]
+	BT_OP_STORE_IDX,		 // b.[c] = R(a)
+
 	BT_OP_EXISTS,			 // R(a) = R(b) != null
 	BT_OP_COALESCE,			 // R(a) = R(b) == null ? R(c) : R(b)
-							 
+
 	BT_OP_CALL,              // R(a) = R(b)(R(b + 1) .. R(b + c))
 
 	BT_OP_RETURN,			 // R(frame->ret_pos) = R(a)
@@ -47,7 +47,32 @@ typedef enum {
 
 	// sentinel opcode that is inserted at the end of buffers for safety - 
 	// should alwayas be preceeded by a return op, and thus never invoked
-	BT_OP_HALT, 
+	BT_OP_HALT,
+
+	// Fast opcode extensions.
+	// These are emitted by the compiler whenever types are strongly known
+	
+	// Fast arithmetic, do the same thing as their non-fast counterparts, but 
+	// do no typechecking. bolt values are numbers by default
+	BT_OP_NEGF,
+	BT_OP_ADDF,
+	BT_OP_SUBF,
+	BT_OP_MULF,
+	BT_OP_DIVF,
+	BT_OP_EQF,
+	BT_OP_NEQF,
+	BT_OP_LTF,
+	BT_OP_LTEF,
+
+	// Fast table indexing. Used for known tableshapes, as the pair offset
+	// is known by the parser
+	BT_OP_LOAD_IDX_F,
+	BT_OP_STORE_IDX_F,
+
+	// Fast array indexing. Used when the indexed type is known to be an array,
+	// and the index known to be a number
+	BT_OP_LOAD_IDX_F,
+	BT_OP_STORE_IDX_F,
 } bt_OpCode;
 
 typedef struct bt_Op {
