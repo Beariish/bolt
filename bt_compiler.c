@@ -72,7 +72,7 @@ static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name)
 static uint16_t find_import(FunctionContext* ctx, bt_StrSlice name)
 {
     for (uint32_t i = 0; i < ctx->imports.length; ++i) {
-        bt_ModuleImport* import = bt_buffer_at(&ctx->imports, i);
+        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(&ctx->imports, i);
         if (bt_strslice_compare(bt_as_strslice(import->name), name)) {
             return i;
         }
@@ -270,6 +270,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 BT_VALUE_STRING(bt_make_string_hashed_len(ctx->context, lit->as_str.source, lit->as_str.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
         } break;
+        case BT_TOKEN_IDENTIFER_LITERAL: {
+            uint8_t idx = push(ctx,
+                BT_VALUE_STRING(bt_make_string_hashed_len(ctx->context, expr->source->source.source, expr->source->source.length)));
+            emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+        } break;
         }
     } break;
     case BT_AST_NODE_IDENTIFIER: { // simple copy
@@ -347,6 +352,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             break;
         case BT_TOKEN_NULLCOALESCE:
             emit_abc(ctx, BT_OP_COALESCE, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_PERIOD:
+            emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
             break;
         default: assert(0 && "Unimplemented binary operator!");
         }
@@ -461,7 +469,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn)
 
     bt_Fn* result = bt_make_fn(compiler->context, fn->resulting_type, &ctx.constants, &ctx.output, ctx.min_top_register);
 
-    bt_debug_print_fn(result);
+    bt_debug_print_fn(compiler->context, result);
     printf("-----------------------------------------------------\n");
 
     bt_buffer_destroy(compiler->context, &ctx.constants);

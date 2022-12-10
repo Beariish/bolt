@@ -112,34 +112,14 @@ void bt_debug_print_parse_tree(bt_Parser* parser)
 	}
 }
 
-static void print_constants(bt_Buffer* constants)
+static void print_constants(bt_Context* ctx, bt_Buffer* constants)
 {
 	printf("Constants: [%d]\n", constants->length);
 	for (uint32_t i = 0; i < constants->length; ++i)
 	{
 		bt_Value val = *(bt_Value*)bt_buffer_at(constants, i);
-		if (BT_IS_NUMBER(val))
-		{
-			printf("[%d]: 0x%llx (%f)\n", i, val, BT_AS_NUMBER(val));
-		}
-		else if (BT_IS_STRING(val))
-		{
-			bt_String* str = BT_AS_STRING(val);
-			printf("[%d]: 0x%llx ('%.*s')\n", i, val, str->len, str->str);
-		}
-		else if (BT_IS_OBJECT(val))
-		{
-			bt_Object* as_obj = BT_AS_OBJECT(val);
-			switch (as_obj->type) {
-			case BT_OBJECT_TYPE_FN: {
-				bt_Fn* as_fn = (bt_Fn*)as_obj;
-				printf("[%d]: 0x%llx (%s)\n", i, val, as_fn->signature->name);
-			} break;
-			}
-		}
-		else {
-			assert(0 && "Unknown literal type!");
-		}
+		bt_String* as_str = bt_to_string(ctx, val);
+		printf("[%d]: %s\n", i, as_str->str);
 	}
 }
 
@@ -156,6 +136,7 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_LOAD_SMALL:  printf("[%.3d]: LOADS  %d, %d\n", i, op.a, op.ibc);         break;
 		case BT_OP_LOAD_NULL:   printf("[%.3d]: NULL   %d\n", i, op.a);                     break;
 		case BT_OP_LOAD_BOOL:   printf("[%.3d]: BOOL   %d, %d\n", i, op.a, op.b);           break;
+		case BT_OP_LOAD_IDX:    printf("[%.3d]: LIDX   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_ADD:         printf("[%.3d]: ADD    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_SUB:         printf("[%.3d]: SUB    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_MUL:         printf("[%.3d]: MUL    %d, %d, %d\n", i, op.a, op.b, op.c); break;
@@ -163,27 +144,41 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_AND:         printf("[%.3d]: AND    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_OR:          printf("[%.3d]: OR     %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_COALESCE:    printf("[%.3d]: COALES %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_MOVE:        printf("[%.3d]: MOVE   %d, %d\n", i, op.a, op.b);	       break;
+		case BT_OP_MOVE:        printf("[%.3d]: MOVE   %d, %d\n", i, op.a, op.b);	        break;
 		case BT_OP_CALL:        printf("[%.3d]: CALL   %d, %d, %d\n", i, op.a, op.b, op.c); break;
-		case BT_OP_RETURN:      printf("[%.3d]: RETURN %d\n", i, op.a);	                   break;
-		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	       break;
-		case BT_OP_NEG:         printf("[%.3d]: NEG    %d, %d\n", i, op.a, op.b);	       break;
-		case BT_OP_END:         printf("[%.3d]: END\n", i);	                               break;
-		case BT_OP_HALT:        printf("[%.3d]: HALT\n", i);	                               break;
+		case BT_OP_RETURN:      printf("[%.3d]: RETURN %d\n", i, op.a);	                    break;
+		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	        break;
+		case BT_OP_NEG:         printf("[%.3d]: NEG    %d, %d\n", i, op.a, op.b);	        break;
+		case BT_OP_END:         printf("[%.3d]: END\n", i);	                                break;
+		case BT_OP_HALT:        printf("[%.3d]: HALT\n", i);	                            break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}
 	}
 }
 
-void bt_debug_print_module(bt_Module* module)
+static void print_imports(bt_Context* ctx, bt_Buffer* imports)
 {
-	print_constants(&module->constants);
+	
+	printf("Imports: [%d]\n", imports->length);
+	for (uint32_t i = 0; i < imports->length; ++i)
+	{
+		bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(imports, i);
+		bt_String* as_str = bt_to_string(ctx, import->value);
+
+		printf("[%d]: %s: %s = %s\n", i, import->name->str, import->type->name, as_str->str);
+	}
+}
+
+void bt_debug_print_module(bt_Context* ctx, bt_Module* module)
+{
+	print_imports(ctx, &module->imports);
+	print_constants(ctx, &module->constants);
 	print_code(&module->instructions);
 }
 
-void bt_debug_print_fn(bt_Fn* fn)
+void bt_debug_print_fn(bt_Context* ctx, bt_Fn* fn)
 {
 	printf("<%s>\n", fn->signature->name);
-	print_constants(&fn->constants);
+	print_constants(ctx, &fn->constants);
 	print_code(&fn->instructions);
 }

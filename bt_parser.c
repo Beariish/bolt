@@ -100,11 +100,24 @@ static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
 
     bt_Buffer* imports = &parser->root->as.module.imports;
     for (uint32_t i = 0; i < imports->length; ++i) {
-        bt_ModuleImport* import = bt_buffer_at(imports, i);
+        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(imports, i);
         if (bt_strslice_compare(bt_as_strslice(import->name), identifier->source->source)) {
             identifier->type = BT_AST_NODE_IMPORT_REFERENCE;
             return import;
         }
+    }
+
+    // Import not found, _should_ we import from prelude?
+    bt_Table* prelude = parser->context->prelude;
+    for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
+        bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
+        
+        if (bt_strslice_compare(bt_as_strslice(entry->name), identifier->source->source)) {
+            bt_buffer_push(parser->context, imports, &entry);
+            identifier->type = BT_AST_NODE_IMPORT_REFERENCE;
+            return *(bt_ModuleImport**)bt_buffer_last(imports);
+        }
+
     }
 
     return NULL;
@@ -491,7 +504,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     }
     
     return lhs_node;
-}//
+}
 
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 {
@@ -545,6 +558,45 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 assert(0 && "Unable to coalesce rhs into lhs");
                 return NULL;
             }
+        } break;
+        case BT_TOKEN_PERIOD: {
+            if (node->as.binary_op.right->type != BT_AST_NODE_IDENTIFIER) assert(0 && "Illegal identifier!");
+
+            node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
+            node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFER_LITERAL;
+
+            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
+            if (lhs == parse->context->types.table) {
+                node->resulting_type = parse->context->types.any;
+                return node;
+            }
+
+            if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) { assert(0 && "Lhs must be table!"); }
+
+            bt_Token* rhs = node->as.binary_op.right->source;
+            bt_Value rhs_key = BT_VALUE_STRING(bt_make_string_len(parse->context, rhs->source.source, rhs->source.length));
+
+            bt_Table* layout = lhs->as.table_shape.layout;
+            bt_Value table_entry = bt_table_get(layout, rhs_key);
+            if (table_entry != BT_VALUE_NULL) {
+                bt_Type* type = BT_AS_OBJECT(table_entry);
+                node->resulting_type = type;
+                return node;
+            }
+
+            bt_Table* proto = lhs->as.table_shape.proto;
+            bt_Value proto_entry = bt_table_get(layout, rhs_key);
+            if (proto_entry != BT_VALUE_NULL) {
+                bt_Type* type = BT_AS_OBJECT(proto_entry);
+                node->resulting_type = type;
+                return node;
+            }
+
+            if (lhs->as.table_shape.sealed) {
+                assert(0 && "Couldn't find item in table shape.");
+            }
+
+            node->resulting_type = parse->context->types.any;
         } break;
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
@@ -653,11 +705,59 @@ static bt_AstNode* parse_return(bt_Parser* parse)
     return node;
 }
 
+static bt_AstNode* parse_import(bt_Parser* parse)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+
+    bt_Token* name_or_first_item = bt_tokenizer_emit(tok);
+    bt_Token* output_name = name_or_first_item;
+
+    if (name_or_first_item->type != BT_TOKEN_IDENTIFIER) {
+        assert(0 && "Invalid import statement!");
+    }
+
+    bt_Token* peek = bt_tokenizer_peek(tok);
+    if (peek->type == BT_TOKEN_COMMA || peek->type == BT_TOKEN_FROM) {
+       bt_Buffer items = bt_buffer_new(parse->context, sizeof(bt_StrSlice));
+
+    }
+    else if (peek->type == BT_TOKEN_AS) {
+        bt_tokenizer_emit(tok);
+        output_name = bt_tokenizer_emit(tok);
+
+        if (output_name->type != BT_TOKEN_IDENTIFIER) {
+            assert(0 && "Invalid import statement!");
+        }
+    }
+
+    bt_Value module_name = BT_VALUE_STRING(bt_make_string_len(parse->context, 
+        name_or_first_item->source.source, name_or_first_item->source.length));
+    
+    bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+
+    if (!mod_to_import) {
+        assert(0 && "Failed to import module!");
+    }
+
+    bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+    import->name = bt_make_string_len(parse->context, output_name->source.source, output_name->source.length);
+    import->type = mod_to_import->type;
+    import->value = BT_VALUE_OBJECT(mod_to_import->exports);
+
+    bt_buffer_push(parse->context, &parse->root->as.module.imports, &import);
+
+    return NULL;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_peek(tok);
     switch (token->type) {
+    case BT_TOKEN_IMPORT: {
+        bt_tokenizer_emit(tok);
+        return parse_import(parse);
+    } break;
     case BT_TOKEN_LET: {
         bt_tokenizer_emit(tok);
         return parse_let(parse);
@@ -680,22 +780,16 @@ bt_bool bt_parse(bt_Parser* parser)
     parser->root = (bt_AstNode*)parser->context->alloc(sizeof(bt_AstNode));
     parser->root->type = BT_AST_NODE_MODULE;
     parser->root->as.module.body = bt_buffer_new(parser->context, sizeof(bt_AstNode*));
-    parser->root->as.module.imports = bt_buffer_new(parser->context, sizeof(bt_ModuleImport));
-
-    bt_Table* prelude = parser->context->prelude;
-    for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
-
-        bt_buffer_push(parser->context, &parser->root->as.module.imports, entry);
-    }
+    parser->root->as.module.imports = bt_buffer_new(parser->context, sizeof(bt_ModuleImport*));
 
     push_scope(parser);
 
     while (bt_tokenizer_peek(parser->tokenizer))
     {
         bt_AstNode* expression = parse_statement(parser);
-        bt_buffer_push(parser->context, &parser->root->as.module.body, 
-            &expression);
+        if (expression) {
+            bt_buffer_push(parser->context, &parser->root->as.module.body, &expression);
+        }
     }
 
     pop_scope(parser);

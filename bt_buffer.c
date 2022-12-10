@@ -29,6 +29,17 @@ void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer)
     }
 }
 
+bt_Buffer bt_buffer_empty()
+{
+    bt_Buffer result;
+    result.capacity = 0;
+    result.element_size = 0;
+    result.data = 0;
+    result.length = 0;
+
+    return result;
+}
+
 bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer)
 {
     bt_Buffer result = bt_buffer_with_capacity(context, buffer->element_size, buffer->length);

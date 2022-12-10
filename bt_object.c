@@ -2,6 +2,7 @@
 
 #include "bt_context.h"
 #include <string.h>
+#include <stdio.h>
 
 static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 {
@@ -14,6 +15,37 @@ static uint64_t MurmurOAAT64(const char* key, uint32_t len)
     return h;
 }
 
+
+bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
+{
+    char buffer[4096];
+    int32_t len = 0;
+
+    if (BT_IS_NUMBER(value)) {
+        len = sprintf_s(buffer, 4096, "%f", BT_AS_NUMBER(value));
+    }
+    else {
+        switch (BT_TYPEOF(value)) {
+        case BT_TYPE_BOOL:
+            if (BT_IS_TRUE(value)) len = sprintf_s(buffer, 4096, "true");
+            else                   len = sprintf_s(buffer, 4096, "false");
+            break;
+        case BT_TYPE_NULL: len = sprintf_s(buffer, 4096, "null"); break;
+        case BT_TYPE_STRING: return BT_AS_STRING(value);
+        default: {
+            bt_Object* obj = BT_AS_OBJECT(value);
+            switch (obj->type) {
+            case BT_OBJECT_TYPE_TYPE:  len = sprintf_s(buffer, 4096, "%s", ((bt_Type*)obj)->name); break;
+            case BT_OBJECT_TYPE_FN:    len = sprintf_s(buffer, 4096, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
+            case BT_OBJECT_TYPE_TABLE: len = sprintf_s(buffer, 4096, "<0x%llx: table>", value); break;
+            default: len = sprintf_s(buffer, 4096, "<0x%llx: object>", value); break;
+            }
+        }
+        }
+    }
+
+    return bt_make_string_len(ctx, buffer, len);
+}
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str)
 {
@@ -135,6 +167,28 @@ bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* consta
     result->imports = bt_buffer_clone(ctx, imports);
     result->constants = bt_buffer_clone(ctx, constants);
     result->instructions = bt_buffer_clone(ctx, instructions);
+    result->exports = bt_make_table(ctx, 0);
+    result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
 
     return result;
+}
+
+bt_Module* bt_make_user_module(bt_Context* ctx)
+{
+    bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
+    
+    result->stack_size = 0;
+    result->imports = bt_buffer_empty();
+    result->instructions = bt_buffer_empty();
+    result->constants = bt_buffer_empty();
+    result->exports = bt_make_table(ctx, 0);
+    result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
+
+    return result;
+}
+
+void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
+{
+    bt_tableshape_add_field(ctx, module->type, key, type);
+    bt_table_set(ctx, module->exports, key, value);
 }

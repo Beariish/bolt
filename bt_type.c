@@ -30,6 +30,38 @@ bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 			right->as.array.inner));
 }
 
+bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
+{
+	if (left->as.table_shape.sealed != right->as.table_shape.sealed) return BT_FALSE;
+
+	if (left->as.table_shape.proto &&
+		left->as.table_shape.proto != right->as.table_shape.proto) {
+		return BT_FALSE;
+	}
+
+	bt_Buffer* lpairs = &left->as.table_shape.layout->pairs;
+	bt_Buffer* rpairs = &right->as.table_shape.layout->pairs;
+	
+	for (uint32_t i = 0; i < lpairs->length; ++i) {
+		bt_TablePair* lentry = bt_buffer_at(lpairs, i);
+
+		bt_bool found = BT_FALSE;
+		for (uint32_t j = 0; j < rpairs->length; ++j) {
+			bt_TablePair* rentry = bt_buffer_at(rpairs, j);
+
+			if (bt_value_is_equal(lentry->key, rentry->key) &&
+				bt_value_is_equal(lentry->value, rentry->value)) {
+				found = BT_TRUE;
+				break;
+			}
+		}
+
+		if (found == BT_FALSE) return BT_FALSE;
+	}
+
+	return BT_TRUE;
+}
+
 bt_bool type_satisifer_nullable(bt_Type* left, bt_Type* right)
 {
 	return bt_type_satisfier_same(left->as.nullable.base, right) ||
@@ -139,4 +171,27 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 	result->name = new_name_base;
 
 	return result;
+}
+
+bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)
+{
+	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
+	result->as.table_shape.sealed = sealed;
+	result->as.table_shape.layout = 0;
+	result->as.table_shape.proto = 0;
+	return result;
+}
+
+void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type)
+{
+	if (tshp->as.table_shape.layout == 0) {
+		tshp->as.table_shape.layout = bt_make_table(context, 1);
+	}
+
+	bt_table_set(context, tshp->as.table_shape.layout, name, BT_VALUE_OBJECT(type));
+}
+
+void bt_tableshape_set_proto(bt_Type* tshp, bt_Table* proto)
+{
+	tshp->as.table_shape.proto = proto;
 }

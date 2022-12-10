@@ -13,6 +13,7 @@ bt_Buffer bt_buffer_new(bt_Context* context, uint32_t element_size);
 
 void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer);
 
+bt_Buffer bt_buffer_empty();
 bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer);
 bt_Buffer bt_buffer_move(bt_Buffer* buffer);
 

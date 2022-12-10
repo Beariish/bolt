@@ -48,6 +48,7 @@ struct bt_Context {
 	} types;
 
 	bt_Table* type_registry;
+	bt_Table* loaded_modules;
 	bt_Table* prelude;
 
 	bt_BucketedBuffer heap;
@@ -62,6 +63,9 @@ void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type);
 bt_Type* bt_find_type(bt_Context* context, bt_Value name);
 
 void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_Value value);
+void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module);
+
+bt_Module* bt_find_module(bt_Context* context, bt_Value name);
 
 bt_bool bt_execute(bt_Context* context, bt_Module* module);
 

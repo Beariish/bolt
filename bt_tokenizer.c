@@ -195,6 +195,10 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("and", token, BT_TOKEN_AND)
 		else BT_TEST_KEYWORD("or", token, BT_TOKEN_OR)
 		else BT_TEST_KEYWORD("not", token, BT_TOKEN_NOT)
+		else BT_TEST_KEYWORD("import", token, BT_TOKEN_IMPORT)
+		else BT_TEST_KEYWORD("export", token, BT_TOKEN_EXPORT)
+		else BT_TEST_KEYWORD("as", token, BT_TOKEN_AS)
+		else BT_TEST_KEYWORD("from", token, BT_TOKEN_FROM)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, &token);

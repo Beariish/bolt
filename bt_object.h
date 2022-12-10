@@ -59,17 +59,11 @@ typedef struct bt_Fn {
 } bt_Fn;
 
 typedef struct bt_ModuleImport {
+	bt_Object obj;
 	bt_String* name;
 	bt_Type* type;
 	bt_Value value;
 } bt_ModuleImport;
-
-typedef struct bt_ModuleExport {
-	bt_Object obj;
-
-	bt_Type* type;
-	bt_Value value;
-} bt_ModuleExport;
 
 typedef struct bt_Module {
 	bt_Object obj;
@@ -80,6 +74,7 @@ typedef struct bt_Module {
 
 	bt_Buffer imports;
 	bt_Table* exports;
+	bt_Type* type;
 } bt_Module;
 
 typedef union {
@@ -87,6 +82,10 @@ typedef union {
 	bt_Fn fn;
 	bt_Module module;
 } bt_Callable;
+
+#define BT_VALUE_CSTRING(ctx, str) BT_VALUE_STRING(bt_make_string(ctx, str))
+
+bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
@@ -103,3 +102,6 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
 
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
 bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
+bt_Module* bt_make_user_module(bt_Context* ctx);
+
+void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);

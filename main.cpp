@@ -31,25 +31,34 @@ int main(int argc, char** argv) {
 	bt_open(&context, malloc_tracked, free_tracked);
 
 	bt_register_prelude(&context,
-		BT_VALUE_STRING(bt_make_string(&context, "global_number")),
+		BT_VALUE_CSTRING(&context, "global_number"),
 		context.types.number,
 		BT_VALUE_NUMBER(100));
 
 	bt_register_prelude(&context,
-		BT_VALUE_STRING(bt_make_string(&context, "global_string")),
+		BT_VALUE_CSTRING(&context, "global_string"),
 		context.types.string,
-		BT_VALUE_STRING(bt_make_string(&context, "Awesome string sent from C!")));
+		BT_VALUE_CSTRING(&context, "Awesome string sent from C!"));
+
+	bt_Module* test_module = bt_make_user_module(&context);
+	bt_module_export(&context, test_module,
+		context.types.number,
+		BT_VALUE_CSTRING(&context, "num"),
+		BT_VALUE_NUMBER(420.69));
+
+	bt_register_module(&context, BT_VALUE_CSTRING(&context, "test"), test_module);
 
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
 	const char* source = 
+		"import test as number_giver\n"
 		"let test_fn = fn(x: number, y: number?) { return x + (y ?? 0) }\n"
-		"let a = test_fn(0.25, global_number)\n"
+		"let a = test_fn(number_giver.num, global_number)\n"
 		"let const b = \"this is also a string\"\n"
 		"let c = null\n"
 		"let d: string? = \"this is a string!\"\n"
 		"let e = d ?? b\n"
-		"return global_string\n";
+		"return a\n";
 
 	bt_tokenizer_set_source(&tokenizer, source);
 
@@ -66,7 +75,7 @@ int main(int argc, char** argv) {
 	bt_Compiler compiler = bt_open_compiler(&parser);
 	bt_Module* mod = bt_compile(&compiler);
 
-	bt_debug_print_module(mod);
+	bt_debug_print_module(&context, mod);
 
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);

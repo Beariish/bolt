@@ -40,6 +40,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "null")), context->types.null);
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "array")), context->types.array);
 
+	context->loaded_modules = bt_make_table(context, 1);
 	context->prelude = bt_make_table(context, 16);
 
 	context->is_valid = BT_TRUE;
@@ -75,6 +76,17 @@ void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_V
 	bt_table_set(context, context->prelude, name, BT_VALUE_OBJECT(new_import));
 }
 
+void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module)
+{
+	bt_table_set(context, context->loaded_modules, name, BT_VALUE_OBJECT(module));
+}
+
+bt_Module* bt_find_module(bt_Context* context, bt_Value name)
+{
+	// TODO: Attempt to load module if not found!
+	return BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
+}
+
 static void bt_call(bt_Context* context, bt_Thread* thread, bt_Op* ip, bt_Value* constants, uint8_t stack_size, int8_t return_loc);
 
 bt_bool bt_execute(bt_Context* context, bt_Module* module)
@@ -92,8 +104,8 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 		return BT_FALSE;
 	}
 
-	bt_String* str = BT_AS_STRING(thread.stack[0]);
-	printf("Module returned: '%s'\n", str->str);
+	bt_number str = BT_AS_NUMBER(thread.stack[0]);
+	printf("Module returned: '%f'\n", str);
 
 	return BT_TRUE;
 }
@@ -167,13 +179,13 @@ dispatch:
 	op = *ip++;
 	switch (op.op) {
 	case BT_OP_LOAD:        stack[op.a] = constants[op.b];                       NEXT;
-	case BT_OP_LOAD_IMPORT: 
-		stack[op.a] =
-			((bt_ModuleImport*)bt_buffer_at(&thread->callstack[0]->module.imports, op.ubc))->value;
-		NEXT;
 	case BT_OP_LOAD_SMALL:  stack[op.a] = BT_VALUE_NUMBER(op.ibc);               NEXT;
 	case BT_OP_LOAD_NULL:   stack[op.a] = BT_VALUE_NULL;                         NEXT;
 	case BT_OP_LOAD_BOOL:   stack[op.a] = op.b ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
+	case BT_OP_LOAD_IMPORT: 
+		stack[op.a] =
+			(*(bt_ModuleImport**)bt_buffer_at(&thread->callstack[0]->module.imports, op.ubc))->value;
+		NEXT;
 	
 	case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
 	
@@ -183,6 +195,8 @@ dispatch:
 	case BT_OP_MUL: bt_mul(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 	case BT_OP_DIV: bt_div(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 
+	case BT_OP_LOAD_IDX: stack[op.a] = bt_table_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
+	
 	case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
 	case BT_OP_COALESCE: stack[op.a] = stack[op.b] == BT_VALUE_NULL ? stack[op.c]    : stack[op.b];   NEXT;
 	
