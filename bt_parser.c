@@ -2,6 +2,7 @@
 
 #include "bt_context.h"
 #include "bt_object.h"
+#include "bt_debug.h"
 
 #include <assert.h>
 
@@ -920,6 +921,8 @@ bt_bool bt_parse(bt_Parser* parser)
     }
 
     pop_scope(parser);
+
+    bt_debug_print_parse_tree(parser);
 
     return BT_TRUE;
 }

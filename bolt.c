@@ -8,6 +8,7 @@
 #include "bt_tokenizer.h"
 #include "bt_parser.h"
 #include "bt_compiler.h"
+#include "bt_debug.h"
 
 static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
 {
@@ -60,6 +61,10 @@ bt_bool bt_run(bt_Context* context, const char* source)
 
 bt_Module* bt_compile_module(bt_Context* context, const char* source)
 {
+	printf("%s\n", source);
+	printf("-----------------------------------------------------\n");
+
+
 	bt_Tokenizer* tok = context->alloc(sizeof(bt_Tokenizer));
 	*tok = bt_open_tokenizer(context);
 	bt_tokenizer_set_source(tok, source);
@@ -73,6 +78,8 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 		context->free(tok);
 		return NULL;
 	}
+	
+	printf("-----------------------------------------------------\n");
 
 	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
 	*compiler = bt_open_compiler(parser);
@@ -87,13 +94,16 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 		return NULL;
 	}
 
-	//bt_close_compiler(compiler);
-	//bt_close_parser(parser);
-	//bt_close_tokenizer(tok);
+	bt_debug_print_module(context, result);
+	printf("-----------------------------------------------------\n");
 
-	//context->free(compiler);
-	//context->free(parser);
-	//context->free(tok);
+	bt_close_compiler(compiler);
+	bt_close_parser(parser);
+	bt_close_tokenizer(tok);
+
+	context->free(compiler);
+	context->free(parser);
+	context->free(tok);
 
 	return result;
 }
@@ -198,6 +208,7 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 
 	bt_String* str = bt_to_string(context, thread.stack[0]);
 	printf("Module returned: '%s'\n", str->str);
+	printf("-----------------------------------------------------\n");
 
 	return BT_TRUE;
 }

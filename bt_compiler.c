@@ -135,7 +135,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
         bt_Value constant = *(bt_Value*)bt_buffer_at(&ctx->constants, idx);
-        if (constant == value) return idx;
+        if (bt_value_is_equal(constant, value)) return idx;
     }
 
     bt_buffer_push(ctx->context, &ctx->constants, &value);

@@ -53,8 +53,6 @@ int main(int argc, char** argv) {
 		
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "test"), test_module);
 
-	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
-
 	const char* source = 
 		"import * from test\n"
 		"import mod\n"
@@ -62,28 +60,11 @@ int main(int argc, char** argv) {
 		"let a = test_fn(num, num2)\n"
 		"return mod.subber(mod.adder(a, mod.constant), 10)";
 
-	bt_tokenizer_set_source(&tokenizer, source);
-
-	bt_Parser parser = bt_open_parser(&tokenizer);
-	bt_parse(&parser);
-
-	printf("-----------------------------------------------------\n");
-	printf("%s\n", source);
-	printf("-----------------------------------------------------\n");
-
-	bt_debug_print_parse_tree(&parser);
-	printf("-----------------------------------------------------\n");
-
-	bt_Compiler compiler = bt_open_compiler(&parser);
-	bt_Module* mod = bt_compile(&compiler);
-
-	bt_debug_print_module(&context, mod);
+	bt_run(&context, source);
 
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
 	printf("-----------------------------------------------------\n");
-
-	bt_execute(&context, mod);
 
 	return 0;
 }
