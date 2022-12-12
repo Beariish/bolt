@@ -35,26 +35,31 @@ int main(int argc, char** argv) {
 		context.types.number,
 		BT_VALUE_NUMBER(100));
 
-	bt_register_prelude(&context,
-		BT_VALUE_CSTRING(&context, "global_string"),
-		context.types.string,
-		BT_VALUE_CSTRING(&context, "Awesome string sent from C!"));
-
 	bt_Module* test_module = bt_make_user_module(&context);
 	bt_module_export(&context, test_module,
 		context.types.number,
 		BT_VALUE_CSTRING(&context, "num"),
 		BT_VALUE_NUMBER(420.69));
 
+	bt_module_export(&context, test_module,
+		context.types.number,
+		BT_VALUE_CSTRING(&context, "num2"),
+		BT_VALUE_NUMBER(69.420));
+
+	bt_module_export(&context, test_module,
+		context.types.boolean,
+		BT_VALUE_CSTRING(&context, "conditional"),
+		BT_VALUE_TRUE);
+		
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "test"), test_module);
 
 	bt_Tokenizer tokenizer = bt_open_tokenizer(&context);
 
 	const char* source = 
-		"import test as number_giver\n"
-		"let test_fn = fn(x: number, y: number?) { return x + (y ?? 0) }\n"
-		"let a = test_fn(number_giver.num, global_number)\n"
-		"return a";
+		"import * from test\n"
+		"let test_fn = fn(x: number, y: number) { return x + y }\n"
+		"let a = test_fn(num, num2)\n"
+		"return conditional";
 
 	bt_tokenizer_set_source(&tokenizer, source);
 

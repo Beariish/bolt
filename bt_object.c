@@ -103,7 +103,7 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = (bt_TablePair*)bt_buffer_at(&tbl->pairs, i);
+        bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
         if (bt_value_is_equal(pair->key, key)) {
             pair->value = value;
             return BT_TRUE;
@@ -127,7 +127,7 @@ bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Va
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = (bt_TablePair*)bt_buffer_at(&tbl->pairs, i);
+        bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
         if (bt_value_is_equal(pair->key, key)) {
             return pair->value;
         }
@@ -189,6 +189,6 @@ bt_Module* bt_make_user_module(bt_Context* ctx)
 
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
 {
-    bt_tableshape_add_field(ctx, module->type, key, type);
+    bt_tableshape_add_field(ctx, module->type, key, BT_AS_OBJECT(type));
     bt_table_set(ctx, module->exports, key, value);
 }

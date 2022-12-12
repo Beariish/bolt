@@ -104,8 +104,8 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 		return BT_FALSE;
 	}
 
-	bt_number str = BT_AS_NUMBER(thread.stack[0]);
-	printf("Module returned: '%f'\n", str);
+	bt_String* str = bt_to_string(context, thread.stack[0]);
+	printf("Module returned: '%s'\n", str->str);
 
 	return BT_TRUE;
 }

@@ -71,8 +71,8 @@ typedef enum {
 
 	// Fast array indexing. Used when the indexed type is known to be an array,
 	// and the index known to be a number
-	BT_OP_LOAD_IDX_F,
-	BT_OP_STORE_IDX_F,
+	BT_OP_LOAD_SUB_F,
+	BT_OP_STORE_SUB_F,
 } bt_OpCode;
 
 typedef struct bt_Op {

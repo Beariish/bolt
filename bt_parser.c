@@ -712,6 +712,43 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     bt_Token* name_or_first_item = bt_tokenizer_emit(tok);
     bt_Token* output_name = name_or_first_item;
 
+    if (name_or_first_item->type == BT_TOKEN_MUL) {
+        // glob import
+        bt_Token* next = bt_tokenizer_emit(tok);
+        if (next->type != BT_TOKEN_FROM) assert(0 && "Expected 'from' statement!");
+        next = bt_tokenizer_emit(tok);
+        if (next->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected module name!");
+
+        bt_Value module_name = BT_VALUE_STRING(bt_make_string_len(parse->context,
+            next->source.source, next->source.length));
+
+        bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+
+        if (!mod_to_import) {
+            assert(0 && "Failed to import module!");
+        }
+
+        bt_Type* export_types = mod_to_import->type;
+        bt_Table* types = export_types->as.table_shape.layout;
+        bt_Table* values = mod_to_import->exports;
+
+        for (uint32_t i = 0; i < values->pairs.length; ++i) {
+            bt_TablePair* item = bt_buffer_at(&values->pairs, i);
+            bt_Value type_val = bt_table_get(types, item->key);
+
+            if (type_val == BT_VALUE_NULL) assert(0 && "Couldn't find import in module type!");
+
+            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            import->name = BT_AS_STRING(item->key);
+            import->type = BT_AS_OBJECT(type_val);
+            import->value = item->value;
+
+            bt_buffer_push(parse->context, &parse->root->as.module.imports, &import);
+        }
+
+        return NULL;
+    }
+
     if (name_or_first_item->type != BT_TOKEN_IDENTIFIER) {
         assert(0 && "Invalid import statement!");
     }
@@ -719,7 +756,62 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     bt_Token* peek = bt_tokenizer_peek(tok);
     if (peek->type == BT_TOKEN_COMMA || peek->type == BT_TOKEN_FROM) {
        bt_Buffer items = bt_buffer_new(parse->context, sizeof(bt_StrSlice));
+       bt_buffer_push(parse->context, &items, &name_or_first_item->source);
+    
+       while (peek->type == BT_TOKEN_COMMA) {
+           bt_tokenizer_emit(tok);
+           peek = bt_tokenizer_peek(tok);
 
+           if (peek->type == BT_TOKEN_IDENTIFIER) {
+               bt_tokenizer_emit(tok);
+               bt_buffer_push(parse->context, &items, &peek->source);
+               peek = bt_tokenizer_peek(tok);
+           }
+       }
+
+       if (peek->type != BT_TOKEN_FROM) {
+           assert(0 && "Expected 'from' statement!");
+       }
+
+       bt_tokenizer_emit(tok);
+
+       bt_Token* mod_name = bt_tokenizer_emit(tok);
+       if (mod_name->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected module name!");
+
+       bt_Value module_name = BT_VALUE_STRING(bt_make_string_len(parse->context,
+           mod_name->source.source, mod_name->source.length));
+
+       bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+
+       if (!mod_to_import) {
+           assert(0 && "Failed to import module!");
+       }
+
+       bt_Type* export_types = mod_to_import->type;
+       bt_Table* types = export_types->as.table_shape.layout;
+       bt_Table* values = mod_to_import->exports;
+
+       for (uint32_t i = 0; i < items.length; ++i) {
+           bt_StrSlice* item = bt_buffer_at(&items, i);
+
+           bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+           import->name = bt_make_string_len(parse->context, item->source, item->length);
+
+           bt_Value type_val = bt_table_get(types, BT_VALUE_STRING(import->name));
+           bt_Value value = bt_table_get(values, BT_VALUE_STRING(import->name));
+
+           if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
+               assert(0 && "Failed to hoist import from module!");
+           }
+
+           import->type = BT_AS_OBJECT(type_val);
+           import->value = value;
+
+           bt_buffer_push(parse->context, &parse->root->as.module.imports, &import);
+       }
+
+       bt_buffer_destroy(parse->context, &items);
+       return NULL;
     }
     else if (peek->type == BT_TOKEN_AS) {
         bt_tokenizer_emit(tok);
