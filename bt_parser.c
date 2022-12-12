@@ -20,6 +20,10 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
     return result;
 }
 
+void bt_close_parser(bt_Parser* parse)
+{
+}
+
 static void push_scope(bt_Parser* parser)
 {
     bt_ParseScope* new_scope = parser->context->alloc(sizeof(bt_ParseScope));
@@ -841,6 +845,33 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     return NULL;
 }
 
+static bt_AstNode* parse_export(bt_Parser* parse)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+    bt_AstNode* to_export = pratt_parse(parse, 0);
+    
+    bt_Token* name = to_export->source;
+
+    bt_Token* peek = bt_tokenizer_peek(tok);
+    if (peek->type == BT_TOKEN_AS) {
+        bt_tokenizer_emit(tok);
+        name = bt_tokenizer_emit(tok);
+        if (name->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected valid export name!");
+    }
+    else if (to_export->type != BT_AST_NODE_IDENTIFIER) {
+        assert(0 && "Expected 'as' statement following expression export!");
+    }
+
+    bt_AstNode* export = make_node(parse->context, BT_AST_NODE_EXPORT);
+    export->as.exp.name = name;
+    export->as.exp.value = to_export;
+    export->resulting_type = type_check(parse, to_export)->resulting_type;
+    
+    if (export->resulting_type == 0) assert(0 && "Export statement didn't resolve to known type!");
+
+    return export;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -849,6 +880,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_IMPORT: {
         bt_tokenizer_emit(tok);
         return parse_import(parse);
+    } break;
+    case BT_TOKEN_EXPORT: {
+        bt_tokenizer_emit(tok);
+        return parse_export(parse);
     } break;
     case BT_TOKEN_LET: {
         bt_tokenizer_emit(tok);

@@ -6,3 +6,6 @@
 
 void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free);
 void bt_close(bt_Context* context);
+
+bt_bool bt_run(bt_Context* context, const char* source);
+bt_Module* bt_compile_module(bt_Context* context, const char* source);

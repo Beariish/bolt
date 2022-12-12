@@ -389,6 +389,23 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         emit_a(ctx, BT_OP_RETURN, ret_loc);
         return BT_TRUE;
     } break;
+    case BT_AST_NODE_EXPORT: {
+        uint8_t type_lit = push(ctx, BT_VALUE_OBJECT(stmt->resulting_type));
+        uint8_t name_lit = push(ctx,
+            BT_VALUE_STRING(bt_make_string_len(ctx->context,
+                stmt->as.exp.name->source.source,
+                stmt->as.exp.name->source.length)));
+
+        uint8_t type_loc = get_register(ctx);
+        emit_ab(ctx, BT_OP_LOAD, type_loc, type_lit);
+
+        uint8_t name_loc = get_register(ctx);
+        emit_ab(ctx, BT_OP_LOAD, name_loc, name_lit);
+
+        uint8_t value_loc = get_register(ctx);
+        compile_expression(ctx, stmt->as.exp.value, value_loc);
+        emit_abc(ctx, BT_OP_EXPORT, name_loc, value_loc, type_loc);
+    } break;
     default:
         return compile_expression(ctx, stmt, get_register(ctx));
     }
@@ -409,7 +426,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.registers.regs[3] = 0;
     fn.temp_top = 0;
     fn.binding_top = 0;
-    fn.imports = bt_buffer_move(imports);
+    fn.imports = bt_buffer_clone(compiler->context, imports);
     fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
     fn.constants = BT_BUFFER_NEW(compiler->context, bt_Value);
     fn.context = compiler->context;

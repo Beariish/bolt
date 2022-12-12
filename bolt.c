@@ -3,6 +3,11 @@
 #include "bt_object.h"
 #include <assert.h>
 #include <stdio.h>
+#include <memory.h>
+
+#include "bt_tokenizer.h"
+#include "bt_parser.h"
+#include "bt_compiler.h"
 
 static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
 {
@@ -46,6 +51,53 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->is_valid = BT_TRUE;
 }
 
+bt_bool bt_run(bt_Context* context, const char* source)
+{
+	bt_Module* mod = bt_compile_module(context, source);
+	if (!mod) return BT_FALSE;
+	return bt_execute(context, mod);
+}
+
+bt_Module* bt_compile_module(bt_Context* context, const char* source)
+{
+	bt_Tokenizer* tok = context->alloc(sizeof(bt_Tokenizer));
+	*tok = bt_open_tokenizer(context);
+	bt_tokenizer_set_source(tok, source);
+
+	bt_Parser* parser = context->alloc(sizeof(bt_Parser));
+	*parser = bt_open_parser(tok);
+	if (bt_parse(parser) == BT_FALSE) {
+		bt_close_parser(parser);
+		bt_close_tokenizer(tok);
+		context->free(parser);
+		context->free(tok);
+		return NULL;
+	}
+
+	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
+	*compiler = bt_open_compiler(parser);
+	bt_Module* result = bt_compile(compiler);
+	if (result == 0) {
+		bt_close_compiler(compiler);
+		bt_close_parser(parser);
+		bt_close_tokenizer(tok);
+		context->free(compiler);
+		context->free(parser);
+		context->free(tok);
+		return NULL;
+	}
+
+	//bt_close_compiler(compiler);
+	//bt_close_parser(parser);
+	//bt_close_tokenizer(tok);
+
+	//context->free(compiler);
+	//context->free(parser);
+	//context->free(tok);
+
+	return result;
+}
+
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
 	bt_Object* obj = context->alloc(full_size);
@@ -83,8 +135,48 @@ void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module)
 
 bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 {
-	// TODO: Attempt to load module if not found!
-	return BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
+	// TODO: resolve module name with path
+	bt_Module* mod = BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
+	if (mod == 0) {
+		bt_String* to_load = BT_AS_STRING(name);
+		
+		char* name_as_bolt_file = context->alloc(to_load->len + 5 + 1);
+		memcpy(name_as_bolt_file, to_load->str, to_load->len);
+		memcpy(name_as_bolt_file + to_load->len, ".bolt", 5);
+		name_as_bolt_file[to_load->len + 5] = 0;
+
+		FILE* source;
+		fopen_s(&source, name_as_bolt_file, "rb");
+		context->free(name_as_bolt_file);
+		
+		if (source == 0) {
+			assert(0 && "Cannot find module file!");
+			return NULL;
+		}
+
+		fseek(source, 0, SEEK_END);
+		uint32_t len = ftell(source);
+		fseek(source, 0, SEEK_SET);
+
+		char* code = context->alloc(len + 1);
+		fread(code, 1, len, source);
+		fclose(source);
+		code[len] = 0;
+
+		bt_Module* new_mod = bt_compile_module(context, code);
+		context->free(code);
+
+		if (new_mod) {
+			bt_execute(context, new_mod);
+			bt_register_module(context, name, new_mod);
+			return new_mod;
+		}
+		else {
+			return NULL;
+		}
+	}
+
+	return mod;
 }
 
 static void bt_call(bt_Context* context, bt_Thread* thread, bt_Op* ip, bt_Value* constants, uint8_t stack_size, int8_t return_loc);
@@ -189,6 +281,14 @@ dispatch:
 	
 	case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
 	
+	case BT_OP_EXPORT: {
+		bt_Value name = stack[op.a];
+		bt_Value value = stack[op.b];
+		bt_Type* type = BT_AS_OBJECT(stack[op.c]);
+
+		bt_module_export(context, thread->callstack[0], type, name, value);
+	} NEXT;
+
 	case BT_OP_NEG: bt_neg(thread, stack + op.a, stack[op.b]);              NEXT;
 	case BT_OP_ADD: bt_add(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 	case BT_OP_SUB: bt_sub(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;

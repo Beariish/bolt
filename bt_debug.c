@@ -16,6 +16,7 @@ static const char* ast_node_type_to_string(bt_AstNode* node)
 	case BT_AST_NODE_LET: return "LET";
 	case BT_AST_NODE_RETURN: return "RETURN";
 	case BT_AST_NODE_CALL: return "CALL";
+	case BT_AST_NODE_EXPORT: return "EXPORT";
 	default: return "<UNKNOWN>";
 	}
 }
@@ -95,6 +96,10 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 			recursive_print_ast_node(arg, depth + 1);
 		}
 		break;
+	case BT_AST_NODE_EXPORT: {
+		printf("%*s%s\n", depth * 4, "", name);
+		recursive_print_ast_node(node->as.exp.value, depth + 1);
+	} break;
 	default:
 		printf("<unsupported node type!>\n");
 	}
@@ -145,6 +150,7 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_OR:          printf("[%.3d]: OR     %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_COALESCE:    printf("[%.3d]: COALES %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_MOVE:        printf("[%.3d]: MOVE   %d, %d\n", i, op.a, op.b);	        break;
+		case BT_OP_EXPORT:      printf("[%.3d]: EXPORT %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_CALL:        printf("[%.3d]: CALL   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_RETURN:      printf("[%.3d]: RETURN %d\n", i, op.a);	                    break;
 		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	        break;

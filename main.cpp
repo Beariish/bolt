@@ -57,9 +57,10 @@ int main(int argc, char** argv) {
 
 	const char* source = 
 		"import * from test\n"
+		"import mod\n"
 		"let test_fn = fn(x: number, y: number) { return x + y }\n"
 		"let a = test_fn(num, num2)\n"
-		"return conditional";
+		"return mod.subber(mod.adder(a, mod.constant), 10)";
 
 	bt_tokenizer_set_source(&tokenizer, source);
 

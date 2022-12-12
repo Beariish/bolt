@@ -75,6 +75,11 @@ typedef struct bt_AstNode {
 			bt_AstNode* fn;
 			bt_Buffer args;
 		} call;
+
+		struct {
+			bt_Token* name;
+			bt_AstNode* value;
+		} exp;
 	} as; 
 } bt_AstNode;
 
@@ -98,4 +103,5 @@ typedef struct {
 } bt_Parser;
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn);
+void bt_close_parser(bt_Parser* parse);
 bt_bool bt_parse(bt_Parser* parser);

@@ -158,7 +158,7 @@ eat_whitespace:
 	}
 
 #define BT_TEST_KEYWORD(keyword, token, ttype) \
-	if(strncmp(token->source.source, keyword, sizeof(keyword) - 1) == 0) \
+	if((sizeof(keyword) - 1) == token->source.length && strncmp(token->source.source, keyword, token->source.length) == 0) \
 		token->type = ttype;
 
 	if (can_start_identifier(*tok->current)) {

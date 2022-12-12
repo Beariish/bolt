@@ -18,7 +18,7 @@ typedef enum {
 	BT_OP_ARRAY,             // R(a) = new array[b]
 
 	BT_OP_MOVE,				 // R(a) = R(b)
-	BT_OP_EXPORT,            // exports[R(a)] = R(b)
+	BT_OP_EXPORT,            // exports[R(a)]: R(c) = R(b)
 
 	BT_OP_NEG,				 // R(a) = -R(b)
 	BT_OP_ADD,				 // R(a) = R(b) + R(c)

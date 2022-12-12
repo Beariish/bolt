@@ -35,7 +35,7 @@ bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (obj->type) {
-            case BT_OBJECT_TYPE_TYPE:  len = sprintf_s(buffer, 4096, "%s", ((bt_Type*)obj)->name); break;
+            case BT_OBJECT_TYPE_TYPE:  len = sprintf_s(buffer, 4096, "Type(%s)", ((bt_Type*)obj)->name); break;
             case BT_OBJECT_TYPE_FN:    len = sprintf_s(buffer, 4096, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
             case BT_OBJECT_TYPE_TABLE: len = sprintf_s(buffer, 4096, "<0x%llx: table>", value); break;
             default: len = sprintf_s(buffer, 4096, "<0x%llx: object>", value); break;
