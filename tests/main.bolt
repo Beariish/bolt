@@ -1,0 +1,15 @@
+import * from test
+import mod
+
+fn test_fn(x: number, y: number) {
+    return x + y
+}
+
+let const test_fn2 = 
+    fn(x: number, y: number) { 
+        return x + y 
+    }
+
+let a = fn(x: number) { return x * 2 }(test_fn(num, num2))
+
+return mod.subber(mod.adder(a, mod.constant), 10)

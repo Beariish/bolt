@@ -53,14 +53,8 @@ int main(int argc, char** argv) {
 		
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "test"), test_module);
 
-	const char* source = 
-		"import * from test\n"
-		"import mod\n"
-		"let test_fn = fn(x: number, y: number) { return x + y }\n"
-		"let a = test_fn(num, num2)\n"
-		"return mod.subber(mod.adder(a, mod.constant), 10)";
-
-	bt_run(&context, source);
+	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "main"));
+	bt_Module* loaded = bt_find_module(&context, module_name);
 
 	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);

@@ -873,6 +873,27 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     return export;
 }
 
+static bt_AstNode* parse_function_statement(bt_Parser* parser)
+{
+    bt_Tokenizer* tok = parser->tokenizer;
+    bt_Token* ident = bt_tokenizer_emit(tok);
+
+    if (ident->type != BT_TOKEN_IDENTIFIER) assert(0 && "Cannot assign to non-identifier!");
+
+    bt_AstNode* fn = parse_function_literal(parser);
+    if (fn->type != BT_AST_NODE_FUNCTION) assert(0 && "Expected function literal!");
+
+    bt_AstNode* result = make_node(parser->context, BT_AST_NODE_LET);
+    result->resulting_type = type_check(parser, fn)->resulting_type;
+    result->as.let.name = ident->source;
+    result->as.let.initializer = fn;
+    result->as.let.is_const = BT_TRUE;
+
+    push_local(parser, result);
+
+    return result;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -898,6 +919,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         bt_tokenizer_emit(tok);
         return parse_return(parse);
     } break;
+    case BT_TOKEN_FN: {
+        bt_tokenizer_emit(tok);
+        return parse_function_statement(parse);
+    }
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);
     }
