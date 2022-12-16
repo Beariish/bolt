@@ -1,23 +1,31 @@
-import core
-import print from core
+import * from core
 import mod
+import branch
 
 fn test_fn(x: number, y: number) {
     return x + y
 }
 
-fn never_returns(x: number) {
-    let y = x + 10
-    return true
+let a = 5 // fn(x: number) { return x * 2 }(test_fn(140, 150))
+
+let a_as_string = to_string(a)
+
+print("a", "has", "been", "evaluated", "as:", a_as_string, "!")
+
+if a > 10 {
+    print("A is big!")
+} else if a < 0 {
+    print("a is negative o:")
+} else {
+    print("A is small :(")
+
+    if test_fn(a, a) > 10 {
+        print("But it's almost big!")
+    } else if test_fn(a, a) == 10 and a == 5 {
+        print("And it's halfway to bigness!")
+    } else {
+        print("And it'll never be big...")
+    }
 }
-
-let success = never_returns(100)
-
-print("success:", success)
-
-let a = fn(x: number) { return x * 2 }(test_fn(140, 150))
-
-let a_as_string = core.to_string(a)
-core.print("a", "has", "been", "evaluated", "as:", a_as_string, "!")
 
 return mod.subber(mod.adder(a, mod.constant), 10)

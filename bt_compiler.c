@@ -94,7 +94,12 @@ void bt_close_compiler(bt_Compiler* compiler)
 {
 }
 
-static void emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
+static bt_Op* op_at(FunctionContext* ctx, uint32_t idx)
+{
+    return bt_buffer_at(&ctx->output, idx);
+}
+
+static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
 {
     bt_Op op;
     op.op = code;
@@ -103,9 +108,11 @@ static void emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b,
     op.c = c;
 
     bt_buffer_push(ctx->context, &ctx->output, &op);
+
+    return ctx->output.length - 1;
 }
 
-static void emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t ibc)
+static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t ibc)
 {
     bt_Op op;
     op.op = code;
@@ -113,21 +120,23 @@ static void emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t i
     op.ibc = ibc;
 
     bt_buffer_push(ctx->context, &ctx->output, &op);
+
+    return ctx->output.length - 1;
 }
 
-static void emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b)
+static uint32_t emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b)
 {
-    emit_abc(ctx, code, a, b, 0);
+    return emit_abc(ctx, code, a, b, 0);
 }
 
-static void emit_a(FunctionContext* ctx, bt_OpCode code, uint8_t a)
+static uint32_t emit_a(FunctionContext* ctx, bt_OpCode code, uint8_t a)
 {
-    emit_abc(ctx, code, a, 0, 0);
+    return emit_abc(ctx, code, a, 0, 0);
 }
 
-static void emit(FunctionContext* ctx, bt_OpCode code)
+static uint32_t emit(FunctionContext* ctx, bt_OpCode code)
 {
-    emit_abc(ctx, code, 0, 0, 0);
+    return emit_abc(ctx, code, 0, 0, 0);
 }
 
 static uint8_t push(FunctionContext* ctx, bt_Value value)
@@ -356,6 +365,24 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_PERIOD:
             emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
             break;
+        case BT_TOKEN_EQUALS:
+            emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_NOTEQ:
+            emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_LT:
+            emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_LTE:
+            emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_GT:
+            emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc);
+            break;
+        case BT_TOKEN_GTE:
+            emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc);
+            break;
         default: assert(0 && "Unimplemented binary operator!");
         }
 
@@ -367,6 +394,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
     } break;
     default: assert(0);
+    }
+
+    return BT_TRUE;
+}
+
+static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt);
+
+static bt_bool compile_body(FunctionContext* ctx, bt_Buffer* body) 
+{
+    for (uint32_t i = 0; i < body->length; ++i)
+    {
+        bt_AstNode* stmt = *(bt_AstNode**)bt_buffer_at(body, i);
+        if (!compile_statement(ctx, stmt)) return BT_FALSE;
     }
 
     return BT_TRUE;
@@ -406,6 +446,39 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         compile_expression(ctx, stmt->as.exp.value, value_loc);
         emit_abc(ctx, BT_OP_EXPORT, name_loc, value_loc, type_loc);
     } break;
+    case BT_AST_NODE_IF: {
+        uint32_t end_points[64];
+        uint8_t end_top = 0;
+
+        bt_AstNode* current = stmt;
+
+        while (current) {
+            push_registers(ctx);
+
+            uint32_t jump_loc = 0;
+
+            if (current->as.branch.condition) {
+                uint8_t condition_loc = find_binding_or_compile_temp(ctx, current->as.branch.condition);
+                jump_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
+            }
+
+            compile_body(ctx, &current->as.branch.body);
+            if (current->as.branch.next) end_points[end_top++] = emit(ctx, BT_OP_JMP);
+        
+            if (current->as.branch.condition) {
+                bt_Op* jmpf = op_at(ctx, jump_loc);
+                jmpf->ibc = ctx->output.length - jump_loc - 1;
+            }
+
+            current = current->as.branch.next;
+            restore_registers(ctx);
+        }
+
+        for (uint8_t i = 0; i < end_top; ++i) {
+            bt_Op* jmp = op_at(ctx, end_points[i]);
+            jmp->ibc = ctx->output.length - end_points[i] - 1;
+        }
+    } break;
     default:
         push_registers(ctx);
         bt_bool result = compile_expression(ctx, stmt, get_register(ctx));
@@ -435,11 +508,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.context = compiler->context;
     fn.compiler = compiler;
 
-    for (uint32_t i = 0; i < body->length; ++i)
-    {
-        bt_AstNode* stmt = *(bt_AstNode**)bt_buffer_at(body, i);
-        compile_statement(&fn, stmt);
-    }
+    compile_body(&fn, body);
 
     emit(&fn, BT_OP_END);
 
@@ -474,11 +543,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn)
     }
 
     bt_Buffer* body = &fn->as.fn.body;
-    for (uint32_t i = 0; i < body->length; ++i)
-    {
-        bt_AstNode* stmt = *(bt_AstNode**)bt_buffer_at(body, i);
-        compile_statement(&ctx, stmt);
-    }
+    compile_body(&ctx, body);
 
     if (!fn->as.fn.ret_type) {
         emit(&ctx, BT_OP_END);

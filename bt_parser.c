@@ -6,7 +6,7 @@
 
 #include <assert.h>
 
-static bt_Type* parse_block(bt_Buffer* result, bt_Parser* parse, bt_Type* expected_return);
+static void parse_block(bt_Buffer* result, bt_Parser* parse);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
 
@@ -194,6 +194,8 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_MULEQ: case BT_TOKEN_DIVEQ:
     case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTION:
     case BT_TOKEN_LEFTBRACKET: case BT_TOKEN_LEFTPAREN:
+    case BT_TOKEN_LT: case BT_TOKEN_LTE:
+    case BT_TOKEN_GT: case BT_TOKEN_GTE:
         return BT_TRUE;
     default:
         return BT_FALSE;
@@ -239,8 +241,11 @@ static InfixBindingPower infix_binding_power(bt_Token* token)
     case BT_TOKEN_AND: case BT_TOKEN_OR: return (InfixBindingPower) { 5, 6 };
     case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: return (InfixBindingPower) { 7, 8 };
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 9, 10 };
-    case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 11, 12 };
-    case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 13, 14 };
+    case BT_TOKEN_LT: case BT_TOKEN_LTE:
+    case BT_TOKEN_GT: case BT_TOKEN_GTE:
+        return (InfixBindingPower) { 11, 12 };
+    case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 13, 14 };
+    case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_PERIOD: return (InfixBindingPower) { 101, 100 };
     default: return (InfixBindingPower) { 0, 0 };
     }
@@ -267,6 +272,37 @@ static bt_Type* parse_type(bt_Tokenizer* tok)
     } break;
     default: assert(0);
     }
+}
+
+static bt_Type* infer_return(bt_Buffer* body, bt_Type* expected)
+{
+    for (uint32_t i = 0; i < body->length; ++i) {
+        bt_AstNode* expr = *(bt_AstNode**)bt_buffer_at(body, i);
+
+        if (expr->type == BT_AST_NODE_RETURN) {
+            if (expected && expr->resulting_type == NULL) {
+                assert(0 && "Expected block to return value!");
+            }
+
+            if (!expected && expr) {
+                expected = expr->resulting_type;
+            }
+
+            if (!expected->satisfier(expected, expr->resulting_type)) {
+                assert(0 && "Block returns wrong type!");
+            }
+        }
+        else if (expr->type == BT_AST_NODE_IF) {
+            expected = infer_return(&expr->as.branch.body, expected);
+            bt_AstNode* elif = expr->as.branch.next;
+            while (elif) {
+                expected = infer_return(&elif->as.branch.body, expected);
+                elif = elif->as.branch.next;
+            }
+        }
+    }
+
+    return expected;
 }
 
 static bt_AstNode* parse_function_literal(bt_Parser* parse)
@@ -330,13 +366,15 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
             push_arg(parse, (bt_FnArg*)bt_buffer_at(&result->as.fn.args, i));
         }
 
-        result->as.fn.ret_type = parse_block(&result->as.fn.body, parse, result->as.fn.ret_type);
+        parse_block(&result->as.fn.body, parse);
         
         pop_scope(parse);
     }
     else {
         assert(0 && "Found function without body!");
     }
+
+    result->as.fn.ret_type = infer_return(&result->as.fn.body, result->as.fn.ret_type);
     
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {
@@ -353,7 +391,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     return result;
 }
 
-static bt_Type* parse_block(bt_Buffer* result, bt_Parser* parse, bt_Type* expected_return)
+static void parse_block(bt_Buffer* result, bt_Parser* parse)
 {
     push_scope(parse);
 
@@ -363,27 +401,10 @@ static bt_Type* parse_block(bt_Buffer* result, bt_Parser* parse, bt_Type* expect
     {
         bt_AstNode* expression = parse_statement(parse);
         bt_buffer_push(parse->context, result, &expression);
-
-        if (expression->type == BT_AST_NODE_RETURN) {
-            if (expected_return && expression->resulting_type == NULL) {
-                assert(0 && "Expected block to return value!");
-            }
-
-            if (!expected_return && expression->resulting_type) {
-                expected_return = expression->resulting_type;
-            }
-
-            if (!expected_return->satisfier(expected_return, expression->resulting_type)) {
-                assert(0 && "Block returns wrong type!");
-            }
-        }
-
         next = bt_tokenizer_peek(parse->tokenizer);
     }
 
     pop_scope(parse);
-    
-    return expected_return;
 }
 
 static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
@@ -614,6 +635,13 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             node->resulting_type = parse->context->types.any;
         } break;
+
+        // Comparison binops always produce boolean
+        case BT_TOKEN_LT: case BT_TOKEN_LTE: case BT_TOKEN_GT: case BT_TOKEN_GTE:
+        case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: {
+            node->resulting_type = parse->context->types.boolean;
+        } break;
+
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
@@ -906,6 +934,56 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
     return result;
 }
 
+static bt_AstNode* parse_if(bt_Parser* parser)
+{
+    bt_Tokenizer* tok = parser->tokenizer;
+
+    bt_AstNode* condition = pratt_parse(parser, 0);
+    if (type_check(parser, condition)->resulting_type != parser->context->types.boolean) {
+        assert(0 && "If expression must evaluate to boolean!");
+    }
+
+    bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+
+    bt_Buffer body = BT_BUFFER_NEW(parser->context, bt_AstNode*);
+    parse_block(&body, parser);
+
+    bt_AstNode* result = make_node(parser->context, BT_AST_NODE_IF);
+    result->as.branch.condition = condition;
+    result->as.branch.body = body;
+    result->as.branch.next = NULL;
+
+    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+    bt_Token* next = bt_tokenizer_peek(tok);
+    if (next->type == BT_TOKEN_ELSE) {
+        bt_tokenizer_emit(tok);
+        next = bt_tokenizer_peek(tok);
+
+        if (next->type == BT_TOKEN_IF) {
+            bt_tokenizer_emit(tok);
+            result->as.branch.next = parse_if(parser);
+        }
+        else {
+            bt_AstNode* else_node = make_node(parser->context, BT_AST_NODE_IF);
+            else_node->as.branch.condition = NULL;
+            else_node->as.branch.next = NULL;
+
+            bt_Buffer body = BT_BUFFER_NEW(parser->context, bt_AstNode*);
+            
+            bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+            parse_block(&body, parser);
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+            else_node->as.branch.body = body;
+
+            result->as.branch.next = else_node;
+        }
+    }
+
+    return result;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -934,7 +1012,11 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_FN: {
         bt_tokenizer_emit(tok);
         return parse_function_statement(parse);
-    }
+    } break;
+    case BT_TOKEN_IF: {
+        bt_tokenizer_emit(tok);
+        return parse_if(parse);
+    } break;
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);
     }

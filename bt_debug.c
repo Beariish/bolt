@@ -146,6 +146,10 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_SUB:         printf("[%.3d]: SUB    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_MUL:         printf("[%.3d]: MUL    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_DIV:         printf("[%.3d]: DIV    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_EQ:          printf("[%.3d]: EQ     %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_NEQ:         printf("[%.3d]: NEQ    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_LT:          printf("[%.3d]: LT     %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_LTE:         printf("[%.3d]: LTE    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_AND:         printf("[%.3d]: AND    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_OR:          printf("[%.3d]: OR     %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_COALESCE:    printf("[%.3d]: COALES %d, %d, %d\n", i, op.a, op.b, op.c); break;
@@ -155,6 +159,8 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_RETURN:      printf("[%.3d]: RETURN %d\n", i, op.a);	                    break;
 		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	        break;
 		case BT_OP_NEG:         printf("[%.3d]: NEG    %d, %d\n", i, op.a, op.b);	        break;
+		case BT_OP_JMP:         printf("[%.3d]: JMP    %d\n", i, op.ibc);                   break;
+		case BT_OP_JMPF:        printf("[%.3d]: JMPF   %d, %d\n", i, op.a, op.ibc);         break;
 		case BT_OP_END:         printf("[%.3d]: END\n", i);	                                break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}

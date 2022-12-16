@@ -29,6 +29,7 @@ typedef struct bt_Type bt_Type;
 #define BT_VALUE_NULL       ((bt_Value)(BT_NAN_MASK | BT_TYPE_NULL))
 #define BT_VALUE_FALSE      ((bt_Value)(BT_NAN_MASK | BT_TYPE_BOOL))
 #define BT_VALUE_TRUE       ((bt_Value)(BT_NAN_MASK | (BT_TYPE_BOOL | 1)))
+#define BT_VALUE_BOOL(x)    ((x) ? BT_VALUE_TRUE : BT_VALUE_FALSE)
 #define BT_VALUE_NUMBER(x)  (bt_make_number((bt_number)x))
 #define BT_VALUE_STRING(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_STRING | (bt_Value)x)))
 #define BT_VALUE_OBJECT(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_OBJECT | (bt_Value)x)))

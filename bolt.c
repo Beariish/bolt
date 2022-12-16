@@ -246,6 +246,16 @@ static __forceinline void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value r
 	bt_runtime_error(thread, "Cannot negate non-number value!");
 }
 
+static __forceinline void bt_not(bt_Thread* thread, bt_Value* result, bt_Value rhs)
+{
+	if (BT_IS_BOOL(rhs)) {
+		*result = BT_VALUE_BOOL(BT_IS_FALSE(rhs));
+		return;
+	}
+
+	bt_runtime_error(thread, "Cannot 'not' non-bool value!");
+}
+
 static __forceinline void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
@@ -275,6 +285,56 @@ static __forceinline void bt_div(bt_Thread* thread, bt_Value* result, bt_Value l
 	bt_runtime_error(thread, "Cannot subtract non-number value!");
 }
 
+static __forceinline void bt_eq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+{
+	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
+}
+
+static __forceinline void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+{
+	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
+}
+
+static __forceinline void bt_lt(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+{
+	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
+		*result = BT_AS_NUMBER(lhs) < BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
+		return;
+	}
+
+	bt_runtime_error(thread, "Cannot subtract non-number value!");
+}
+
+static __forceinline void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+{
+	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
+		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
+		return;
+	}
+
+	bt_runtime_error(thread, "Cannot subtract non-number value!");
+}
+
+static __forceinline void bt_and(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+{
+	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
+		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) && BT_IS_TRUE(rhs));
+		return;
+	}
+
+	bt_runtime_error(thread, "Cannot 'and' non-bool value!");
+}
+
+static __forceinline void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+{
+	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
+		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) || BT_IS_TRUE(rhs));
+		return;
+	}
+
+	bt_runtime_error(thread, "Cannot 'or' non-bool value!");
+}
+
 static void bt_call(bt_Context* context, bt_Thread* thread, bt_Op* ip, bt_Value* constants, uint8_t stack_size, int8_t return_loc)
 {
 	bt_Op op;
@@ -288,13 +348,13 @@ dispatch:
 	case BT_OP_LOAD_SMALL:  stack[op.a] = BT_VALUE_NUMBER(op.ibc);               NEXT;
 	case BT_OP_LOAD_NULL:   stack[op.a] = BT_VALUE_NULL;                         NEXT;
 	case BT_OP_LOAD_BOOL:   stack[op.a] = op.b ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
-	case BT_OP_LOAD_IMPORT: 
+	case BT_OP_LOAD_IMPORT:
 		stack[op.a] =
 			(*(bt_ModuleImport**)bt_buffer_at(&thread->callstack[0].callable->module.imports, op.ubc))->value;
 		NEXT;
-	
+
 	case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
-	
+
 	case BT_OP_EXPORT: {
 		bt_Value name = stack[op.a];
 		bt_Value value = stack[op.b];
@@ -308,6 +368,15 @@ dispatch:
 	case BT_OP_SUB: bt_sub(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 	case BT_OP_MUL: bt_mul(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 	case BT_OP_DIV: bt_div(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+
+	case BT_OP_EQ:  bt_eq(thread, stack + op.a, stack[op.b], stack[op.c]);  NEXT;
+	case BT_OP_NEQ: bt_neq(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+	case BT_OP_LT:  bt_lt(thread, stack + op.a, stack[op.b], stack[op.c]);  NEXT;
+	case BT_OP_LTE: bt_lte(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+
+	case BT_OP_AND: bt_and(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+	case BT_OP_OR:  bt_or(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+	case BT_OP_NOT: bt_not(thread, stack + op.a, stack[op.b]); NEXT;
 
 	case BT_OP_LOAD_IDX: stack[op.a] = bt_table_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
 	
@@ -338,6 +407,9 @@ dispatch:
 
 		thread->top = old_top;
 	} NEXT;
+
+	case BT_OP_JMP: ip += op.ibc; NEXT;
+	case BT_OP_JMPF: if (stack[op.a] == BT_VALUE_FALSE) ip += op.ibc; NEXT;
 
 	case BT_OP_RETURN: stack[return_loc] = stack[op.a]; RETURN;
 	case BT_OP_END: RETURN;

@@ -42,6 +42,9 @@ typedef enum {
 
 	BT_OP_CALL,              // R(a) = R(b)(R(b + 1) .. R(b + c))
 
+	BT_OP_JMP,               // pc += ibc
+	BT_OP_JMPF,              // if(R(a) == BT_FALSE) pc += ibc
+
 	BT_OP_RETURN,			 // R(frame->ret_pos) = R(a)
 	BT_OP_END,               // return without value
 

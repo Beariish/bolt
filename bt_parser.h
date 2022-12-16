@@ -80,6 +80,12 @@ typedef struct bt_AstNode {
 			bt_Token* name;
 			bt_AstNode* value;
 		} exp;
+
+		struct {
+			bt_Buffer body;
+			bt_AstNode* condition;
+			bt_AstNode* next;
+		} branch;
 	} as; 
 } bt_AstNode;
 
