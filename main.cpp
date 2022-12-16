@@ -10,6 +10,7 @@ extern "C" {
 #include "bt_op.h"
 #include "bt_debug.h"
 #include "bt_compiler.h"
+#include "bt_embedding.h"
 }
 
 #include <malloc.h>
@@ -26,32 +27,49 @@ static void free_tracked(void* mem) {
 	free(mem);
 }
 
+void bt_print(bt_Context* ctx, bt_Thread* thread)
+{
+	static char buffer[4096];
+	int32_t pos = 0;
+
+	uint8_t argc = BT_ARGC(thread);
+	for (uint8_t i = 0; i < argc; ++i) {
+		bt_Value arg = BT_ARG(thread, i);
+		pos += bt_to_string_inplace(buffer + pos, 4096 - pos, arg);
+
+		if (i < argc - 1) buffer[pos++] = ' ';
+	}
+
+	buffer[pos] = 0;
+	printf("%s\n", buffer);
+}
+
+void bt_tostring(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value arg = BT_ARG(thread, 0);
+	BT_RETURN(thread, BT_VALUE_STRING(bt_to_string(ctx, arg)));
+}
+
 int main(int argc, char** argv) {
 	bt_Context context;
 	bt_open(&context, malloc_tracked, free_tracked);
 
-	bt_register_prelude(&context,
-		BT_VALUE_CSTRING(&context, "global_number"),
-		context.types.number,
-		BT_VALUE_NUMBER(100));
+	bt_Module* core_module = bt_make_user_module(&context);
 
-	bt_Module* test_module = bt_make_user_module(&context);
-	bt_module_export(&context, test_module,
-		context.types.number,
-		BT_VALUE_CSTRING(&context, "num"),
-		BT_VALUE_NUMBER(420.69));
+	bt_Type* print_sig = bt_make_vararg(&context, bt_make_signature(&context, NULL, NULL, 0), context.types.any);
+	bt_module_export(&context, core_module,
+		print_sig,
+		BT_VALUE_CSTRING(&context, "print"),
+		BT_VALUE_OBJECT(bt_make_native(&context, print_sig, bt_print)));
 
-	bt_module_export(&context, test_module,
-		context.types.number,
-		BT_VALUE_CSTRING(&context, "num2"),
-		BT_VALUE_NUMBER(69.420));
-
-	bt_module_export(&context, test_module,
-		context.types.boolean,
-		BT_VALUE_CSTRING(&context, "conditional"),
-		BT_VALUE_TRUE);
+	bt_Type* tostring_args[] = { context.types.any };
+	bt_Type* tostring_sig = bt_make_signature(&context, context.types.string, tostring_args, 1);
+	bt_module_export(&context, core_module,
+		tostring_sig,
+		BT_VALUE_CSTRING(&context, "to_string"),
+		BT_VALUE_OBJECT(bt_make_native(&context, tostring_sig, bt_tostring)));
 		
-	bt_register_module(&context, BT_VALUE_CSTRING(&context, "test"), test_module);
+	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
 	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "main"));
 	bt_Module* loaded = bt_find_module(&context, module_name);

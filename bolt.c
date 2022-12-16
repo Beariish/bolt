@@ -318,15 +318,22 @@ dispatch:
 		uint16_t old_top = thread->top;
 
 		bt_Callable* obj = BT_AS_OBJECT(stack[op.b]);
+		thread->top += op.b + 1;
+		thread->callstack[thread->depth++].callable = obj;
+		thread->callstack[thread->depth].return_loc = op.a - thread->top;
+		thread->callstack[thread->depth].argc = op.c;
 
 		if (obj->obj.type == BT_OBJECT_TYPE_FN) {
 			bt_Fn* callable = (bt_Fn*)obj;
-			thread->top += op.b + 1;
-
-			thread->callstack[thread->depth++].callable = callable;
-			thread->callstack[thread->depth].return_loc = op.a - thread->top;
-			thread->callstack[thread->depth].argc = op.c;
 			bt_call(context, thread, callable->instructions.data, callable->constants.data, callable->stack_size, op.a - thread->top);
+		}
+		else if (obj->obj.type == BT_OBJECT_TYPE_NATIVE_FN) {
+			bt_NativeFn* callable = (bt_NativeFn*)obj;
+			callable->fn(context, thread);
+			thread->depth--; // Manually pop the virtual call frame
+		}
+		else {
+			bt_runtime_error(thread, "Unsupported callable type.");
 		}
 
 		thread->top = old_top;

@@ -114,69 +114,79 @@ bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
 	return to_unnull->as.nullable.base;
 }
 
+static void update_sig_name(bt_Context* ctx, bt_Type* fn)
+{
+	// TODO(bearish): For the absolute fucking love of god please rewrite this. im begging you. thanks.
+	char name_buf[4096];
+	char* name_buf_cur = name_buf;
+	char* name_buf_base = name_buf;
+
+	strcpy(name_buf_cur, "fn (");
+	name_buf_cur += strlen("fn (");
+
+	for (uint8_t i = 0; i < fn->as.fn.args.length; i++) {
+		bt_Type* arg = *(bt_Type**)bt_buffer_at(&fn->as.fn.args, i);
+		strcpy(name_buf_cur, arg->name);
+		name_buf_cur += strlen(arg->name);
+		if (i < fn->as.fn.args.length - 1) {
+			strcpy(name_buf_cur, ", ");
+			name_buf_cur += strlen(", ");
+		}
+	}
+
+	if (fn->as.fn.is_vararg) {
+		if (fn->as.fn.args.length) {
+			strcpy(name_buf_cur, ", ");
+			name_buf_cur += strlen(", ");
+		}
+
+		strcpy(name_buf_cur, "..");
+		name_buf_cur += strlen("..");
+		
+		strcpy(name_buf_cur, fn->as.fn.varargs_type->name);
+		name_buf_cur += strlen(fn->as.fn.varargs_type->name);
+	}
+
+	strcpy(name_buf_cur, ")");
+	name_buf_cur += strlen(")");
+
+	if (fn->as.fn.return_type) {
+		strcpy(name_buf_cur, ": ");
+		name_buf_cur += strlen(": ");
+		strcpy(name_buf_cur, fn->as.fn.return_type->name);
+		name_buf_cur += strlen(fn->as.fn.return_type->name);
+	}
+
+	if (fn->name) ctx->free(fn->name);
+
+	char* new_name = ctx->alloc(name_buf_cur - name_buf_base + 1);
+	memcpy(new_name, name_buf_base, name_buf_cur - name_buf_base);
+	new_name[name_buf_cur - name_buf_base] = 0;
+
+	fn->name = new_name;
+}
+
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
 {	
 	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
 	result->as.fn.return_type = ret;
 	result->as.fn.args = BT_BUFFER_WITH_CAPACITY(context, bt_Type*, arg_count);
+	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args + i);
 	result->as.fn.is_vararg = BT_FALSE;
 	result->as.fn.varargs_type = NULL;
 
-	context->free(result->name);
-
-
-	// TODO(bearish): For the absolute fucking love of god please rewrite this. im begging you. thanks.
-	uint16_t name_len = 0;
-	name_len += strlen("fn (");
-	for (uint8_t i = 0; i < arg_count; i++) {
-		bt_Type* arg = args[i];
-		bt_buffer_push(context, &result->as.fn.args, &arg);
-		name_len += strlen(arg->name);
-		if (i < arg_count - 1)
-			name_len += strlen(", ");
-	}
-
-	name_len += strlen(")");
-	if (ret) {
-		name_len += strlen(": ");
-		name_len += strlen(ret->name);
-	}
-
-	char* new_name = context->alloc(name_len + 1);
-	char* new_name_base = new_name;
-
-	strcpy(new_name, "fn (");
-	new_name += strlen("fn (");
-
-	for (uint8_t i = 0; i < arg_count; i++) {
-		bt_Type* arg = args[i];
-		strcpy(new_name, arg->name);
-		new_name += strlen(arg->name);
-		if (i < arg_count - 1) {
-			strcpy(new_name, ", ");
-			new_name += strlen(", ");
-		}
-	}
-
-	strcpy(new_name, ")");
-	new_name += strlen(")");
-
-	if (ret) {
-		strcpy(new_name, ": ");
-		new_name += strlen(": ");
-		strcpy(new_name, ret->name);
-		new_name += strlen(ret->name);
-	}
-
-	result->name = new_name_base;
+	update_sig_name(context, result);
 
 	return result;
 }
 
-bt_Type* bt_make_vararg(bt_Type* original, bt_Type* varargs_type)
+bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type)
 {
 	original->as.fn.is_vararg = BT_TRUE;
 	original->as.fn.varargs_type = varargs_type;
+
+	update_sig_name(context, original);
+
 	return original;
 }
 

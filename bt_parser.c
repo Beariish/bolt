@@ -456,7 +456,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     assert(0 && "Couldn't find end of function call!");
                 }
 
-                if (max_arg != to_call->as.fn.args.length) {
+                if (max_arg != to_call->as.fn.args.length && to_call->as.fn.is_vararg == BT_FALSE) {
                     assert(0 && "Incorrect number of arguments!");
                 }
 
@@ -466,12 +466,23 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 
                 for (uint8_t i = 0; i < max_arg; i++) {
                     bt_Type* arg_type = type_check(parse, args[i])->resulting_type;
-                    bt_Type* fn_type = *(bt_Type**)bt_buffer_at(&to_call->as.fn.args, i);
-                    if (!fn_type->satisfier(fn_type, arg_type)) {
-                        assert(0 && "Invalid argument type!");
+                    
+                    if (i < to_call->as.fn.args.length) {
+                        bt_Type* fn_type = *(bt_Type**)bt_buffer_at(&to_call->as.fn.args, i);
+                        if (!fn_type->satisfier(fn_type, arg_type)) {
+                            assert(0 && "Invalid argument type!");
+                        }
+                        else {
+                            bt_buffer_push(parse->context, &call->as.call.args, &args[i]);
+                        }
                     }
                     else {
-                        bt_buffer_push(parse->context, &call->as.call.args, &args[i]);
+                        if (!to_call->as.fn.varargs_type->satisfier(to_call->as.fn.varargs_type, arg_type)) {
+                            assert(0 && "Arg doesn't match typed vararg");
+                        }
+                        else {
+                            bt_buffer_push(parse->context, &call->as.call.args, &args[i]);
+                        }
                     }
                 }
 

@@ -18,34 +18,46 @@ static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
 {
+    if (BT_IS_STRING(value)) return BT_AS_STRING(value);
+
     char buffer[4096];
+    int32_t len = bt_to_string_inplace(buffer, 4096, value);
+    return bt_make_string_len(ctx, buffer, len);
+}
+
+int32_t bt_to_string_inplace(char* buffer, uint32_t size, bt_Value value)
+{
     int32_t len = 0;
 
     if (BT_IS_NUMBER(value)) {
-        len = sprintf_s(buffer, 4096, "%f", BT_AS_NUMBER(value));
+        len = sprintf_s(buffer, size, "%f", BT_AS_NUMBER(value));
     }
     else {
         switch (BT_TYPEOF(value)) {
         case BT_TYPE_BOOL:
-            if (BT_IS_TRUE(value)) len = sprintf_s(buffer, 4096, "true");
-            else                   len = sprintf_s(buffer, 4096, "false");
+            if (BT_IS_TRUE(value)) len = sprintf_s(buffer, size, "true");
+            else                   len = sprintf_s(buffer, size, "false");
             break;
-        case BT_TYPE_NULL: len = sprintf_s(buffer, 4096, "null"); break;
-        case BT_TYPE_STRING: return BT_AS_STRING(value);
+        case BT_TYPE_NULL: len = sprintf_s(buffer, size, "null"); break;
+        case BT_TYPE_STRING: {
+            bt_String* str = BT_AS_STRING(value);
+            len = str->len;
+            memcpy(buffer, str->str, len);
+        } break;
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (obj->type) {
-            case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, 4096, "Type(%s)", ((bt_Type*)obj)->name); break;
-            case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, 4096, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
-            case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, 4096, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type->name); break;
-            case BT_OBJECT_TYPE_TABLE:     len = sprintf_s(buffer, 4096, "<0x%llx: table>", value); break;
-            default: len = sprintf_s(buffer, 4096, "<0x%llx: object>", value); break;
+            case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, size, "Type(%s)", ((bt_Type*)obj)->name); break;
+            case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
+            case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type->name); break;
+            case BT_OBJECT_TYPE_TABLE:     len = sprintf_s(buffer, size, "<0x%llx: table>", value); break;
+            default: len = sprintf_s(buffer, size, "<0x%llx: object>", value); break;
             }
         }
         }
     }
 
-    return bt_make_string_len(ctx, buffer, len);
+    return len;
 }
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str)

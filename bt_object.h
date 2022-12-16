@@ -96,6 +96,7 @@ typedef union {
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_STRING(bt_make_string(ctx, str))
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
+int32_t bt_to_string_inplace(char* buffer, uint32_t size, bt_Value value);
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);

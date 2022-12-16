@@ -63,7 +63,7 @@ bt_Type* bt_derive_type(bt_Context* context, bt_Type* original);
 bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable);
 bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull);
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
-bt_Type* bt_make_vararg(bt_Type* original, bt_Type* varargs_type);
+bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
