@@ -35,9 +35,10 @@ bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (obj->type) {
-            case BT_OBJECT_TYPE_TYPE:  len = sprintf_s(buffer, 4096, "Type(%s)", ((bt_Type*)obj)->name); break;
-            case BT_OBJECT_TYPE_FN:    len = sprintf_s(buffer, 4096, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
-            case BT_OBJECT_TYPE_TABLE: len = sprintf_s(buffer, 4096, "<0x%llx: table>", value); break;
+            case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, 4096, "Type(%s)", ((bt_Type*)obj)->name); break;
+            case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, 4096, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
+            case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, 4096, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type->name); break;
+            case BT_OBJECT_TYPE_TABLE:     len = sprintf_s(buffer, 4096, "<0x%llx: table>", value); break;
             default: len = sprintf_s(buffer, 4096, "<0x%llx: object>", value); break;
             }
         }
@@ -183,6 +184,15 @@ bt_Module* bt_make_user_module(bt_Context* ctx)
     result->constants = bt_buffer_empty();
     result->exports = bt_make_table(ctx, 0);
     result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
+
+    return result;
+}
+
+bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc)
+{
+    bt_NativeFn* result = BT_ALLOCATE(ctx, NATIVE_FN, bt_NativeFn);
+    result->type = signature;
+    result->fn = proc;
 
     return result;
 }

@@ -5,10 +5,12 @@ fn test_fn(x: number, y: number) {
     return x + y
 }
 
-let const test_fn2 = 
-    fn(x: number, y: number) { 
-        return x + y 
-    }
+fn never_returns(x: number) {
+    let y = x + 10
+    return true
+}
+
+let success = never_returns(100)
 
 let a = fn(x: number) { return x * 2 }(test_fn(num, num2))
 

@@ -407,7 +407,10 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         emit_abc(ctx, BT_OP_EXPORT, name_loc, value_loc, type_loc);
     } break;
     default:
-        return compile_expression(ctx, stmt, get_register(ctx));
+        push_registers(ctx);
+        bt_bool result = compile_expression(ctx, stmt, get_register(ctx));
+        restore_registers(ctx);
+        return result;
     }
 
     return BT_TRUE;
@@ -477,11 +480,8 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn)
         compile_statement(&ctx, stmt);
     }
 
-    if (fn->as.fn.ret_type) {
-        emit(&ctx, BT_OP_HALT);
-    }
-    else {
-        emit(&ctx, BT_OP_RETURN);
+    if (!fn->as.fn.ret_type) {
+        emit(&ctx, BT_OP_END);
     }
 
     bt_Fn* result = bt_make_fn(compiler->context, fn->resulting_type, &ctx.constants, &ctx.output, ctx.min_top_register);

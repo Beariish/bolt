@@ -19,11 +19,18 @@ typedef void (*bt_Free)(void* ptr);
 #define BT_CALLSTACK_SIZE 128
 #endif
 
+typedef struct bt_StackFrame {
+	bt_Callable* callable;
+	uint8_t argc : 7;
+	uint8_t returns : 1;
+	int8_t return_loc;
+} bt_StackFrame;
+
 typedef struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];
 	uint32_t top;
 
-	bt_Callable* callstack[BT_CALLSTACK_SIZE];
+	bt_StackFrame callstack[BT_CALLSTACK_SIZE];
 	uint32_t depth;
 
 	jmp_buf error_loc;

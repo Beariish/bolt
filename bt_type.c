@@ -119,6 +119,8 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
 	result->as.fn.return_type = ret;
 	result->as.fn.args = BT_BUFFER_WITH_CAPACITY(context, bt_Type*, arg_count);
+	result->as.fn.is_vararg = BT_FALSE;
+	result->as.fn.varargs_type = NULL;
 
 	context->free(result->name);
 
@@ -169,6 +171,13 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 	result->name = new_name_base;
 
 	return result;
+}
+
+bt_Type* bt_make_vararg(bt_Type* original, bt_Type* varargs_type)
+{
+	original->as.fn.is_vararg = BT_TRUE;
+	original->as.fn.varargs_type = varargs_type;
+	return original;
 }
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)

@@ -156,7 +156,6 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	        break;
 		case BT_OP_NEG:         printf("[%.3d]: NEG    %d, %d\n", i, op.a, op.b);	        break;
 		case BT_OP_END:         printf("[%.3d]: END\n", i);	                                break;
-		case BT_OP_HALT:        printf("[%.3d]: HALT\n", i);	                            break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}
 	}

@@ -197,7 +197,10 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	thread.depth = 0;
 	thread.top = 0;
 
-	thread.callstack[thread.depth++] = module;
+	thread.callstack[thread.depth++].callable = module;
+	thread.callstack[thread.depth].returns = 0;
+	thread.callstack[thread.depth].return_loc = 0;
+	thread.callstack[thread.depth].argc = 0;
 
 	int32_t result = setjmp(thread.error_loc);
 
@@ -287,7 +290,7 @@ dispatch:
 	case BT_OP_LOAD_BOOL:   stack[op.a] = op.b ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 	case BT_OP_LOAD_IMPORT: 
 		stack[op.a] =
-			(*(bt_ModuleImport**)bt_buffer_at(&thread->callstack[0]->module.imports, op.ubc))->value;
+			(*(bt_ModuleImport**)bt_buffer_at(&thread->callstack[0].callable->module.imports, op.ubc))->value;
 		NEXT;
 	
 	case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
@@ -297,7 +300,7 @@ dispatch:
 		bt_Value value = stack[op.b];
 		bt_Type* type = BT_AS_OBJECT(stack[op.c]);
 
-		bt_module_export(context, thread->callstack[0], type, name, value);
+		bt_module_export(context, thread->callstack[0].callable, type, name, value);
 	} NEXT;
 
 	case BT_OP_NEG: bt_neg(thread, stack + op.a, stack[op.b]);              NEXT;
@@ -313,17 +316,24 @@ dispatch:
 	
 	case BT_OP_CALL: {
 		uint16_t old_top = thread->top;
-		bt_Fn* callable = (bt_Fn*)BT_AS_OBJECT(stack[op.b]);
-		thread->top += op.b + 1;
 
-		thread->callstack[thread->depth++] = callable;
-		bt_call(context, thread, callable->instructions.data, callable->constants.data, callable->stack_size, op.a - thread->top);
+		bt_Callable* obj = BT_AS_OBJECT(stack[op.b]);
+
+		if (obj->obj.type == BT_OBJECT_TYPE_FN) {
+			bt_Fn* callable = (bt_Fn*)obj;
+			thread->top += op.b + 1;
+
+			thread->callstack[thread->depth++].callable = callable;
+			thread->callstack[thread->depth].return_loc = op.a - thread->top;
+			thread->callstack[thread->depth].argc = op.c;
+			bt_call(context, thread, callable->instructions.data, callable->constants.data, callable->stack_size, op.a - thread->top);
+		}
+
 		thread->top = old_top;
 	} NEXT;
 
 	case BT_OP_RETURN: stack[return_loc] = stack[op.a]; RETURN;
 	case BT_OP_END: RETURN;
-	case BT_OP_HALT: assert(0 && "This should never happen, internal compiler error.");
 	default: __debugbreak();
 	}
 

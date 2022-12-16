@@ -659,6 +659,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         }
         else {
             node->resulting_type = type_check(parse, rhs)->resulting_type;
+            if (!node->resulting_type) assert(0 && "Right hand side did not evaluate to type!");
         }
     }
     else {

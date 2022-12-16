@@ -45,10 +45,6 @@ typedef enum {
 	BT_OP_RETURN,			 // R(frame->ret_pos) = R(a)
 	BT_OP_END,               // return without value
 
-	// sentinel opcode that is inserted at the end of buffers for safety - 
-	// should alwayas be preceeded by a return op, and thus never invoked
-	BT_OP_HALT,
-
 	// Fast opcode extensions.
 	// These are emitted by the compiler whenever types are strongly known
 	

@@ -15,6 +15,7 @@ typedef enum {
 	BT_OBJECT_TYPE_IMPORT,
 	BT_OBJECT_TYPE_EXPORT,
 	BT_OBJECT_TYPE_FN,
+	BT_OBJECT_TYPE_NATIVE_FN,
 	BT_OBJECT_TYPE_CLOSURE,
 	BT_OBJECT_TYPE_METHOD,
 	BT_OBEJCT_TYPE_ARRAY,
@@ -77,10 +78,19 @@ typedef struct bt_Module {
 	bt_Type* type;
 } bt_Module;
 
+typedef void (*bt_NativeProc)(bt_Context* ctx, bt_Thread* thread);
+
+typedef struct bt_NativeFn {
+	bt_Object obj;
+	bt_Type* type;
+	bt_NativeProc fn;
+} bt_NativeFn;
+
 typedef union {
 	bt_Object obj;
 	bt_Fn fn;
 	bt_Module module;
+	bt_NativeFn native;
 } bt_Callable;
 
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_STRING(bt_make_string(ctx, str))
@@ -103,5 +113,7 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
 bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
 bt_Module* bt_make_user_module(bt_Context* ctx);
+
+bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);
 
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
