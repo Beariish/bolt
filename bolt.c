@@ -196,6 +196,7 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	bt_Thread thread;
 	thread.depth = 0;
 	thread.top = 0;
+	thread.context = context;
 
 	thread.callstack[thread.depth++].callable = module;
 	thread.callstack[thread.depth].returns = 0;
@@ -231,6 +232,20 @@ static __forceinline void bt_add(bt_Thread* thread, bt_Value* result, bt_Value l
 
 	if (BT_TYPEOF(lhs) != BT_TYPEOF(rhs)) {
 		bt_runtime_error(thread, "Cannot add separate types!");
+	}
+
+	if (BT_IS_STRING(lhs)) {
+		bt_String* lhs_str = BT_AS_STRING(lhs);
+		bt_String* rhs_str = BT_AS_STRING(rhs);
+		uint32_t length = lhs_str->len + rhs_str->len;
+
+		char* added = thread->context->alloc(length + 1);
+		memcpy(added, lhs_str->str, lhs_str->len);
+		memcpy(added + lhs_str->len, rhs_str->str, rhs_str->len);
+		added[length] = 0;
+
+		*result = BT_VALUE_STRING(bt_make_string_moved(thread->context, added, length));
+		return;
 	}
 
 	bt_runtime_error(thread, "Unable to add values of type <TODO>!");

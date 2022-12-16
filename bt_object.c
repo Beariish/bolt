@@ -87,6 +87,15 @@ bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t 
     return bt_hash_string(result);
 }
 
+bt_String* bt_make_string_moved(bt_Context* ctx, const char* str, uint32_t len)
+{
+    bt_String* result = BT_ALLOCATE(ctx, STRING, bt_String);
+    result->str = str;
+    result->len = len;
+    result->hash = 0;
+    return result;
+}
+
 bt_String* bt_hash_string(bt_String* str)
 {
     if (str->hash == 0) {

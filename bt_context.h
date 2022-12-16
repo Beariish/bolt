@@ -26,16 +26,6 @@ typedef struct bt_StackFrame {
 	int8_t return_loc;
 } bt_StackFrame;
 
-typedef struct bt_Thread {
-	bt_Value stack[BT_STACK_SIZE];
-	uint32_t top;
-
-	bt_StackFrame callstack[BT_CALLSTACK_SIZE];
-	uint32_t depth;
-
-	jmp_buf error_loc;
-} bt_Thread;
-
 struct bt_Context {
 	bt_Alloc alloc;
 	bt_Free free;
@@ -60,6 +50,18 @@ struct bt_Context {
 
 	bt_BucketedBuffer heap;
 };
+
+typedef struct bt_Thread {
+	bt_Value stack[BT_STACK_SIZE];
+	uint32_t top;
+
+	bt_StackFrame callstack[BT_CALLSTACK_SIZE];
+	uint32_t depth;
+
+	jmp_buf error_loc;
+
+	bt_Context* context;
+} bt_Thread;
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
 

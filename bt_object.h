@@ -102,6 +102,7 @@ bt_String* bt_make_string(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len);
+bt_String* bt_make_string_moved(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_hash_string(bt_String* str);
 bt_StrSlice bt_as_strslice(bt_String* str);
 

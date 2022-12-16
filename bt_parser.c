@@ -473,6 +473,8 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     }
                 }
 
+                if (max_arg == 0) bt_tokenizer_emit(tok);
+
                 if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
                     assert(0 && "Couldn't find end of function call!");
                 }

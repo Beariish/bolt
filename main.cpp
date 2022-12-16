@@ -14,6 +14,7 @@ extern "C" {
 }
 
 #include <malloc.h>
+#include <Windows.h>
 
 static size_t bytes_allocated = 0;
 static void* malloc_tracked(size_t size) {
@@ -27,7 +28,31 @@ static void free_tracked(void* mem) {
 	free(mem);
 }
 
-void bt_print(bt_Context* ctx, bt_Thread* thread)
+static LARGE_INTEGER time_freq, time_start;
+static void init_time()
+{
+	QueryPerformanceFrequency(&time_freq);
+	QueryPerformanceCounter(&time_start);
+}
+
+static uint64_t get_time()
+{
+	LARGE_INTEGER time;
+	QueryPerformanceCounter(&time);
+
+	uint64_t in_micros = (uint64_t)time.QuadPart - (uint64_t)time_start.QuadPart;
+	in_micros *= 1'000'000;
+	in_micros /= time_freq.QuadPart;
+
+	return in_micros;
+}
+
+static void bt_time(bt_Context* ctx, bt_Thread* thread)
+{
+	BT_RETURN(thread, BT_VALUE_NUMBER(get_time()));
+}
+
+static void bt_print(bt_Context* ctx, bt_Thread* thread)
 {
 	static char buffer[4096];
 	int32_t pos = 0;
@@ -44,13 +69,15 @@ void bt_print(bt_Context* ctx, bt_Thread* thread)
 	printf("%s\n", buffer);
 }
 
-void bt_tostring(bt_Context* ctx, bt_Thread* thread)
+static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = BT_ARG(thread, 0);
 	BT_RETURN(thread, BT_VALUE_STRING(bt_to_string(ctx, arg)));
 }
 
 int main(int argc, char** argv) {
+	init_time();
+
 	bt_Context context;
 	bt_open(&context, malloc_tracked, free_tracked);
 
@@ -69,6 +96,12 @@ int main(int argc, char** argv) {
 		BT_VALUE_CSTRING(&context, "to_string"),
 		BT_VALUE_OBJECT(bt_make_native(&context, tostring_sig, bt_tostring)));
 		
+	bt_Type* time_sig = bt_make_signature(&context, context.types.number, NULL, 0);
+	bt_module_export(&context, core_module,
+		time_sig,
+		BT_VALUE_CSTRING(&context, "time"),
+		BT_VALUE_OBJECT(bt_make_native(&context, time_sig, bt_time)));
+
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
 	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "main"));
