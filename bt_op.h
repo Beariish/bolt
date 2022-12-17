@@ -20,6 +20,10 @@ typedef enum {
 	BT_OP_MOVE,				 // R(a) = R(b)
 	BT_OP_EXPORT,            // exports[R(a)]: R(c) = R(b)
 
+	BT_OP_CLOSE,             // R(a) = Closure(R(b)) with upvals[R(b+1..b+c)]
+	BT_OP_LOADUP,            // R(a) = upvals[b]
+	BT_OP_STOREUP,           // upvals[a] = R(b)
+
 	BT_OP_NEG,				 // R(a) = -R(b)
 	BT_OP_ADD,				 // R(a) = R(b) + R(c)
 	BT_OP_SUB,				 // R(a) = R(b) - R(c)

@@ -168,12 +168,14 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
     return bt_table_get(tbl, str);
 }
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
     
     result->signature = signature;
     result->stack_size = stack_size;
+
+    result->module = module;
 
     result->constants = bt_buffer_clone(ctx, constants);
     result->instructions = bt_buffer_clone(ctx, instructions);
@@ -181,14 +183,11 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_
     return result;
 }
 
-bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
+bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports)
 {
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
 
-    result->stack_size = stack_size;
     result->imports = bt_buffer_clone(ctx, imports);
-    result->constants = bt_buffer_clone(ctx, constants);
-    result->instructions = bt_buffer_clone(ctx, instructions);
     result->exports = bt_make_table(ctx, 0);
     result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
 

@@ -121,8 +121,13 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 	char* name_buf_cur = name_buf;
 	char* name_buf_base = name_buf;
 
-	strcpy(name_buf_cur, "fn (");
-	name_buf_cur += strlen("fn (");
+	strcpy(name_buf_cur, "fn");
+	name_buf_cur += strlen("fn");
+
+	if (fn->as.fn.args.length || fn->as.fn.is_vararg) {
+		strcpy(name_buf_cur, "(");
+		name_buf_cur += strlen("(");
+	}
 
 	for (uint8_t i = 0; i < fn->as.fn.args.length; i++) {
 		bt_Type* arg = *(bt_Type**)bt_buffer_at(&fn->as.fn.args, i);
@@ -147,8 +152,10 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 		name_buf_cur += strlen(fn->as.fn.varargs_type->name);
 	}
 
-	strcpy(name_buf_cur, ")");
-	name_buf_cur += strlen(")");
+	if (fn->as.fn.args.length || fn->as.fn.is_vararg) {
+		strcpy(name_buf_cur, ")");
+		name_buf_cur += strlen(")");
+	}
 
 	if (fn->as.fn.return_type) {
 		strcpy(name_buf_cur, ": ");

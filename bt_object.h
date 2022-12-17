@@ -31,40 +31,12 @@ typedef struct bt_Object {
 	uint32_t gray : 1;
 } bt_Object;
 
-typedef struct bt_String {
-	bt_Object obj;
-	uint32_t len;
-	char* str;
-	uint64_t hash;
-} bt_String;
-
-typedef struct bt_TablePair {
-	bt_Value key, value;
-} bt_TablePair;
-
 typedef struct bt_Table {
 	bt_Object obj;
 
 	bt_Buffer pairs;
 	struct bt_Table* prototype;
 } bt_Table;
-
-typedef struct bt_Fn {
-	bt_Object obj;
-
-	bt_Buffer constants;
-	bt_Buffer instructions;
-
-	bt_Type* signature;
-	uint8_t stack_size;
-} bt_Fn;
-
-typedef struct bt_ModuleImport {
-	bt_Object obj;
-	bt_String* name;
-	bt_Type* type;
-	bt_Value value;
-} bt_ModuleImport;
 
 typedef struct bt_Module {
 	bt_Object obj;
@@ -77,6 +49,41 @@ typedef struct bt_Module {
 	bt_Table* exports;
 	bt_Type* type;
 } bt_Module;
+
+typedef struct bt_String {
+	bt_Object obj;
+	uint32_t len;
+	char* str;
+	uint64_t hash;
+} bt_String;
+
+typedef struct bt_TablePair {
+	bt_Value key, value;
+} bt_TablePair;
+
+typedef struct bt_Fn {
+	bt_Object obj;
+
+	bt_Buffer constants;
+	bt_Buffer instructions;
+
+	bt_Type* signature;
+	bt_Module* module;
+	uint8_t stack_size;
+} bt_Fn;
+
+typedef struct bt_Closure {
+	bt_Object obj;
+	bt_Buffer upvals;
+	bt_Fn* fn;
+} bt_Closure;
+
+typedef struct bt_ModuleImport {
+	bt_Object obj;
+	bt_String* name;
+	bt_Type* type;
+	bt_Value value;
+} bt_ModuleImport;
 
 typedef void (*bt_NativeProc)(bt_Context* ctx, bt_Thread* thread);
 
@@ -91,6 +98,7 @@ typedef union {
 	bt_Fn fn;
 	bt_Module module;
 	bt_NativeFn native;
+	bt_Closure cl;
 } bt_Callable;
 
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_STRING(bt_make_string(ctx, str))
@@ -112,8 +120,8 @@ bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Va
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
 bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
-bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
+bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports);
 bt_Module* bt_make_user_module(bt_Context* ctx);
 
 bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);

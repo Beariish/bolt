@@ -17,6 +17,7 @@ static const char* ast_node_type_to_string(bt_AstNode* node)
 	case BT_AST_NODE_RETURN: return "RETURN";
 	case BT_AST_NODE_CALL: return "CALL";
 	case BT_AST_NODE_EXPORT: return "EXPORT";
+	case BT_AST_NODE_IF: return "IF";
 	default: return "<UNKNOWN>";
 	}
 }
@@ -40,6 +41,10 @@ static const char* ast_node_op_to_string(bt_AstNode* node)
 		case BT_TOKEN_OR: return "or";
 		case BT_TOKEN_EQUALS: return "==";
 		case BT_TOKEN_NOTEQ: return "!=";
+		case BT_TOKEN_LT: return "<";
+		case BT_TOKEN_LTE: return "<=";
+		case BT_TOKEN_GT: return ">";
+		case BT_TOKEN_GTE: return ">=";
 		case BT_TOKEN_NULLCOALESCE: return "??";
 		case BT_TOKEN_LEFTBRACKET: return "[]";
 		default: return "<???>";
@@ -96,6 +101,26 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 			recursive_print_ast_node(arg, depth + 1);
 		}
 		break;
+	case BT_AST_NODE_IF: {
+		bt_AstNode* last = 0;
+		bt_AstNode* current = node;
+
+		while (current) {
+			if (last && current->as.branch.condition) name = "ELSE IF";
+			else if (last) name = "ELSE";
+
+			printf("%*s%s\n", depth * 4, "", name);
+			if(current->as.branch.condition)
+				recursive_print_ast_node(current->as.branch.condition, depth + 2);
+			for (uint8_t i = 0; i < current->as.branch.body.length; ++i) {
+				bt_AstNode* arg = *(bt_AstNode**)bt_buffer_at(&current->as.branch.body, i);
+				recursive_print_ast_node(arg, depth + 1);
+			}
+
+			last = current;
+			current = current->as.branch.next;
+		}
+	} break;
 	case BT_AST_NODE_EXPORT: {
 		printf("%*s%s\n", depth * 4, "", name);
 		recursive_print_ast_node(node->as.exp.value, depth + 1);
@@ -155,6 +180,9 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_COALESCE:    printf("[%.3d]: COALES %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_MOVE:        printf("[%.3d]: MOVE   %d, %d\n", i, op.a, op.b);	        break;
 		case BT_OP_EXPORT:      printf("[%.3d]: EXPORT %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_CLOSE:       printf("[%.3d]: CLOSE  %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_LOADUP:      printf("[%.3d]: LOADUP %d, %d\n", i, op.a, op.b);           break;
+		case BT_OP_STOREUP:     printf("[%.3d]: STORUP %d, %d\n", i, op.a, op.b);           break;
 		case BT_OP_CALL:        printf("[%.3d]: CALL   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_RETURN:      printf("[%.3d]: RETURN %d\n", i, op.a);	                    break;
 		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, op.a, op.b);	        break;

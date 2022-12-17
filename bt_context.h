@@ -21,8 +21,8 @@ typedef void (*bt_Free)(void* ptr);
 
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
-	uint8_t argc : 7;
-	uint8_t returns : 1;
+	bt_Module* module;
+	uint8_t argc;
 	int8_t return_loc;
 } bt_StackFrame;
 

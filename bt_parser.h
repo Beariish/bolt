@@ -68,7 +68,9 @@ typedef struct bt_AstNode {
 		struct {
 			bt_Buffer args;
 			bt_Buffer body;
+			bt_Buffer upvals;
 			bt_Type* ret_type;
+			bt_AstNode* outer;
 		} fn;
 
 		struct {
@@ -98,12 +100,14 @@ typedef struct bt_ParseBinding {
 typedef struct bt_ParseScope {
 	bt_Buffer bindings;
 	struct bt_ParseScope* last;
+	bt_bool is_fn_boundary;
 } bt_ParseScope;
 
 typedef struct {
 	bt_Context* context;
 	bt_Tokenizer* tokenizer;
 	bt_AstNode* root;
+	bt_AstNode* current_fn;
 
 	bt_ParseScope* scope;
 } bt_Parser;

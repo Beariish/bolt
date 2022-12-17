@@ -32,17 +32,32 @@ typedef struct FunctionContext {
     RegisterState temps[32];
     uint8_t temp_top;
 
-    bt_Buffer imports;
     bt_Buffer constants;
     bt_Buffer output;
 
     bt_Compiler* compiler;
     bt_Context* context;
+
+    bt_Module* module;
+    bt_AstNode* fn;
+
+    struct FunctionContext* outer;
 } FunctionContext;
 
 static uint8_t get_register(FunctionContext* ctx);
 static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
-static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn);
+static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
+
+static bt_Module* find_module(FunctionContext* ctx)
+{
+    while (ctx) {
+        if (ctx->module) return ctx->module;
+        ctx = ctx->outer;
+    }
+
+    assert(0 && "Internal compiler error - function has no module context!");
+    return NULL;
+}
 
 static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name) 
 {
@@ -69,10 +84,25 @@ static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name)
     return INVALID_BINDING;
 }
 
+static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name)
+{
+    bt_AstNode* fn = ctx->fn;
+    if (!fn) return INVALID_BINDING;
+
+    for (uint32_t i = 0; i < fn->as.fn.upvals.length; i++) {
+        bt_ParseBinding* bind = bt_buffer_at(&fn->as.fn.upvals, i);
+        if (bt_strslice_compare(bind->name, name)) return i;
+    }
+
+    return INVALID_BINDING;
+}
+
 static uint16_t find_import(FunctionContext* ctx, bt_StrSlice name)
 {
-    for (uint32_t i = 0; i < ctx->imports.length; ++i) {
-        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(&ctx->imports, i);
+    bt_Module* mod = find_module(ctx);
+
+    for (uint32_t i = 0; i < mod->imports.length; ++i) {
+        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(&mod->imports, i);
         if (bt_strslice_compare(bt_as_strslice(import->name), name)) {
             return i;
         }
@@ -219,13 +249,18 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* expr)
 {
     uint8_t loc = INVALID_BINDING;
-    if (expr->type == BT_AST_NODE_IDENTIFIER) {
+
+    if(expr->type == BT_AST_NODE_IDENTIFIER) {
         loc = find_binding(ctx, expr->source->source);
-        if (loc == INVALID_BINDING) assert(0 && "Compiler error: Can't find identifier!");
     }
-    else {
+
+    if (loc == INVALID_BINDING) {
         loc = get_register(ctx);
         if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");
+    }
+
+    if (loc == INVALID_BINDING) {
+        assert(0 && "Compiler error: Can't find identifier!");
     }
 
     return loc;
@@ -234,13 +269,15 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
 static uint8_t find_binding_or_compile_loc(FunctionContext* ctx, bt_AstNode* expr, uint8_t backup_loc)
 {
     uint8_t loc = INVALID_BINDING;
-    if (expr->type == BT_AST_NODE_IDENTIFIER) {
-        loc = find_binding(ctx, expr->source->source);
-        if (loc == INVALID_BINDING) assert(0 && "Compiler error: Can't find identifier!");
-    }
-    else {
+    loc = find_binding(ctx, expr->source->source);
+    
+    if (loc == INVALID_BINDING) {
         loc = backup_loc;
         if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");
+    }
+
+    if (loc == INVALID_BINDING) {
+        assert(0 && "Compiler error: Can't find identifier!");
     }
 
     return loc;
@@ -288,8 +325,18 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     } break;
     case BT_AST_NODE_IDENTIFIER: { // simple copy
         uint8_t loc = find_binding(ctx, expr->source->source);
-        if (loc == INVALID_BINDING) assert(0);
-        emit_ab(ctx, BT_OP_MOVE, result_loc, loc);
+        if (loc != INVALID_BINDING) {
+            emit_ab(ctx, BT_OP_MOVE, result_loc, loc); 
+            break;
+        }
+
+        loc = find_upval(ctx, expr->source->source);
+        if (loc != INVALID_BINDING) {
+            emit_ab(ctx, BT_OP_LOADUP, result_loc, loc);
+            break;
+        }
+         
+        assert(0 && "Cannot find identifier!");
     } break;
     case BT_AST_NODE_IMPORT_REFERENCE: {
         uint16_t loc = find_import(ctx, expr->source->source);
@@ -389,9 +436,36 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         restore_registers(ctx);
     } break;
     case BT_AST_NODE_FUNCTION: {
-        bt_Fn* fn = compile_fn(ctx->compiler, expr);
+        bt_Fn* fn = compile_fn(ctx->compiler, ctx, expr);
         uint8_t idx = push(ctx, BT_VALUE_OBJECT(fn));
-        emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+
+        if (expr->as.fn.upvals.length == 0) {
+            emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+        }
+        else {
+            uint8_t start = get_registers(ctx, expr->as.fn.upvals.length + 1);
+
+            emit_ab(ctx, BT_OP_LOAD, start, idx);
+
+            for (uint8_t i = 0; i < expr->as.fn.upvals.length; ++i) {
+                bt_ParseBinding* binding = bt_buffer_at(&expr->as.fn.upvals, i);
+                uint8_t loc = find_binding(ctx, binding->name);
+                if (loc != INVALID_BINDING) {
+                    emit_ab(ctx, BT_OP_MOVE, start + i + 1, loc);
+                    continue;
+                }
+
+                loc = find_upval(ctx, binding->name);
+                if (loc != INVALID_BINDING) {
+                    emit_ab(ctx, BT_OP_LOADUP, start + i + 1, loc);
+                    continue;
+                }
+                
+                assert(0 && "Cannot find identifier!");
+            }
+
+            emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length);
+        }
     } break;
     default: assert(0);
     }
@@ -502,26 +576,31 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.registers.regs[3] = 0;
     fn.temp_top = 0;
     fn.binding_top = 0;
-    fn.imports = bt_buffer_clone(compiler->context, imports);
     fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
     fn.constants = BT_BUFFER_NEW(compiler->context, bt_Value);
     fn.context = compiler->context;
     fn.compiler = compiler;
+    fn.fn = 0;
+
+    bt_Module* result = bt_make_module(compiler->context, imports);
+    fn.module = result;
 
     compile_body(&fn, body);
 
     emit(&fn, BT_OP_END);
 
-    bt_Module* result = bt_make_module(compiler->context, &fn.imports, &fn.constants, &fn.output, fn.min_top_register);
+
+    result->stack_size = fn.min_top_register;
+    result->constants = bt_buffer_clone(compiler->context, &fn.constants);
+    result->instructions = bt_buffer_clone(compiler->context, &fn.output);
 
     bt_buffer_destroy(compiler->context, &fn.constants);
     bt_buffer_destroy(compiler->context, &fn.output);
-    bt_buffer_destroy(compiler->context, &fn.imports);
 
     return result;
 }
 
-static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn) 
+static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn) 
 {
     FunctionContext ctx;
     ctx.min_top_register = 0;
@@ -535,6 +614,9 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn)
     ctx.constants = BT_BUFFER_NEW(compiler->context, bt_Value);
     ctx.context = compiler->context;
     ctx.compiler = compiler;
+    ctx.outer = parent;
+    ctx.module = 0;
+    ctx.fn = fn;
 
     bt_Buffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {
@@ -549,7 +631,8 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, bt_AstNode* fn)
         emit(&ctx, BT_OP_END);
     }
 
-    bt_Fn* result = bt_make_fn(compiler->context, fn->resulting_type, &ctx.constants, &ctx.output, ctx.min_top_register);
+    bt_Module* mod = find_module(&ctx);
+    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &ctx.constants, &ctx.output, ctx.min_top_register);
 
     bt_debug_print_fn(compiler->context, result);
     printf("-----------------------------------------------------\n");

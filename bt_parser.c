@@ -25,10 +25,12 @@ void bt_close_parser(bt_Parser* parse)
 {
 }
 
-static void push_scope(bt_Parser* parser)
+static void push_scope(bt_Parser* parser, bt_bool is_fn_boundary)
 {
     bt_ParseScope* new_scope = parser->context->alloc(sizeof(bt_ParseScope));
     new_scope->last = parser->scope;
+    new_scope->is_fn_boundary = is_fn_boundary;
+
     parser->scope = new_scope;
 
     new_scope->bindings = BT_BUFFER_NEW(parser->context, bt_ParseBinding);
@@ -93,7 +95,7 @@ static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
             }
         }
 
-        current = current->last;
+        current = current->is_fn_boundary ? NULL : current->last;
     }
 
     return NULL;
@@ -288,7 +290,7 @@ static bt_Type* infer_return(bt_Buffer* body, bt_Type* expected)
                 expected = expr->resulting_type;
             }
 
-            if (!expected->satisfier(expected, expr->resulting_type)) {
+            if (expected && !expected->satisfier(expected, expr->resulting_type)) {
                 assert(0 && "Block returns wrong type!");
             }
         }
@@ -313,10 +315,17 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     result->as.fn.args = BT_BUFFER_NEW(parse->context, bt_FnArg);
     result->as.fn.body = BT_BUFFER_WITH_CAPACITY(parse->context, bt_AstNode*, 8);
     result->as.fn.ret_type = NULL;
+    result->as.fn.outer = parse->current_fn;
+    result->as.fn.upvals = bt_buffer_empty();
+
+    parse->current_fn = result;
 
     bt_Token* next = bt_tokenizer_peek(tok);
 
+    bt_bool has_param_list = BT_FALSE;
     if (next->type == BT_TOKEN_LEFTPAREN) {
+        has_param_list = BT_TRUE;
+
         bt_tokenizer_emit(tok);
 
         do {
@@ -326,6 +335,9 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
             if (next->type == BT_TOKEN_IDENTIFIER) {
                 this_arg.name = next->source;
                 next = bt_tokenizer_peek(tok);
+            }
+            else if (next->type == BT_TOKEN_RIGHTPAREN) {
+                break;
             }
             else {
                 assert(0 && "Malformed parameter list!");
@@ -346,7 +358,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         } while (next && next->type == BT_TOKEN_COMMA);
     }
 
-    if (next->type != BT_TOKEN_RIGHTPAREN) {
+    if (has_param_list && next->type != BT_TOKEN_RIGHTPAREN) {
         assert(0 && "Cannot find end of parameter list!");
     }
 
@@ -360,7 +372,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     next = bt_tokenizer_emit(tok);
 
     if (next->type == BT_TOKEN_LEFTBRACE) {
-        push_scope(parse);
+        push_scope(parse, BT_TRUE);
 
         for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
             push_arg(parse, (bt_FnArg*)bt_buffer_at(&result->as.fn.args, i));
@@ -388,12 +400,15 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     }
 
     result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+
+    parse->current_fn = parse->current_fn->as.fn.outer;
+
     return result;
 }
 
 static void parse_block(bt_Buffer* result, bt_Parser* parse)
 {
-    push_scope(parse);
+    push_scope(parse, BT_FALSE);
 
     bt_Token* next = bt_tokenizer_peek(parse->tokenizer);
 
@@ -545,19 +560,90 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     return lhs_node;
 }
 
+static void push_upval(bt_Parser* parse, bt_AstNode* fn, bt_ParseBinding* upval)
+{
+    if (fn->as.fn.upvals.element_size == 0) {
+        fn->as.fn.upvals = BT_BUFFER_NEW(parse->context, bt_ParseBinding);
+    }
+
+    for (uint32_t i = 0; i < fn->as.fn.upvals.length; ++i) {
+        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&fn->as.fn.upvals, i);
+        if (bt_strslice_compare(binding->name, upval->name)) {
+            return;
+        }
+    }
+
+    bt_buffer_push(parse->context, &fn->as.fn.upvals, upval);
+}
+
+static bt_ParseBinding* find_upval(bt_Parser* parse, bt_AstNode* ident)
+{
+    bt_AstNode* fn = parse->current_fn;
+
+    if (!fn) return NULL;
+
+    for (uint32_t i = 0; i < fn->as.fn.upvals.length; ++i) {
+        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&fn->as.fn.upvals, i);
+        if (bt_strslice_compare(binding->name, ident->source->source)) {
+            return binding;
+        }
+    }
+
+    return NULL;
+}
+
+static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
+{
+    bt_ParseBinding* binding = find_local(parse, ident);
+    if (binding) return binding->type;
+
+
+    binding = find_upval(parse, ident);
+    if (binding) return binding->type;
+
+    bt_AstNode* fns[8];
+    uint8_t fns_top = 0;
+
+    fns[fns_top++] = parse->current_fn;
+
+    bt_ParseScope* scope = parse->scope;
+
+    while (scope) {
+        for (uint32_t i = 0; i < scope->bindings.length; ++i) {
+            bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&scope->bindings, i);
+            if (bt_strslice_compare(binding->name, ident->source->source)) {
+                for (uint8_t j = 0; j < fns_top - 1; ++j) {
+                    push_upval(parse, fns[j], binding);
+                }
+
+                return binding->type;
+            }
+        }
+
+        if (scope->is_fn_boundary) {
+            fns[fns_top] = fns[fns_top - 1]->as.fn.outer;
+            fns_top++;
+        }
+
+        scope = scope->last;
+    }
+
+    bt_ModuleImport* import = find_import(parse, ident);
+    if (import) return import->type;
+
+    return NULL;
+}
+
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 {
     switch (node->type) {
     case BT_AST_NODE_IDENTIFIER: {
-        bt_ParseBinding* binding = find_local(parse, node);
-        if (binding) {
-            node->resulting_type = binding->type;
+        bt_Type* type = find_binding(parse, node);
+        if (type) {
+            node->resulting_type = type;
         }
         else {
-            bt_ModuleImport* import = find_import(parse, node);
-            if (import) {
-                node->resulting_type = import->type;
-            }
+            assert(0 && "Failed to find identifier!");
         }
     } break;
     case BT_AST_NODE_LITERAL:
@@ -1030,8 +1116,9 @@ bt_bool bt_parse(bt_Parser* parser)
     parser->root->type = BT_AST_NODE_MODULE;
     parser->root->as.module.body = bt_buffer_new(parser->context, sizeof(bt_AstNode*));
     parser->root->as.module.imports = bt_buffer_new(parser->context, sizeof(bt_ModuleImport*));
+    parser->current_fn = NULL;
 
-    push_scope(parser);
+    push_scope(parser, BT_FALSE);
 
     while (bt_tokenizer_peek(parser->tokenizer))
     {

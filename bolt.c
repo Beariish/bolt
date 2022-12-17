@@ -198,10 +198,11 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	thread.top = 0;
 	thread.context = context;
 
-	thread.callstack[thread.depth++].callable = module;
-	thread.callstack[thread.depth].returns = 0;
+	thread.callstack[thread.depth].callable = module;
 	thread.callstack[thread.depth].return_loc = 0;
 	thread.callstack[thread.depth].argc = 0;
+	thread.callstack[thread.depth].module = module;
+	thread.depth++;
 
 	int32_t result = setjmp(thread.error_loc);
 
@@ -365,7 +366,7 @@ dispatch:
 	case BT_OP_LOAD_BOOL:   stack[op.a] = op.b ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 	case BT_OP_LOAD_IMPORT:
 		stack[op.a] =
-			(*(bt_ModuleImport**)bt_buffer_at(&thread->callstack[0].callable->module.imports, op.ubc))->value;
+			(*(bt_ModuleImport**)bt_buffer_at(&thread->callstack[thread->depth - 1].module->imports, op.ubc))->value;
 		NEXT;
 
 	case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
@@ -375,8 +376,28 @@ dispatch:
 		bt_Value value = stack[op.b];
 		bt_Type* type = BT_AS_OBJECT(stack[op.c]);
 
-		bt_module_export(context, thread->callstack[0].callable, type, name, value);
+		bt_module_export(context, thread->callstack[thread->depth - 1].module, type, name, value);
 	} NEXT;
+
+	case BT_OP_CLOSE: {
+		bt_Buffer upvals = bt_buffer_with_capacity(context, sizeof(bt_Value), op.c);
+		bt_Fn* fn = BT_AS_OBJECT(stack[op.b]);
+		for (uint8_t i = 0; i < op.c; i++) {
+			bt_buffer_push(context, &upvals, stack + op.b + 1 + i);
+		}
+		bt_Closure* cl = BT_ALLOCATE(context, CLOSURE, bt_Closure);
+		cl->fn = fn;
+		cl->upvals = upvals;
+		stack[op.a] = BT_VALUE_OBJECT(cl);
+	} NEXT;
+
+	case BT_OP_LOADUP: stack[op.a] = *(bt_Value*)bt_buffer_at(
+		&((bt_Closure*)thread->callstack[thread->depth - 1].callable)->upvals, op.b);
+		NEXT;
+
+	case BT_OP_STOREUP: *(bt_Value*)bt_buffer_at(
+		&((bt_Closure*)thread->callstack[thread->depth - 1].callable)->upvals, op.a) = stack[op.b];
+		NEXT;
 
 	case BT_OP_NEG: bt_neg(thread, stack + op.a, stack[op.b]);              NEXT;
 	case BT_OP_ADD: bt_add(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
@@ -403,12 +424,20 @@ dispatch:
 
 		bt_Callable* obj = BT_AS_OBJECT(stack[op.b]);
 		thread->top += op.b + 1;
-		thread->callstack[thread->depth++].callable = obj;
+		thread->callstack[thread->depth].callable = obj;
 		thread->callstack[thread->depth].return_loc = op.a - thread->top;
 		thread->callstack[thread->depth].argc = op.c;
+		thread->depth++;
 
 		if (obj->obj.type == BT_OBJECT_TYPE_FN) {
 			bt_Fn* callable = (bt_Fn*)obj;
+			thread->callstack[thread->depth - 1].module = callable->module;
+			bt_call(context, thread, callable->instructions.data, callable->constants.data, callable->stack_size, op.a - thread->top);
+		}
+		else if (obj->obj.type == BT_OBJECT_TYPE_CLOSURE) {
+			bt_Closure* cl = obj;
+			bt_Fn* callable = cl->fn;
+			thread->callstack[thread->depth - 1].module = callable->module;
 			bt_call(context, thread, callable->instructions.data, callable->constants.data, callable->stack_size, op.a - thread->top);
 		}
 		else if (obj->obj.type == BT_OBJECT_TYPE_NATIVE_FN) {
