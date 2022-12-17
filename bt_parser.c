@@ -725,8 +725,14 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         } break;
 
         // Comparison binops always produce boolean
-        case BT_TOKEN_LT: case BT_TOKEN_LTE: case BT_TOKEN_GT: case BT_TOKEN_GTE:
+        case BT_TOKEN_LT: case BT_TOKEN_LTE: case BT_TOKEN_GT: case BT_TOKEN_GTE: {
+            if (type_check(parse, node->as.binary_op.left)->resulting_type != parse->context->types.number) assert(0);
+            if (type_check(parse, node->as.binary_op.right)->resulting_type != parse->context->types.number) assert(0);
+            node->resulting_type = parse->context->types.boolean;
+        } break;
         case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: {
+            if (type_check(parse, node->as.binary_op.left)->resulting_type !=
+                type_check(parse, node->as.binary_op.right)->resulting_type) assert(0);
             node->resulting_type = parse->context->types.boolean;
         } break;
 
