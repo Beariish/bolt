@@ -21,6 +21,12 @@ typedef struct CompilerBinding {
     uint8_t loc;
 } CompilerBinding;
 
+typedef enum StorageClass {
+    STORAGE_INVALID,
+    STORAGE_REGISTER,
+    STORAGE_UPVAL
+} StorageClass;
+
 typedef struct FunctionContext {
     uint8_t min_top_register;
 
@@ -266,6 +272,21 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
     return loc;
 }
 
+static StorageClass get_storage(FunctionContext* ctx, bt_AstNode* expr)
+{
+    uint8_t loc = find_binding(ctx, expr->source->source);
+    if (loc != INVALID_BINDING) {
+        return STORAGE_REGISTER;
+    }
+
+    loc = find_upval(ctx, expr->source->source);
+    if (loc != INVALID_BINDING) {
+        return STORAGE_UPVAL;
+    }
+    
+    return STORAGE_INVALID;
+}
+
 static uint8_t find_binding_or_compile_loc(FunctionContext* ctx, bt_AstNode* expr, uint8_t backup_loc)
 {
     uint8_t loc = INVALID_BINDING;
@@ -281,6 +302,19 @@ static uint8_t find_binding_or_compile_loc(FunctionContext* ctx, bt_AstNode* exp
     }
 
     return loc;
+}
+
+static bt_bool is_assigning(bt_TokenType op) {
+    switch (op) {
+    case BT_TOKEN_ASSIGN:
+    case BT_TOKEN_PLUSEQ:
+    case BT_TOKEN_MINUSEQ:
+    case BT_TOKEN_MULEQ:
+    case BT_TOKEN_DIVEQ:
+        return BT_TRUE;
+    }
+
+    return BT_FALSE;
 }
 
 static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_t result_loc)
@@ -387,17 +421,32 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t lhs_loc = find_binding_or_compile_loc(ctx, lhs, result_loc);
         uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
+        StorageClass storage = STORAGE_REGISTER;
+        if (is_assigning(expr->source->type)) {
+            storage = get_storage(ctx, lhs);
+            if (storage == STORAGE_INVALID) {
+                assert(0 && "Unassignable lhs!");
+            }
+            else if (storage == STORAGE_REGISTER) {
+                result_loc = lhs_loc;
+            }
+        }
+
         switch (expr->source->type) {
         case BT_TOKEN_PLUS:
+        case BT_TOKEN_PLUSEQ:
             emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_MINUS:
+        case BT_TOKEN_MINUSEQ:
             emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_MUL:
+        case BT_TOKEN_MULEQ:
             emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_DIV:
+        case BT_TOKEN_DIVEQ:
             emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_AND:
@@ -430,7 +479,15 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_GTE:
             emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc);
             break;
+        case BT_TOKEN_ASSIGN:
+            emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc);
+            break;
         default: assert(0 && "Unimplemented binary operator!");
+        }
+
+        if (storage == STORAGE_UPVAL) {
+            uint8_t upval_idx = find_upval(ctx, lhs->source->source);
+            emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc);
         }
 
         restore_registers(ctx);

@@ -47,11 +47,19 @@ printer2()
 
 return mod.subber(mod.adder(a, mod.constant), 10)*/
 
-fn range(max: number) {
-    let i = 0
-    return fn: number? {
-        //i += 1
-        if i < max { return i }
+fn counter(max: number) {
+    let count = -1
+    return fn: number? { 
+        count += 1
+        if count < max { return count }
         return null
     }
 }
+
+let cnt = counter(5)
+print(cnt())
+print(cnt())
+print(cnt())
+print(cnt())
+print(cnt())
+print(cnt())
