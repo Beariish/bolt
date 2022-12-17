@@ -1,5 +1,5 @@
 import * from core
-/*import mod
+import mod
 import branch
 import message_printer from closure
 
@@ -45,8 +45,6 @@ printer2()
 printer2()
 printer2()
 
-return mod.subber(mod.adder(a, mod.constant), 10)*/
-
 fn counter(max: number) {
     let count = -1
     return fn: number? { 
@@ -63,3 +61,6 @@ print(cnt())
 print(cnt())
 print(cnt())
 print(cnt())
+
+return mod.subber(mod.adder(a, mod.constant), 10)
+

@@ -290,8 +290,10 @@ static StorageClass get_storage(FunctionContext* ctx, bt_AstNode* expr)
 static uint8_t find_binding_or_compile_loc(FunctionContext* ctx, bt_AstNode* expr, uint8_t backup_loc)
 {
     uint8_t loc = INVALID_BINDING;
-    loc = find_binding(ctx, expr->source->source);
-    
+    if (expr->type == BT_AST_NODE_IDENTIFIER) {
+        loc = find_binding(ctx, expr->source->source);
+    }
+
     if (loc == INVALID_BINDING) {
         loc = backup_loc;
         if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");

@@ -7,9 +7,9 @@ export fn(message: any) {
 } as message_printer
 
 export fn(max: number) {
-    let i = 0
+    let i = -1
     return fn: number? {
-        //i += 1
+        i += 1
         if i < max { return i }
         return null
     }
