@@ -49,7 +49,7 @@ static uint64_t get_time()
 
 static void bt_time(bt_Context* ctx, bt_Thread* thread)
 {
-	BT_RETURN(thread, BT_VALUE_NUMBER(get_time()));
+	bt_return(thread, BT_VALUE_NUMBER(get_time()));
 }
 
 static void bt_print(bt_Context* ctx, bt_Thread* thread)
@@ -57,9 +57,9 @@ static void bt_print(bt_Context* ctx, bt_Thread* thread)
 	static char buffer[4096];
 	int32_t pos = 0;
 
-	uint8_t argc = BT_ARGC(thread);
+	uint8_t argc = bt_argc(thread);
 	for (uint8_t i = 0; i < argc; ++i) {
-		bt_Value arg = BT_ARG(thread, i);
+		bt_Value arg = bt_arg(thread, i);
 		pos += bt_to_string_inplace(buffer + pos, 4096 - pos, arg);
 
 		if (i < argc - 1) buffer[pos++] = ' ';
@@ -71,8 +71,8 @@ static void bt_print(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Value arg = BT_ARG(thread, 0);
-	BT_RETURN(thread, BT_VALUE_STRING(bt_to_string(ctx, arg)));
+	bt_Value arg = bt_arg(thread, 0);
+	bt_return(thread, BT_VALUE_STRING(bt_to_string(ctx, arg)));
 }
 
 int main(int argc, char** argv) {
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
 	printf("-----------------------------------------------------\n");
 
-	return 0;
+ 	return 0;
 }
 
 /*
