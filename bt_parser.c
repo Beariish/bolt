@@ -135,6 +135,7 @@ static bt_AstNode* make_node(bt_Context* ctx, bt_AstNodeType type)
     bt_AstNode* new_node = ctx->alloc(sizeof(bt_AstNode));
     new_node->type = type;
     new_node->resulting_type = NULL;
+    new_node->source = 0;
 
     return new_node;
 }
@@ -548,8 +549,10 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             bt_AstNode* lhs = lhs_node;
             lhs_node = make_node(tok->context, BT_AST_NODE_BINARY_OP);
             lhs_node->source = op;
+            lhs_node->as.binary_op.accelerated = BT_FALSE;
             lhs_node->as.binary_op.left = lhs;
             lhs_node->as.binary_op.right = rhs;
+            type_check(parse, lhs_node);
 
             continue;
         }
@@ -636,6 +639,8 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
 
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 {
+    if (node->resulting_type) return node;
+
     switch (node->type) {
     case BT_AST_NODE_IDENTIFIER: {
         bt_Type* type = find_binding(parse, node);
@@ -728,6 +733,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_LT: case BT_TOKEN_LTE: case BT_TOKEN_GT: case BT_TOKEN_GTE: {
             if (type_check(parse, node->as.binary_op.left)->resulting_type != parse->context->types.number) assert(0);
             if (type_check(parse, node->as.binary_op.right)->resulting_type != parse->context->types.number) assert(0);
+            node->as.binary_op.accelerated = BT_TRUE;
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: {
@@ -742,7 +748,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 assert(0);
                 return NULL;
             }
-            break;
+
+            if (node->resulting_type == parse->context->types.number) {
+                node->as.binary_op.accelerated = BT_TRUE;
+            } break;
         }
         break;
     }
@@ -1078,6 +1087,111 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     return result;
 }
 
+static bt_AstNode* parse_for(bt_Parser* parse)
+{
+    bt_AstNode* identifier = pratt_parse(parse, 0);
+    if (identifier->type != BT_AST_NODE_IDENTIFIER)
+        assert(0 && "Invalid loop identifier!");
+
+    bt_Tokenizer* tok = parse->tokenizer;
+    bt_Token* token = bt_tokenizer_peek(tok);
+
+    if (token->type != BT_TOKEN_IN) assert(0 && "Expected keyword 'in'!");
+    bt_tokenizer_emit(tok);
+
+    bt_AstNode* iterator = pratt_parse(parse, 0);
+
+    bt_Type* generator_type = type_check(parse, iterator)->resulting_type;
+
+    if (generator_type == parse->context->types.number) {
+        bt_AstNode* stop = iterator;
+
+        bt_AstNode* start = 0;
+        bt_AstNode* step = 0;
+
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_TO) {
+            bt_tokenizer_emit(tok);
+            start = stop;
+            stop = pratt_parse(parse, 0);
+        }
+        else {
+            start = token_to_node(parse, tok->literal_zero);
+        }
+
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_BY) {
+            bt_tokenizer_emit(tok);
+            step = pratt_parse(parse, 0);
+        }
+        else {
+            step = token_to_node(parse, tok->literal_one);
+        }
+
+        bt_AstNode* result = make_node(parse->context, BT_AST_NODE_LOOP_NUMERIC);
+        result->as.loop_numeric.start = start;
+        result->as.loop_numeric.stop = stop;
+        result->as.loop_numeric.step = step;
+
+        identifier->resulting_type = parse->context->types.number;
+        result->as.loop_numeric.identifier = identifier;
+
+        bt_Buffer body = BT_BUFFER_NEW(parse->context, bt_AstNode*);
+
+        push_scope(parse, BT_FALSE);
+
+        bt_AstNode* ident_as_let = make_node(parse->context, BT_AST_NODE_LET);
+        ident_as_let->as.let.initializer = NULL;
+        ident_as_let->as.let.is_const = BT_TRUE;
+        ident_as_let->as.let.name = identifier->source->source;
+        ident_as_let->resulting_type = identifier->resulting_type;
+
+        push_local(parse, ident_as_let);
+
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+        parse_block(&body, parse);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+        pop_scope(parse);
+
+        result->as.loop_numeric.body = body;
+
+        return result;
+    }
+    else if (generator_type->category != BT_TYPE_CATEGORY_SIGNATURE) assert(0 && "Expected iterator to be function!");
+
+    bt_Type* generated_type = generator_type->as.fn.return_type;
+    if (!generated_type->is_optional) assert(0 && "Iterator return type must be optional!");
+
+    bt_Type* it_type = generated_type->as.nullable.base;
+    identifier->resulting_type = it_type;
+
+    bt_Buffer body = BT_BUFFER_NEW(parse->context, bt_AstNode*);
+
+    push_scope(parse, BT_FALSE);
+
+    bt_AstNode* ident_as_let = make_node(parse->context, BT_AST_NODE_LET);
+    ident_as_let->as.let.initializer = NULL;
+    ident_as_let->as.let.is_const = BT_TRUE;
+    ident_as_let->as.let.name = identifier->source->source;
+    ident_as_let->resulting_type = identifier->resulting_type;
+
+    push_local(parse, ident_as_let);
+
+    bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+    parse_block(&body, parse);
+    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+    
+    pop_scope(parse);
+
+    bt_AstNode* result = make_node(parse->context, BT_AST_NODE_LOOP_ITERATOR);
+    result->as.loop_iterator.body = body;
+    result->as.loop_iterator.identifier = identifier;
+    result->as.loop_iterator.iterator = iterator;
+
+    return result;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -1110,6 +1224,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_IF: {
         bt_tokenizer_emit(tok);
         return parse_if(parse);
+    } break;
+    case BT_TOKEN_FOR: {
+        bt_tokenizer_emit(tok);
+        return parse_for(parse);
     } break;
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);

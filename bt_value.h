@@ -57,5 +57,5 @@ typedef struct bt_Type bt_Type;
 
 bt_bool bt_value_is_equal(bt_Value a, bt_Value b);
 
-__forceinline bt_Value bt_make_number(bt_number num) { bt_Num2Val u; u.n = num; return u.u; }
-__forceinline bt_number bt_get_number(bt_Value val) { bt_Num2Val u; u.u = val; return u.n; }
+__forceinline bt_Value bt_make_number(bt_number num) { return *((bt_Value*)(bt_number*)&num); }
+__forceinline bt_number bt_get_number(bt_Value val) { return *((bt_number*)(bt_Value*)&val); }

@@ -97,13 +97,13 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 	bt_debug_print_module(context, result);
 	printf("-----------------------------------------------------\n");
 
-	bt_close_compiler(compiler);
-	bt_close_parser(parser);
-	bt_close_tokenizer(tok);
-
-	context->free(compiler);
-	context->free(parser);
-	context->free(tok);
+	//bt_close_compiler(compiler);
+	//bt_close_parser(parser);
+	//bt_close_tokenizer(tok);
+	//
+	//context->free(compiler);
+	//context->free(parser);
+	//context->free(tok);
 
 	return result;
 }
@@ -415,10 +415,10 @@ dispatch:
 	case BT_OP_NOT: bt_not(thread, stack + op.a, stack[op.b]); NEXT;
 
 	case BT_OP_LOAD_IDX: stack[op.a] = bt_table_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
-	
+
 	case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
-	case BT_OP_COALESCE: stack[op.a] = stack[op.b] == BT_VALUE_NULL ? stack[op.c]    : stack[op.b];   NEXT;
-	
+	case BT_OP_COALESCE: stack[op.a] = stack[op.b] == BT_VALUE_NULL ? stack[op.c] : stack[op.b];   NEXT;
+
 	case BT_OP_CALL: {
 		uint16_t old_top = thread->top;
 
@@ -457,6 +457,9 @@ dispatch:
 
 	case BT_OP_RETURN: stack[return_loc] = stack[op.a]; RETURN;
 	case BT_OP_END: RETURN;
+
+	case BT_OP_ADDF: stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) + BT_AS_NUMBER(stack[op.c])); NEXT;
+	case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
 	default: __debugbreak();
 	}
 

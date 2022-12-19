@@ -37,6 +37,7 @@ typedef enum {
 	BT_TOKEN_LET, BT_TOKEN_VAR, BT_TOKEN_CONST, BT_TOKEN_FN,
 	BT_TOKEN_RETURN, BT_TOKEN_TYPE, BT_TOKEN_METHOD,
 	BT_TOKEN_IF, BT_TOKEN_ELSE, BT_TOKEN_FOR, BT_TOKEN_IN,
+	BT_TOKEN_TO, BT_TOKEN_BY,
 	BT_TOKEN_NEW,
 
 	BT_TOKEN_OR, BT_TOKEN_AND, BT_TOKEN_NOT,
@@ -68,6 +69,9 @@ typedef struct {
 
 	const char* source;
 	char* current;
+
+	bt_Token* literal_zero;
+	bt_Token* literal_one;
 
 	uint16_t line, col;
 } bt_Tokenizer;

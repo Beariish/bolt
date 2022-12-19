@@ -33,6 +33,9 @@ typedef struct FunctionContext {
     CompilerBinding bindnings[128];
     uint8_t binding_top;
 
+    uint8_t binding_tops[32];
+    uint8_t scope_depth;
+
     RegisterState registers;
 
     RegisterState temps[32];
@@ -63,6 +66,16 @@ static bt_Module* find_module(FunctionContext* ctx)
 
     assert(0 && "Internal compiler error - function has no module context!");
     return NULL;
+}
+
+static void push_scope(FunctionContext* ctx)
+{
+    ctx->binding_tops[ctx->scope_depth++] = ctx->binding_top;
+}
+
+static void pop_scope(FunctionContext* ctx)
+{
+    ctx->binding_top = ctx->binding_tops[--ctx->scope_depth];
 }
 
 static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name) 
@@ -437,7 +450,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         switch (expr->source->type) {
         case BT_TOKEN_PLUS:
         case BT_TOKEN_PLUSEQ:
-            emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc);
+            if(expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_ADDF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_MINUS:
         case BT_TOKEN_MINUSEQ:
@@ -470,7 +484,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_LT:
-            emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_LTE:
             emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc);
@@ -539,6 +554,7 @@ static bt_bool compile_body(FunctionContext* ctx, bt_Buffer* body)
     for (uint32_t i = 0; i < body->length; ++i)
     {
         bt_AstNode* stmt = *(bt_AstNode**)bt_buffer_at(body, i);
+        if (!stmt) continue;
         if (!compile_statement(ctx, stmt)) return BT_FALSE;
     }
 
@@ -611,6 +627,64 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
             bt_Op* jmp = op_at(ctx, end_points[i]);
             jmp->ibc = ctx->output.length - end_points[i] - 1;
         }
+    } break;
+    case BT_AST_NODE_LOOP_ITERATOR: {
+        push_registers(ctx);
+        push_scope(ctx);
+
+        uint8_t closure_loc = get_register(ctx);
+        uint8_t it_loc = make_binding(ctx, stmt->as.loop_iterator.identifier->source->source);
+
+        compile_expression(ctx, stmt->as.loop_iterator.iterator, closure_loc);
+
+        uint32_t loop_start = ctx->output.length;
+        emit_abc(ctx, BT_OP_CALL, it_loc, closure_loc, 0);
+
+        push_registers(ctx);
+        uint8_t isnull_loc = get_register(ctx);
+        emit_ab(ctx, BT_OP_EXISTS, isnull_loc, it_loc);
+        uint32_t skip_loc = emit_aibc(ctx, BT_OP_JMPF, isnull_loc, 0);
+        restore_registers(ctx);
+
+        compile_body(ctx, &stmt->as.loop_iterator.body);
+
+        emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
+        bt_Op* skip_op = op_at(ctx, skip_loc);
+        skip_op->ibc = ctx->output.length - skip_loc - 1;
+        
+        pop_scope(ctx);
+        restore_registers(ctx);
+    } break;
+    case BT_AST_NODE_LOOP_NUMERIC: {
+        push_registers(ctx);
+        push_scope(ctx);
+
+        uint8_t stop_loc = get_register(ctx);
+        uint8_t step_loc = get_register(ctx);
+        uint8_t it_loc = make_binding(ctx, stmt->as.loop_numeric.identifier->source->source);
+
+        compile_expression(ctx, stmt->as.loop_numeric.start, it_loc);
+        compile_expression(ctx, stmt->as.loop_numeric.step, step_loc);
+        compile_expression(ctx, stmt->as.loop_numeric.stop, stop_loc);
+        emit_aibc(ctx, BT_OP_JMP, 0, 1);
+
+        uint32_t loop_start = ctx->output.length;
+        emit_abc(ctx, BT_OP_ADDF, it_loc, it_loc, step_loc);
+
+        push_registers(ctx);
+        uint8_t gt_loc = get_register(ctx);
+        emit_abc(ctx, BT_OP_LTF, gt_loc, it_loc, stop_loc);
+        uint32_t skip_loc = emit_aibc(ctx, BT_OP_JMPF, gt_loc, 0);
+        restore_registers(ctx);
+
+        compile_body(ctx, &stmt->as.loop_iterator.body);
+
+        emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
+        bt_Op* skip_op = op_at(ctx, skip_loc);
+        skip_op->ibc = ctx->output.length - skip_loc - 1;
+
+        pop_scope(ctx);
+        restore_registers(ctx);
     } break;
     default:
         push_registers(ctx);

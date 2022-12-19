@@ -69,6 +69,18 @@ static void bt_print(bt_Context* ctx, bt_Thread* thread)
 	printf("%s\n", buffer);
 }
 
+static void bt_max(bt_Context* ctx, bt_Thread* thread)
+{
+	uint8_t argc = bt_argc(thread);
+	bt_number max = BT_AS_NUMBER(bt_arg(thread, 0));
+	for (uint8_t i = 1; i < argc; ++i) {
+		bt_number arg = BT_AS_NUMBER(bt_arg(thread, i));
+		max = max > arg ? max : arg;
+	}
+
+	bt_return(thread, BT_VALUE_NUMBER(max));
+}
+
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -95,19 +107,25 @@ int main(int argc, char** argv) {
 		tostring_sig,
 		BT_VALUE_CSTRING(&context, "to_string"),
 		BT_VALUE_OBJECT(bt_make_native(&context, tostring_sig, bt_tostring)));
-		
+
 	bt_Type* time_sig = bt_make_signature(&context, context.types.number, NULL, 0);
 	bt_module_export(&context, core_module,
 		time_sig,
 		BT_VALUE_CSTRING(&context, "time"),
 		BT_VALUE_OBJECT(bt_make_native(&context, time_sig, bt_time)));
 
+	bt_Type* max_args[] = { context.types.number };
+	bt_Type* max_sig = bt_make_vararg(&context, bt_make_signature(&context, context.types.number, max_args, 1), context.types.number);
+	bt_module_export(&context, core_module,
+		max_sig,
+		BT_VALUE_CSTRING(&context, "max"),
+		BT_VALUE_OBJECT(bt_make_native(&context, max_sig, bt_max)));
+
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "main"));
+	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "tok_test"));
 	bt_Module* loaded = bt_find_module(&context, module_name);
 
-	printf("-----------------------------------------------------\n");
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
 	printf("-----------------------------------------------------\n");
 

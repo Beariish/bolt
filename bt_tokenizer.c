@@ -14,6 +14,18 @@ static bt_bool can_contain_identifier(char character) {
 	return isdigit(character) || can_start_identifier(character);
 }
 
+static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
+{
+	bt_Token* new_token = ctx->alloc(sizeof(bt_Token));
+	new_token->source = source;
+	new_token->line = line;
+	new_token->col = col;
+	new_token->idx = idx;
+	new_token->type = type;
+
+	return new_token;
+}
+
 bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 {
 	bt_Tokenizer tok;
@@ -22,6 +34,19 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 	tok.line = tok.col = 0;
 	tok.tokens = BT_BUFFER_WITH_CAPACITY(context, bt_Token*, 32);
 	tok.literals = BT_BUFFER_WITH_CAPACITY(context, bt_Literal, 4);
+	
+	bt_Literal lit = {
+		BT_TOKEN_NUMBER_LITERAL
+	};
+	lit.as_num = 0;
+
+	bt_buffer_push(context, &tok.literals, &lit);
+
+	lit.as_num = 1;
+	bt_buffer_push(context, &tok.literals, &lit);
+	
+	tok.literal_zero = make_token(context, (bt_StrSlice) { "0", 1 }, 0, 0, 0, BT_TOKEN_NUMBER_LITERAL);
+	tok.literal_one  = make_token(context, (bt_StrSlice) { "1", 1 }, 0, 0, 1, BT_TOKEN_NUMBER_LITERAL);
 
 	return tok;
 }
@@ -38,6 +63,9 @@ void bt_close_tokenizer(bt_Tokenizer* tok)
 
 	bt_buffer_destroy(tok->context, &tok->tokens);
 	bt_buffer_destroy(tok->context, &tok->literals);
+
+	tok->context->free(tok->literal_zero);
+	tok->context->free(tok->literal_one);
 }
 
 void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
@@ -46,17 +74,7 @@ void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
 	tok->line = tok->col = 1;
 }
 
-static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
-{
-	bt_Token* new_token = ctx->alloc(sizeof(bt_Token));
-	new_token->source = source;
-	new_token->line = line;
-	new_token->col = col;
-	new_token->idx = idx;
-	new_token->type = type;
 
-	return new_token;
-}
 
 bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok)
 {
@@ -188,6 +206,8 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("else", token, BT_TOKEN_ELSE)
 		else BT_TEST_KEYWORD("for", token, BT_TOKEN_FOR)
 		else BT_TEST_KEYWORD("in", token, BT_TOKEN_IN)
+		else BT_TEST_KEYWORD("to", token, BT_TOKEN_TO)
+		else BT_TEST_KEYWORD("by", token, BT_TOKEN_BY)
 		else BT_TEST_KEYWORD("new", token, BT_TOKEN_NEW)
 		else BT_TEST_KEYWORD("true", token, BT_TOKEN_TRUE_LITERAL)
 		else BT_TEST_KEYWORD("false", token, BT_TOKEN_FALSE_LITERAL)

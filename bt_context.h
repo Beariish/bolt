@@ -22,6 +22,9 @@ typedef void (*bt_Free)(void* ptr);
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
 	bt_Module* module;
+	bt_Op* ip;
+	bt_Value* stack;
+	bt_Value* constants;
 	uint8_t argc;
 	int8_t return_loc;
 } bt_StackFrame;

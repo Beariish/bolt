@@ -22,7 +22,9 @@ typedef enum {
 	BT_AST_NODE_TYPE,
 	BT_AST_NODE_RETURN,
 	BT_AST_NODE_IF,
-	BT_AST_NODE_LOOP,
+	BT_AST_NODE_LOOP_WHILE,
+	BT_AST_NODE_LOOP_ITERATOR,
+	BT_AST_NODE_LOOP_NUMERIC,
 	BT_AST_NODE_LET,
 	BT_AST_NODE_ASSIGN,
 	BT_AST_NODE_CALL,
@@ -49,6 +51,7 @@ typedef struct bt_AstNode {
 		struct {
 			bt_AstNode* left;
 			bt_AstNode* right;
+			bt_bool accelerated;
 		} binary_op;
 
 		struct {
@@ -88,6 +91,20 @@ typedef struct bt_AstNode {
 			bt_AstNode* condition;
 			bt_AstNode* next;
 		} branch;
+
+		struct {
+			bt_Buffer body;
+			bt_AstNode* identifier;
+			bt_AstNode* iterator;
+		} loop_iterator;
+
+		struct {
+			bt_Buffer body;
+			bt_AstNode* identifier;
+			bt_AstNode* start;
+			bt_AstNode* stop;
+			bt_AstNode* step;
+		} loop_numeric;
 	} as; 
 } bt_AstNode;
 

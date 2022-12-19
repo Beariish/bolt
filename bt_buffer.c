@@ -85,11 +85,6 @@ bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
     return allocated;
 }
 
-void* bt_buffer_at(bt_Buffer* buffer, uint32_t index)
-{
-    return (void*)((char*)buffer->data + (index * (size_t)buffer->element_size));
-}
-
 void* bt_buffer_last(bt_Buffer* buffer)
 {
     return bt_buffer_at(buffer, buffer->length - 1);

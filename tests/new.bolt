@@ -1,0 +1,18 @@
+import * from core
+import * from closure
+
+print("hello?")
+
+for outer in range(200) {
+    let start_time = time()
+    
+    for i in range(100000) {
+        let a = 10
+        let b = a + a
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("100k range() iterations took", duration_ms / 1000, "ms")
+}
