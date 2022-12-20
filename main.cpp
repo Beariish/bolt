@@ -15,6 +15,7 @@ extern "C" {
 
 #include <malloc.h>
 #include <Windows.h>
+#include <math.h>
 
 static size_t bytes_allocated = 0;
 static void* malloc_tracked(size_t size) {
@@ -81,6 +82,12 @@ static void bt_max(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_NUMBER(max));
 }
 
+static void bt_sqrt(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_number tosqrt = BT_AS_NUMBER(bt_arg(thread, 0));
+	bt_return(thread, BT_VALUE_NUMBER(sqrt(tosqrt)));
+}
+
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -121,9 +128,16 @@ int main(int argc, char** argv) {
 		BT_VALUE_CSTRING(&context, "max"),
 		BT_VALUE_OBJECT(bt_make_native(&context, max_sig, bt_max)));
 
+	bt_Type* sqrt_args[] = { context.types.number };
+	bt_Type* sqrt_sig = bt_make_signature(&context, context.types.number, max_args, 1);
+	bt_module_export(&context, core_module,
+		sqrt_sig,
+		BT_VALUE_CSTRING(&context, "sqrt"),
+		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_sqrt)));
+
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "tok_test"));
+	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "mandel"));
 	bt_Module* loaded = bt_find_module(&context, module_name);
 
 	printf("Bytes allocated during execution: %lld\n", bytes_allocated);

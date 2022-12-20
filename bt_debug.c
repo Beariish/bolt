@@ -192,6 +192,8 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_JMP:         printf("[%.3d]: JMP    %d\n", i, op.ibc);                   break;
 		case BT_OP_JMPF:        printf("[%.3d]: JMPF   %d, %d\n", i, op.a, op.ibc);         break;
 		case BT_OP_END:         printf("[%.3d]: END\n", i);	                                break;
+		case BT_OP_NUMFOR:      printf("[%.3d]: NUMFOR %d, %d\n", i, op.a, op.ibc);         break;
+		case BT_OP_ITERFOR:     printf("[%.3d]: ITRFOR %d, %d\n", i, op.a, op.ibc);         break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}
 	}

@@ -1,0 +1,55 @@
+import * from core
+
+fn norm2(re: number, im: number) {
+    return re * re - im * (-im)
+}
+
+fn abs(re: number, im: number) {
+    return sqrt(norm2(re, im))
+}
+
+fn level(x: number, y: number) {
+    let cre = x
+    let cim = y
+    let zre = cre
+    let zim = cim
+
+    for l in 255 {
+        let tre = zre * zre - zim * zim
+        let tim = zre * zim + zim * zre
+
+        zre = tre + cre
+        zim = tim + cim
+
+        if abs(zre, zim) > 2 {
+            return l
+        }
+    }
+
+    return 255
+}
+
+for outer in 15 {
+    let start = time()
+
+    let xmin = -2
+    let xmax = 2
+    let ymin = -2
+    let ymax = 2
+    let n = 256
+
+    let dx = 4 / n
+    let dy = 4 / n
+
+    let result = 0
+    for i in n {
+        let x = xmin + i * dx
+        for j in n {
+            let y = ymin + j * dy
+            result += level(x, y)
+        }
+    }
+
+    let duration_ms = time() - start
+    print("Finished in", duration_ms / 1000, "ms", "|", result)
+}

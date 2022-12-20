@@ -1,0 +1,5 @@
+
+let i = 0
+fn test(): number? { i += 1 if i < 5 { return i } return null }
+
+test()

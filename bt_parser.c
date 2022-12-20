@@ -281,6 +281,7 @@ static bt_Type* infer_return(bt_Buffer* body, bt_Type* expected)
 {
     for (uint32_t i = 0; i < body->length; ++i) {
         bt_AstNode* expr = *(bt_AstNode**)bt_buffer_at(body, i);
+        if (!expr) continue;
 
         if (expr->type == BT_AST_NODE_RETURN) {
             if (expected && expr->resulting_type == NULL) {

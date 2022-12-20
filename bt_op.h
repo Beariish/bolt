@@ -55,6 +55,10 @@ typedef enum {
 	// Fast opcode extensions.
 	// These are emitted by the compiler whenever types are strongly known
 	
+	// Looping macroops
+	BT_OP_NUMFOR,
+	BT_OP_ITERFOR,
+
 	// Fast arithmetic, do the same thing as their non-fast counterparts, but 
 	// do no typechecking. bolt values are numbers by default
 	BT_OP_NEGF,

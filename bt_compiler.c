@@ -12,9 +12,6 @@
 static const uint8_t INVALID_BINDING = 255;
 
 // Stores the occupancy of each register at a given time, each being 256 bits / 32 bytes
-typedef struct RegisterState {
-    uint64_t regs[4];
-} RegisterState;
 
 typedef struct CompilerBinding {
     bt_StrSlice name;
@@ -26,6 +23,17 @@ typedef enum StorageClass {
     STORAGE_REGISTER,
     STORAGE_UPVAL
 } StorageClass;
+
+typedef struct LastStore {
+    StorageClass type;
+    uint8_t idx;
+    bt_bool alive;
+} LastStore;
+
+typedef struct RegisterState {
+    uint64_t regs[4];
+    uint8_t last_load[256];
+} RegisterState;
 
 typedef struct FunctionContext {
     uint8_t min_top_register;
@@ -53,6 +61,26 @@ typedef struct FunctionContext {
     struct FunctionContext* outer;
 } FunctionContext;
 
+static void store_hint(FunctionContext* ctx, uint8_t reg, StorageClass class, uint8_t idx)
+{
+    RegisterState* regs = &ctx->registers;
+    regs->last_load[reg] = idx;
+
+    for (uint8_t t = 0; t < ctx->temp_top; ++t) {
+        ctx->temps[t].last_load[reg] = idx;
+    }
+}
+
+static uint8_t is_stored(FunctionContext* ctx, uint8_t idx) 
+{
+    for (uint8_t i = 0; i < 255; ++i)
+    {
+        if (ctx->registers.last_load[i] == idx) return i;
+    }
+
+    return INVALID_BINDING;
+}
+
 static uint8_t get_register(FunctionContext* ctx);
 static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
 static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
@@ -78,7 +106,7 @@ static void pop_scope(FunctionContext* ctx)
     ctx->binding_top = ctx->binding_tops[--ctx->scope_depth];
 }
 
-static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name) 
+static uint8_t make_binding_at_loc(FunctionContext* ctx, bt_StrSlice name, uint8_t loc)
 {
     for (uint32_t i = 0; i < ctx->binding_top; ++i) {
         CompilerBinding* binding = ctx->bindnings + i;
@@ -86,11 +114,16 @@ static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name)
     }
 
     CompilerBinding new_binding;
-    new_binding.loc = get_register(ctx);
+    new_binding.loc = loc;
     new_binding.name = name;
 
     ctx->bindnings[ctx->binding_top++] = new_binding;
     return new_binding.loc;
+}
+
+static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name) 
+{
+    return make_binding_at_loc(ctx, name, get_register(ctx));
 }
 
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name)
@@ -212,6 +245,7 @@ static uint8_t get_register(FunctionContext* ctx)
 
         uint8_t result = offset + found;
         if (result > ctx->min_top_register) ctx->min_top_register = result;
+        store_hint(ctx, result - 1, STORAGE_UPVAL, INVALID_BINDING);
         return result - 1;
     }
 
@@ -220,7 +254,7 @@ static uint8_t get_register(FunctionContext* ctx)
 
 static uint8_t get_registers(FunctionContext* ctx, uint8_t count)
 {
-    uint32_t search_mask = 0;
+    uint64_t search_mask = 0;
     for (uint8_t i = 0; i < count; ++i) {
         search_mask |= 1 << i;
     }
@@ -246,6 +280,7 @@ static uint8_t get_registers(FunctionContext* ctx, uint8_t count)
         if (found != UINT8_MAX) {
             uint8_t result = offset + found;
             if (result + count > ctx->min_top_register) ctx->min_top_register = result + count;
+            for (uint8_t i = 0; i < count; ++i) store_hint(ctx, result + i, STORAGE_UPVAL, INVALID_BINDING);
             return result;
         }
     }
@@ -271,6 +306,11 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
 
     if(expr->type == BT_AST_NODE_IDENTIFIER) {
         loc = find_binding(ctx, expr->source->source);
+        
+        if (loc == INVALID_BINDING) {
+            uint8_t upval_idx = find_upval(ctx, expr->source->source);
+            loc = is_stored(ctx, upval_idx);
+        }
     }
 
     if (loc == INVALID_BINDING) {
@@ -504,6 +544,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         if (storage == STORAGE_UPVAL) {
             uint8_t upval_idx = find_upval(ctx, lhs->source->source);
+            store_hint(ctx, result_loc, STORAGE_UPVAL, upval_idx);
             emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc);
         }
 
@@ -632,20 +673,13 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         push_registers(ctx);
         push_scope(ctx);
 
-        uint8_t closure_loc = get_register(ctx);
-        uint8_t it_loc = make_binding(ctx, stmt->as.loop_iterator.identifier->source->source);
-
+        uint8_t base_loc = get_registers(ctx, 2);
+        uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_iterator.identifier->source->source, base_loc);
+        uint8_t closure_loc = base_loc + 1;
         compile_expression(ctx, stmt->as.loop_iterator.iterator, closure_loc);
 
         uint32_t loop_start = ctx->output.length;
-        emit_abc(ctx, BT_OP_CALL, it_loc, closure_loc, 0);
-
-        push_registers(ctx);
-        uint8_t isnull_loc = get_register(ctx);
-        emit_ab(ctx, BT_OP_EXISTS, isnull_loc, it_loc);
-        uint32_t skip_loc = emit_aibc(ctx, BT_OP_JMPF, isnull_loc, 0);
-        restore_registers(ctx);
-
+        uint32_t skip_loc = emit_aibc(ctx, BT_OP_ITERFOR, base_loc, 0);
         compile_body(ctx, &stmt->as.loop_iterator.body);
 
         emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
@@ -659,9 +693,11 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         push_registers(ctx);
         push_scope(ctx);
 
-        uint8_t stop_loc = get_register(ctx);
-        uint8_t step_loc = get_register(ctx);
-        uint8_t it_loc = make_binding(ctx, stmt->as.loop_numeric.identifier->source->source);
+        uint8_t base_loc = get_registers(ctx, 3);
+
+        uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_numeric.identifier->source->source, base_loc);
+        uint8_t step_loc = base_loc + 1;
+        uint8_t stop_loc = base_loc + 2;
 
         compile_expression(ctx, stmt->as.loop_numeric.start, it_loc);
         compile_expression(ctx, stmt->as.loop_numeric.step, step_loc);
@@ -669,13 +705,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         emit_aibc(ctx, BT_OP_JMP, 0, 1);
 
         uint32_t loop_start = ctx->output.length;
-        emit_abc(ctx, BT_OP_ADDF, it_loc, it_loc, step_loc);
-
-        push_registers(ctx);
-        uint8_t gt_loc = get_register(ctx);
-        emit_abc(ctx, BT_OP_LTF, gt_loc, it_loc, stop_loc);
-        uint32_t skip_loc = emit_aibc(ctx, BT_OP_JMPF, gt_loc, 0);
-        restore_registers(ctx);
+        uint32_t skip_loc = emit_aibc(ctx, BT_OP_NUMFOR, it_loc, 0);
 
         compile_body(ctx, &stmt->as.loop_iterator.body);
 
