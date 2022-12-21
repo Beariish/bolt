@@ -495,15 +495,18 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             break;
         case BT_TOKEN_MINUS:
         case BT_TOKEN_MINUSEQ:
-            emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_SUBF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_MUL:
         case BT_TOKEN_MULEQ:
-            emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_MULF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_DIV:
         case BT_TOKEN_DIVEQ:
-            emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_DIVF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_AND:
             emit_abc(ctx, BT_OP_AND, result_loc, lhs_loc, rhs_loc);

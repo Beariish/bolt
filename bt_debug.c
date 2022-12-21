@@ -170,8 +170,11 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_ADD:         printf("[%.3d]: ADD    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_ADDF:        printf("[%.3d]: ADDF   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_SUB:         printf("[%.3d]: SUB    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_SUBF:        printf("[%.3d]: SUBF   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_MUL:         printf("[%.3d]: MUL    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_MULF:        printf("[%.3d]: MULF   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_DIV:         printf("[%.3d]: DIV    %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_DIVF:        printf("[%.3d]: DIVF   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_EQ:          printf("[%.3d]: EQ     %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_NEQ:         printf("[%.3d]: NEQ    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_LT:          printf("[%.3d]: LT     %d, %d, %d\n", i, op.a, op.b, op.c); break;

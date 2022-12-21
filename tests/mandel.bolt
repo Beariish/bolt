@@ -53,3 +53,19 @@ for outer in 15 {
     let duration_ms = time() - start
     print("Finished in", duration_ms / 1000, "ms", "|", result)
 }
+
+import * from closure
+
+for outer in 15 {
+    let start_time = time()
+    
+    let total: number = 0
+    for i in 10000000 {
+        total += i
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("10m numeric iterations took", duration_ms / 1000, "ms", "|", total)
+}

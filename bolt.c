@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <memory.h>
+#include <immintrin.h>
 
 #include "bt_tokenizer.h"
 #include "bt_parser.h"
@@ -222,7 +223,7 @@ void bt_runtime_error(bt_Thread* thread, const char* message)
 	longjmp(thread->error_loc, 1);
 }
 
-static __forceinline void bt_add(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) + BT_AS_NUMBER(rhs));
@@ -279,7 +280,7 @@ static __forceinline void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value l
 
 	bt_runtime_error(thread, "Cannot subtract non-number value!");
 }
-static __forceinline void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) * BT_AS_NUMBER(rhs));
@@ -289,7 +290,7 @@ static __forceinline void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value l
 	bt_runtime_error(thread, "Cannot multiply non-number value!");
 }
 
-static __forceinline void bt_div(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) / BT_AS_NUMBER(rhs));
@@ -309,7 +310,7 @@ static __forceinline void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value l
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
 
-static __forceinline void bt_lt(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) < BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
@@ -352,9 +353,11 @@ static __forceinline void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lh
 static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	bt_Value* stack = thread->stack + thread->top;
+	_mm_prefetch(stack, 1);
 	bt_Value* upv = ((bt_Closure*)callable)->upvals.data;
 	bt_Object* obj;
 	bt_Op op;
+
 #define NEXT break;
 #define RETURN return;
 	for (;;) {
@@ -447,12 +450,8 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 		case BT_OP_END: RETURN;
 
 		case BT_OP_NUMFOR: {
-			bt_number it = BT_AS_NUMBER(stack[op.a]);
-			bt_number step = BT_AS_NUMBER(stack[op.a + 1]);
-			bt_number stop = BT_AS_NUMBER(stack[op.a + 2]);
-			it += step;
-			if (it >= stop) { ip += op.ibc; NEXT; }
-			stack[op.a] = BT_VALUE_NUMBER(it);
+			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.a]) + BT_AS_NUMBER(stack[op.a + 1]));
+			if (stack[op.a] >= stack[op.a + 2]) ip += op.ibc; 
 		} NEXT;
 
 		case BT_OP_ITERFOR: {
@@ -461,10 +460,20 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 			thread->top += op.a + 2;
 			bt_call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
 			thread->top -= op.a + 2;
-			if (stack[op.a] == BT_VALUE_NULL) { ip += op.ibc; NEXT; }
+			if (stack[op.a] == BT_VALUE_NULL) { ip += op.ibc; }
 		} NEXT;
-
-		case BT_OP_ADDF: stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) + BT_AS_NUMBER(stack[op.c])); NEXT;
+		case BT_OP_ADDF: {
+			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) + BT_AS_NUMBER(stack[op.c]));
+		} NEXT;
+		case BT_OP_SUBF: {
+			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) - BT_AS_NUMBER(stack[op.c]));
+		} NEXT;
+		case BT_OP_MULF: {
+			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) * BT_AS_NUMBER(stack[op.c]));
+		} NEXT;
+		case BT_OP_DIVF: {
+			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) / BT_AS_NUMBER(stack[op.c]));
+		} NEXT;
 		case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
 		default: __assume(0);
 		}

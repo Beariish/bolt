@@ -1,25 +1,17 @@
 import * from core
 import * from closure
 
-print("hello?")
-
-fn recurse(x: number): number {
-    if x < 1 { return x }
-    return recurse(x - 1)
-}
-
-recurse(15)
 
 for outer in 15 {
     let start_time = time()
     
     let total: number = 0
-    for i in 10000000 {
+    for i in range(10000000) {
         total += i
     }
     
     let end_time = time()
     
     let duration_ms = end_time - start_time
-    print("10m numeric iterations took", duration_ms / 1000, "ms", "|", total)
+    print("10m range() iterations took", duration_ms / 1000, "ms", "|", total)
 }

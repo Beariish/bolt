@@ -49,7 +49,8 @@ struct bt_Context {
 	bt_BucketedBuffer heap;
 };
 
-typedef struct bt_Thread {
+
+typedef __declspec(align(64)) struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];
 	uint32_t top;
 
