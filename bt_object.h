@@ -42,11 +42,11 @@ typedef struct bt_Module {
 
 	bt_Buffer constants;
 	bt_Buffer instructions;
-	uint8_t stack_size;
-
 	bt_Buffer imports;
+
 	bt_Table* exports;
 	bt_Type* type;
+	uint8_t stack_size;
 } bt_Module;
 
 typedef struct bt_String {

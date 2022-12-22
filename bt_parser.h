@@ -28,6 +28,7 @@ typedef enum {
 	BT_AST_NODE_LET,
 	BT_AST_NODE_ASSIGN,
 	BT_AST_NODE_CALL,
+	BT_AST_NODE_ALIAS,
 } bt_AstNodeType;
 
 typedef struct bt_AstNode bt_AstNode;
@@ -63,6 +64,10 @@ typedef struct bt_AstNode {
 			bt_AstNode* initializer;
 			bt_bool is_const;
 		} let;
+
+		struct {
+			bt_Type* type;
+		} alias;
 
 		struct {
 			bt_AstNode* expr;
@@ -111,6 +116,7 @@ typedef struct bt_AstNode {
 typedef struct bt_ParseBinding {
 	bt_StrSlice name;
 	bt_Type* type;
+	bt_AstNode* source;
 	bt_bool is_const;
 } bt_ParseBinding;
 

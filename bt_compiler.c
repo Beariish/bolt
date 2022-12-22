@@ -61,6 +61,11 @@ typedef struct FunctionContext {
     struct FunctionContext* outer;
 } FunctionContext;
 
+typedef struct Constant {
+    bt_StrSlice name;
+    bt_Value value;
+} Constant;
+
 static void store_hint(FunctionContext* ctx, uint8_t reg, StorageClass class, uint8_t idx)
 {
     RegisterState* regs = &ctx->registers;
@@ -225,12 +230,44 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Value constant = *(bt_Value*)bt_buffer_at(&ctx->constants, idx);
+        Constant* constant = (Constant*)bt_buffer_at(&ctx->constants, idx);
+        if (bt_value_is_equal(constant->value, value)) return idx;
+    }
+
+    Constant con;
+    con.name.length = 0;
+    con.value = value;
+
+    bt_buffer_push(ctx->context, &ctx->constants, &con);
+    return ctx->constants.length - 1;
+}
+
+static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value)
+{
+    for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
+    {
+        Constant* constant = bt_buffer_at(&ctx->constants, idx);
+        if (bt_strslice_compare(constant->name, name)) return idx;
         if (bt_value_is_equal(constant, value)) return idx;
     }
 
-    bt_buffer_push(ctx->context, &ctx->constants, &value);
+    Constant con;
+    con.value = value;
+    con.name = name;
+
+    bt_buffer_push(ctx->context, &ctx->constants, &con);
     return ctx->constants.length - 1;
+}
+
+static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name)
+{
+    for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
+    {
+        Constant* constant = bt_buffer_at(&ctx->constants, idx);
+        if (bt_strslice_compare(constant->name, name)) return idx;
+    }
+
+    return INVALID_BINDING;
 }
 
 static uint8_t get_register(FunctionContext* ctx)
@@ -305,6 +342,13 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
     uint8_t loc = INVALID_BINDING;
 
     if(expr->type == BT_AST_NODE_IDENTIFIER) {
+        loc = find_named(ctx, expr->source->source);
+        if (loc != INVALID_BINDING) {
+            uint8_t rloc = get_register(ctx);
+            emit_ab(ctx, BT_OP_LOAD, rloc, loc);
+            return rloc;
+        }
+
         loc = find_binding(ctx, expr->source->source);
         
         if (loc == INVALID_BINDING) {
@@ -425,6 +469,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             break;
         }
          
+        loc = find_named(ctx, expr->source->source);
+        if (loc != INVALID_BINDING) {
+            emit_ab(ctx, BT_OP_LOAD, result_loc, loc);
+            break;
+        }
+
         assert(0 && "Cannot find identifier!");
     } break;
     case BT_AST_NODE_IMPORT_REFERENCE: {
@@ -719,6 +769,9 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         pop_scope(ctx);
         restore_registers(ctx);
     } break;
+    case BT_AST_NODE_ALIAS: {
+        push_named(ctx, stmt->source->source, BT_VALUE_OBJECT(stmt->as.alias.type));
+    } break;
     default:
         push_registers(ctx);
         bt_bool result = compile_expression(ctx, stmt, get_register(ctx));
@@ -743,7 +796,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.temp_top = 0;
     fn.binding_top = 0;
     fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
-    fn.constants = BT_BUFFER_NEW(compiler->context, bt_Value);
+    fn.constants = BT_BUFFER_NEW(compiler->context, Constant);
     fn.context = compiler->context;
     fn.compiler = compiler;
     fn.fn = 0;
@@ -755,11 +808,16 @@ bt_Module* bt_compile(bt_Compiler* compiler)
 
     emit(&fn, BT_OP_END);
 
+    bt_Buffer fn_constants = bt_buffer_with_capacity(compiler->context, sizeof(bt_Value), fn.constants.length);
+    for (uint32_t i = 0; i < fn.constants.length; ++i) {
+        bt_buffer_push(compiler->context, &fn_constants, &((Constant*)bt_buffer_at(&fn.constants, i))->value);
+    }
 
     result->stack_size = fn.min_top_register;
-    result->constants = bt_buffer_clone(compiler->context, &fn.constants);
+    result->constants = bt_buffer_clone(compiler->context, &fn_constants);
     result->instructions = bt_buffer_clone(compiler->context, &fn.output);
 
+    bt_buffer_destroy(compiler->context, &fn_constants);
     bt_buffer_destroy(compiler->context, &fn.constants);
     bt_buffer_destroy(compiler->context, &fn.output);
 
@@ -777,7 +835,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.temp_top = 0;
     ctx.binding_top = 0;
     ctx.output = BT_BUFFER_NEW(compiler->context, bt_Op);
-    ctx.constants = BT_BUFFER_NEW(compiler->context, bt_Value);
+    ctx.constants = BT_BUFFER_NEW(compiler->context, Constant);
     ctx.context = compiler->context;
     ctx.compiler = compiler;
     ctx.outer = parent;
@@ -798,11 +856,18 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     }
 
     bt_Module* mod = find_module(&ctx);
-    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &ctx.constants, &ctx.output, ctx.min_top_register);
+
+    bt_Buffer fn_constants = bt_buffer_with_capacity(compiler->context, sizeof(bt_Value), ctx.constants.length);
+    for (uint32_t i = 0; i < ctx.constants.length; ++i) {
+        bt_buffer_push(compiler->context, &fn_constants, &((Constant*)bt_buffer_at(&ctx.constants, i))->value);
+    }
+
+    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
 
     bt_debug_print_fn(compiler->context, result);
     printf("-----------------------------------------------------\n");
 
+    bt_buffer_destroy(compiler->context, &fn_constants);
     bt_buffer_destroy(compiler->context, &ctx.constants);
     bt_buffer_destroy(compiler->context, &ctx.output);
 

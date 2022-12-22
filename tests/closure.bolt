@@ -14,3 +14,6 @@ export fn(max: number) {
         return null
     }
 } as range
+
+type TestType = number?
+export TestType

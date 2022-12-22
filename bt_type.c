@@ -19,6 +19,39 @@ bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right)
 	return left == right;
 }
 
+bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
+{
+	if (left->category != BT_TYPE_CATEGORY_SIGNATURE || right->category != BT_TYPE_CATEGORY_SIGNATURE)
+		return BT_FALSE;
+
+	if (left->as.fn.is_vararg != right->as.fn.is_vararg) return BT_FALSE;
+
+	if (left->as.fn.is_vararg) {
+		if (!left->as.fn.varargs_type->satisfier(left->as.fn.varargs_type, right->as.fn.varargs_type))
+			return BT_FALSE;
+	}
+
+	if (left->as.fn.args.length != right->as.fn.args.length) return BT_FALSE;
+
+	if (left->as.fn.return_type == 0 && right->as.fn.return_type) return BT_FALSE;
+	if (left->as.fn.return_type && right->as.fn.return_type == 0) return BT_FALSE;
+
+	if (left->as.fn.return_type) {
+		if (!left->as.fn.return_type->satisfier(left->as.fn.return_type, right->as.fn.return_type))
+			return BT_FALSE;
+	}
+
+	for (uint32_t i = 0; i < left->as.fn.args.length; ++i) {
+		bt_Type* arg_left = *(bt_Type**)bt_buffer_at(&left->as.fn.args, i);
+		bt_Type* arg_right = *(bt_Type**)bt_buffer_at(&right->as.fn.args, i);
+		
+		if (!arg_left->satisfier(arg_left, arg_right))
+			return BT_FALSE;
+	}
+
+	return BT_TRUE;
+}
+
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 {
 	return bt_type_satisfier_same(left, right) || (
@@ -62,8 +95,26 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 
 bt_bool type_satisifer_nullable(bt_Type* left, bt_Type* right)
 {
-	return bt_type_satisfier_same(left->as.nullable.base, right) ||
+	if (right->is_optional) {
+		return left->as.nullable.base->satisfier(left->as.nullable.base, right->as.nullable.base);
+	}
+
+	return left->as.nullable.base->satisfier(left->as.nullable.base, right) ||
 		(left->is_optional && right == left->ctx->types.null);
+}
+
+bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
+{
+	if (right->category == BT_TYPE_CATEGORY_TYPE) {
+		return left->as.type.boxed->satisfier(left->as.type.boxed, right->as.type.boxed);
+	}
+
+	return left->as.type.boxed->satisfier(left->as.type.boxed, right);
+}
+
+bt_bool type_satisfier_type(bt_Type* left, bt_Type* right)
+{
+	return right->category == BT_TYPE_CATEGORY_TYPE;
 }
 
 bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category, bt_bool is_optional)
@@ -175,7 +226,7 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
 {	
-	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
+	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
 	result->as.fn.return_type = ret;
 	result->as.fn.args = BT_BUFFER_WITH_CAPACITY(context, bt_Type*, arg_count);
 	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args + i);
@@ -195,6 +246,19 @@ bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs
 	update_sig_name(context, original);
 
 	return original;
+}
+
+bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed)
+{
+	bt_Type* result = bt_make_type(context, name, type_satisfier_alias, BT_TYPE_CATEGORY_TYPE, BT_FALSE);
+	result->as.type.boxed = boxed;
+
+	return result;
+}
+
+bt_Type* bt_make_fundamental(bt_Context* context)
+{
+	return bt_make_type(context, "Type", type_satisfier_type, BT_TYPE_CATEGORY_TYPE, BT_FALSE);
 }
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)

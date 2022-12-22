@@ -42,6 +42,7 @@ struct bt_Context {
 		bt_Type* table;
 		bt_Type* fn;
 		bt_Type* shared;
+		bt_Type* type;
 	} types;
 
 

@@ -32,14 +32,12 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->types.table = make_primitive_type(context, "table", bt_type_satisfier_same);
 
 	context->types.any = make_primitive_type(context, "any", bt_type_satisfier_any);
-	context->types.any->is_optional = BT_TRUE;
-
 	context->types.null = make_primitive_type(context, "null", bt_type_satisfier_null);
-	context->types.null->is_optional = BT_TRUE;
-
 	context->types.array = make_primitive_type(context, "array", bt_type_satisfier_array);
 	context->types.array->category = BT_TYPE_CATEGORY_ARRAY;
 	context->types.array->as.array.inner = context->types.any;
+
+	context->types.type = bt_make_fundamental(context);
 
 	context->type_registry = bt_make_table(context, 16);
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "number")), context->types.number);
@@ -49,6 +47,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "any")), context->types.any);
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "null")), context->types.null);
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "array")), context->types.array);
+	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "Type")), context->types.type);
 
 	context->loaded_modules = bt_make_table(context, 1);
 	context->prelude = bt_make_table(context, 16);

@@ -8,6 +8,7 @@ typedef struct bt_Type bt_Type;
 typedef bt_bool(*bt_TypeSatisfier)(bt_Type* left, bt_Type* right);
 
 typedef enum {
+	BT_TYPE_CATEGORY_TYPE,
 	BT_TYPE_CATEGORY_PRIMITIVE,
 	BT_TYPE_CATEGORY_ARRAY,
 	BT_TYPE_CATEGORY_TABLESHAPE,
@@ -43,6 +44,10 @@ typedef struct bt_Type {
 		struct {
 			bt_Type* base;
 		} nullable;
+
+		struct {
+			bt_Type* boxed;
+		} type;
 	} as;
 
 	bt_Context* ctx;
@@ -64,6 +69,8 @@ bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable);
 bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull);
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
+bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed);
+bt_Type* bt_make_fundamental(bt_Context* context);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);

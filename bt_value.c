@@ -20,7 +20,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 		return strncmp(a_str->str, b_str->str, (size_t)fmax(a_str->len, b_str->len)) == 0;
 	}
 
-	if (BT_IS_OBJECT(a)) {
+	if (BT_IS_OBJECT(a) && BT_IS_OBJECT(b)) {
 		bt_Object* obj = BT_AS_OBJECT(a);
 		if (obj->type == BT_OBJECT_TYPE_TYPE) {
 			bt_Type* ta = obj;

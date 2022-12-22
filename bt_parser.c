@@ -46,12 +46,22 @@ static void pop_scope(bt_Parser* parser)
 
 static void push_local(bt_Parser* parse, bt_AstNode* node) 
 {
-    assert(node->type == BT_AST_NODE_LET);
-
     bt_ParseBinding new_binding;
-    new_binding.is_const = node->as.let.is_const;
-    new_binding.name = node->as.let.name;
-    new_binding.type = node->resulting_type;
+    new_binding.source = node;
+
+    switch (node->type) {
+    case BT_AST_NODE_LET: {
+        new_binding.is_const = node->as.let.is_const;
+        new_binding.name = node->as.let.name;
+        new_binding.type = node->resulting_type;
+    } break;
+    case BT_AST_NODE_ALIAS: {
+        new_binding.is_const = BT_TRUE;
+        new_binding.name = node->source->source;
+        new_binding.type = parse->context->types.type;
+    } break;
+    default: assert(0);
+    }
 
     bt_ParseScope* topmost = parse->scope;
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
@@ -81,7 +91,7 @@ static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
     bt_buffer_push(parse->context, &topmost->bindings, &new_binding);
 }
 
-static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier) 
+static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
 {
     assert(identifier->type == BT_AST_NODE_IDENTIFIER);
 
@@ -91,6 +101,24 @@ static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
         for (uint32_t i = 0; i < current->bindings.length; ++i) {
             bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&current->bindings, i);
             if (bt_strslice_compare(binding->name, identifier->source->source)) {
+                return binding;
+            }
+        }
+
+        current = current->is_fn_boundary ? NULL : current->last;
+    }
+
+    return NULL;
+}
+
+static bt_ParseBinding* find_local_fast(bt_Parser* parse, bt_StrSlice identifier)
+{
+    bt_ParseScope* current = parse->scope;
+
+    while (current) {
+        for (uint32_t i = 0; i < current->bindings.length; ++i) {
+            bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&current->bindings, i);
+            if (bt_strslice_compare(binding->name, identifier)) {
                 return binding;
             }
         }
@@ -118,10 +146,35 @@ static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
     bt_Table* prelude = parser->context->prelude;
     for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
         bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
-        
+
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier->source->source)) {
             bt_buffer_push(parser->context, imports, &entry);
             identifier->type = BT_AST_NODE_IMPORT_REFERENCE;
+            return *(bt_ModuleImport**)bt_buffer_last(imports);
+        }
+
+    }
+
+    return NULL;
+}
+
+static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifier)
+{
+    bt_Buffer* imports = &parser->root->as.module.imports;
+    for (uint32_t i = 0; i < imports->length; ++i) {
+        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(imports, i);
+        if (bt_strslice_compare(bt_as_strslice(import->name), identifier)) {
+            return import;
+        }
+    }
+
+    // Import not found, _should_ we import from prelude?
+    bt_Table* prelude = parser->context->prelude;
+    for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
+        bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
+
+        if (bt_strslice_compare(bt_as_strslice(entry->name), identifier)) {
+            bt_buffer_push(parser->context, imports, &entry);
             return *(bt_ModuleImport**)bt_buffer_last(imports);
         }
 
@@ -254,16 +307,42 @@ static InfixBindingPower infix_binding_power(bt_Token* token)
     }
 }
 
-static bt_Type* parse_type(bt_Tokenizer* tok)
+static bt_Type* parse_type(bt_Parser* parse)
 {
+    bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_emit(tok);
     bt_Context* ctx = tok->context;
 
     switch (token->type) {
     case BT_TOKEN_IDENTIFIER: {
-        bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
-        bt_Type* result = bt_find_type(ctx, BT_VALUE_STRING(name));
-        if (!result) assert(0);
+        bt_ParseBinding* binding = find_local_fast(parse, token->source);
+        
+        bt_Type* result = 0;
+        if (binding) {
+            if (binding->source->resulting_type != ctx->types.type) {
+                assert(0 && "Type identifier didn't resolve to type!");
+            }
+
+            result = binding->source->as.alias.type;
+        }
+
+        if (!result) {
+            bt_ModuleImport* import = find_import_fast(parse, token->source);
+            if (import) {
+                if (import->type != ctx->types.type) {
+                    assert(0 && "Type identifier didn't resolve to type!");
+                }
+
+                result = BT_AS_OBJECT(import->value);
+            }
+        }
+
+        if (!result) {
+            bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
+            result = bt_find_type(ctx, BT_VALUE_STRING(name));
+        }
+
+        if (!result) assert(0 && "Failed to identify type!");
 
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_QUESTION) {
@@ -272,6 +351,33 @@ static bt_Type* parse_type(bt_Tokenizer* tok)
         }
 
         return result;
+    } break;
+    case BT_TOKEN_FN: {
+        bt_Type* args[16];
+        uint8_t arg_top = 0;
+
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_LEFTPAREN) {
+            bt_tokenizer_emit(tok);
+            token = bt_tokenizer_peek(tok);
+            while (token->type != BT_TOKEN_RIGHTPAREN) {
+                args[arg_top++] = parse_type(parse);
+                token = bt_tokenizer_emit(tok);
+                if (token->type != BT_TOKEN_COMMA && token->type != BT_TOKEN_RIGHTPAREN) {
+                    assert(0 && "Invalid token in function type signature!");
+                }
+            }
+        }
+
+        bt_Type* return_type = 0;
+        token = bt_tokenizer_peek(tok);
+
+        if (token->type == BT_TOKEN_COLON) {
+            bt_tokenizer_emit(tok);
+            return_type = parse_type(parse);
+        }
+
+        return bt_make_signature(ctx, return_type, args, arg_top);
     } break;
     default: assert(0);
     }
@@ -347,7 +453,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
 
             if (next->type == BT_TOKEN_COLON) {
                 next = bt_tokenizer_emit(tok);
-                this_arg.type = parse_type(tok);
+                this_arg.type = parse_type(parse);
             }
             else {
                 this_arg.type = parse->context->types.any;
@@ -368,7 +474,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     
     if (next->type == BT_TOKEN_COLON) {
         next = bt_tokenizer_emit(tok);
-        result->as.fn.ret_type = parse_type(tok);
+        result->as.fn.ret_type = parse_type(parse);
     }
 
     next = bt_tokenizer_emit(tok);
@@ -601,7 +707,6 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
     bt_ParseBinding* binding = find_local(parse, ident);
     if (binding) return binding->type;
 
-
     binding = find_upval(parse, ident);
     if (binding) return binding->type;
 
@@ -783,7 +888,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     if (type_or_expr->type == BT_TOKEN_COLON) {
         bt_tokenizer_emit(tok);
 
-        bt_Type* type = parse_type(tok);
+        bt_Type* type = parse_type(parse);
         if (!type) assert(0);
 
         node->resulting_type = type;
@@ -998,7 +1103,7 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     bt_Token* name = to_export->source;
 
     bt_Token* peek = bt_tokenizer_peek(tok);
-    if (peek->type == BT_TOKEN_AS) {
+    if (peek && peek->type == BT_TOKEN_AS) {
         bt_tokenizer_emit(tok);
         name = bt_tokenizer_emit(tok);
         if (name->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected valid export name!");
@@ -1193,6 +1298,30 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     return result;
 }
 
+static bt_AstNode* parse_alias(bt_Parser* parse)
+{
+    bt_AstNode* result = make_node(parse->context, BT_AST_NODE_ALIAS);
+
+    bt_Token* name = bt_tokenizer_emit(parse->tokenizer);
+
+    if (name->type != BT_TOKEN_IDENTIFIER) {
+        assert(0 && "Invalid type alias name!");
+    }
+
+    result->source = name;
+    result->resulting_type = parse->context->types.type;
+
+    bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_ASSIGN);
+
+    bt_Type* type = parse_type(parse);
+
+    result->as.alias.type = type;
+
+    push_local(parse, result);
+
+    return result;
+}
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -1230,6 +1359,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         bt_tokenizer_emit(tok);
         return parse_for(parse);
     } break;
+    case BT_TOKEN_TYPE: {
+        bt_tokenizer_emit(tok);
+        return parse_alias(parse);
+    }
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);
     }
