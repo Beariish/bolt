@@ -27,7 +27,6 @@ typedef struct bt_Object {
 	uint32_t heap_idx : 25;
 	bt_ObjectType type : 5;
 	uint32_t mark : 1;
-	uint32_t gray : 1;
 } bt_Object;
 
 typedef struct bt_Table {

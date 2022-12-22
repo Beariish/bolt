@@ -19,6 +19,9 @@ static void reference_all(bt_Object* obj)
 	case BT_OBJECT_TYPE_NONE: assert(0 && "What.");
 	case BT_OBJECT_TYPE_TYPE: {
 		bt_Type* as_type = obj;
+		if (as_type->is_optional) as_type = as_type->as.nullable.base;
+		as_type->obj.mark = 1;
+
 		switch (as_type->category) {
 		case BT_TYPE_CATEGORY_ARRAY:
 			reference_all(as_type->as.array.inner);
@@ -35,6 +38,9 @@ static void reference_all(bt_Object* obj)
 		case BT_TYPE_CATEGORY_TABLESHAPE: {
 			reference_all(as_type->as.table_shape.proto);
 			reference_all(as_type->as.table_shape.layout);
+		} break;
+		case BT_TYPE_CATEGORY_TYPE: {
+			reference_all(as_type->as.type.boxed);
 		} break;
 		}
 	} break;

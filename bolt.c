@@ -38,6 +38,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->types.array->as.array.inner = context->types.any;
 
 	context->types.type = bt_make_fundamental(context);
+	context->types.type->as.type.boxed = context->types.any;
 
 	context->type_registry = bt_make_table(context, 16);
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "number")), context->types.number);
@@ -115,7 +116,6 @@ bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType ty
 {
 	bt_Object* obj = context->alloc(full_size);
 	obj->mark = 1;
-	obj->gray = 0;
 	obj->type = type;
 
 	obj->heap_idx = bt_bucketed_buffer_insert(context, &context->heap, &obj);
@@ -134,11 +134,18 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	switch (obj->type) {
 	case BT_OBJECT_TYPE_TYPE: {
 		bt_Type* type = obj;
-		context->free(type->name);
-		switch (type->category) {
-		case BT_TYPE_CATEGORY_SIGNATURE:
-			bt_buffer_destroy(context, &type->as.fn.args);
-			break;
+		if (type->name) {
+			switch (type->category) {
+			case BT_TYPE_CATEGORY_SIGNATURE:
+				if (!type->is_optional) {
+					type->as.fn.args = bt_buffer_empty();
+					bt_buffer_destroy(context, &type->as.fn.args);
+				}
+
+				break;
+			}
+			context->free(type->name);
+			type->name = 0;
 		}
 	} break;
 	case BT_OBJECT_TYPE_STRING: {
