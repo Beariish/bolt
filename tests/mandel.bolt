@@ -45,6 +45,7 @@ for outer in 15 {
     for i in n {
         let x = xmin + i * dx
         for j in n {
+            let garbage = "string" + "other string"
             let y = ymin + j * dy
             result += level(x, y)
         }
@@ -56,16 +57,36 @@ for outer in 15 {
 
 import * from closure
 
+fn add(x: number, y: number) { return x + y }
+
 for outer in 15 {
     let start_time = time()
     
     let total: number = 0
+    let inner = 10
     for i in 10000000 {
-        total += i
+        total += inner
     }
     
     let end_time = time()
     
     let duration_ms = end_time - start_time
-    print("10m numeric iterations took", duration_ms / 1000, "ms", "|", total)
+    print("10m typed iterations took", duration_ms / 1000, "ms", "|", total)
+}
+
+fn add_slow(x, y) { return x + y }
+
+for outer in 15 {
+    let start_time = time()
+    
+    let total: any = 0
+    let inner: any = 10
+    for i in 10000000 {
+        total += inner
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("10m untyped iterations took", duration_ms / 1000, "ms", "|", total)
 }

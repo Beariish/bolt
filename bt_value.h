@@ -46,6 +46,7 @@ typedef struct bt_Type bt_Type;
 #define BT_IS_ARRAY(x)    (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_ARRAY)
 #define BT_IS_FN(x)       (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_FN)
 #define BT_IS_SHARED(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_SHARED)
+#define BT_IS_REFERENCE(x) (BT_IS_OBJECT(x) || BT_IS_STRING(x))
 
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
 

@@ -51,6 +51,9 @@ void bt_bucketed_buffer_destroy(bt_Context* context, bt_BucketedBuffer* buffer);
 #define BT_BUCKETED_BUFFER_NEW(context, size, type) bt_bucketed_buffer_new(context, size, sizeof(type))
 
 void* bt_bucketed_buffer_at(bt_BucketedBuffer* buffer, uint32_t index);
+void* bt_bucket_at(bt_Bucket* bucket, uint32_t index);
 
 uint32_t bt_bucketed_buffer_insert(bt_Context* context, bt_BucketedBuffer* buffer, void* element); 
-void bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, uint32_t index);
+bt_bool bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, uint32_t index);
+
+bt_bool bt_bucket_remove(bt_Bucket* bucket, uint32_t index);

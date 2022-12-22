@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
 		BT_VALUE_OBJECT(bt_make_native(&context, max_sig, bt_max)));
 
 	bt_Type* sqrt_args[] = { context.types.number };
-	bt_Type* sqrt_sig = bt_make_signature(&context, context.types.number, max_args, 1);
+	bt_Type* sqrt_sig = bt_make_signature(&context, context.types.number, sqrt_args, 1);
 	bt_module_export(&context, core_module,
 		sqrt_sig,
 		BT_VALUE_CSTRING(&context, "sqrt"),
@@ -139,8 +139,19 @@ int main(int argc, char** argv) {
 
 	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "mandel"));
 	bt_Module* loaded = bt_find_module(&context, module_name);
+	
+	printf("KB allocated during execution: %lld\n", bytes_allocated / 1024);
+	
+	while (bt_collect(&context.gc, 0));
 
-	printf("Bytes allocated during execution: %lld\n", bytes_allocated);
+	uint32_t cont = 1;
+	while (cont) {
+		uint64_t start = get_time();
+		cont = bt_collect(&context.gc, 0);
+		uint64_t end = get_time();
+		printf("GC cycle took %.2fms\n", (double)(end - start) / 1000.0);
+	}
+	printf("KB allocated after gc: %lld\n", bytes_allocated / 1024);
 	printf("-----------------------------------------------------\n");
 
  	return 0;

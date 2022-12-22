@@ -10,6 +10,7 @@
 #include "bt_parser.h"
 #include "bt_compiler.h"
 #include "bt_debug.h"
+#include "bt_gc.h"
 
 static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
 {
@@ -22,7 +23,9 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->free = free;
 
 	context->heap = BT_BUCKETED_BUFFER_NEW(context, 256, bt_Object*);
-
+	context->gc = bt_make_gc(context, &context->heap, &context->loaded_modules, &context->type_registry, &context->prelude);
+	context->n_allocated = 0;
+	
 	context->types.number = make_primitive_type(context, "number", bt_type_satisfier_same);
 	context->types.boolean = make_primitive_type(context, "bool", bt_type_satisfier_same);
 	context->types.string = make_primitive_type(context, "string", bt_type_satisfier_same);
@@ -82,41 +85,119 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 	
 	printf("-----------------------------------------------------\n");
 
-	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
-	*compiler = bt_open_compiler(parser);
-	bt_Module* result = bt_compile(compiler);
-	if (result == 0) {
-		bt_close_compiler(compiler);
-		bt_close_parser(parser);
-		bt_close_tokenizer(tok);
-		context->free(compiler);
-		context->free(parser);
-		context->free(tok);
-		return NULL;
-	}
+bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
+*compiler = bt_open_compiler(parser);
+bt_Module* result = bt_compile(compiler);
+if (result == 0) {
+	bt_close_compiler(compiler);
+	bt_close_parser(parser);
+	bt_close_tokenizer(tok);
+	context->free(compiler);
+	context->free(parser);
+	context->free(tok);
+	return NULL;
+}
 
-	bt_debug_print_module(context, result);
-	printf("-----------------------------------------------------\n");
+bt_debug_print_module(context, result);
+printf("-----------------------------------------------------\n");
 
-	//bt_close_compiler(compiler);
-	//bt_close_parser(parser);
-	//bt_close_tokenizer(tok);
-	//
-	//context->free(compiler);
-	//context->free(parser);
-	//context->free(tok);
+//bt_close_compiler(compiler);
+//bt_close_parser(parser);
+//bt_close_tokenizer(tok);
+//
+//context->free(compiler);
+//context->free(parser);
+//context->free(tok);
 
-	return result;
+return result;
 }
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
 	bt_Object* obj = context->alloc(full_size);
+	obj->mark = 1;
+	obj->gray = 0;
 	obj->type = type;
 
 	obj->heap_idx = bt_bucketed_buffer_insert(context, &context->heap, &obj);
 
+	context->n_allocated++;
+	if (context->n_allocated > 1024) {
+		context->n_allocated = 0;
+		//bt_collect(&context->gc);
+	}
+
 	return obj;
+}
+
+static void free_subobjects(bt_Context* context, bt_Object* obj)
+{
+	switch (obj->type) {
+	case BT_OBJECT_TYPE_TYPE: {
+		bt_Type* type = obj;
+		context->free(type->name);
+		switch (type->category) {
+		case BT_TYPE_CATEGORY_SIGNATURE:
+			bt_buffer_destroy(context, &type->as.fn.args);
+			break;
+		}
+	} break;
+	case BT_OBJECT_TYPE_STRING: {
+		bt_String* string = obj;
+		context->free(string->str);
+	} break;
+	case BT_OBJECT_TYPE_MODULE: {
+		bt_Module* mod = obj;
+		bt_buffer_destroy(context, &mod->constants);
+		bt_buffer_destroy(context, &mod->instructions);
+		bt_buffer_destroy(context, &mod->imports);
+	} break;
+	case BT_OBJECT_TYPE_FN: {
+		bt_Fn* fn = obj;
+		bt_buffer_destroy(context, &fn->constants);
+		bt_buffer_destroy(context, &fn->instructions);
+	} break;
+	case BT_OBJECT_TYPE_CLOSURE: {
+		bt_Closure* cl = obj;
+		bt_buffer_destroy(context, &cl->upvals);
+	} break;
+	case BT_OBJECT_TYPE_TABLE: {
+		bt_Table* table = obj;
+		bt_buffer_destroy(context, &table->pairs);
+	} break;
+	}
+}
+
+void bt_free(bt_Context* context, bt_Object* obj)
+{
+	free_subobjects(context, obj);
+
+	bt_bool moved = bt_bucketed_buffer_remove(context, &context->heap, obj->heap_idx);
+
+	if (moved) {
+		bt_Object** new_inplace = (bt_Object**)bt_bucketed_buffer_at(&context->heap, obj->heap_idx);
+		if (new_inplace) {
+			(*new_inplace)->heap_idx = obj->heap_idx;
+		}
+	}
+
+	memset(obj, 0xFF, sizeof(bt_Object));
+	context->free(obj);
+}
+
+void bt_free_from(bt_Context* context, bt_Bucket* bucket, bt_Object* obj)
+{
+	free_subobjects(context, obj);
+
+	bt_bool moved = bt_bucket_remove(bucket, obj->heap_idx);
+
+	if (moved) {
+		bt_Object* new_inplace = *(bt_Object**)bt_bucket_at(bucket, obj->heap_idx - bucket->base_index);
+		new_inplace->heap_idx = obj->heap_idx;
+	}
+
+	//memset(obj, 0xFF, sizeof(bt_Object));
+	context->free(obj);
 }
 
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)

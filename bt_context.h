@@ -5,6 +5,7 @@
 #include "bt_value.h"
 #include "bt_op.h"
 #include "bt_object.h"
+#include "bt_gc.h"
 
 #include <setjmp.h>
 
@@ -27,8 +28,9 @@ typedef struct bt_StackFrame {
 struct bt_Context {
 	bt_Alloc alloc;
 	bt_Free free;
-
-	bt_bool is_valid;
+	bt_BucketedBuffer heap;
+	bt_GC gc;
+	uint32_t n_allocated;
 
 	struct {
 		bt_Type* any;
@@ -42,11 +44,12 @@ struct bt_Context {
 		bt_Type* shared;
 	} types;
 
+
 	bt_Table* type_registry;
 	bt_Table* loaded_modules;
 	bt_Table* prelude;
 
-	bt_BucketedBuffer heap;
+	bt_bool is_valid;
 };
 
 
@@ -63,6 +66,8 @@ typedef __declspec(align(64)) struct bt_Thread {
 } bt_Thread;
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
+void bt_free(bt_Context* context, bt_Object* obj);
+void bt_free_from(bt_Context* context, bt_Bucket* bucket, bt_Object* obj);
 
 #define BT_ALLOCATE(ctx, e_type, c_type) \
 	((c_type*)bt_allocate(ctx, sizeof(c_type), (BT_OBJECT_TYPE_##e_type)))

@@ -105,6 +105,7 @@ static bt_Bucket* make_bucket(bt_Context* context, uint32_t bucket_size, uint32_
     result->next = NULL;
 
     result->data = context->alloc(element_size * bucket_size);
+    memset(result->data, 0xFF, element_size * bucket_size);
 
     return result;
 }
@@ -138,14 +139,14 @@ void bt_bucketed_buffer_destroy(bt_Context* context, bt_BucketedBuffer* buffer)
 void* bt_bucketed_buffer_at(bt_BucketedBuffer* buffer, uint32_t index)
 {
     // fast path as current bucket is often in cache
-    if (index > buffer->current->base_index && index < buffer->current->base_index + buffer->current->capacity)
+    if (index >= buffer->current->base_index && index < buffer->current->base_index + buffer->current->length)
     {
         return (void*)((char*)buffer->current->data + ((index - buffer->current->base_index) * (size_t)buffer->element_size));
     }
 
     bt_Bucket* current = buffer->root;
     while (current) {
-        if (index > current->base_index && index < current->base_index + current->capacity)
+        if (index >= current->base_index && index < current->base_index + current->length)
         {
             return (void*)((char*)current->data + ((index - current->base_index) * (size_t)buffer->element_size));
         }
@@ -154,6 +155,11 @@ void* bt_bucketed_buffer_at(bt_BucketedBuffer* buffer, uint32_t index)
     }
 
     return NULL;
+}
+
+void* bt_bucket_at(bt_Bucket* bucket, uint32_t index)
+{
+    return (void*)((char*)bucket->data + index * bucket->element_size);
 }
 
 uint32_t bt_bucketed_buffer_insert(bt_Context* context, bt_BucketedBuffer* buffer, void* element)
@@ -180,10 +186,10 @@ uint32_t bt_bucketed_buffer_insert(bt_Context* context, bt_BucketedBuffer* buffe
     return bt_bucketed_buffer_insert(context, buffer, element);
 }
 
-void bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, uint32_t index)
+bt_bool bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, uint32_t index)
 {
     // fast path as current bucket is often in cache
-    if (index > buffer->current->base_index && index < buffer->current->base_index + buffer->current->capacity)
+    if (index > buffer->current->base_index && index < buffer->current->base_index + buffer->current->length)
     {
         uint32_t local_idx = index - buffer->current->base_index;
         
@@ -192,12 +198,12 @@ void bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, u
             buffer->element_size);
         
         buffer->current->length--;
-        return;
+        return buffer->current->length != local_idx;
     }
 
     bt_Bucket* current = buffer->root;
     while (current) {
-        if (index > current->base_index && index < current->base_index + current->capacity)
+        if (index >= current->base_index && index < current->base_index + current->length)
         {
             uint32_t local_idx = index - current->base_index;
             
@@ -206,10 +212,30 @@ void bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, u
                 buffer->element_size);
             
             current->length--;
+            return current->length != local_idx && current->length > 0;
         }
 
         current = current->next;
     }
+
+    return BT_FALSE;
+}
+
+bt_bool bt_bucket_remove(bt_Bucket* bucket, uint32_t index)
+{
+    if (index >= bucket->base_index && index < bucket->base_index + bucket->length)
+    {
+        uint32_t local_idx = index - bucket->base_index;
+
+        memcpy((char*)bucket->data + bucket->element_size * local_idx,
+            (char*)bucket->data + bucket->element_size * (bucket->length - 1),
+            bucket->element_size);
+
+        bucket->length--;
+        return bucket->length != local_idx && bucket->length > 0;
+    }
+
+    return BT_FALSE;
 }
 
 bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output)
