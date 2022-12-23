@@ -283,3 +283,37 @@ void bt_tableshape_set_proto(bt_Type* tshp, bt_Table* proto)
 {
 	tshp->as.table_shape.proto = proto;
 }
+
+bt_bool bt_is_type(bt_Value value, bt_Type* type)
+{
+	if (type == type->ctx->types.any) return BT_TRUE;
+	if (type == type->ctx->types.null && value == BT_VALUE_NULL) return BT_TRUE;
+	if (value == BT_VALUE_NULL) return BT_FALSE;
+	if (type == type->ctx->types.boolean && BT_IS_BOOL(value)) return BT_TRUE;
+	if (type == type->ctx->types.number && BT_IS_NUMBER(value)) return BT_TRUE;
+	if (type == type->ctx->types.string && BT_IS_STRING(value)) return BT_TRUE;
+
+	if (!BT_IS_OBJECT(value)) return BT_FALSE;
+
+	bt_Object* as_obj = BT_AS_OBJECT(value);
+
+	switch (type->category) {
+	case BT_TYPE_CATEGORY_TYPE:
+		return as_obj->type == BT_OBJECT_TYPE_TYPE;
+	case BT_TYPE_CATEGORY_SIGNATURE:
+		if (as_obj->type == BT_OBJECT_TYPE_FN) {
+			bt_Fn* as_fn = as_obj;
+			return type->satisfier(type, as_fn->signature);
+		}
+		else if (as_obj->type == BT_OBJECT_TYPE_CLOSURE) {
+			bt_Closure* cl = as_obj;
+			return type->satisfier(type, cl->fn->signature);
+		}
+		else {
+			return BT_FALSE;
+		}
+	}
+
+	// TODO: Table and array types
+	return BT_FALSE;
+}

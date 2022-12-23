@@ -501,6 +501,19 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 		case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
 		case BT_OP_COALESCE: stack[op.a] = stack[op.b] == BT_VALUE_NULL ? stack[op.c] : stack[op.b];   NEXT;
 
+		case BT_OP_TCHECK: {
+			stack[op.a] = bt_is_type(stack[op.b], BT_AS_OBJECT(stack[op.c])) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
+		} NEXT;
+
+		case BT_OP_TCAST: {
+			if (bt_is_type(stack[op.b], BT_AS_OBJECT(stack[op.c]))) {
+				stack[op.a] = stack[op.b];
+			}
+			else {
+				stack[op.a] = BT_VALUE_NULL;
+			}
+		} NEXT;
+
 		case BT_OP_CALL: {
 			uint16_t old_top = thread->top;
 

@@ -9,36 +9,27 @@ takes_cb(fn(x: number) {
     return x > 50
 })
 
-type Number = number
-type BinOp = fn(number, Number): number
+type BinOp = fn(number, number): number
 
-fn does_binop(binop: BinOp, x: number, y: number): Number {
-    return binop(x, y)
+fn does_binop_or_fail(binop: any, x: number, y: number) {
+    if binop is BinOp {
+        let op = binop into BinOp!
+        print("good argument!")
+        return op(x, y)
+    } else {
+        print("Bad argument!")
+        return 0
+    }
 }
 
 fn add(x: number, y: number) { return x + y }
-fn does_binop_or_add(binop: BinOp?, x: Number, y: number) {
-    return binop!(x, y)
-}
-
 fn sub(x: number, y: number) { return x - y }
 fn mul(x: number, y: number) { return x * y }
+fn div(x: number, y: number) { return x / y }
 
-let div: BinOp = fn(x: number, y: number) {
-    return x / y
-}
-
-fn hm(x: TestType) { print(x) }
-
-hm(100)
-hm(null)
-
-print(does_binop(add, 10, 10))
-print(does_binop(sub, 10, 10))
-print(does_binop(mul, 10, 10))
-print(does_binop(div, 10, 10))
-print(does_binop_or_add(div, 10, 10))
-print(does_binop_or_add(add, 10, 10))
+print(does_binop_or_fail(div, 10, 10))
+print(does_binop_or_fail(null, 10, 10))
+print(does_binop_or_fail(mul, 10, 10))
 
 return BinOp
 

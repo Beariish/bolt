@@ -570,6 +570,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_NULLCOALESCE:
             emit_abc(ctx, BT_OP_COALESCE, result_loc, lhs_loc, rhs_loc);
             break;
+        case BT_TOKEN_IS:
+            emit_abc(ctx, BT_OP_TCHECK, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_INTO:
+            emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc);
+            break;
         case BT_TOKEN_PERIOD:
             emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
             break;
@@ -631,7 +637,13 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                     emit_ab(ctx, BT_OP_LOADUP, start + i + 1, loc);
                     continue;
                 }
-                
+
+                loc = find_named(ctx, binding->name);
+                if (loc != INVALID_BINDING) {
+                    emit_ab(ctx, BT_OP_LOAD, start + i + 1, loc);
+                    continue;
+                }
+
                 assert(0 && "Cannot find identifier!");
             }
 

@@ -75,3 +75,5 @@ bt_Type* bt_make_fundamental(bt_Context* context);
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
 void bt_tableshape_set_proto(bt_Type* tshp, bt_Table* proto);
+
+bt_bool bt_is_type(bt_Value value, bt_Type* type);

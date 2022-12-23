@@ -5,6 +5,7 @@
 #include "bt_debug.h"
 
 #include <assert.h>
+#include <memory.h>
 
 static void parse_block(bt_Buffer* result, bt_Parser* parse);
 static bt_AstNode* parse_statement(bt_Parser* parse);
@@ -58,7 +59,10 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     case BT_AST_NODE_ALIAS: {
         new_binding.is_const = BT_TRUE;
         new_binding.name = node->source->source;
-        new_binding.type = parse->context->types.type;
+        char* name = parse->context->alloc(node->source->source.length + 1);
+        memcpy(name, node->source->source.source, node->source->source.length);
+        name[node->source->source.length] = 0;
+        new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);;
     } break;
     default: assert(0);
     }
@@ -252,6 +256,7 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_LEFTBRACKET: case BT_TOKEN_LEFTPAREN:
     case BT_TOKEN_LT: case BT_TOKEN_LTE:
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
+    case BT_TOKEN_IS: case BT_TOKEN_INTO:
         return BT_TRUE;
     default:
         return BT_FALSE;
@@ -273,9 +278,9 @@ static uint8_t postfix_binding_power(bt_Token* token)
 {
     switch (token->type)
     {
+    case BT_TOKEN_BANG: return 8;
     case BT_TOKEN_LEFTPAREN: return 14;
     case BT_TOKEN_QUESTION: return 15;
-    case BT_TOKEN_BANG: return 16;
     case BT_TOKEN_LEFTBRACKET: return 17;
     default:
         return 0;
@@ -297,12 +302,13 @@ static InfixBindingPower infix_binding_power(bt_Token* token)
     
     case BT_TOKEN_AND: case BT_TOKEN_OR: return (InfixBindingPower) { 5, 6 };
     case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: return (InfixBindingPower) { 7, 8 };
-    case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 9, 10 };
+    case BT_TOKEN_IS: case BT_TOKEN_INTO: return (InfixBindingPower) { 9, 10 };
+    case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 11, 12 };
     case BT_TOKEN_LT: case BT_TOKEN_LTE:
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
-        return (InfixBindingPower) { 11, 12 };
-    case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 13, 14 };
-    case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 15, 16 };
+        return (InfixBindingPower) { 13, 14 };
+    case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 15, 16 };
+    case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 17, 18 };
     case BT_TOKEN_PERIOD: return (InfixBindingPower) { 101, 100 };
     default: return (InfixBindingPower) { 0, 0 };
     }
@@ -330,7 +336,7 @@ static bt_Type* parse_type(bt_Parser* parse)
         if (!result) {
             bt_ModuleImport* import = find_import_fast(parse, token->source);
             if (import) {
-                if (import->type != ctx->types.type) {
+                if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
                     assert(0 && "Type identifier didn't resolve to type!");
                 }
 
@@ -842,7 +848,21 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             node->resulting_type = parse->context->types.any;
         } break;
-
+        case BT_TOKEN_IS: {
+            if (type_check(parse, node->as.binary_op.left)->resulting_type != parse->context->types.any)
+                assert(0 && "Expected to check from unknown type!");
+            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
+                assert(0 && "Expected right hand of 'is' to be Type!");
+            node->resulting_type = parse->context->types.boolean;
+        } break;
+        case BT_TOKEN_INTO: {
+            if (type_check(parse, node->as.binary_op.left)->resulting_type != parse->context->types.any)
+                assert(0 && "Expected to cast from unknown type!");
+            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
+                assert(0 && "Expected right hand of 'as' to be Type!");
+            bt_Type* type = find_binding(parse, node->as.binary_op.right);
+            node->resulting_type = bt_make_nullable(parse->context, type->as.type.boxed);
+        } break;
         // Comparison binops always produce boolean
         case BT_TOKEN_LT: case BT_TOKEN_LTE: case BT_TOKEN_GT: case BT_TOKEN_GTE: {
             if (type_check(parse, node->as.binary_op.left)->resulting_type != parse->context->types.number) assert(0);

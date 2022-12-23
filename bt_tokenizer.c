@@ -212,8 +212,6 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("true", token, BT_TOKEN_TRUE_LITERAL)
 		else BT_TEST_KEYWORD("false", token, BT_TOKEN_FALSE_LITERAL)
 		else BT_TEST_KEYWORD("null", token, BT_TOKEN_NULL_LITERAL)
-		else BT_TEST_KEYWORD("is", token, BT_TOKEN_EQUALS)
-		else BT_TEST_KEYWORD("isnt", token, BT_TOKEN_NOTEQ)
 		else BT_TEST_KEYWORD("and", token, BT_TOKEN_AND)
 		else BT_TEST_KEYWORD("or", token, BT_TOKEN_OR)
 		else BT_TEST_KEYWORD("not", token, BT_TOKEN_NOT)
@@ -221,6 +219,8 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("export", token, BT_TOKEN_EXPORT)
 		else BT_TEST_KEYWORD("as", token, BT_TOKEN_AS)
 		else BT_TEST_KEYWORD("from", token, BT_TOKEN_FROM)
+		else BT_TEST_KEYWORD("is", token, BT_TOKEN_IS)
+		else BT_TEST_KEYWORD("into", token, BT_TOKEN_INTO)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, &token);
