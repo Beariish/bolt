@@ -41,6 +41,7 @@ typedef enum {
 	BT_OP_LOAD_IDX,			 // R(a) = b.[c]
 	BT_OP_STORE_IDX,		 // b.[c] = R(a)
 
+	BT_OP_EXPECT,            // R(a) = R(b) ? FAIL
 	BT_OP_EXISTS,			 // R(a) = R(b) != null
 	BT_OP_COALESCE,			 // R(a) = R(b) == null ? R(c) : R(b)
 

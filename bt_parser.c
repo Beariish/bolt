@@ -248,7 +248,7 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_NULLCOALESCE: case BT_TOKEN_ASSIGN:
     case BT_TOKEN_PLUSEQ: case BT_TOKEN_MINUSEQ:
     case BT_TOKEN_MULEQ: case BT_TOKEN_DIVEQ:
-    case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTION:
+    case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTION: case BT_TOKEN_BANG:
     case BT_TOKEN_LEFTBRACKET: case BT_TOKEN_LEFTPAREN:
     case BT_TOKEN_LT: case BT_TOKEN_LTE:
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
@@ -275,7 +275,8 @@ static uint8_t postfix_binding_power(bt_Token* token)
     {
     case BT_TOKEN_LEFTPAREN: return 14;
     case BT_TOKEN_QUESTION: return 15;
-    case BT_TOKEN_LEFTBRACKET: return 16;
+    case BT_TOKEN_BANG: return 16;
+    case BT_TOKEN_LEFTBRACKET: return 17;
     default:
         return 0;
     }
@@ -771,6 +772,13 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return NULL;
             }
             node->resulting_type = parse->context->types.boolean;
+            break;
+        case BT_TOKEN_BANG:
+            if (!type_check(parse, node->as.unary_op.operand)->resulting_type->is_optional) {
+                assert(0 && "Unary operator ! can only be applied to nullable types.");
+                return NULL;
+            }
+            node->resulting_type = node->as.unary_op.operand->resulting_type->as.nullable.base;
             break;
         default:
             node->resulting_type = type_check(parse, node->as.unary_op.operand)->resulting_type;

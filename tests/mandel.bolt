@@ -18,8 +18,7 @@ fn does_binop(binop: BinOp, x: number, y: number): Number {
 
 fn add(x: number, y: number) { return x + y }
 fn does_binop_or_add(binop: BinOp?, x: Number, y: number) {
-    let op = binop ?? add
-    return op(x, y)
+    return binop!(x, y)
 }
 
 fn sub(x: number, y: number) { return x - y }
@@ -38,8 +37,8 @@ print(does_binop(add, 10, 10))
 print(does_binop(sub, 10, 10))
 print(does_binop(mul, 10, 10))
 print(does_binop(div, 10, 10))
-//print(does_binop_or_add(div, 10, 10))
-//print(does_binop_or_add(null, 10, 10))
+print(does_binop_or_add(div, 10, 10))
+print(does_binop_or_add(add, 10, 10))
 
 return BinOp
 
