@@ -169,7 +169,7 @@ uint32_t bt_bucketed_buffer_insert(bt_Context* context, bt_BucketedBuffer* buffe
         return buffer->current->base_index + buffer->current->length++;
     }
 
-    bt_Bucket* bucket = buffer->root;
+    /*bt_Bucket* bucket = buffer->root;
     while (bucket) {
         if (bucket->length == bucket->capacity)
             bucket = bucket->next;
@@ -178,7 +178,7 @@ uint32_t bt_bucketed_buffer_insert(bt_Context* context, bt_BucketedBuffer* buffe
     if (bucket) {
         buffer->current = bucket;
         return bt_bucketed_buffer_insert(context, buffer, element);
-    }
+    }*/
 
     buffer->current->next = make_bucket(context, buffer->bucket_size, buffer->element_size, buffer->current->base_index + buffer->bucket_size);
     buffer->current = buffer->current->next;

@@ -66,6 +66,15 @@ typedef struct Constant {
     bt_Value value;
 } Constant;
 
+static uint8_t get_register(FunctionContext* ctx);
+static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
+static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
+static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrSlice name, bt_Type* type);
+static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name);
+static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
+static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
+static uint8_t push(FunctionContext* ctx, bt_Value value);
+
 static void store_hint(FunctionContext* ctx, uint8_t reg, StorageClass class, uint8_t idx)
 {
     RegisterState* regs = &ctx->registers;
@@ -78,17 +87,51 @@ static void store_hint(FunctionContext* ctx, uint8_t reg, StorageClass class, ui
 
 static uint8_t is_stored(FunctionContext* ctx, uint8_t idx) 
 {
+    return INVALID_BINDING;
     for (uint8_t i = 0; i < 255; ++i)
     {
         if (ctx->registers.last_load[i] == idx) return i;
     }
 
-    return INVALID_BINDING;
 }
 
-static uint8_t get_register(FunctionContext* ctx);
-static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
-static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
+static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t result_loc) {
+    uint8_t idx = push(ctx, BT_VALUE_OBJECT(fn));
+
+    if (expr->as.fn.upvals.length == 0) {
+        emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+    }
+    else {
+        uint8_t start = get_registers(ctx, expr->as.fn.upvals.length + 1);
+
+        emit_ab(ctx, BT_OP_LOAD, start, idx);
+
+        for (uint8_t i = 0; i < expr->as.fn.upvals.length; ++i) {
+            bt_ParseBinding* binding = bt_buffer_at(&expr->as.fn.upvals, i);
+            uint8_t loc = find_binding(ctx, binding->name);
+            if (loc != INVALID_BINDING) {
+                emit_ab(ctx, BT_OP_MOVE, start + i + 1, loc);
+                continue;
+            }
+
+            loc = find_upval(ctx, binding->name);
+            if (loc != INVALID_BINDING) {
+                emit_ab(ctx, BT_OP_LOADUP, start + i + 1, loc);
+                continue;
+            }
+
+            loc = find_named(ctx, binding->name);
+            if (loc != INVALID_BINDING) {
+                emit_ab(ctx, BT_OP_LOAD, start + i + 1, loc);
+                continue;
+            }
+
+            assert(0 && "Cannot find identifier!");
+        }
+
+        emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length);
+    }
+}
 
 static bt_Module* find_module(FunctionContext* ctx)
 {
@@ -113,7 +156,7 @@ static void pop_scope(FunctionContext* ctx)
 
 static uint8_t make_binding_at_loc(FunctionContext* ctx, bt_StrSlice name, uint8_t loc)
 {
-    for (uint32_t i = 0; i < ctx->binding_top; ++i) {
+    for (uint32_t i = ctx->binding_tops[ctx->scope_depth - 1]; i < ctx->binding_top; ++i) {
         CompilerBinding* binding = ctx->bindnings + i;
         if (bt_strslice_compare(binding->name, name)) assert(0);
     }
@@ -133,7 +176,7 @@ static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name)
 
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name)
 {
-    for (uint32_t i = 0; i < ctx->binding_top; ++i) {
+    for (int32_t i = ctx->binding_top - 1; i >= 0; --i) {
         CompilerBinding* binding = ctx->bindnings + i;
         if (bt_strslice_compare(binding->name, name)) return binding->loc;
     }
@@ -256,7 +299,16 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
     con.name = name;
 
     bt_buffer_push(ctx->context, &ctx->constants, &con);
-    return ctx->constants.length - 1;
+    uint32_t ret = ctx->constants.length - 1;
+
+    if (BT_IS_OBJECT(value)) {
+        bt_Type* as_type = BT_AS_OBJECT(value);
+        if (as_type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+            compile_type(ctx->compiler, ctx, name, as_type);
+        }
+    }
+
+    return ret;
 }
 
 static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name)
@@ -574,7 +626,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_TCHECK, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_INTO:
-            emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc);
+            // TODO: Accelerated casting is when types are known at compile-time. Should be no-op.
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_TALIAS, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_PERIOD:
             emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
@@ -612,43 +666,34 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         restore_registers(ctx);
     } break;
-    case BT_AST_NODE_FUNCTION: {
+    case BT_AST_NODE_FUNCTION: 
+    case BT_AST_NODE_METHOD: {
         bt_Fn* fn = compile_fn(ctx->compiler, ctx, expr);
-        uint8_t idx = push(ctx, BT_VALUE_OBJECT(fn));
+        load_fn(ctx, expr, fn, result_loc);
+    } break;
+    case BT_AST_NODE_TABLE: {
+        push_registers(ctx);
 
-        if (expr->as.fn.upvals.length == 0) {
-            emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+        bt_Buffer* fields = &expr->as.table.fields;
+        emit_aibc(ctx, BT_OP_TABLE, result_loc, fields->length);
+
+        uint8_t idx_loc = get_register(ctx);
+        uint8_t val_loc = get_register(ctx);
+
+        for (uint32_t i = 0; i < fields->length; ++i) {
+            bt_AstNode* entry = *(bt_AstNode**)bt_buffer_at(fields, i);
+            bt_Token* name = entry->as.table_field.name;
+            bt_String* idx = bt_make_string_hashed_len(ctx->context, name->source.source, name->source.length);
+            uint8_t idx_idx = push(ctx, BT_VALUE_STRING(idx));
+
+            emit_ab(ctx, BT_OP_LOAD, idx_loc, idx_idx);
+
+            compile_expression(ctx, entry->as.table_field.expr, val_loc);
+
+            emit_abc(ctx, BT_OP_STORE_IDX, result_loc, idx_loc, val_loc);
         }
-        else {
-            uint8_t start = get_registers(ctx, expr->as.fn.upvals.length + 1);
 
-            emit_ab(ctx, BT_OP_LOAD, start, idx);
-
-            for (uint8_t i = 0; i < expr->as.fn.upvals.length; ++i) {
-                bt_ParseBinding* binding = bt_buffer_at(&expr->as.fn.upvals, i);
-                uint8_t loc = find_binding(ctx, binding->name);
-                if (loc != INVALID_BINDING) {
-                    emit_ab(ctx, BT_OP_MOVE, start + i + 1, loc);
-                    continue;
-                }
-
-                loc = find_upval(ctx, binding->name);
-                if (loc != INVALID_BINDING) {
-                    emit_ab(ctx, BT_OP_LOADUP, start + i + 1, loc);
-                    continue;
-                }
-
-                loc = find_named(ctx, binding->name);
-                if (loc != INVALID_BINDING) {
-                    emit_ab(ctx, BT_OP_LOAD, start + i + 1, loc);
-                    continue;
-                }
-
-                assert(0 && "Cannot find identifier!");
-            }
-
-            emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length);
-        }
+        restore_registers(ctx);
     } break;
     default: assert(0);
     }
@@ -810,11 +855,14 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.registers.regs[3] = 0;
     fn.temp_top = 0;
     fn.binding_top = 0;
+    fn.scope_depth = 0;
     fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
     fn.constants = BT_BUFFER_NEW(compiler->context, Constant);
     fn.context = compiler->context;
     fn.compiler = compiler;
     fn.fn = 0;
+
+    push_scope(&fn);
 
     bt_Module* result = bt_make_module(compiler->context, imports);
     fn.module = result;
@@ -849,6 +897,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.registers.regs[3] = 0;
     ctx.temp_top = 0;
     ctx.binding_top = 0;
+    ctx.scope_depth = 0;
     ctx.output = BT_BUFFER_NEW(compiler->context, bt_Op);
     ctx.constants = BT_BUFFER_NEW(compiler->context, Constant);
     ctx.context = compiler->context;
@@ -856,6 +905,8 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.outer = parent;
     ctx.module = 0;
     ctx.fn = fn;
+
+    push_scope(&ctx);
 
     bt_Buffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {
@@ -887,4 +938,39 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     bt_buffer_destroy(compiler->context, &ctx.output);
 
     return result;
+}
+
+static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrSlice name, bt_Type* type)
+{
+    if (type->is_compiled) return;
+
+    type->is_compiled = BT_TRUE;
+
+    if (type->as.table_shape.values) {
+        bt_Buffer* to_compile = &type->as.table_shape.values->pairs;
+
+        push_registers(parent);
+
+        uint8_t type_loc = get_register(parent);
+        uint8_t type_idx = find_named(parent, name);
+        emit_ab(parent, BT_OP_LOAD, type_loc, type_idx);
+
+        uint8_t idx_loc = get_register(parent);
+        uint8_t val_loc = get_register(parent);
+
+        for (uint32_t i = 0; i < to_compile->length; ++i) {
+            bt_TablePair* pair = bt_buffer_at(to_compile, i);
+
+            bt_String* name = BT_AS_STRING(pair->key);
+            uint8_t name_idx = push(parent, BT_VALUE_STRING(name));
+            emit_ab(parent, BT_OP_LOAD, idx_loc, name_idx);
+
+            bt_AstNode* fn = BT_AS_OBJECT(pair->value);
+            compile_expression(parent, fn, val_loc);
+
+            emit_abc(parent, BT_OP_STORE_IDX, type_loc, idx_loc, val_loc);
+        }
+
+        restore_registers(parent);
+    }
 }

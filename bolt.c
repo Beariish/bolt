@@ -29,7 +29,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->types.number = make_primitive_type(context, "number", bt_type_satisfier_same);
 	context->types.boolean = make_primitive_type(context, "bool", bt_type_satisfier_same);
 	context->types.string = make_primitive_type(context, "string", bt_type_satisfier_same);
-	context->types.table = make_primitive_type(context, "table", bt_type_satisfier_same);
+	context->types.table = bt_make_tableshape(context, "table", BT_FALSE);
 
 	context->types.any = make_primitive_type(context, "any", bt_type_satisfier_any);
 	context->types.null = make_primitive_type(context, "null", bt_type_satisfier_null);
@@ -85,31 +85,31 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 	
 	printf("-----------------------------------------------------\n");
 
-bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
-*compiler = bt_open_compiler(parser);
-bt_Module* result = bt_compile(compiler);
-if (result == 0) {
+	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
+	*compiler = bt_open_compiler(parser);
+	bt_Module* result = bt_compile(compiler);
+	if (result == 0) {
+		bt_close_compiler(compiler);
+		bt_close_parser(parser);
+		bt_close_tokenizer(tok);
+		context->free(compiler);
+		context->free(parser);
+		context->free(tok);
+		return NULL;
+	}
+
+	bt_debug_print_module(context, result);
+	printf("-----------------------------------------------------\n");
+
 	bt_close_compiler(compiler);
 	bt_close_parser(parser);
 	bt_close_tokenizer(tok);
+
 	context->free(compiler);
 	context->free(parser);
 	context->free(tok);
-	return NULL;
-}
 
-bt_debug_print_module(context, result);
-printf("-----------------------------------------------------\n");
-
-//bt_close_compiler(compiler);
-//bt_close_parser(parser);
-//bt_close_tokenizer(tok);
-//
-//context->free(compiler);
-//context->free(parser);
-//context->free(tok);
-
-return result;
+	return result;
 }
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
@@ -459,6 +459,8 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 				(*(bt_ModuleImport**)bt_buffer_at(&module->imports, op.ubc))->value;
 			NEXT;
 
+		case BT_OP_TABLE: stack[op.a] = BT_VALUE_OBJECT(bt_make_table(context, op.ibc)); NEXT;
+
 		case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
 
 		case BT_OP_EXPORT: {
@@ -496,6 +498,18 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 		case BT_OP_NOT: bt_not(thread, stack + op.a, stack[op.b]); NEXT;
 
 		case BT_OP_LOAD_IDX: stack[op.a] = bt_table_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
+		case BT_OP_STORE_IDX: {
+			bt_Object* idxee = BT_AS_OBJECT(stack[op.a]);
+			if (idxee->type == BT_OBJECT_TYPE_TABLE) {
+				bt_table_set(context, BT_AS_OBJECT(stack[op.a]), stack[op.b], stack[op.c]);
+			}
+			else if (idxee->type == BT_OBJECT_TYPE_TYPE) {
+				bt_tableshape_set_field(context, idxee, stack[op.b], stack[op.c]);
+			}
+			else {
+				bt_runtime_error(thread, "Attempted to store idx into non-indexable object!");
+			}
+		} NEXT;
 
 		case BT_OP_EXPECT:   stack[op.a] = stack[op.b]; if (stack[op.a] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!"); NEXT;
 		case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
@@ -507,11 +521,17 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 
 		case BT_OP_TCAST: {
 			if (bt_is_type(stack[op.b], BT_AS_OBJECT(stack[op.c]))) {
-				stack[op.a] = stack[op.b];
+				stack[op.a] = bt_cast_type(stack[op.b], BT_AS_OBJECT(stack[op.c]));
 			}
 			else {
 				stack[op.a] = BT_VALUE_NULL;
 			}
+		} NEXT;
+
+		case BT_OP_TALIAS: {
+			bt_Table* tbl = BT_AS_OBJECT(stack[op.b]);
+			tbl->prototype = ((bt_Type*)BT_AS_OBJECT(stack[op.c]))->as.table_shape.values;
+			stack[op.a] = stack[op.b];
 		} NEXT;
 
 		case BT_OP_CALL: {
@@ -576,7 +596,7 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) / BT_AS_NUMBER(stack[op.c]));
 		} NEXT;
 		case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
-		default: __assume(0);
+		default: __debugbreak();
 		}
 	}
 }

@@ -36,7 +36,7 @@ static void reference_all(bt_Object* obj)
 			}
 		} break;
 		case BT_TYPE_CATEGORY_TABLESHAPE: {
-			reference_all(as_type->as.table_shape.proto);
+			reference_all(as_type->as.table_shape.values);
 			reference_all(as_type->as.table_shape.layout);
 		} break;
 		case BT_TYPE_CATEGORY_TYPE: {

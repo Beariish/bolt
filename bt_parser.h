@@ -13,6 +13,7 @@ typedef enum {
 	BT_AST_NODE_IMPORT_REFERENCE,
 	BT_AST_NODE_ARRAY,
 	BT_AST_NODE_TABLE,
+	BT_AST_NODE_TABLE_ENTRY,
 	BT_AST_NODE_INDEX,
 
 	BT_AST_NODE_FUNCTION,
@@ -79,7 +80,9 @@ typedef struct bt_AstNode {
 			bt_Buffer upvals;
 			bt_Type* ret_type;
 			bt_AstNode* outer;
-		} fn;
+			bt_Type* type;
+			bt_Token* name;
+		} fn, method;
 
 		struct {
 			bt_AstNode* fn;
@@ -110,6 +113,16 @@ typedef struct bt_AstNode {
 			bt_AstNode* stop;
 			bt_AstNode* step;
 		} loop_numeric;
+
+		struct {
+			bt_Buffer fields;
+		} table;
+
+		struct {
+			bt_Type* type;
+			bt_Token* name;
+			bt_AstNode* expr;
+		} table_field;
 	} as; 
 } bt_AstNode;
 

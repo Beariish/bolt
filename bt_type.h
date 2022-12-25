@@ -26,15 +26,16 @@ typedef struct bt_Type {
 
 		struct {
 			bt_Table* layout;
-			bt_Table* proto;
+			bt_Table* values;
 			bt_bool sealed;
 		} table_shape;
 
 		struct {
 			bt_Buffer args;
 			bt_Type* return_type;
-			bt_bool is_vararg;
 			bt_Type* varargs_type;
+			bt_bool is_vararg : 1;
+			bt_bool is_method : 1;
 		} fn;
 
 		struct {
@@ -53,7 +54,8 @@ typedef struct bt_Type {
 	bt_Context* ctx;
 	char* name;
 	bt_TypeSatisfier satisfier;
-	uint8_t category : 7;
+	uint8_t category : 6;
+	bt_bool is_compiled : 1;
 	bt_bool is_optional : 1;
 } bt_Type;
 
@@ -68,12 +70,15 @@ bt_Type* bt_derive_type(bt_Context* context, bt_Type* original);
 bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable);
 bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull);
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
+bt_Type* bt_make_method(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
 bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed);
 bt_Type* bt_make_fundamental(bt_Context* context);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
-void bt_tableshape_set_proto(bt_Type* tshp, bt_Table* proto);
+void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
+void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto);
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type);
+bt_Value bt_cast_type(bt_Value value, bt_Type* type);

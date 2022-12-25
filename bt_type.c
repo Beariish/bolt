@@ -65,8 +65,8 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 {
 	if (left->as.table_shape.sealed != right->as.table_shape.sealed) return BT_FALSE;
 
-	if (left->as.table_shape.proto &&
-		left->as.table_shape.proto != right->as.table_shape.proto) {
+	if (left->as.table_shape.values &&
+		left->as.table_shape.values != right->as.table_shape.values) {
 		return BT_FALSE;
 	}
 
@@ -128,6 +128,7 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	result->satisfier = satisfier;
 	result->category = category;
 	result->is_optional = is_optional;
+	result->is_compiled = BT_FALSE;
 	return result;
 }
 
@@ -232,9 +233,17 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args + i);
 	result->as.fn.is_vararg = BT_FALSE;
 	result->as.fn.varargs_type = NULL;
+	result->as.fn.is_method = BT_FALSE;
 
 	update_sig_name(context, result);
 
+	return result;
+}
+
+bt_Type* bt_make_method(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
+{
+	bt_Type* result = bt_make_signature(context, ret, args, arg_count);
+	result->as.fn.is_method = BT_TRUE;
 	return result;
 }
 
@@ -266,7 +275,7 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
 	result->as.table_shape.sealed = sealed;
 	result->as.table_shape.layout = 0;
-	result->as.table_shape.proto = 0;
+	result->as.table_shape.values = 0;
 	return result;
 }
 
@@ -279,9 +288,22 @@ void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, 
 	bt_table_set(context, tshp->as.table_shape.layout, name, BT_VALUE_OBJECT(type));
 }
 
-void bt_tableshape_set_proto(bt_Type* tshp, bt_Table* proto)
+void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value)
 {
-	tshp->as.table_shape.proto = proto;
+	if (tshp->as.table_shape.values == 0) {
+		tshp->as.table_shape.values = bt_make_table(context, 4);
+	}
+
+	bt_table_set(context, tshp->as.table_shape.values, name, value);
+}
+
+void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto)
+{
+	if (tshp->as.table_shape.values == 0) {
+		tshp->as.table_shape.values = bt_make_table(context, 4);
+	}
+
+	tshp->as.table_shape.values->prototype = proto;
 }
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
@@ -312,8 +334,17 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		else {
 			return BT_FALSE;
 		}
+	case BT_TYPE_CATEGORY_TABLESHAPE: {
+		__debugbreak();
+	} break;
 	}
 
 	// TODO: Table and array types
 	return BT_FALSE;
+}
+
+bt_Value bt_cast_type(bt_Value value, bt_Type* type)
+{
+	// TODO: Actual dynamic casting
+	return value;
 }

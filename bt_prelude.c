@@ -5,5 +5,5 @@
 bt_bool bt_strslice_compare(bt_StrSlice a, bt_StrSlice b)
 {
 	if (a.length != b.length) return BT_FALSE;
-	return strncmp(a.source, b.source, a.length > b.length ? a.length : b.length) == 0;
+	return strncmp(a.source, b.source, a.length) == 0;
 }
