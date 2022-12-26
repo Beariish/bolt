@@ -63,7 +63,7 @@ bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 {
-	if (left->as.table_shape.sealed != right->as.table_shape.sealed) return BT_FALSE;
+	if (left->as.table_shape.sealed && right->as.table_shape.layout->pairs.length != left->as.table_shape.layout->pairs.length) return BT_FALSE;
 
 	if (left->as.table_shape.values &&
 		left->as.table_shape.values != right->as.table_shape.values) {

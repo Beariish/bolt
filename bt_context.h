@@ -22,8 +22,7 @@ typedef void (*bt_Free)(void* ptr);
 
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
-	uint8_t size;
-	uint8_t argc;
+	uint8_t size, argc, user_top;
 	int8_t return_loc;
 } bt_StackFrame;
 
@@ -51,6 +50,13 @@ struct bt_Context {
 		bt_Type* shared;
 		bt_Type* type;
 	} types;
+
+	struct {
+		bt_String* add;
+		bt_String* sub;
+		bt_String* mul;
+		bt_String* div;
+	} meta_names;
 
 
 	bt_Table* type_registry;
@@ -94,3 +100,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name);
 bt_bool bt_execute(bt_Context* context, bt_Module* module);
 
 void bt_runtime_error(bt_Thread* thread, const char* message);
+
+void bt_push(bt_Thread* thread, bt_Value value); 
+bt_Value bt_pop(bt_Thread* thread);
+void bt_call(bt_Thread* thread, uint8_t argc);

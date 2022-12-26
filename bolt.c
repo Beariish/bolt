@@ -54,6 +54,11 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "array")), context->types.array);
 	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "Type")), context->types.type);
 
+	context->meta_names.add = bt_make_string_hashed_len(context, "@add", 4);
+	context->meta_names.sub = bt_make_string_hashed_len(context, "@sub", 4);
+	context->meta_names.mul = bt_make_string_hashed_len(context, "@mul", 4);
+	context->meta_names.div = bt_make_string_hashed_len(context, "@div", 4);
+
 	context->loaded_modules = bt_make_table(context, 1);
 	context->prelude = bt_make_table(context, 16);
 
@@ -269,7 +274,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 	return mod;
 }
 
-static void bt_call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);
+static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);
 
 bt_bool bt_execute(bt_Context* context, bt_Module* module)
 {
@@ -282,13 +287,14 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	thread.callstack[thread.depth].argc = 0;
 	thread.callstack[thread.depth].size = module->stack_size;
 	thread.callstack[thread.depth].callable = module;
+	thread.callstack[thread.depth].user_top = 0;
 	thread.depth++;
 
 	context->current_thread = &thread;
 
 	int32_t result = setjmp(thread.error_loc);
 
-	if(result == 0) bt_call(context, &thread, module, module, module->instructions.data, module->constants.data, 0);
+	if(result == 0) call(context, &thread, module, module, module->instructions.data, module->constants.data, 0);
 	else {
 		return BT_FALSE;
 	}
@@ -308,6 +314,75 @@ void bt_runtime_error(bt_Thread* thread, const char* message)
 	longjmp(thread->error_loc, 1);
 }
 
+void bt_push(bt_Thread* thread, bt_Value value)
+{
+	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
+	thread->stack[thread->top + frame->size + (++frame->user_top)] = value;
+}
+
+bt_Value bt_pop(bt_Thread* thread)
+{
+	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
+	return thread->stack[thread->top + frame->size + frame->user_top--];
+}
+
+void bt_call(bt_Thread* thread, uint8_t argc)
+{
+	uint16_t old_top = thread->top;
+
+	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
+	frame->user_top -= argc;
+
+	thread->top += frame->size + 2;
+	bt_Object* obj = BT_AS_OBJECT(thread->stack[thread->top - 1]);
+
+	thread->callstack[thread->depth].return_loc = -1;
+	thread->callstack[thread->depth].argc = argc;
+	thread->callstack[thread->depth].callable = obj;
+	thread->callstack[thread->depth].user_top = 0;
+	thread->depth++;
+
+	if (obj->type == BT_OBJECT_TYPE_FN) {
+		bt_Fn* callable = (bt_Fn*)obj;
+		thread->callstack[thread->depth - 1].size = callable->stack_size;
+		call(thread->context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, -1);
+	}
+	else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
+		bt_Fn* callable = ((bt_Closure*)obj)->fn;
+		thread->callstack[thread->depth - 1].size = callable->stack_size;
+		call(thread->context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, -1);
+	}
+	else if (obj->type == BT_OBJECT_TYPE_NATIVE_FN) {
+		bt_NativeFn* callable = (bt_NativeFn*)obj;
+		callable->fn(thread->context, thread);
+	}
+	else {
+		bt_runtime_error(thread, "Unsupported callable type.");
+	}
+
+	thread->depth--;
+	thread->top = old_top;
+}
+
+#define XSTR(x) #x
+#define ARITH_MF(name)                                                                               \
+if (BT_IS_OBJECT(lhs)) {																			 \
+	bt_Object* obj = BT_AS_OBJECT(lhs);																 \
+	if (obj->type == BT_OBJECT_TYPE_TABLE) {														 \
+		bt_Table* tbl = obj;																		 \
+		bt_Value add_fn = bt_table_get(tbl, BT_VALUE_STRING(thread->context->meta_names.name));		 \
+		if (add_fn == BT_VALUE_NULL) bt_runtime_error(thread, "Unable to find @" XSTR(name) "metafunction!");	 \
+																									 \
+		bt_push(thread, add_fn);																	 \
+		bt_push(thread, lhs);																		 \
+		bt_push(thread, rhs);																		 \
+		bt_call(thread, 2);																			 \
+		*result = bt_pop(thread);																	 \
+																									 \
+		return;																						 \
+	}																								 \
+}
+
 static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
@@ -315,11 +390,7 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 		return;
 	}
 
-	if (BT_TYPEOF(lhs) != BT_TYPEOF(rhs)) {
-		bt_runtime_error(thread, "Cannot add separate types!");
-	}
-
-	if (BT_IS_STRING(lhs)) {
+	if (BT_IS_STRING(lhs) && BT_IS_STRING(rhs)) {
 		bt_String* lhs_str = BT_AS_STRING(lhs);
 		bt_String* rhs_str = BT_AS_STRING(rhs);
 		uint32_t length = lhs_str->len + rhs_str->len;
@@ -331,6 +402,12 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 
 		*result = BT_VALUE_STRING(bt_make_string_moved(thread->context, added, length));
 		return;
+	}
+
+	ARITH_MF(add);
+
+	if (BT_TYPEOF(lhs) != BT_TYPEOF(rhs)) {
+		bt_runtime_error(thread, "Cannot add separate types!");
 	}
 
 	bt_runtime_error(thread, "Unable to add values of type <TODO>!");
@@ -363,6 +440,8 @@ static __forceinline void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value l
 		return;
 	}
 
+	ARITH_MF(sub);
+
 	bt_runtime_error(thread, "Cannot subtract non-number value!");
 }
 static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
@@ -371,6 +450,8 @@ static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) * BT_AS_NUMBER(rhs));
 		return;
 	}
+
+	ARITH_MF(mul);
 
 	bt_runtime_error(thread, "Cannot multiply non-number value!");
 }
@@ -381,6 +462,8 @@ static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) / BT_AS_NUMBER(rhs));
 		return;
 	}
+
+	ARITH_MF(div);
 
 	bt_runtime_error(thread, "Cannot divide non-number value!");
 }
@@ -435,7 +518,7 @@ static __forceinline void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lh
 	bt_runtime_error(thread, "Cannot 'or' non-bool value!");
 }
 
-static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
+static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
@@ -546,17 +629,18 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 			thread->callstack[thread->depth].return_loc = op.a - (op.b + 1);
 			thread->callstack[thread->depth].argc = op.c;
 			thread->callstack[thread->depth].callable = obj;
+			thread->callstack[thread->depth].user_top = 0;
 			thread->depth++;
 
 			if (obj->type == BT_OBJECT_TYPE_FN) {
 				bt_Fn* callable = (bt_Fn*)obj;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
-				bt_call(context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
+				call(context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
 			}
 			else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
 				bt_Fn* callable = ((bt_Closure*)obj)->fn;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
-				bt_call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
+				call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
 			}
 			else if (obj->type == BT_OBJECT_TYPE_NATIVE_FN) {
 				bt_NativeFn* callable = (bt_NativeFn*)obj;
@@ -585,7 +669,7 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 			bt_Closure* cl = BT_AS_OBJECT(stack[op.a + 1]);
 			__assume(cl);
 			thread->top += op.a + 2;
-			bt_call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
+			call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
 			thread->top -= op.a + 2;
 			if (stack[op.a] == BT_VALUE_NULL) { ip += op.ibc; }
 		} NEXT;
