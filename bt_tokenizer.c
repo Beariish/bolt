@@ -147,7 +147,31 @@ eat_whitespace:
 		);													      \
 		tok->current += len; tok->col += len;					  \
 		bt_buffer_push(tok->context, &tok->tokens, &token);		  \
-		tok->last_consumed = tok->tokens.length;			  \
+		tok->last_consumed = tok->tokens.length;			      \
+		return *(bt_Token**)bt_buffer_last(&tok->tokens);		  \
+	}
+
+#define BT_COMPOSITE_TOKEN_3(character, once, second, twice, third, thrice) \
+	case (character): {										      \
+		uint8_t len = 1;										  \
+		bt_TokenType type = once;					              \
+		if (*(tok->current + 1) == (second)) {			          \
+			len = 2;											  \
+			type = twice;								          \
+		}														  \
+		if (*(tok->current + 1) == (third)) {			          \
+			len = 2;											  \
+			type = thrice;								          \
+		}														  \
+		bt_Token* token = make_token(                             \
+			tok->context,                                         \
+			(bt_StrSlice) { tok->current, 1 },				      \
+			tok->line, tok->col, 0,							      \
+			type										          \
+		);													      \
+		tok->current += len; tok->col += len;					  \
+		bt_buffer_push(tok->context, &tok->tokens, &token);		  \
+		tok->last_consumed = tok->tokens.length;			      \
 		return *(bt_Token**)bt_buffer_last(&tok->tokens);		  \
 	}
 
@@ -166,7 +190,7 @@ eat_whitespace:
 		
 		BT_DOUBLEABLE_TOKEN('.', BT_TOKEN_PERIOD, BT_TOKEN_VARARG);
 		BT_DOUBLEABLE_TOKEN('?', BT_TOKEN_QUESTION, BT_TOKEN_NULLCOALESCE);
-		BT_DOUBLEABLE_TOKEN('=', BT_TOKEN_ASSIGN, BT_TOKEN_EQUALS);
+		BT_COMPOSITE_TOKEN_3('=', BT_TOKEN_ASSIGN, '=', BT_TOKEN_EQUALS, '>', BT_TOKEN_FATARROW);
 
 		BT_COMPOSITE_TOKEN('!', BT_TOKEN_BANG, '=', BT_TOKEN_NOTEQ);
 		BT_COMPOSITE_TOKEN('+', BT_TOKEN_PLUS, '=', BT_TOKEN_PLUSEQ);
@@ -208,7 +232,6 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("in", token, BT_TOKEN_IN)
 		else BT_TEST_KEYWORD("to", token, BT_TOKEN_TO)
 		else BT_TEST_KEYWORD("by", token, BT_TOKEN_BY)
-		else BT_TEST_KEYWORD("new", token, BT_TOKEN_NEW)
 		else BT_TEST_KEYWORD("true", token, BT_TOKEN_TRUE_LITERAL)
 		else BT_TEST_KEYWORD("false", token, BT_TOKEN_FALSE_LITERAL)
 		else BT_TEST_KEYWORD("null", token, BT_TOKEN_NULL_LITERAL)

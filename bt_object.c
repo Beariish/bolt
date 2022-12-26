@@ -222,3 +222,16 @@ void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Valu
     bt_tableshape_add_field(ctx, module->type, key, BT_AS_OBJECT(type));
     bt_table_set(ctx, module->exports, key, value);
 }
+
+bt_Value bt_get(bt_Object* obj, bt_Value key)
+{
+    switch (obj->type) {
+    case BT_OBJECT_TYPE_TABLE:
+        return bt_table_get(obj, key);
+    case BT_OBJECT_TYPE_TYPE: {
+        bt_Type* type = obj;
+        return bt_table_get(type->as.table_shape.values, key);
+    }
+    default: __debugbreak();
+    }
+}

@@ -14,7 +14,8 @@ typedef enum {
 	BT_OP_LOAD_NULL,		 // R(a) = null
 	BT_OP_LOAD_BOOL,		 // R(a) = b ? BT_TRUE : BT_FALSE
 	BT_OP_LOAD_IMPORT,       // R(a) = imports[ubc]
-	BT_OP_TABLE,             // R(a) = new tablesize(b)
+	BT_OP_TABLE,             // R(a) = new tablesize(ibc)
+	BT_OP_TTABLE,            // R(a) = new tablesize(b) with proto(R(c))
 	BT_OP_ARRAY,             // R(a) = new array[b]
 
 	BT_OP_MOVE,				 // R(a) = R(b)

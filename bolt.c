@@ -458,6 +458,11 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 			NEXT;
 
 		case BT_OP_TABLE: stack[op.a] = BT_VALUE_OBJECT(bt_make_table(context, op.ibc)); NEXT;
+		case BT_OP_TTABLE: {
+			bt_Table* tbl = bt_make_table(context, op.b);
+			tbl->prototype = ((bt_Type*)BT_AS_OBJECT(stack[op.c]))->as.table_shape.values;
+			stack[op.a] = BT_VALUE_OBJECT(tbl);
+		} NEXT;
 
 		case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
 
@@ -495,7 +500,7 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 		case BT_OP_OR:  bt_or(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 		case BT_OP_NOT: bt_not(thread, stack + op.a, stack[op.b]); NEXT;
 
-		case BT_OP_LOAD_IDX: stack[op.a] = bt_table_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
+		case BT_OP_LOAD_IDX: stack[op.a] = bt_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
 		case BT_OP_STORE_IDX: {
 			bt_Object* idxee = BT_AS_OBJECT(stack[op.a]);
 			if (idxee->type == BT_OBJECT_TYPE_TABLE) {

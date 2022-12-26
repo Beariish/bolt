@@ -21,7 +21,8 @@ typedef struct CompilerBinding {
 typedef enum StorageClass {
     STORAGE_INVALID,
     STORAGE_REGISTER,
-    STORAGE_UPVAL
+    STORAGE_UPVAL,
+    STORAGE_INDEX
 } StorageClass;
 
 typedef struct LastStore {
@@ -432,6 +433,10 @@ static StorageClass get_storage(FunctionContext* ctx, bt_AstNode* expr)
     if (loc != INVALID_BINDING) {
         return STORAGE_UPVAL;
     }
+
+    if (expr->type == BT_AST_NODE_BINARY_OP && expr->source->type == BT_TOKEN_PERIOD) {
+        return STORAGE_INDEX;
+    }
     
     return STORAGE_INVALID;
 }
@@ -587,7 +592,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             if (storage == STORAGE_INVALID) {
                 assert(0 && "Unassignable lhs!");
             }
-            else if (storage == STORAGE_REGISTER) {
+            else if (storage == STORAGE_REGISTER || storage == STORAGE_INDEX) {
                 result_loc = lhs_loc;
             }
         }
@@ -663,6 +668,13 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             store_hint(ctx, result_loc, STORAGE_UPVAL, upval_idx);
             emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc);
         }
+        else if (storage == STORAGE_INDEX) {
+            push_registers(ctx);
+            uint8_t tbl_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.left);
+            uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
+            emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, idx_loc, result_loc);
+            restore_registers(ctx);
+        }
 
         restore_registers(ctx);
     } break;
@@ -675,7 +687,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         push_registers(ctx);
 
         bt_Buffer* fields = &expr->as.table.fields;
-        emit_aibc(ctx, BT_OP_TABLE, result_loc, fields->length);
+
+        if (expr->as.table.typed) {
+            uint8_t t_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
+
+            push_registers(ctx);
+            uint8_t t_loc = get_register(ctx);
+            emit_ab(ctx, BT_OP_LOAD, t_loc, t_idx);
+            emit_abc(ctx, BT_OP_TTABLE, result_loc, fields->length, t_loc);
+            restore_registers(ctx);
+        }
+        else {
+            emit_aibc(ctx, BT_OP_TABLE, result_loc, fields->length);
+        }
 
         uint8_t idx_loc = get_register(ctx);
         uint8_t val_loc = get_register(ctx);

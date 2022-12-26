@@ -116,6 +116,7 @@ typedef struct bt_AstNode {
 
 		struct {
 			bt_Buffer fields;
+			bt_bool typed;
 		} table;
 
 		struct {
