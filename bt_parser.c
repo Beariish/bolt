@@ -391,8 +391,6 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
         result = bt_find_type(parse->context, BT_VALUE_STRING(name));
     }
 
-    if (!result) assert(0 && "Failed to identify type!");
-
     return result;
 }
 
@@ -717,7 +715,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     }
                 }
 
-                if (max_arg == 0) bt_tokenizer_emit(tok);
+                if (max_arg == 0 || (max_arg == 1 && to_call->as.fn.is_method)) bt_tokenizer_emit(tok);
 
                 if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
                     assert(0 && "Couldn't find end of function call!");
@@ -1312,6 +1310,17 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
 
     if (ident->type != BT_TOKEN_IDENTIFIER) assert(0 && "Cannot assign to non-identifier!");
 
+    bt_Type* type = resolve_type_identifier(parser, ident);
+
+    if (type) {
+        // We are defining a member function
+        if (!bt_tokenizer_expect(tok, BT_TOKEN_PERIOD)) {
+            assert(0 && "Expected subscript after type in function name!");
+        }
+
+
+    }
+
     bt_AstNode* fn = parse_function_literal(parser);
     if (fn->type != BT_AST_NODE_FUNCTION) assert(0 && "Expected function literal!");
 
@@ -1621,7 +1630,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
     bt_tableshape_set_field(parse->context, type, BT_VALUE_STRING(name_str), BT_VALUE_OBJECT(result));
 
-    return result;
+    return NULL;
 }
 
 static bt_AstNode* parse_statement(bt_Parser* parse)

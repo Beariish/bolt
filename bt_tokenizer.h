@@ -50,7 +50,7 @@ typedef enum {
 typedef struct {
 	bt_StrSlice source;
 	uint16_t line, col, idx;
-	uint8_t type;
+	bt_TokenType type : 8;
 } bt_Token;
 
 typedef struct {
