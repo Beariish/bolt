@@ -279,7 +279,7 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 	return result;
 }
 
-void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type)
+void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type)
 {
 	if (tshp->as.table_shape.layout == 0) {
 		tshp->as.table_shape.layout = bt_make_table(context, 4);
@@ -288,10 +288,22 @@ void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, 
 	bt_table_set(context, tshp->as.table_shape.layout, name, BT_VALUE_OBJECT(type));
 }
 
+void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
+{
+	if (tshp->as.table_shape.values == 0) {
+		tshp->as.table_shape.values = bt_make_table(context, 4);
+		tshp->as.table_shape.proto = bt_make_table(context, 4);
+	}
+
+	bt_table_set(context, tshp->as.table_shape.proto, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, tshp->as.table_shape.values, name, value);
+}
+
 void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value)
 {
 	if (tshp->as.table_shape.values == 0) {
 		tshp->as.table_shape.values = bt_make_table(context, 4);
+		tshp->as.table_shape.proto = bt_make_table(context, 4);
 	}
 
 	bt_table_set(context, tshp->as.table_shape.values, name, value);
@@ -301,6 +313,7 @@ void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto
 {
 	if (tshp->as.table_shape.values == 0) {
 		tshp->as.table_shape.values = bt_make_table(context, 4);
+		tshp->as.table_shape.proto = bt_make_table(context, 4);
 	}
 
 	tshp->as.table_shape.values->prototype = proto;

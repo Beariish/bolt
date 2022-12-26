@@ -1,42 +1,14 @@
 import * from core
-
-type Vec2 = {
-    x: number,
-    y: number
-}
-
-/*
-fn Vec2.new(x: number, y: number) {
-    return { x: x, y: y } into Vec2!
-}*/
-
-method Vec2.add(other: Vec2) {
-    return { x: this.x + other.x, y: this.y + other.y } into Vec2!
-}
-
-method Vec2.print {
-    print(this.x, this.y)
-}
-
-let a = { x: 10, y: 10 } into Vec2! //Vec2.new(5, 5)
-let b = { x: 10, y: 10 } into Vec2!
-
-let c = a.add(b)
-let d = a.add
-
-c.print()
-d(a, b).print()
+import Vec2 from vec2
 
 for outer in 15 {
     let start_time = time()
     
     for i in 100000 {
-        let a = { x: 5, y: 5 } into Vec2!
-        let b = { x: 10, y: 10 } into Vec2!   
+        let a = Vec2.new(5, 5)
+        let b = Vec2.new(10, 10)   
         let c = a.add(b)
     }
-
-    //gc()
 
     let end_time = time()
     

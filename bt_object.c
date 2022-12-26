@@ -219,7 +219,7 @@ bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc p
 
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
 {
-    bt_tableshape_add_field(ctx, module->type, key, BT_AS_OBJECT(type));
+    bt_tableshape_add_layout(ctx, module->type, key, BT_AS_OBJECT(type));
     bt_table_set(ctx, module->exports, key, value);
 }
 

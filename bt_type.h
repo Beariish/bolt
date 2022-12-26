@@ -27,6 +27,7 @@ typedef struct bt_Type {
 		struct {
 			bt_Table* layout;
 			bt_Table* values;
+			bt_Table* proto;
 			bt_bool sealed;
 		} table_shape;
 
@@ -76,7 +77,8 @@ bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed);
 bt_Type* bt_make_fundamental(bt_Context* context);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
-void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
+void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
+void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);
 void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
 void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto);
 
