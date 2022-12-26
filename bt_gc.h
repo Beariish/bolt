@@ -12,17 +12,17 @@ typedef enum bt_GCPhase {
 
 typedef struct bt_GC {
 	bt_Context* ctx;
-	bt_BucketedBuffer* vheap;
+	
+	bt_Object* heap;
 	bt_Table** loaded_modules;
 	bt_Table** registered_types;
 	bt_Table** prelude;
 
-	bt_GCPhase phase;
-	bt_Bucket* current;
-	uint32_t progress;
+	bt_Object* current;
+	bt_Object* last;
 } bt_GC;
 
 
-bt_GC bt_make_gc(bt_Context* ctx, bt_BucketedBuffer* vheap, bt_Table** loaded_modules, bt_Table** registered_types, bt_Table** prelude);
+bt_GC bt_make_gc(bt_Context* ctx, bt_Object* heap, bt_Table** loaded_modules, bt_Table** registered_types, bt_Table** prelude);
 
 uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);

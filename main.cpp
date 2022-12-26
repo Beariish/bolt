@@ -94,6 +94,11 @@ static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_STRING(bt_to_string(ctx, arg)));
 }
 
+static void bt_gc(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_collect(&ctx->gc, 6184);
+}
+
 int main(int argc, char** argv) {
 	init_time();
 
@@ -134,6 +139,12 @@ int main(int argc, char** argv) {
 		sqrt_sig,
 		BT_VALUE_CSTRING(&context, "sqrt"),
 		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_sqrt)));
+
+	bt_Type* gc_sig = bt_make_signature(&context, NULL, NULL, 0);
+	bt_module_export(&context, core_module,
+		gc_sig,
+		BT_VALUE_CSTRING(&context, "gc"),
+		BT_VALUE_OBJECT(bt_make_native(&context, gc_sig, bt_gc)));
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 

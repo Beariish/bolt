@@ -21,6 +21,8 @@ typedef void (*bt_Free)(void* ptr);
 #endif
 
 typedef struct bt_StackFrame {
+	bt_Callable* callable;
+	uint8_t size;
 	uint8_t argc;
 	int8_t return_loc;
 } bt_StackFrame;
@@ -28,7 +30,12 @@ typedef struct bt_StackFrame {
 struct bt_Context {
 	bt_Alloc alloc;
 	bt_Free free;
-	bt_BucketedBuffer heap;
+
+	bt_Object* root;
+	bt_Object* next;
+	bt_Object* troots[16];
+	uint32_t troot_top;
+
 	bt_GC gc;
 	uint32_t n_allocated;
 
@@ -50,9 +57,13 @@ struct bt_Context {
 	bt_Table* loaded_modules;
 	bt_Table* prelude;
 
+	struct bt_Thread* current_thread;
+
 	bt_bool is_valid;
 };
 
+void bt_push_root(bt_Context* ctx, bt_Object* root);
+void bt_pop_root(bt_Context* ctx);
 
 typedef __declspec(align(64)) struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];
@@ -68,7 +79,6 @@ typedef __declspec(align(64)) struct bt_Thread {
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
 void bt_free(bt_Context* context, bt_Object* obj);
-void bt_free_from(bt_Context* context, bt_Bucket* bucket, bt_Object* obj);
 
 #define BT_ALLOCATE(ctx, e_type, c_type) \
 	((c_type*)bt_allocate(ctx, sizeof(c_type), (BT_OBJECT_TYPE_##e_type)))

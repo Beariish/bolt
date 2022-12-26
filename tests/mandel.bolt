@@ -20,18 +20,21 @@ print(d(a, b).x, d(a, b).y)
 
 for outer in 15 {
     let start_time = time()
-
+    
     for i in 100000 {
         let a = { x: 5, y: 5 } into Vec2!
         let b = { x: 10, y: 10 } into Vec2!   
         let c = a.add(b)
     }
 
+    //gc()
+
     let end_time = time()
-        
+    
     let duration_ms = end_time - start_time
     print("100k vec2 iterations took", duration_ms / 1000, "ms")
 }
+
 
 for outer in 15 {
     let start_time = time()

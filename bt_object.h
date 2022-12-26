@@ -23,8 +23,11 @@ typedef enum {
 	BT_OBJECT_TYPE_USERDATA
 } bt_ObjectType;
 
+#define BT_OBJECT_NEXT(__obj) ((bt_Object*)__obj->next)
+#define BT_OBJECT_SET_NEXT(__obj, __next) (__obj->next = (uint64_t)__next)
+
 typedef struct bt_Object {
-	uint32_t heap_idx : 25;
+	uint64_t next : 48;
 	bt_ObjectType type : 5;
 	uint32_t mark : 1;
 } bt_Object;

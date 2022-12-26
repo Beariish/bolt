@@ -22,9 +22,13 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->alloc = allocator;
 	context->free = free;
 
-	context->heap = BT_BUCKETED_BUFFER_NEW(context, 256, bt_Object*);
-	context->gc = bt_make_gc(context, &context->heap, &context->loaded_modules, &context->type_registry, &context->prelude);
 	context->n_allocated = 0;
+	context->next = 0;
+	context->root = bt_allocate(context, sizeof(bt_Object), BT_OBJECT_TYPE_NONE);
+	context->next = context->root;
+	context->troot_top = 0;
+
+	context->gc = bt_make_gc(context, context->root, &context->loaded_modules, &context->type_registry, &context->prelude);
 	
 	context->types.number = make_primitive_type(context, "number", bt_type_satisfier_same);
 	context->types.boolean = make_primitive_type(context, "bool", bt_type_satisfier_same);
@@ -112,18 +116,32 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 	return result;
 }
 
+void bt_push_root(bt_Context* ctx, bt_Object* root)
+{
+	ctx->troots[ctx->troot_top++] = root;
+}
+
+void bt_pop_root(bt_Context* ctx)
+{
+	ctx->troot_top--;
+}
+
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
 	bt_Object* obj = context->alloc(full_size);
 	obj->mark = 1;
 	obj->type = type;
+	obj->next = 0;
 
-	obj->heap_idx = bt_bucketed_buffer_insert(context, &context->heap, &obj);
+	if (context->next) {
+		BT_OBJECT_SET_NEXT(context->next, obj);
+	}
+	context->next = obj;
 
 	context->n_allocated++;
 	if (context->n_allocated > 1024) {
 		context->n_allocated = 0;
-		//bt_collect(&context->gc);
+		//bt_collect(&context->gc, 1024);
 	}
 
 	return obj;
@@ -177,32 +195,6 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 void bt_free(bt_Context* context, bt_Object* obj)
 {
 	free_subobjects(context, obj);
-
-	bt_bool moved = bt_bucketed_buffer_remove(context, &context->heap, obj->heap_idx);
-
-	if (moved) {
-		bt_Object** new_inplace = (bt_Object**)bt_bucketed_buffer_at(&context->heap, obj->heap_idx);
-		if (new_inplace) {
-			(*new_inplace)->heap_idx = obj->heap_idx;
-		}
-	}
-
-	memset(obj, 0xFF, sizeof(bt_Object));
-	context->free(obj);
-}
-
-void bt_free_from(bt_Context* context, bt_Bucket* bucket, bt_Object* obj)
-{
-	free_subobjects(context, obj);
-
-	bt_bool moved = bt_bucket_remove(bucket, obj->heap_idx);
-
-	if (moved) {
-		bt_Object* new_inplace = *(bt_Object**)bt_bucket_at(bucket, obj->heap_idx - bucket->base_index);
-		new_inplace->heap_idx = obj->heap_idx;
-	}
-
-	//memset(obj, 0xFF, sizeof(bt_Object));
 	context->free(obj);
 }
 
@@ -265,8 +257,8 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		context->free(code);
 
 		if (new_mod) {
-			bt_execute(context, new_mod);
 			bt_register_module(context, name, new_mod);
+			bt_execute(context, new_mod);
 			return new_mod;
 		}
 		else {
@@ -288,7 +280,11 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 
 	thread.callstack[thread.depth].return_loc = 0;
 	thread.callstack[thread.depth].argc = 0;
+	thread.callstack[thread.depth].size = module->stack_size;
+	thread.callstack[thread.depth].callable = module;
 	thread.depth++;
+
+	context->current_thread = &thread;
 
 	int32_t result = setjmp(thread.error_loc);
 
@@ -300,6 +296,8 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	bt_String* str = bt_to_string(context, thread.stack[0]);
 	printf("Module returned: '%s'\n", str->str);
 	printf("-----------------------------------------------------\n");
+
+	context->current_thread = 0;
 
 	return BT_TRUE;
 }
@@ -542,14 +540,17 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 			thread->top += op.b + 1;
 			thread->callstack[thread->depth].return_loc = op.a - (op.b + 1);
 			thread->callstack[thread->depth].argc = op.c;
+			thread->callstack[thread->depth].callable = obj;
 			thread->depth++;
 
 			if (obj->type == BT_OBJECT_TYPE_FN) {
 				bt_Fn* callable = (bt_Fn*)obj;
+				thread->callstack[thread->depth - 1].size = callable->stack_size;
 				bt_call(context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
 			}
 			else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
 				bt_Fn* callable = ((bt_Closure*)obj)->fn;
+				thread->callstack[thread->depth - 1].size = callable->stack_size;
 				bt_call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
 			}
 			else if (obj->type == BT_OBJECT_TYPE_NATIVE_FN) {
