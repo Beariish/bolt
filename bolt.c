@@ -601,30 +601,3 @@ static __forceinline void bt_call(bt_Context* context, bt_Thread* thread, bt_Cal
 		}
 	}
 }
-
-/*
-import sqrt from "math"
-
-type Vec2 = { x: number, y: number }
-
-method Vec2.__new(x: number, y: number) {
-	this.x = x
-	this.y = y
-}
-
-method Vec2.__add(rhs: Vec2): Vec2 {
-	return new Vec2(
-		this.x + rhs.x,
-		this.y + rhs.y)
-}
-
-method Vec2.length: number {
-	return sqrt(this.x * this.x + this.y * this.y)
-}
-
-let a = new Vec2(10, 20)
-let b = new Vec2(4, 5)
-
-print((a + b).length()) 
-
-*/
