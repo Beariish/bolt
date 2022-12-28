@@ -270,6 +270,14 @@ bt_Type* bt_make_fundamental(bt_Context* context)
 	return bt_make_type(context, "Type", type_satisfier_type, BT_TYPE_CATEGORY_TYPE, BT_FALSE);
 }
 
+bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
+{
+	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA, BT_FALSE);
+	result->as.userdata.fields = bt_buffer_empty();
+	result->as.userdata.functions = bt_buffer_empty();
+	return result;
+}
+
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);

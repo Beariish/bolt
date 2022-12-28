@@ -102,6 +102,12 @@ typedef union {
 	bt_Closure cl;
 } bt_Callable;
 
+typedef struct bt_Userdata {
+	bt_Object obj;
+	bt_Type* type;
+	uint8_t* data;
+} bt_Userdata;
+
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_STRING(bt_make_string(ctx, str))
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
@@ -127,6 +133,9 @@ bt_Module* bt_make_user_module(bt_Context* ctx);
 
 bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);
 
+bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
+
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
 
-bt_Value bt_get(bt_Object* obj, bt_Value key);
+bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key); 
+void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);

@@ -14,6 +14,7 @@ typedef enum {
 	BT_TYPE_CATEGORY_TABLESHAPE,
 	BT_TYPE_CATEGORY_SIGNATURE,
 	BT_TYPE_CATEGORY_NATIVE_FN,
+	BT_TYPE_CATEGORY_USERDATA,
 } bt_TypeCategory;
 
 typedef struct bt_Type {
@@ -50,6 +51,11 @@ typedef struct bt_Type {
 		struct {
 			bt_Type* boxed;
 		} type;
+
+		struct {
+			bt_Buffer fields;
+			bt_Buffer functions;
+		} userdata;
 	} as;
 
 	bt_Context* ctx;
@@ -75,6 +81,7 @@ bt_Type* bt_make_method(bt_Context* context, bt_Type* ret, bt_Type** args, uint8
 bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
 bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed);
 bt_Type* bt_make_fundamental(bt_Context* context);
+bt_Type* bt_make_userdata_type(bt_Context* context, const char* name);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);

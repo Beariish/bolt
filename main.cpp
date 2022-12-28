@@ -11,6 +11,7 @@ extern "C" {
 #include "bt_debug.h"
 #include "bt_compiler.h"
 #include "bt_embedding.h"
+#include "bt_userdata.h"
 }
 
 #include <malloc.h>
@@ -99,6 +100,29 @@ static void bt_gc(bt_Context* ctx, bt_Thread* thread)
 	bt_collect(&ctx->gc, 6184);
 }
 
+typedef struct BoltAccessableStruct {
+	double x, y;
+	float width, height;
+
+	uint32_t count;
+	int32_t offset;
+} BoltAccessableStruct;
+
+static bt_Type* struct_type;
+
+static void bt_get_struct(bt_Context* ctx, bt_Thread* thread)
+{
+	BoltAccessableStruct result;
+	result.x = 420.0;
+	result.y = 69.0;
+	result.width = 1280.f;
+	result.height = 720.f;
+	result.count = 12345;
+	result.offset = -100;
+
+	bt_return(thread, BT_VALUE_OBJECT(bt_make_userdata(ctx, struct_type, &result, sizeof(BoltAccessableStruct))));
+}
+
 int main(int argc, char** argv) {
 	init_time();
 
@@ -145,6 +169,19 @@ int main(int argc, char** argv) {
 		gc_sig,
 		BT_VALUE_CSTRING(&context, "gc"),
 		BT_VALUE_OBJECT(bt_make_native(&context, gc_sig, bt_gc)));
+
+	struct_type = bt_make_userdata_type(&context, "BoltAccessableStruct");
+	bt_userdata_type_field_double(&context, struct_type, "x", offsetof(BoltAccessableStruct, x));
+	bt_userdata_type_field_double(&context, struct_type, "y", offsetof(BoltAccessableStruct, y));
+	bt_userdata_type_field_float(&context,  struct_type, "width", offsetof(BoltAccessableStruct, width));
+	bt_userdata_type_field_float(&context, struct_type, "height", offsetof(BoltAccessableStruct, height));
+	bt_userdata_type_field_uint32(&context, struct_type, "count", offsetof(BoltAccessableStruct, count));
+	bt_userdata_type_field_int32(&context,  struct_type, "offset", offsetof(BoltAccessableStruct, offset));
+	bt_module_export(&context, core_module, context.types.type, BT_VALUE_CSTRING(&context, "BoltAccessableStruct"), BT_VALUE_OBJECT(struct_type));
+
+	bt_Type* get_struct_sig = bt_make_signature(&context, struct_type, NULL, 0);
+	bt_module_export(&context, core_module, get_struct_sig, BT_VALUE_CSTRING(&context, "get_struct"),
+		BT_VALUE_OBJECT(bt_make_native(&context, get_struct_sig, bt_get_struct)));
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 

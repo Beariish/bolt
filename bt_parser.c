@@ -3,6 +3,7 @@
 #include "bt_context.h"
 #include "bt_object.h"
 #include "bt_debug.h"
+#include "bt_userdata.h"
 
 #include <assert.h>
 #include <memory.h>
@@ -984,32 +985,49 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 lhs = lhs->as.type.boxed;
             }
 
-            if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) { assert(0 && "Lhs must be table!"); }
-
             bt_Token* rhs = node->as.binary_op.right->source;
             bt_Value rhs_key = BT_VALUE_STRING(bt_make_string_hashed_len(parse->context, rhs->source.source, rhs->source.length));
 
-            bt_Table* layout = lhs->as.table_shape.layout;
-            bt_Value table_entry = bt_table_get(layout, rhs_key);
-            if (table_entry != BT_VALUE_NULL) {
-                bt_Type* type = BT_AS_OBJECT(table_entry);
-                node->resulting_type = type;
+            if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+                bt_Table* layout = lhs->as.table_shape.layout;
+                bt_Value table_entry = bt_table_get(layout, rhs_key);
+                if (table_entry != BT_VALUE_NULL) {
+                    bt_Type* type = BT_AS_OBJECT(table_entry);
+                    node->resulting_type = type;
+                    return node;
+                }
+
+                bt_Table* proto = lhs->as.table_shape.proto;
+                bt_Value proto_entry = bt_table_get(proto, rhs_key);
+                if (proto_entry != BT_VALUE_NULL) {
+                    bt_Type* entry = BT_AS_OBJECT(proto_entry);
+                    node->resulting_type = entry;
+                    return node;
+                }
+
+                if (lhs->as.table_shape.sealed) {
+                    assert(0 && "Couldn't find item in table shape.");
+                }
+
+                node->resulting_type = parse->context->types.any;
                 return node;
             }
+            else if (lhs->category == BT_TYPE_CATEGORY_USERDATA) {
+                bt_Buffer* fields = &lhs->as.userdata.fields;
 
-            bt_Table* proto = lhs->as.table_shape.proto;
-            bt_Value proto_entry = bt_table_get(proto, rhs_key);
-            if (proto_entry != BT_VALUE_NULL) {
-                bt_Type* entry = BT_AS_OBJECT(proto_entry);
-                node->resulting_type = entry;
-                return node;
+                for (uint32_t i = 0; i < fields->length; i++) {
+                    bt_UserdataField* field = bt_buffer_at(fields, i);
+                    if (bt_value_is_equal(BT_VALUE_STRING(field->name), rhs_key)) {
+                        node->resulting_type = field->bolt_type;
+                        return node;
+                    }
+                }
+
+                assert(0 && "Field not found in userdata type!");
             }
-
-            if (lhs->as.table_shape.sealed) {
-                assert(0 && "Couldn't find item in table shape.");
+            else {
+                assert(0 && "lhs is unindexable type");
             }
-
-            node->resulting_type = parse->context->types.any;
         } break;
         case BT_TOKEN_IS: {
             if (type_check(parse, node->as.binary_op.left)->resulting_type != parse->context->types.any)

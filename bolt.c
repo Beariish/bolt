@@ -583,19 +583,8 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 		case BT_OP_OR:  bt_or(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
 		case BT_OP_NOT: bt_not(thread, stack + op.a, stack[op.b]); NEXT;
 
-		case BT_OP_LOAD_IDX: stack[op.a] = bt_get(BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
-		case BT_OP_STORE_IDX: {
-			bt_Object* idxee = BT_AS_OBJECT(stack[op.a]);
-			if (idxee->type == BT_OBJECT_TYPE_TABLE) {
-				bt_table_set(context, BT_AS_OBJECT(stack[op.a]), stack[op.b], stack[op.c]);
-			}
-			else if (idxee->type == BT_OBJECT_TYPE_TYPE) {
-				bt_tableshape_set_field(context, idxee, stack[op.b], stack[op.c]);
-			}
-			else {
-				bt_runtime_error(thread, "Attempted to store idx into non-indexable object!");
-			}
-		} NEXT;
+		case BT_OP_LOAD_IDX: stack[op.a] = bt_get(context, BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
+		case BT_OP_STORE_IDX: bt_set(context, BT_AS_OBJECT(stack[op.a]), stack[op.b], stack[op.c]); NEXT;
 
 		case BT_OP_EXPECT:   stack[op.a] = stack[op.b]; if (stack[op.a] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!"); NEXT;
 		case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;

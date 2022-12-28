@@ -1,8 +1,11 @@
 #include "bt_object.h"
 
 #include "bt_context.h"
+#include "bt_userdata.h"
+
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 {
@@ -217,13 +220,24 @@ bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc p
     return result;
 }
 
+bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size)
+{
+    bt_Userdata* result = BT_ALLOCATE(ctx, USERDATA, bt_Userdata);
+    
+    result->type = type;
+    result->data = ctx->alloc(size);
+    memcpy(result->data, data, size);
+    
+    return result;
+}
+
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
 {
     bt_tableshape_add_layout(ctx, module->type, key, BT_AS_OBJECT(type));
     bt_table_set(ctx, module->exports, key, value);
 }
 
-bt_Value bt_get(bt_Object* obj, bt_Value key)
+bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
 {
     switch (obj->type) {
     case BT_OBJECT_TYPE_TABLE:
@@ -231,7 +245,49 @@ bt_Value bt_get(bt_Object* obj, bt_Value key)
     case BT_OBJECT_TYPE_TYPE: {
         bt_Type* type = obj;
         return bt_table_get(type->as.table_shape.values, key);
+    } break;
+    case BT_OBJECT_TYPE_USERDATA: {
+        bt_Userdata* userdata = obj;
+        bt_Type* type = userdata->type;
+        
+        bt_Buffer* fields = &type->as.userdata.fields;
+        for (uint32_t i = 0; i < fields->length; i++) {
+            bt_UserdataField* field = bt_buffer_at(fields, i);
+            if (bt_value_is_equal(BT_VALUE_STRING(field->name), key)) {
+                return field->getter(ctx, userdata->data, field->offset);
+            }
+        }
+
+        assert(0 && "This should never be reached due to typechecking!");
+    } break;
+    default: __debugbreak();
     }
+}
+
+void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
+{
+    switch (obj->type) {
+    case BT_OBJECT_TYPE_TABLE:
+        bt_table_set(ctx, obj, key, value);
+        break;
+    case BT_OBJECT_TYPE_TYPE:
+        bt_tableshape_set_field(ctx, obj, key, value);
+        break;
+    case BT_OBJECT_TYPE_USERDATA: {
+        bt_Userdata* userdata = obj;
+        bt_Type* type = userdata->type;
+
+        bt_Buffer* fields = &type->as.userdata.fields;
+        for (uint32_t i = 0; i < fields->length; i++) {
+            bt_UserdataField* field = bt_buffer_at(fields, i);
+            if (bt_value_is_equal(BT_VALUE_STRING(field->name), key)) {
+                field->setter(ctx, userdata->data, field->offset, value);
+                return;
+            }
+        }
+
+        assert(0 && "This should never be reached due to typechecking!");
+    } break;
     default: __debugbreak();
     }
 }
