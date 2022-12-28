@@ -123,6 +123,17 @@ static void bt_get_struct(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(bt_make_userdata(ctx, struct_type, &result, sizeof(BoltAccessableStruct))));
 }
 
+static void bt_struct_moveto(bt_Context* ctx, bt_Thread* thread)
+{
+	BoltAccessableStruct* self = (BoltAccessableStruct*)((bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0)))->data;
+
+	double dx = bt_get_number(bt_arg(thread, 1));
+	double dy = bt_get_number(bt_arg(thread, 2));
+
+	self->x += dx;
+	self->y += dy;
+}
+
 int main(int argc, char** argv) {
 	init_time();
 
@@ -177,6 +188,11 @@ int main(int argc, char** argv) {
 	bt_userdata_type_field_float(&context, struct_type, "height", offsetof(BoltAccessableStruct, height));
 	bt_userdata_type_field_uint32(&context, struct_type, "count", offsetof(BoltAccessableStruct, count));
 	bt_userdata_type_field_int32(&context,  struct_type, "offset", offsetof(BoltAccessableStruct, offset));
+
+	bt_Type* moveto_args[] = { struct_type, context.types.number, context.types.number };
+	bt_userdata_type_method(&context, struct_type, "move_by", bt_struct_moveto, NULL,
+		moveto_args, 3);
+
 	bt_module_export(&context, core_module, context.types.type, BT_VALUE_CSTRING(&context, "BoltAccessableStruct"), BT_VALUE_OBJECT(struct_type));
 
 	bt_Type* get_struct_sig = bt_make_signature(&context, struct_type, NULL, 0);

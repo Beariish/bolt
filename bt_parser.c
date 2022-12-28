@@ -1023,6 +1023,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     }
                 }
 
+                bt_Buffer* methods = &lhs->as.userdata.functions;
+
+                for (uint32_t i = 0; i < methods->length; i++) {
+                    bt_UserdataMethod* method = bt_buffer_at(methods, i);
+                    if (bt_value_is_equal(BT_VALUE_STRING(method->name), rhs_key)) {
+                        node->resulting_type = method->fn->type;
+                        return node;
+                    }
+                }
+
                 assert(0 && "Field not found in userdata type!");
             }
             else {

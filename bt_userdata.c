@@ -46,3 +46,26 @@ DEFINE_USERDATA_NUMBER_FIELD(uint8,  uint8_t);
 DEFINE_USERDATA_NUMBER_FIELD(uint16, uint16_t);
 DEFINE_USERDATA_NUMBER_FIELD(uint32, uint32_t);
 DEFINE_USERDATA_NUMBER_FIELD(uint64, uint64_t);
+
+void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name, 
+	bt_NativeProc method, bt_Type* ret, bt_Type** args, uint8_t arg_count)
+{
+	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  
+		
+	bt_Buffer* methods = &type->as.userdata.functions;														  
+	if (methods->element_size == 0) {
+		*methods = BT_BUFFER_NEW(ctx, bt_UserdataMethod);
+	}
+
+
+	bt_Type* signature = bt_make_signature(ctx, ret, args, arg_count);
+	if (arg_count > 0 && args[0] == type) signature->as.fn.is_method = BT_TRUE;
+
+	bt_NativeFn* fn = bt_make_native(ctx, signature, method);
+
+	bt_UserdataMethod me;
+	me.name = bt_make_string(ctx, name);
+	me.fn = fn;
+
+	bt_buffer_push(ctx, methods, &me);
+}

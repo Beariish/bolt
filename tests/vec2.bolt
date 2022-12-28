@@ -47,11 +47,19 @@ z.print()
 
 print(a.sum(b))
 
-let struct: BoltAccessableStruct = get_struct()
-print(struct.x)
-struct.x = 1000
-print(struct.x)
-print(struct.x, struct.y, struct.width, struct.height, struct.offset, struct.count)
+let struct = get_struct()
+
+print(struct.x, struct.y)
+
+struct.move_by(100, 100)
+
+print(struct.x, struct.y)
+
+fn takes_struct(str: BoltAccessableStruct) {
+    return str.x + str.y + str.width + str.height + str.offset + str.count
+}
+
+print(takes_struct(struct))
 
 for outer in 15 {
     let start_time = time()
