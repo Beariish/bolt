@@ -34,3 +34,6 @@ void bt_userdata_type_field_uint64(bt_Context* ctx, bt_Type* type, const char* n
 
 void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name, 
 	bt_NativeProc method, bt_Type* ret, bt_Type** args, uint8_t arg_count);
+
+#define BT_ARG_AS(thread, idx, type) \
+	(type*)((bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, idx)))->data

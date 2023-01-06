@@ -24,14 +24,17 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 	if (left->category != BT_TYPE_CATEGORY_SIGNATURE || right->category != BT_TYPE_CATEGORY_SIGNATURE)
 		return BT_FALSE;
 
-	if (left->as.fn.is_vararg != right->as.fn.is_vararg) return BT_FALSE;
+	if (left->as.fn.is_vararg && !right->as.fn.is_vararg) return BT_FALSE;
 
 	if (left->as.fn.is_vararg) {
-		if (!left->as.fn.varargs_type->satisfier(left->as.fn.varargs_type, right->as.fn.varargs_type))
+		if (!right->as.fn.varargs_type->satisfier(right->as.fn.varargs_type, left->as.fn.varargs_type))
 			return BT_FALSE;
 	}
 
-	if (left->as.fn.args.length != right->as.fn.args.length) return BT_FALSE;
+	if (left->as.fn.args.length != right->as.fn.args.length) {
+		if (left->as.fn.args.length < right->as.fn.args.length) return BT_FALSE;
+		if (!right->as.fn.is_vararg) return BT_FALSE;
+	}
 
 	if (left->as.fn.return_type == 0 && right->as.fn.return_type) return BT_FALSE;
 	if (left->as.fn.return_type && right->as.fn.return_type == 0) return BT_FALSE;
@@ -41,11 +44,23 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 			return BT_FALSE;
 	}
 
-	for (uint32_t i = 0; i < left->as.fn.args.length; ++i) {
+	uint32_t n_typed_args = left->as.fn.args.length < right->as.fn.args.length ?
+		left->as.fn.args.length : right->as.fn.args.length;
+
+	for (uint32_t i = 0; i < n_typed_args; ++i) {
 		bt_Type* arg_left = *(bt_Type**)bt_buffer_at(&left->as.fn.args, i);
 		bt_Type* arg_right = *(bt_Type**)bt_buffer_at(&right->as.fn.args, i);
 		
-		if (!arg_left->satisfier(arg_left, arg_right))
+		if (!arg_right->satisfier(arg_right, arg_left))
+			return BT_FALSE;
+	}
+
+	uint32_t n_unnamed_args = left->as.fn.args.length - n_typed_args;
+	for (uint32_t i = 0; i < n_unnamed_args; ++i) {
+		bt_Type* arg_left = *(bt_Type**)bt_buffer_at(&left->as.fn.args, n_typed_args + i);
+		bt_Type* arg_right = right->as.fn.varargs_type;
+	
+		if (!arg_right->satisfier(arg_right, arg_left))
 			return BT_FALSE;
 	}
 

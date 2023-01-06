@@ -74,7 +74,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
         bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&topmost->bindings, i);
         if (bt_strslice_compare(binding->name, new_binding.name)) {
-            assert(0); // Binding redifinition
+            //assert(0); // Binding redifinition
         }
     }
 
@@ -384,7 +384,7 @@ static InfixBindingPower infix_binding_power(bt_Token* token)
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
         return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
-    case BT_TOKEN_PERIOD: return (InfixBindingPower) { 101, 100 };
+    case BT_TOKEN_PERIOD: return (InfixBindingPower) { 100, 101 };
     default: return (InfixBindingPower) { 0, 0 };
     }
 }

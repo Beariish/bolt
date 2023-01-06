@@ -1,0 +1,19 @@
+import * from core
+
+type A = {
+    x: number,
+}
+
+type B = {
+    a: A,
+}
+
+
+
+let test = B => { a: A => { x: 10 } }
+
+let a = test.a
+print(a.x)
+
+print(test.a.x)
+
