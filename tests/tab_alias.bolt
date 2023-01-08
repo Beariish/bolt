@@ -1,0 +1,27 @@
+
+fn doubler(x: number) { return x * 2 }
+
+type Table1 = {
+    constant: number,
+    fn_a: fn(number): number,
+    fn_b: fn(number): number,
+}
+
+type Table2 = {
+    constant: any,
+    fn_a: fn(number?): number,
+    fn_b: fn(any): number,
+}
+
+let t1 = Table2 => {
+    constant: 100,
+    fn_a: doubler,
+    fn_b: doubler
+}
+
+
+fn takes_t2(t2: Table1) {
+    t2.fn_a(100)
+}
+
+takes_t2(t1)

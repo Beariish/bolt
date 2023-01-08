@@ -92,7 +92,7 @@ static void bt_sqrt(bt_Context* ctx, bt_Thread* thread)
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
-	bt_return(thread, BT_VALUE_STRING(bt_to_string(ctx, arg)));
+	bt_return(thread, BT_VALUE_OBJECT(bt_to_string(ctx, arg)));
 }
 
 static void bt_gc(bt_Context* ctx, bt_Thread* thread)
@@ -201,12 +201,12 @@ int main(int argc, char** argv) {
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_STRING(bt_make_string(&context, "vec2"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
 	bt_Module* loaded = bt_find_module(&context, module_name);
 	
 	printf("KB allocated during execution: %lld\n", bytes_allocated / 1024);
 	
-	while (bt_collect(&context.gc, 0));
+	//while (bt_collect(&context.gc, 0));
 
 	uint32_t cont = 1;
 	while (cont) {

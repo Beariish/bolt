@@ -45,14 +45,14 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->types.type->as.type.boxed = context->types.any;
 
 	context->type_registry = bt_make_table(context, 16);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "number")), context->types.number);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "bool")), context->types.boolean);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "string")), context->types.string);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "table")), context->types.table);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "any")), context->types.any);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "null")), context->types.null);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "array")), context->types.array);
-	bt_register_type(context, BT_VALUE_STRING(bt_make_string_hashed(context, "Type")), context->types.type);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "number")), context->types.number);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "bool")), context->types.boolean);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "string")), context->types.string);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "table")), context->types.table);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "any")), context->types.any);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "null")), context->types.null);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "array")), context->types.array);
+	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "Type")), context->types.type);
 
 	context->meta_names.add = bt_make_string_hashed_len(context, "@add", 4);
 	context->meta_names.sub = bt_make_string_hashed_len(context, "@sub", 4);
@@ -134,7 +134,7 @@ void bt_pop_root(bt_Context* ctx)
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
 	bt_Object* obj = context->alloc(full_size);
-	obj->mark = 1;
+	obj->mark = 0;
 	obj->type = type;
 	obj->next = 0;
 
@@ -216,7 +216,7 @@ bt_Type* bt_find_type(bt_Context* context, bt_Value name)
 void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_Value value)
 {
 	bt_ModuleImport* new_import = BT_ALLOCATE(context, IMPORT, bt_ModuleImport);
-	new_import->name = BT_AS_STRING(name);
+	new_import->name = BT_AS_OBJECT(name);
 	new_import->type = type;
 	new_import->value = value;
 
@@ -233,7 +233,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 	// TODO: resolve module name with path
 	bt_Module* mod = BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
 	if (mod == 0) {
-		bt_String* to_load = BT_AS_STRING(name);
+		bt_String* to_load = BT_AS_OBJECT(name);
 		
 		char* name_as_bolt_file = context->alloc(to_load->len + 5 + 1);
 		memcpy(name_as_bolt_file, to_load->str, to_load->len);
@@ -370,7 +370,7 @@ if (BT_IS_OBJECT(lhs)) {																			 \
 	bt_Object* obj = BT_AS_OBJECT(lhs);																 \
 	if (obj->type == BT_OBJECT_TYPE_TABLE) {														 \
 		bt_Table* tbl = obj;																		 \
-		bt_Value add_fn = bt_table_get(tbl, BT_VALUE_STRING(thread->context->meta_names.name));		 \
+		bt_Value add_fn = bt_table_get(tbl, BT_VALUE_OBJECT(thread->context->meta_names.name));		 \
 		if (add_fn == BT_VALUE_NULL) bt_runtime_error(thread, "Unable to find @" XSTR(name) "metafunction!");	 \
 																									 \
 		bt_push(thread, add_fn);																	 \
@@ -390,18 +390,21 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 		return;
 	}
 
-	if (BT_IS_STRING(lhs) && BT_IS_STRING(rhs)) {
-		bt_String* lhs_str = BT_AS_STRING(lhs);
-		bt_String* rhs_str = BT_AS_STRING(rhs);
-		uint32_t length = lhs_str->len + rhs_str->len;
+	if (BT_IS_OBJECT(lhs) && BT_IS_OBJECT(rhs)) {
+		bt_String* lhs_str = BT_AS_OBJECT(lhs);
+		bt_String* rhs_str = BT_AS_OBJECT(rhs);
 
-		char* added = thread->context->alloc(length + 1);
-		memcpy(added, lhs_str->str, lhs_str->len);
-		memcpy(added + lhs_str->len, rhs_str->str, rhs_str->len);
-		added[length] = 0;
+		if (lhs_str->obj.type == BT_OBJECT_TYPE_STRING && rhs_str->obj.type == BT_OBJECT_TYPE_STRING) {
+			uint32_t length = lhs_str->len + rhs_str->len;
 
-		*result = BT_VALUE_STRING(bt_make_string_moved(thread->context, added, length));
-		return;
+			char* added = thread->context->alloc(length + 1);
+			memcpy(added, lhs_str->str, lhs_str->len);
+			memcpy(added + lhs_str->len, rhs_str->str, rhs_str->len);
+			added[length] = 0;
+
+			*result = BT_VALUE_OBJECT(bt_make_string_moved(thread->context, added, length));
+			return;
+		}
 	}
 
 	ARITH_MF(add);

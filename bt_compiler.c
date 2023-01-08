@@ -503,12 +503,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_STRING_LITERAL: {
             bt_Literal* lit = (bt_Literal*)bt_buffer_at(&ctx->compiler->input->tokenizer->literals, inner->idx);
             uint8_t idx = push(ctx,
-                BT_VALUE_STRING(bt_make_string_hashed_len(ctx->context, lit->as_str.source, lit->as_str.length)));
+                BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, lit->as_str.source, lit->as_str.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
         } break;
         case BT_TOKEN_IDENTIFER_LITERAL: {
             uint8_t idx = push(ctx,
-                BT_VALUE_STRING(bt_make_string_hashed_len(ctx->context, expr->source->source.source, expr->source->source.length)));
+                BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, expr->source->source.source, expr->source->source.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
         } break;
         }
@@ -708,7 +708,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             bt_AstNode* entry = *(bt_AstNode**)bt_buffer_at(fields, i);
             bt_Token* name = entry->as.table_field.name;
             bt_String* idx = bt_make_string_hashed_len(ctx->context, name->source.source, name->source.length);
-            uint8_t idx_idx = push(ctx, BT_VALUE_STRING(idx));
+            uint8_t idx_idx = push(ctx, BT_VALUE_OBJECT(idx));
 
             emit_ab(ctx, BT_OP_LOAD, idx_loc, idx_idx);
 
@@ -759,7 +759,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
     case BT_AST_NODE_EXPORT: {
         uint8_t type_lit = push(ctx, BT_VALUE_OBJECT(stmt->resulting_type));
         uint8_t name_lit = push(ctx,
-            BT_VALUE_STRING(bt_make_string_len(ctx->context,
+            BT_VALUE_OBJECT(bt_make_string_len(ctx->context,
                 stmt->as.exp.name->source.source,
                 stmt->as.exp.name->source.length)));
 
@@ -985,8 +985,8 @@ static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrS
         for (uint32_t i = 0; i < to_compile->length; ++i) {
             bt_TablePair* pair = bt_buffer_at(to_compile, i);
 
-            bt_String* name = BT_AS_STRING(pair->key);
-            uint8_t name_idx = push(parent, BT_VALUE_STRING(name));
+            bt_String* name = BT_AS_OBJECT(pair->key);
+            uint8_t name_idx = push(parent, BT_VALUE_OBJECT(name));
             emit_ab(parent, BT_OP_LOAD, idx_loc, name_idx);
 
             bt_AstNode* fn = BT_AS_OBJECT(pair->value);

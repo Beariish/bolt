@@ -96,7 +96,7 @@ print("---------------")
 for outer in 15 {
     let start_time = time()
     
-    for i in 1000 {
+    for i in 100000 {
         let a = Vec2.new(5, 5)
         let b = Vec2.new(10, 10)   
         let c = a + b
@@ -107,30 +107,5 @@ for outer in 15 {
     let duration_ms = end_time - start_time
     print("1k vec2 iterations took", duration_ms / 1000, "ms")
 }
-
-
-print("---------------")
-
-fn doubler(x: number) { return x * 2 }
-fn doubler_maybe(x: number?) { return 2 * (x ?? 10) }
-fn ten_returner(x: any) { return 10 }
-
-type Callback = fn(number): number
-
-let cb: Callback = doubler
-print(cb(69))
-
-cb = ten_returner
-print(cb(69))
-
-cb = doubler_maybe
-print(cb(69))
-
-type Cb2 = fn(number, number)
-
-let cb2: Cb2 = print
-cb2(100, 100)
-
-print("---------------")
 
 export Vec2

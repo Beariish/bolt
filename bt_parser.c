@@ -234,19 +234,19 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             field->as.table_field.name->source.length);
 
         if (type) {
-            bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, BT_VALUE_STRING(str)));
+            bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, BT_VALUE_OBJECT(str)));
             if (!expected && type->as.table_shape.sealed) {
                 assert(0 && "Unexpected field identifier!");
             }
 
-            if (expected && !expected->satisfier(expected, field->as.table_field.type)) {
+            if (expected && !expected->satisfier(field->as.table_field.type, expected)) {
                 assert(0 && "Invalid type for field!");
             }
 
             n_satisfied++;
         }
         else {
-            bt_tableshape_add_layout(ctx, result->resulting_type, BT_VALUE_STRING(str), BT_VALUE_OBJECT(field->as.table_field.type));
+            bt_tableshape_add_layout(ctx, result->resulting_type, BT_VALUE_OBJECT(str), BT_VALUE_OBJECT(field->as.table_field.type));
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -419,7 +419,7 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
 
     if (!result) {
         bt_String* name = bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length);
-        result = bt_find_type(parse->context, BT_VALUE_STRING(name));
+        result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
     }
 
     return result;
@@ -508,10 +508,10 @@ static bt_Type* parse_type(bt_Parser* parse)
                 }
 
                 type = expr->resulting_type;
-                bt_tableshape_add_field(ctx, result, BT_VALUE_STRING(name), BT_VALUE_OBJECT(expr), type);
+                bt_tableshape_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
             }
 
-            bt_tableshape_add_layout(ctx, result, BT_VALUE_STRING(name), BT_AS_OBJECT(type));
+            bt_tableshape_add_layout(ctx, result, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
 
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COMMA) {
@@ -986,7 +986,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             bt_Token* rhs = node->as.binary_op.right->source;
-            bt_Value rhs_key = BT_VALUE_STRING(bt_make_string_hashed_len(parse->context, rhs->source.source, rhs->source.length));
+            bt_Value rhs_key = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, rhs->source.source, rhs->source.length));
 
             if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 bt_Table* layout = lhs->as.table_shape.layout;
@@ -1017,7 +1017,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
                 for (uint32_t i = 0; i < fields->length; i++) {
                     bt_UserdataField* field = bt_buffer_at(fields, i);
-                    if (bt_value_is_equal(BT_VALUE_STRING(field->name), rhs_key)) {
+                    if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), rhs_key)) {
                         node->resulting_type = field->bolt_type;
                         return node;
                     }
@@ -1027,7 +1027,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
                 for (uint32_t i = 0; i < methods->length; i++) {
                     bt_UserdataMethod* method = bt_buffer_at(methods, i);
-                    if (bt_value_is_equal(BT_VALUE_STRING(method->name), rhs_key)) {
+                    if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), rhs_key)) {
                         node->resulting_type = method->fn->type;
                         return node;
                     }
@@ -1119,7 +1119,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
             else {
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                    bt_Value add_mf = bt_table_get(lhs->as.table_shape.proto, BT_VALUE_STRING(parse->context->meta_names.add));
+                    bt_Value add_mf = bt_table_get(lhs->as.table_shape.proto, BT_VALUE_OBJECT(parse->context->meta_names.add));
                     if (add_mf == BT_VALUE_NULL) assert(0 && "Failed to find @add metamethod in tableshape!");
                     bt_Type* add = BT_AS_OBJECT(add_mf);
 
@@ -1164,7 +1164,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }                                                                                                                      \
             else {                                                                                                                 \
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
-                    bt_Value sub_mf = bt_table_get(lhs->as.table_shape.proto, BT_VALUE_STRING(parse->context->meta_names.metaname));\
+                    bt_Value sub_mf = bt_table_get(lhs->as.table_shape.proto, BT_VALUE_OBJECT(parse->context->meta_names.metaname));\
                     if (sub_mf == BT_VALUE_NULL) assert(0 && "Failed to find @" XSTR(metaname) " metamethod in tableshape!");                     \
                     bt_Type* sub = BT_AS_OBJECT(sub_mf);                                                                           \
                                                                                                                                    \
@@ -1322,7 +1322,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         next = bt_tokenizer_emit(tok);
         if (next->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected module name!");
 
-        bt_Value module_name = BT_VALUE_STRING(bt_make_string_len(parse->context,
+        bt_Value module_name = BT_VALUE_OBJECT(bt_make_string_len(parse->context,
             next->source.source, next->source.length));
 
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
@@ -1342,7 +1342,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             if (type_val == BT_VALUE_NULL) assert(0 && "Couldn't find import in module type!");
 
             bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
-            import->name = BT_AS_STRING(item->key);
+            import->name = BT_AS_OBJECT(item->key);
             import->type = BT_AS_OBJECT(type_val);
             import->value = item->value;
 
@@ -1381,7 +1381,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
        bt_Token* mod_name = bt_tokenizer_emit(tok);
        if (mod_name->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected module name!");
 
-       bt_Value module_name = BT_VALUE_STRING(bt_make_string_len(parse->context,
+       bt_Value module_name = BT_VALUE_OBJECT(bt_make_string_len(parse->context,
            mod_name->source.source, mod_name->source.length));
 
        bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
@@ -1400,8 +1400,8 @@ static bt_AstNode* parse_import(bt_Parser* parse)
            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
            import->name = bt_make_string_len(parse->context, item->source, item->length);
 
-           bt_Value type_val = bt_table_get(types, BT_VALUE_STRING(import->name));
-           bt_Value value = bt_table_get(values, BT_VALUE_STRING(import->name));
+           bt_Value type_val = bt_table_get(types, BT_VALUE_OBJECT(import->name));
+           bt_Value value = bt_table_get(values, BT_VALUE_OBJECT(import->name));
 
            bt_Type* type = BT_AS_OBJECT(type_val);
            bt_Type* valt = BT_AS_OBJECT(value);
@@ -1428,7 +1428,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         }
     }
 
-    bt_Value module_name = BT_VALUE_STRING(bt_make_string_len(parse->context, 
+    bt_Value module_name = BT_VALUE_OBJECT(bt_make_string_len(parse->context,
         name_or_first_item->source.source, name_or_first_item->source.length));
     
     bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
@@ -1505,7 +1505,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         }
 
         bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
-        bt_tableshape_add_field(parser->context, type, BT_VALUE_STRING(name), BT_VALUE_OBJECT(fn), fn->resulting_type);
+        bt_tableshape_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(fn), fn->resulting_type);
         return NULL;
     }
 
@@ -1816,7 +1816,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     parse->current_fn = parse->current_fn->as.method.outer;
 
     bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
-    bt_tableshape_add_field(parse->context, type, BT_VALUE_STRING(name_str), BT_VALUE_OBJECT(result), result->resulting_type);
+    bt_tableshape_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_OBJECT(result), result->resulting_type);
 
     return NULL;
 }

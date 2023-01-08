@@ -95,8 +95,11 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 		for (uint32_t j = 0; j < rpairs->length; ++j) {
 			bt_TablePair* rentry = bt_buffer_at(rpairs, j);
 
+			bt_Type* ltype = BT_AS_OBJECT(lentry->value);
+			bt_Type* rtype = BT_AS_OBJECT(rentry->value);
+
 			if (bt_value_is_equal(lentry->key, rentry->key) &&
-				bt_value_is_equal(lentry->value, rentry->value)) {
+				ltype->satisfier(ltype, rtype)) {
 				found = BT_TRUE;
 				break;
 			}
@@ -349,7 +352,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (value == BT_VALUE_NULL) return BT_FALSE;
 	if (type == type->ctx->types.boolean && BT_IS_BOOL(value)) return BT_TRUE;
 	if (type == type->ctx->types.number && BT_IS_NUMBER(value)) return BT_TRUE;
-	if (type == type->ctx->types.string && BT_IS_STRING(value)) return BT_TRUE;
+	if (type == type->ctx->types.string && BT_IS_OBJECT(value) && BT_AS_OBJECT(value)->type == BT_OBJECT_TYPE_STRING) return BT_TRUE;
 
 	if (!BT_IS_OBJECT(value)) return BT_FALSE;
 

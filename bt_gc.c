@@ -56,14 +56,14 @@ static void reference_all(bt_Object* obj)
 
 		for (uint32_t i = 0; i < mod->constants.length; ++i) {
 			bt_Value constant = bt_buffer_at(&mod->constants, i);
-			if(BT_IS_REFERENCE(constant)) reference_all(BT_AS_OBJECT(constant));
+			if(BT_IS_OBJECT(constant)) reference_all(BT_AS_OBJECT(constant));
 		}
 	} break;
 	case BT_OBJECT_TYPE_IMPORT: {
 		bt_ModuleImport* import = obj;
 		reference_all(import->type);
 		reference_all(import->name);
-		if(BT_IS_REFERENCE(import->value)) reference_all(BT_AS_OBJECT(import->value));
+		if(BT_IS_OBJECT(import->value)) reference_all(BT_AS_OBJECT(import->value));
 	} break;
 	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* fn = obj;
@@ -71,7 +71,7 @@ static void reference_all(bt_Object* obj)
 		reference_all(fn->signature);
 		for (uint32_t i = 0; i < fn->constants.length; ++i) {
 			bt_Value constant = bt_buffer_at(&fn->constants, i);
-			if (BT_IS_REFERENCE(constant)) reference_all(BT_AS_OBJECT(constant));
+			if (BT_IS_OBJECT(constant)) reference_all(BT_AS_OBJECT(constant));
 		};
 	} break;
 	case BT_OBJECT_TYPE_CLOSURE: {
@@ -79,7 +79,7 @@ static void reference_all(bt_Object* obj)
 		reference_all(cl->fn);
 		for (uint32_t i = 0; i < cl->upvals.length; ++i) {
 			bt_Value upval = bt_buffer_at(&cl->upvals, i);
-			if (BT_IS_REFERENCE(upval)) reference_all(BT_AS_OBJECT(upval));
+			if (BT_IS_OBJECT(upval)) reference_all(BT_AS_OBJECT(upval));
 		};
 	} break;
 	case BT_OBJECT_TYPE_NATIVE_FN: {
@@ -91,8 +91,8 @@ static void reference_all(bt_Object* obj)
 		reference_all(tbl->prototype);
 		for (uint32_t i = 0; i < tbl->pairs.length; i++) {
 			bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
-			if (BT_IS_REFERENCE(pair->key))   reference_all(BT_AS_OBJECT(pair->key));
-			if (BT_IS_REFERENCE(pair->value)) reference_all(BT_AS_OBJECT(pair->value));
+			if (BT_IS_OBJECT(pair->key))   reference_all(BT_AS_OBJECT(pair->key));
+			if (BT_IS_OBJECT(pair->value)) reference_all(BT_AS_OBJECT(pair->value));
 		}
 	} break;
 	}
@@ -114,7 +114,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		uint32_t top = thr->top + thr->callstack[thr->depth - 1].size;
 		for (uint32_t i = 0; i < top; ++i) {
 			bt_Value val = thr->stack[i];
-			if (BT_IS_OBJECT(val) || BT_IS_STRING(val)) reference_all(BT_AS_OBJECT(val));
+			if (BT_IS_OBJECT(val)) reference_all(BT_AS_OBJECT(val));
 		}
 
 		for (uint32_t i = 0; i < thr->depth; ++i) {

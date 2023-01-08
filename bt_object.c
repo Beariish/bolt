@@ -21,7 +21,7 @@ static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
 {
-    if (BT_IS_STRING(value)) return BT_AS_STRING(value);
+    if (BT_IS_OBJECT(value) && BT_AS_OBJECT(value)->type == BT_OBJECT_TYPE_STRING) return BT_AS_OBJECT(value);
 
     char buffer[4096];
     int32_t len = bt_to_string_inplace(buffer, 4096, value);
@@ -42,14 +42,14 @@ int32_t bt_to_string_inplace(char* buffer, uint32_t size, bt_Value value)
             else                   len = sprintf_s(buffer, size, "false");
             break;
         case BT_TYPE_NULL: len = sprintf_s(buffer, size, "null"); break;
-        case BT_TYPE_STRING: {
-            bt_String* str = BT_AS_STRING(value);
-            len = str->len;
-            memcpy(buffer, str->str, len);
-        } break;
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (obj->type) {
+            case BT_OBJECT_TYPE_STRING: {
+                bt_String* str = BT_AS_OBJECT(value);
+                len = str->len;
+                memcpy(buffer, str->str, len);
+            } break;
             case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, size, "Type(%s)", ((bt_Type*)obj)->name); break;
             case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
             case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type->name); break;
@@ -145,7 +145,7 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
 
 bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value)
 {
-    bt_Value str = BT_VALUE_STRING(bt_make_string_hashed(ctx, key));
+    bt_Value str = BT_VALUE_OBJECT(bt_make_string_hashed(ctx, key));
     return bt_table_set(ctx, tbl, str, value);
 }
 
@@ -167,7 +167,7 @@ bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 
 bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
 {
-    bt_Value str = BT_VALUE_STRING(bt_make_string_hashed(ctx, key));
+    bt_Value str = BT_VALUE_OBJECT(bt_make_string_hashed(ctx, key));
     return bt_table_get(tbl, str);
 }
 
@@ -253,7 +253,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         bt_Buffer* fields = &type->as.userdata.fields;
         for (uint32_t i = 0; i < fields->length; i++) {
             bt_UserdataField* field = bt_buffer_at(fields, i);
-            if (bt_value_is_equal(BT_VALUE_STRING(field->name), key)) {
+            if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), key)) {
                 return field->getter(ctx, userdata->data, field->offset);
             }
         }
@@ -261,7 +261,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         bt_Buffer* methods = &type->as.userdata.functions;
         for (uint32_t i = 0; i < methods->length; i++) {
             bt_UserdataMethod* method = bt_buffer_at(methods, i);
-            if (bt_value_is_equal(BT_VALUE_STRING(method->name), key)) {
+            if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), key)) {
                 return BT_VALUE_OBJECT(method->fn);
             }
         }
@@ -288,7 +288,7 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
         bt_Buffer* fields = &type->as.userdata.fields;
         for (uint32_t i = 0; i < fields->length; i++) {
             bt_UserdataField* field = bt_buffer_at(fields, i);
-            if (bt_value_is_equal(BT_VALUE_STRING(field->name), key)) {
+            if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), key)) {
                 field->setter(ctx, userdata->data, field->offset, value);
                 return;
             }

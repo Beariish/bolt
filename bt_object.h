@@ -28,8 +28,8 @@ typedef enum {
 
 typedef struct bt_Object {
 	uint64_t next : 48;
-	bt_ObjectType type : 5;
-	uint32_t mark : 1;
+	uint64_t type : 5;
+	uint64_t mark : 1;
 } bt_Object;
 
 typedef struct bt_Table {
@@ -108,7 +108,7 @@ typedef struct bt_Userdata {
 	uint8_t* data;
 } bt_Userdata;
 
-#define BT_VALUE_CSTRING(ctx, str) BT_VALUE_STRING(bt_make_string(ctx, str))
+#define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string(ctx, str))
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
 int32_t bt_to_string_inplace(char* buffer, uint32_t size, bt_Value value);
