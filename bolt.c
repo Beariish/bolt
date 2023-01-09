@@ -17,10 +17,13 @@ static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSa
 	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE, BT_FALSE);
 }
 
-void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
+void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Free free)
 {
 	context->alloc = allocator;
 	context->free = free;
+	context->realloc = realloc;
+
+	context->gc = bt_make_gc(context);
 
 	context->n_allocated = 0;
 	context->next = 0;
@@ -28,7 +31,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Free free)
 	context->next = context->root;
 	context->troot_top = 0;
 
-	context->gc = bt_make_gc(context, context->root, &context->loaded_modules, &context->type_registry, &context->prelude);
+	context->current_thread = 0;
 	
 	context->types.number = make_primitive_type(context, "number", bt_type_satisfier_same);
 	context->types.boolean = make_primitive_type(context, "bool", bt_type_satisfier_same);
@@ -134,19 +137,23 @@ void bt_pop_root(bt_Context* ctx)
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
 	bt_Object* obj = context->alloc(full_size);
+	memset(obj, 0, full_size);
 	obj->mark = 0;
 	obj->type = type;
 	obj->next = 0;
+
+//	bt_grey_obj(context, obj);
 
 	if (context->next) {
 		BT_OBJECT_SET_NEXT(context->next, obj);
 	}
 	context->next = obj;
 
-	context->n_allocated++;
-	if (context->n_allocated > 1024) {
-		context->n_allocated = 0;
-		//bt_collect(&context->gc, 1024);
+	context->gc.byets_allocated += full_size;
+	if (context->gc.byets_allocated >= context->gc.next_cycle) {
+		bt_push_root(context, obj);
+		bt_collect(&context->gc, 0);
+		bt_pop_root(context);
 	}
 
 	return obj;
@@ -161,14 +168,12 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 			switch (type->category) {
 			case BT_TYPE_CATEGORY_SIGNATURE:
 				if (!type->is_optional) {
-					type->as.fn.args = bt_buffer_empty();
 					bt_buffer_destroy(context, &type->as.fn.args);
 				}
 
 				break;
 			}
 			context->free(type->name);
-			type->name = 0;
 		}
 	} break;
 	case BT_OBJECT_TYPE_STRING: {
@@ -197,8 +202,30 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	}
 }
 
+static uint32_t get_object_size(bt_Object* obj)
+{
+	switch (obj->type) {
+	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
+	case BT_OBJECT_TYPE_TYPE: return sizeof(bt_Type);
+	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String);
+	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
+	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
+	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
+	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure);
+	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
+	case BT_OBEJCT_TYPE_ARRAY: assert(0); return 0;
+	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table);
+	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
+	}
+
+	assert(0);
+	return 0;
+}
+
 void bt_free(bt_Context* context, bt_Object* obj)
 {
+	context->gc.byets_allocated -= get_object_size(obj);
 	free_subobjects(context, obj);
 	context->free(obj);
 }
@@ -264,6 +291,9 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		if (new_mod) {
 			bt_register_module(context, name, new_mod);
 			bt_execute(context, new_mod);
+
+			bt_collect(&context->gc, 0);
+
 			return new_mod;
 		}
 		else {

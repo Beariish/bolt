@@ -10,6 +10,7 @@
 #include <setjmp.h>
 
 typedef void* (*bt_Alloc)(size_t size);
+typedef void* (*bt_Realloc)(void* ptr, size_t size);
 typedef void (*bt_Free)(void* ptr);
 
 #ifndef BT_STACK_SIZE
@@ -29,6 +30,7 @@ typedef struct bt_StackFrame {
 struct bt_Context {
 	bt_Alloc alloc;
 	bt_Free free;
+	bt_Realloc realloc;
 
 	bt_Object* root;
 	bt_Object* next;

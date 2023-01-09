@@ -62,11 +62,6 @@ typedef struct FunctionContext {
     struct FunctionContext* outer;
 } FunctionContext;
 
-typedef struct Constant {
-    bt_StrSlice name;
-    bt_Value value;
-} Constant;
-
 static uint8_t get_register(FunctionContext* ctx);
 static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
 static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
@@ -274,11 +269,11 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        Constant* constant = (Constant*)bt_buffer_at(&ctx->constants, idx);
+        bt_Constant* constant = (bt_Constant*)bt_buffer_at(&ctx->constants, idx);
         if (bt_value_is_equal(constant->value, value)) return idx;
     }
 
-    Constant con;
+    bt_Constant con;
     con.name.length = 0;
     con.value = value;
 
@@ -290,12 +285,12 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        Constant* constant = bt_buffer_at(&ctx->constants, idx);
+        bt_Constant* constant = bt_buffer_at(&ctx->constants, idx);
         if (bt_strslice_compare(constant->name, name)) return idx;
         if (bt_value_is_equal(constant, value)) return idx;
     }
 
-    Constant con;
+    bt_Constant con;
     con.value = value;
     con.name = name;
 
@@ -316,7 +311,7 @@ static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name)
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        Constant* constant = bt_buffer_at(&ctx->constants, idx);
+        bt_Constant* constant = bt_buffer_at(&ctx->constants, idx);
         if (bt_strslice_compare(constant->name, name)) return idx;
     }
 
@@ -881,7 +876,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.binding_top = 0;
     fn.scope_depth = 0;
     fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
-    fn.constants = BT_BUFFER_NEW(compiler->context, Constant);
+    fn.constants = BT_BUFFER_NEW(compiler->context, bt_Constant);
     fn.context = compiler->context;
     fn.compiler = compiler;
     fn.fn = 0;
@@ -897,7 +892,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
 
     bt_Buffer fn_constants = bt_buffer_with_capacity(compiler->context, sizeof(bt_Value), fn.constants.length);
     for (uint32_t i = 0; i < fn.constants.length; ++i) {
-        bt_buffer_push(compiler->context, &fn_constants, &((Constant*)bt_buffer_at(&fn.constants, i))->value);
+        bt_buffer_push(compiler->context, &fn_constants, &((bt_Constant*)bt_buffer_at(&fn.constants, i))->value);
     }
 
     result->stack_size = fn.min_top_register;
@@ -923,7 +918,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.binding_top = 0;
     ctx.scope_depth = 0;
     ctx.output = BT_BUFFER_NEW(compiler->context, bt_Op);
-    ctx.constants = BT_BUFFER_NEW(compiler->context, Constant);
+    ctx.constants = BT_BUFFER_NEW(compiler->context, bt_Constant);
     ctx.context = compiler->context;
     ctx.compiler = compiler;
     ctx.outer = parent;
@@ -949,7 +944,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
 
     bt_Buffer fn_constants = bt_buffer_with_capacity(compiler->context, sizeof(bt_Value), ctx.constants.length);
     for (uint32_t i = 0; i < ctx.constants.length; ++i) {
-        bt_buffer_push(compiler->context, &fn_constants, &((Constant*)bt_buffer_at(&ctx.constants, i))->value);
+        bt_buffer_push(compiler->context, &fn_constants, &((bt_Constant*)bt_buffer_at(&ctx.constants, i))->value);
     }
 
     bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);

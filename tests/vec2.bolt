@@ -57,6 +57,8 @@ fn Vec2.double(this: Vec2) {
     this.y *= 2
 }
 
+export Vec2
+
 type NativeHolder = {
     handle: BoltAccessableStruct
 }
@@ -93,7 +95,7 @@ haver.print()
 
 print("---------------")
 
-for outer in 15 {
+for outer in 45 {
     let start_time = time()
     
     for i in 100000 {
@@ -107,5 +109,3 @@ for outer in 15 {
     let duration_ms = end_time - start_time
     print("1k vec2 iterations took", duration_ms / 1000, "ms")
 }
-
-export Vec2

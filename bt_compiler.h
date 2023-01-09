@@ -10,6 +10,11 @@ typedef struct bt_Compiler {
 	bt_Parser* input;
 } bt_Compiler;
 
+typedef struct bt_Constant {
+	bt_StrSlice name;
+	bt_Value value;
+} bt_Constant;
+
 bt_Compiler bt_open_compiler(bt_Parser* parser);
 void bt_close_compiler(bt_Compiler* compiler);
 

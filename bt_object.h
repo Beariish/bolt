@@ -19,7 +19,6 @@ typedef enum {
 	BT_OBJECT_TYPE_METHOD,
 	BT_OBEJCT_TYPE_ARRAY,
 	BT_OBJECT_TYPE_TABLE,
-	BT_OBJECT_TYPE_SHARED,
 	BT_OBJECT_TYPE_USERDATA
 } bt_ObjectType;
 
@@ -28,8 +27,8 @@ typedef enum {
 
 typedef struct bt_Object {
 	uint64_t next : 48;
-	uint64_t type : 5;
 	uint64_t mark : 1;
+	uint64_t type : 5;
 } bt_Object;
 
 typedef struct bt_Table {

@@ -127,6 +127,8 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
+    //if (bt_value_is_equal(key, BT_VALUE_OBJECT(ctx->meta_names.add))) __debugbreak();
+
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
         bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
         if (bt_value_is_equal(pair->key, key)) {

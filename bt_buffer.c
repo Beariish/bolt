@@ -23,7 +23,7 @@ void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer)
 {
     if (buffer->capacity > 0) {
         context->free(buffer->data);
-        buffer->data = NULL;
+        //buffer->data = NULL;
         buffer->capacity = 0;
         buffer->length = 0;
     }

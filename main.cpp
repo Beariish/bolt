@@ -25,6 +25,12 @@ static void* malloc_tracked(size_t size) {
 	return malloc(size);
 }
 
+static void* realloc_tracket(void* ptr, size_t size) {
+	bytes_allocated -= _msize(ptr);
+	bytes_allocated += size;
+	return realloc(ptr, size);
+}
+
 static void free_tracked(void* mem) {
 	bytes_allocated -= _msize(mem);
 	free(mem);
@@ -138,7 +144,7 @@ int main(int argc, char** argv) {
 	init_time();
 
 	bt_Context context;
-	bt_open(&context, malloc_tracked, free_tracked);
+	bt_open(&context, malloc, realloc, free);
 
 	bt_Module* core_module = bt_make_user_module(&context);
 
@@ -201,10 +207,10 @@ int main(int argc, char** argv) {
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "mandel"));
 	bt_Module* loaded = bt_find_module(&context, module_name);
 	
-	printf("KB allocated during execution: %lld\n", bytes_allocated / 1024);
+	printf("KB allocated during execution: %lld\n", context.gc.byets_allocated / 1024);
 	
 	//while (bt_collect(&context.gc, 0));
 
@@ -215,7 +221,7 @@ int main(int argc, char** argv) {
 		uint64_t end = get_time();
 		printf("GC cycle took %.2fms\n", (double)(end - start) / 1000.0);
 	}
-	printf("KB allocated after gc: %lld\n", bytes_allocated / 1024);
+	printf("KB allocated after gc: %lld\n", context.gc.byets_allocated / 1024);
 	printf("-----------------------------------------------------\n");
 
  	return 0;
