@@ -708,7 +708,7 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) / BT_AS_NUMBER(stack[op.c]));
 		} NEXT;
 		case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
-		default: __debugbreak();
+		default: __assume(0);
 		}
 	}
 }

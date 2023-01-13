@@ -51,7 +51,6 @@ method Vec2Haver.print {
     this.dim.print()
 }
 
-
 fn Vec2.double(this: Vec2) {
     this.x *= 2
     this.y *= 2

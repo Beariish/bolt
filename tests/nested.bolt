@@ -16,4 +16,3 @@ let a = test.a
 print(a.x)
 
 print(test.a.x)
-

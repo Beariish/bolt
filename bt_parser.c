@@ -686,7 +686,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     }
     else if (lhs->type == BT_TOKEN_LEFTPAREN) {
         lhs_node = pratt_parse(parse, 0);
-        assert(bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN));
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
     }
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(tok->context, BT_AST_NODE_UNARY_OP);
@@ -711,7 +711,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             if (op->type == BT_TOKEN_LEFTBRACKET)
             {
                 bt_AstNode* rhs = pratt_parse(tok, 0);
-                assert(bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET));
+                bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
                 
                 bt_AstNode* lhs = lhs_node;
                 lhs_node = make_node(tok->context, BT_AST_NODE_BINARY_OP);
