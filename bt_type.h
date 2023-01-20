@@ -15,6 +15,7 @@ typedef enum {
 	BT_TYPE_CATEGORY_SIGNATURE,
 	BT_TYPE_CATEGORY_NATIVE_FN,
 	BT_TYPE_CATEGORY_USERDATA,
+	BT_TYPE_CATEGORY_UNION,
 } bt_TypeCategory;
 
 typedef struct bt_Type {
@@ -23,12 +24,13 @@ typedef struct bt_Type {
 	union {
 		struct {
 			bt_Buffer types;
-		} composite, selector;
+		} selector;
 
 		struct {
 			bt_Table* layout;
 			bt_Table* values;
 			bt_Table* proto;
+			bt_Type* parent;
 			bt_bool sealed;
 		} table_shape;
 
@@ -71,6 +73,7 @@ bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
+bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right);
 
 bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category, bt_bool is_optional);
 bt_Type* bt_derive_type(bt_Context* context, bt_Type* original);
@@ -87,7 +90,9 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
 void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);
 void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
-void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto);
+
+bt_Type* bt_make_union(bt_Context* context);
+void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type);
 bt_Value bt_cast_type(bt_Value value, bt_Type* type);

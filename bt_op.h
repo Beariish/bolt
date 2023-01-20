@@ -49,6 +49,7 @@ typedef enum {
 	BT_OP_TCHECK,            // R(a) = R(b) is Type(c)
 	BT_OP_TCAST,             // R(a) = R(b) as Type(c)
 	BT_OP_TALIAS,            // R(a) = (Type(c))R(b)
+	BT_OP_COMPOSE,           // R(a) = fieldsof(b) + fieldsof(c)
 
 	BT_OP_CALL,              // R(a) = R(b)(R(b + 1) .. R(b + c))
 

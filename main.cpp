@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "mandel"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "nested"));
 	bt_Module* loaded = bt_find_module(&context, module_name);
 	
 	printf("KB allocated during execution: %lld\n", context.gc.byets_allocated / 1024);

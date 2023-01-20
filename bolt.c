@@ -47,6 +47,9 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->types.type = bt_make_fundamental(context);
 	context->types.type->as.type.boxed = context->types.any;
 
+	context->loaded_modules = bt_make_table(context, 1);
+	context->prelude = bt_make_table(context, 16);
+
 	context->type_registry = bt_make_table(context, 16);
 	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "number")), context->types.number);
 	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "bool")), context->types.boolean);
@@ -62,8 +65,6 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->meta_names.mul = bt_make_string_hashed_len(context, "@mul", 4);
 	context->meta_names.div = bt_make_string_hashed_len(context, "@div", 4);
 
-	context->loaded_modules = bt_make_table(context, 1);
-	context->prelude = bt_make_table(context, 16);
 
 	context->is_valid = BT_TRUE;
 }
@@ -233,6 +234,7 @@ void bt_free(bt_Context* context, bt_Object* obj)
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
 {
 	bt_table_set(context, context->type_registry, name, BT_VALUE_OBJECT(type));
+	bt_register_prelude(context, name, context->types.type, BT_VALUE_OBJECT(type));
 }
 
 bt_Type* bt_find_type(bt_Context* context, bt_Value name)
@@ -640,6 +642,15 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 			bt_Table* tbl = BT_AS_OBJECT(stack[op.b]);
 			tbl->prototype = ((bt_Type*)BT_AS_OBJECT(stack[op.c]))->as.table_shape.values;
 			stack[op.a] = stack[op.b];
+		} NEXT;
+
+		case BT_OP_COMPOSE: {
+			bt_Table* lhs = BT_AS_OBJECT(stack[op.b]);
+			bt_Table* rhs = BT_AS_OBJECT(stack[op.c]);
+			bt_Table* result = bt_make_table(context, lhs->pairs.length + rhs->pairs.length);
+			bt_buffer_append(context, &result->pairs, &lhs->pairs);
+			bt_buffer_append(context, &result->pairs, &rhs->pairs);
+			stack[op.a] = BT_VALUE_OBJECT(result);
 		} NEXT;
 
 		case BT_OP_CALL: {

@@ -63,6 +63,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			grey(gc, as_type->as.table_shape.proto);
 			grey(gc, as_type->as.table_shape.values);
 			grey(gc, as_type->as.table_shape.layout);
+			grey(gc, as_type->as.table_shape.parent);
 		} break;
 		case BT_TYPE_CATEGORY_TYPE: {
 			grey(gc, as_type->as.type.boxed);

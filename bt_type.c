@@ -78,6 +78,14 @@ bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 {
+	if (left->category != BT_TYPE_CATEGORY_TABLESHAPE || right->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
+
+	if (right->as.table_shape.parent) {
+		if (bt_type_satisfier_table(left, right->as.table_shape.parent)) {
+			return BT_TRUE;
+		}
+	}
+
 	if (left->as.table_shape.sealed && right->as.table_shape.layout->pairs.length != left->as.table_shape.layout->pairs.length) return BT_FALSE;
 
 	if (left->as.table_shape.values &&
@@ -109,6 +117,46 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 	}
 
 	return BT_TRUE;
+}
+
+bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
+{
+	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
+
+	bt_Buffer* types = &left->as.selector.types;
+
+	if (right->category == BT_TYPE_CATEGORY_UNION) {
+		bt_Buffer* rtypes = &right->as.selector.types;
+		for (uint32_t i = 0; i < rtypes->length; ++i) {
+			bt_Type* rtype = *(bt_Type**)bt_buffer_at(rtypes, i);
+			
+			bt_bool found = BT_FALSE;
+
+			for (uint32_t j = 0; j < types->length; ++j) {
+				bt_Type* type = *(bt_Type**)bt_buffer_at(types, j);
+				if (type->satisfier(type, rtype)) {
+					found = BT_TRUE;
+					break;
+				}
+			}
+
+			if (!found) {
+				return BT_FALSE;
+			}
+		}
+
+		return BT_TRUE;
+	}
+	else {
+		for (uint32_t i = 0; i < types->length; ++i) {
+			bt_Type* type = *(bt_Type**)bt_buffer_at(types, i);
+			if (type->satisfier(type, right)) {
+				return BT_TRUE;
+			}
+		}
+	}
+
+	return BT_FALSE;
 }
 
 bt_bool type_satisifer_nullable(bt_Type* left, bt_Type* right)
@@ -302,6 +350,8 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 	result->as.table_shape.sealed = sealed;
 	result->as.table_shape.layout = 0;
 	result->as.table_shape.values = 0;
+	result->as.table_shape.proto = 0;
+	result->as.table_shape.parent = 0;
 	return result;
 }
 
@@ -333,6 +383,20 @@ void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, 
 	}
 
 	bt_table_set(context, tshp->as.table_shape.values, name, value);
+}
+
+bt_Type* bt_make_union(bt_Context* context)
+{
+	bt_Type* result = bt_make_type(context, "<union>", bt_type_satisfier_union, BT_TYPE_CATEGORY_UNION, BT_FALSE);
+	result->as.selector.types = BT_BUFFER_NEW(context, bt_Type*);
+
+	return result;
+}
+
+void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
+{
+	if (variant == 0) __debugbreak();
+	bt_buffer_push(context, &uni->as.selector.types, &variant);
 }
 
 void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto)

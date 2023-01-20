@@ -1,18 +1,73 @@
 import * from core
 
-type A = {
+type Vec2 = {
     x: number,
+    y: number,
 }
 
-type B = {
-    a: A,
+fn Vec2.new(x: number, y: number) {
+    return Vec2 => { x: x, y: y }
 }
 
+method Vec2.@add(other: Vec2) {
+    return Vec2 => { x: this.x + other.x, y: this.y + other.y }
+}
 
+type Entity = {
+    pos: Vec2,
+    id: string,
+}
 
-let test = B => { a: A => { x: 10 } }
+type Player = Entity + {
+    velocity: Vec2
+}
 
-let a = test.a
-print(a.x)
+fn Entity.new(x: number, y: number) {
+    return Entity => {
+        pos: Vec2.new(x, y),
+        id: "Entity"
+    }
+}
 
-print(test.a.x)
+fn Player.new(x: number, y: number) {
+    let player = Entity.new(100, 100) & {
+        velocity: Vec2.new(0, 0)
+    } into Player!
+
+    player.id = "Player"
+
+    return player
+}
+
+fn print_entity(e: Entity) {
+    print("Hello I am entity", e.id, "at", e.pos.x, ",", e.pos.y)
+}
+
+let player = Player.new(100, 100)
+let entity = Entity.new(200, 200)
+
+print_entity(entity)
+print_entity(player)
+
+fn num_or_string(x: bool | number | string | null) {
+    if x is number { print("We got a number:", x) }
+    else if x is string { print("We got a string:", x) }
+    else if x is bool { print("We got a boolean:", x) }
+    else { print("We got nothing...") }
+}
+
+num_or_string(10)
+num_or_string(100)
+num_or_string("hello")
+num_or_string("world")
+num_or_string(null)
+
+fn is_even(x: number): bool | string {
+    if x < 0 { return "Error, no negative numbers allowed!" }
+
+    return true
+}
+
+num_or_string(is_even(10))
+num_or_string(is_even(20))
+num_or_string(is_even(-20))

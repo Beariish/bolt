@@ -2,6 +2,7 @@
 #include "bt_context.h"
 
 #include <memory.h>
+#include <assert.h>
 
 bt_Buffer bt_buffer_with_capacity(bt_Context* context, uint32_t element_size, uint32_t capacity)
 {
@@ -59,6 +60,21 @@ bt_Buffer bt_buffer_move(bt_Buffer* buffer)
     return result;
 }
 
+static void buffer_reserve(bt_Context* ctx, bt_Buffer* buffer, size_t cap)
+{
+    if (buffer->capacity >= cap) return;
+
+    void* new_data = ctx->alloc(buffer->element_size * (size_t)cap);
+
+    if (buffer->capacity > 0) {
+        memcpy(new_data, buffer->data, buffer->capacity * (size_t)buffer->element_size);
+        ctx->free(buffer->data);
+    }
+
+    buffer->data = new_data;
+    buffer->capacity = cap;
+}
+
 bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
 {
     bt_bool allocated = BT_FALSE;
@@ -67,15 +83,8 @@ bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
         uint32_t new_capacity = ((buffer->capacity * 3) / 2) + 1; // * 1.5 in integer form
         new_capacity = new_capacity == 0 ? 8 : new_capacity;
 
-        void* new_data = context->alloc(buffer->element_size * (size_t)new_capacity);
-        
-        if (buffer->capacity > 0) {
-            memcpy(new_data, buffer->data, buffer->capacity * (size_t)buffer->element_size);
-            context->free(buffer->data);
-        }
+        buffer_reserve(context, buffer, new_capacity);
 
-        buffer->data = new_data;
-        buffer->capacity = new_capacity;
         allocated = BT_TRUE;
     }
 
@@ -246,4 +255,12 @@ bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output)
     }
 
     return BT_FALSE;
+}
+
+void bt_buffer_append(bt_Context* context, bt_Buffer* dst, bt_Buffer* src)
+{
+    assert(dst->element_size == src->element_size);
+    buffer_reserve(context, dst, dst->length + src->length);
+    memcpy((char*)dst->data + dst->length * dst->element_size, src->data, src->length * src->element_size);
+    dst->length += src->length;
 }

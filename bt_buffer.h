@@ -22,6 +22,7 @@ bt_Buffer bt_buffer_move(bt_Buffer* buffer);
 
 bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem);
 bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output);
+void bt_buffer_append(bt_Context* context, bt_Buffer* dst, bt_Buffer* src);
 
 static __forceinline void* bt_buffer_at(bt_Buffer* buffer, uint32_t index)
 {

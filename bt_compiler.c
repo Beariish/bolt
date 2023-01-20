@@ -626,9 +626,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_TCHECK, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_INTO:
-            // TODO: Accelerated casting is when types are known at compile-time. Should be no-op.
             if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_TALIAS, result_loc, lhs_loc, rhs_loc);
             else emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc);
+            break;
+        case BT_TOKEN_COMPOSE:
+            emit_abc(ctx, BT_OP_COMPOSE, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_PERIOD:
             emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);

@@ -1,0 +1,25 @@
+import * from core
+
+type A = {
+    x: number,
+}
+
+type B = {
+    y: number,
+}
+
+type Vec2 = {
+    x: number,
+    y: number,
+}
+
+method Vec2.print_self {
+    print("Vec2(x: ", this.x, ", y: ", this.y, ")")
+}
+
+let a = A => { x: 10 }
+let b = B => { y: 10 }
+
+let c = a & b into Vec2!
+
+c.print_self()
