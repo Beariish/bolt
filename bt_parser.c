@@ -352,8 +352,8 @@ static uint8_t postfix_binding_power(bt_Token* token)
 {
     switch (token->type)
     {
-    case BT_TOKEN_BANG: return 8;
-    case BT_TOKEN_LEFTPAREN: return 14;
+    case BT_TOKEN_BANG: return 10;
+    case BT_TOKEN_LEFTPAREN: return 19;
     case BT_TOKEN_QUESTION: return 15;
     case BT_TOKEN_LEFTBRACKET: return 17;
     case BT_TOKEN_FATARROW: return 18;
@@ -574,7 +574,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
     }
 }
 
-static bt_Type* infer_return(bt_Buffer* body, bt_Type* expected)
+static bt_Type* infer_return(bt_Context* ctx, bt_Buffer* body, bt_Type* expected)
 {
     for (uint32_t i = 0; i < body->length; ++i) {
         bt_AstNode* expr = *(bt_AstNode**)bt_buffer_at(body, i);
@@ -590,14 +590,20 @@ static bt_Type* infer_return(bt_Buffer* body, bt_Type* expected)
             }
 
             if (expected && !expected->satisfier(expected, expr->resulting_type)) {
-                assert(0 && "Block returns wrong type!");
+                if (expected->category != BT_TYPE_CATEGORY_UNION) {
+                    bt_Type* new_union = bt_make_union(ctx);
+                    bt_push_union_variant(ctx, new_union, expected);
+                    expected = new_union;
+                }
+
+                bt_push_union_variant(ctx, expected, expr->resulting_type);
             }
         }
         else if (expr->type == BT_AST_NODE_IF) {
-            expected = infer_return(&expr->as.branch.body, expected);
+            expected = infer_return(ctx, &expr->as.branch.body, expected);
             bt_AstNode* elif = expr->as.branch.next;
             while (elif) {
-                expected = infer_return(&elif->as.branch.body, expected);
+                expected = infer_return(ctx, &elif->as.branch.body, expected);
                 elif = elif->as.branch.next;
             }
         }
@@ -685,7 +691,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         assert(0 && "Found function without body!");
     }
 
-    result->as.fn.ret_type = infer_return(&result->as.fn.body, result->as.fn.ret_type);
+    result->as.fn.ret_type = infer_return(parse->context, &result->as.fn.body, result->as.fn.ret_type);
     
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {
@@ -1094,9 +1100,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_INTO: {
             bt_Type* from = type_check(parse, node->as.binary_op.left)->resulting_type;
             
+            /*
             if (from != parse->context->types.any && from->category != BT_TYPE_CATEGORY_TABLESHAPE) {
                 assert(0 && "Invalid source type for casting!");
-            }
+            }*/
             
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
                 assert(0 && "Expected right hand of 'into' to be Type!");
@@ -1877,7 +1884,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         assert(0 && "Found function without body!");
     }
 
-    result->as.method.ret_type = infer_return(&result->as.method.body, result->as.method.ret_type);
+    result->as.method.ret_type = infer_return(parse->context, &result->as.method.body, result->as.method.ret_type);
 
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {

@@ -95,6 +95,12 @@ static void bt_sqrt(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_NUMBER(sqrt(tosqrt)));
 }
 
+static void bt_abs(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_number toabs = BT_AS_NUMBER(bt_arg(thread, 0));
+	bt_return(thread, BT_VALUE_NUMBER(fabs(toabs)));
+}
+
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -180,6 +186,11 @@ int main(int argc, char** argv) {
 		sqrt_sig,
 		BT_VALUE_CSTRING(&context, "sqrt"),
 		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_sqrt)));
+
+	bt_module_export(&context, core_module,
+		sqrt_sig,
+		BT_VALUE_CSTRING(&context, "abs"),
+		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_abs)));
 
 	bt_Type* gc_sig = bt_make_signature(&context, NULL, NULL, 0);
 	bt_module_export(&context, core_module,

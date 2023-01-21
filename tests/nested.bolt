@@ -71,3 +71,23 @@ fn is_even(x: number): bool | string {
 num_or_string(is_even(10))
 num_or_string(is_even(20))
 num_or_string(is_even(-20))
+
+type Error = unsealed { what: string }
+fn error(message: string) { return Error => { what: message } }
+
+fn pow(x: number, exp: number) {
+    if abs(x) + abs(exp) < 0.00001 {
+        return error("0 to the power of 0 is not defined!")
+    }
+
+    let accum = x
+    for i in exp {
+        accum *= x
+    }
+
+    return accum
+}
+
+print(pow(10, 2))
+print(pow(2, 8))
+print((pow(0, 0) into Error!).what)

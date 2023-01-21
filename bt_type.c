@@ -438,7 +438,22 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 			return BT_FALSE;
 		}
 	case BT_TYPE_CATEGORY_TABLESHAPE: {
-		__debugbreak();
+		bt_Table* as_tbl = as_obj;
+
+		while (type) {
+			bt_Buffer* layout = &type->as.table_shape.layout;
+			for (uint32_t i = 0; i < layout->length; i++) {
+				bt_TablePair* pair = bt_buffer_at(layout, i);
+
+				bt_Value val = bt_table_get(as_tbl, pair->key);
+				if (val == BT_VALUE_NULL) return BT_FALSE;
+				if (!bt_is_type(val, pair->value)) return BT_FALSE;
+			}
+
+			type = type->as.table_shape.parent;
+		}
+
+		return BT_TRUE;
 	} break;
 	}
 
