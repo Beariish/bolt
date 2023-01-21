@@ -24,11 +24,11 @@ bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
     if (BT_IS_OBJECT(value) && BT_AS_OBJECT(value)->type == BT_OBJECT_TYPE_STRING) return BT_AS_OBJECT(value);
 
     char buffer[4096];
-    int32_t len = bt_to_string_inplace(buffer, 4096, value);
+    int32_t len = bt_to_string_inplace(ctx, buffer, 4096, value);
     return bt_make_string_len(ctx, buffer, len);
 }
 
-int32_t bt_to_string_inplace(char* buffer, uint32_t size, bt_Value value)
+int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value)
 {
     int32_t len = 0;
 
@@ -53,7 +53,22 @@ int32_t bt_to_string_inplace(char* buffer, uint32_t size, bt_Value value)
             case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, size, "Type(%s)", ((bt_Type*)obj)->name); break;
             case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
             case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type->name); break;
-            case BT_OBJECT_TYPE_TABLE:     len = sprintf_s(buffer, size, "<0x%llx: table>", value); break;
+            case BT_OBJECT_TYPE_TABLE: {
+                bt_Table* tbl = obj;
+                bt_Value format_fn = bt_table_get(tbl, BT_VALUE_OBJECT(ctx->meta_names.format));
+
+                if (format_fn != BT_VALUE_NULL) {
+                    bt_push(ctx->current_thread, format_fn);
+                    bt_push(ctx->current_thread, value);
+                    bt_call(ctx->current_thread, 1);
+                    bt_String* result = BT_AS_OBJECT(bt_pop(ctx->current_thread));
+                    memcpy(buffer, result->str, result->len);
+                    len = result->len;
+                }
+                else {
+                    len = sprintf_s(buffer, size, "<0x%llx: table>", value);
+                }
+            } break;
             default: len = sprintf_s(buffer, size, "<0x%llx: object>", value); break;
             }
         }

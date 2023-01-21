@@ -145,6 +145,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	grey(gc, ctx->meta_names.div);
 	grey(gc, ctx->meta_names.mul);
 	grey(gc, ctx->meta_names.sub);
+	grey(gc, ctx->meta_names.format);
 
 	grey(gc, ctx->root);
 	grey(gc, ctx->type_registry);

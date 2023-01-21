@@ -385,6 +385,31 @@ void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, 
 	bt_table_set(context, tshp->as.table_shape.values, name, value);
 }
 
+void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent)
+{
+	tshp->as.table_shape.parent = parent;
+
+	if (tshp->as.table_shape.values == 0) {
+		tshp->as.table_shape.values = bt_make_table(context, 4);
+		tshp->as.table_shape.proto = bt_make_table(context, 4);
+	}
+
+	tshp->as.table_shape.values->prototype = parent->as.table_shape.values;
+}
+
+bt_Table* bt_tableshape_get_proto(bt_Context* context, bt_Type* tshp)
+{
+	if (tshp->as.table_shape.values == 0 && tshp->as.table_shape.parent) {
+		tshp->as.table_shape.values = bt_make_table(context, 4);
+	}
+
+	if (tshp->as.table_shape.parent) {
+		tshp->as.table_shape.values->prototype = tshp->as.table_shape.parent->as.table_shape.values;
+	}
+
+	return tshp->as.table_shape.values;
+}
+
 bt_Type* bt_make_union(bt_Context* context)
 {
 	bt_Type* result = bt_make_type(context, "<union>", bt_type_satisfier_union, BT_TYPE_CATEGORY_UNION, BT_FALSE);

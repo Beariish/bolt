@@ -68,7 +68,7 @@ static void bt_print(bt_Context* ctx, bt_Thread* thread)
 	uint8_t argc = bt_argc(thread);
 	for (uint8_t i = 0; i < argc; ++i) {
 		bt_Value arg = bt_arg(thread, i);
-		pos += bt_to_string_inplace(buffer + pos, 4096 - pos, arg);
+		pos += bt_to_string_inplace(ctx, buffer + pos, 4096 - pos, arg);
 
 		if (i < argc - 1) buffer[pos++] = ' ';
 	}

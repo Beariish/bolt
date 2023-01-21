@@ -473,7 +473,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 bt_tableshape_add_layout(parse->context, result, field->key, BT_AS_OBJECT(field->value));
             }
 
-            result->as.table_shape.parent = lhs;
+            bt_tableshape_set_parent(parse->context, result, lhs);
         }
         else if (token->type == BT_TOKEN_UNION && recurse) {
             bt_Type* selector = bt_make_union(ctx);

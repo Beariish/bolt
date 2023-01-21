@@ -64,7 +64,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->meta_names.sub = bt_make_string_hashed_len(context, "@sub", 4);
 	context->meta_names.mul = bt_make_string_hashed_len(context, "@mul", 4);
 	context->meta_names.div = bt_make_string_hashed_len(context, "@div", 4);
-
+	context->meta_names.format = bt_make_string_hashed_len(context, "@format", 7);
 
 	context->is_valid = BT_TRUE;
 }
@@ -578,7 +578,7 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 		case BT_OP_TABLE: stack[op.a] = BT_VALUE_OBJECT(bt_make_table(context, op.ibc)); NEXT;
 		case BT_OP_TTABLE: {
 			bt_Table* tbl = bt_make_table(context, op.b);
-			tbl->prototype = ((bt_Type*)BT_AS_OBJECT(stack[op.c]))->as.table_shape.values;
+			tbl->prototype = bt_tableshape_get_proto(context, BT_AS_OBJECT(stack[op.c]));
 			stack[op.a] = BT_VALUE_OBJECT(tbl);
 		} NEXT;
 
@@ -640,7 +640,7 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 
 		case BT_OP_TALIAS: {
 			bt_Table* tbl = BT_AS_OBJECT(stack[op.b]);
-			tbl->prototype = ((bt_Type*)BT_AS_OBJECT(stack[op.c]))->as.table_shape.values;
+			tbl->prototype = bt_tableshape_get_proto(context, BT_AS_OBJECT(stack[op.c]));
 			stack[op.a] = stack[op.b];
 		} NEXT;
 
