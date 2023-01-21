@@ -146,6 +146,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	grey(gc, ctx->meta_names.mul);
 	grey(gc, ctx->meta_names.sub);
 	grey(gc, ctx->meta_names.format);
+	grey(gc, ctx->meta_names.collect);
 
 	grey(gc, ctx->root);
 	grey(gc, ctx->type_registry);
@@ -185,6 +186,13 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	bt_Object* current = ctx->root;
 	bt_Object* last_good = ctx->root;
 
+	bt_Thread gc_thread = { 0 };
+	gc_thread.context = ctx;
+	gc_thread.depth++;
+
+	bt_Thread* old_thr = ctx->current_thread;
+	ctx->current_thread = &gc_thread;
+
 	while (current) {
 		if (current->mark) {
 			current->mark = 0;
@@ -209,6 +217,8 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
 
 	//printf("------ GC performed, new heap size: %lld, next at: %lld\n", gc->byets_allocated, gc->next_cycle);
+
+	ctx->current_thread = old_thr;
 
 	return n_collected;
 }

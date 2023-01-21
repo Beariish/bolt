@@ -59,8 +59,8 @@ struct bt_Context {
 		bt_String* mul;
 		bt_String* div;
 		bt_String* format;
+		bt_String* collect;
 	} meta_names;
-
 
 	bt_Table* type_registry;
 	bt_Table* loaded_modules;

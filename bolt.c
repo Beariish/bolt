@@ -65,6 +65,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->meta_names.mul = bt_make_string_hashed_len(context, "@mul", 4);
 	context->meta_names.div = bt_make_string_hashed_len(context, "@div", 4);
 	context->meta_names.format = bt_make_string_hashed_len(context, "@format", 7);
+	context->meta_names.collect = bt_make_string_hashed_len(context, "@collect", 8);
 
 	context->is_valid = BT_TRUE;
 }
@@ -198,6 +199,14 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_TABLE: {
 		bt_Table* table = obj;
+
+		bt_Value collect_fn = bt_table_get(table, BT_VALUE_OBJECT(context->meta_names.collect));
+		if (collect_fn != BT_VALUE_NULL) {
+			bt_push(context->current_thread, collect_fn);
+			bt_push(context->current_thread, BT_VALUE_OBJECT(table));
+			bt_call(context->current_thread, 1);
+		}
+
 		bt_buffer_destroy(context, &table->pairs);
 	} break;
 	}

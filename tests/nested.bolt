@@ -43,6 +43,12 @@ fn Player.new(x: number, y: number) {
     return player
 }
 
+method Player.@collect {
+    print("Real?")
+}
+
+export Player
+
 let player = Player.new(100, 100)
 let entity = Entity.new(200, 200)
 
