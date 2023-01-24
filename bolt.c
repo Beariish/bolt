@@ -174,6 +174,13 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 				}
 
 				break;
+			case BT_TYPE_CATEGORY_UNION:
+				bt_buffer_destroy(context, &type->as.selector.types);
+				break;
+			case BT_TYPE_CATEGORY_USERDATA:
+				bt_buffer_destroy(context, &type->as.userdata.fields);
+				bt_buffer_destroy(context, &type->as.userdata.functions);
+				break;
 			}
 			context->free(type->name);
 		}
@@ -209,6 +216,10 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 
 		bt_buffer_destroy(context, &table->pairs);
 	} break;
+	case BT_OBJECT_TYPE_USERDATA: {
+		bt_Userdata* userdata = obj;
+		context->free(userdata->data);
+	} break;
 	}
 }
 
@@ -238,6 +249,8 @@ void bt_free(bt_Context* context, bt_Object* obj)
 	context->gc.byets_allocated -= get_object_size(obj);
 	free_subobjects(context, obj);
 	context->free(obj);
+
+	//memset(obj, 0, sizeof(bt_Object));
 }
 
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)

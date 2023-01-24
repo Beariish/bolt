@@ -2,6 +2,7 @@
 #include "bt_type.h"
 #include "bt_context.h"
 #include "bt_compiler.h"
+#include "bt_userdata.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -68,6 +69,28 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		case BT_TYPE_CATEGORY_TYPE: {
 			grey(gc, as_type->as.type.boxed);
 		} break;
+		case BT_TYPE_CATEGORY_USERDATA: {
+			bt_Buffer* fields = &as_type->as.userdata.fields;
+			for (uint32_t i = 0; i < fields->length; i++) {
+				bt_UserdataField* field = bt_buffer_at(fields, i);
+				grey(gc, field->bolt_type);
+				grey(gc, field->name);
+			}
+
+			bt_Buffer* methods = &as_type->as.userdata.functions;
+			for (uint32_t i = 0; i < methods->length; i++) {
+				bt_UserdataMethod* method = bt_buffer_at(methods, i);
+				grey(gc, method->name);
+				grey(gc, method->fn);
+			}
+		} break;
+		case BT_TYPE_CATEGORY_UNION: {
+			bt_Buffer* entries = &as_type->as.selector.types;
+			for (uint32_t i = 0; i < entries->length; ++i) {
+				bt_Type* type = *(bt_Type**)bt_buffer_at(entries, i);
+				grey(gc, type);
+			}
+		} break;
 		}
 	} break;
 	case BT_OBJECT_TYPE_MODULE: {
@@ -124,6 +147,10 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			if (BT_IS_OBJECT(pair->key))   grey(gc, BT_AS_OBJECT(pair->key));
 			if (BT_IS_OBJECT(pair->value)) grey(gc, BT_AS_OBJECT(pair->value));
 		}
+	} break;
+	case BT_OBJECT_TYPE_USERDATA: {
+		bt_Userdata* userdata = obj;
+		grey(gc, userdata->type);
 	} break;
 	}
 }
@@ -183,8 +210,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 
 	uint32_t n_collected = 0;
 
-	bt_Object* current = ctx->root;
-	bt_Object* last_good = ctx->root;
+	bt_Object** current = &ctx->root;
 
 	bt_Thread gc_thread = { 0 };
 	gc_thread.context = ctx;
@@ -193,19 +219,15 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	bt_Thread* old_thr = ctx->current_thread;
 	ctx->current_thread = &gc_thread;
 
-	while (current) {
-		if (current->mark) {
-			current->mark = 0;
-			
-			last_good = current;
-			current = BT_OBJECT_NEXT(current);
+	while (*current) {
+		if ((*current)->mark) {
+			(*current)->mark = 0;
+			current = &((*current)->next);
 		}
 		else {
-			bt_Object* to_free = current;
+			bt_Object* to_free = *current;
 				
-			current = BT_OBJECT_NEXT(current);
-			BT_OBJECT_SET_NEXT(last_good, current);
-				
+			*current = (*current)->next;
 			bt_free(ctx, to_free);
 
 			n_collected++;

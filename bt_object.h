@@ -26,7 +26,7 @@ typedef enum {
 #define BT_OBJECT_SET_NEXT(__obj, __next) (__obj->next = (uint64_t)__next)
 
 typedef struct bt_Object {
-	uint64_t next : 48;
+	struct bt_Object* next;
 	uint64_t mark : 1;
 	uint64_t type : 5;
 } bt_Object;
