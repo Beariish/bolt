@@ -12,6 +12,9 @@ extern "C" {
 #include "bt_compiler.h"
 #include "bt_embedding.h"
 #include "bt_userdata.h"
+#include "boltstd/boltstd.h"
+
+#include "uperf/uperf.h"
 }
 
 #include <malloc.h>
@@ -149,91 +152,143 @@ static void bt_struct_moveto(bt_Context* ctx, bt_Thread* thread)
 int main(int argc, char** argv) {
 	init_time();
 
+	uperf_capture_begin();
+
+	UPERF_EVENT("Runtime");
+
+	UPERF_EVENT("Open Context");
 	bt_Context context;
 	bt_open(&context, malloc, realloc, free);
+	UPERF_POP();
 
+	UPERF_EVENT("Open stdlib");
+	boltstd_open_all(&context);
+	UPERF_POP();
+
+	UPERF_EVENT("Make core module");
 	bt_Module* core_module = bt_make_user_module(&context);
+	UPERF_POP();
 
-	bt_Type* print_sig = bt_make_vararg(&context, bt_make_signature(&context, NULL, NULL, 0), context.types.any);
-	bt_module_export(&context, core_module,
-		print_sig,
-		BT_VALUE_CSTRING(&context, "print"),
-		BT_VALUE_OBJECT(bt_make_native(&context, print_sig, bt_print)));
+	UPERF_BLOCK("Register functions") {
 
-	bt_Type* tostring_args[] = { context.types.any };
-	bt_Type* tostring_sig = bt_make_signature(&context, context.types.string, tostring_args, 1);
-	bt_module_export(&context, core_module,
-		tostring_sig,
-		BT_VALUE_CSTRING(&context, "to_string"),
-		BT_VALUE_OBJECT(bt_make_native(&context, tostring_sig, bt_tostring)));
+		UPERF_EVENT("Register print()");
+		bt_Type* print_sig = bt_make_vararg(&context, bt_make_signature(&context, NULL, NULL, 0), context.types.any);
+		bt_module_export(&context, core_module,
+			print_sig,
+			BT_VALUE_CSTRING(&context, "print"),
+			BT_VALUE_OBJECT(bt_make_native(&context, print_sig, bt_print)));
+		UPERF_POP();
 
-	bt_Type* time_sig = bt_make_signature(&context, context.types.number, NULL, 0);
-	bt_module_export(&context, core_module,
-		time_sig,
-		BT_VALUE_CSTRING(&context, "time"),
-		BT_VALUE_OBJECT(bt_make_native(&context, time_sig, bt_time)));
+		UPERF_EVENT("Register tostring()");
+		bt_Type* tostring_args[] = { context.types.any };
+		bt_Type* tostring_sig = bt_make_signature(&context, context.types.string, tostring_args, 1);
+		bt_module_export(&context, core_module,
+			tostring_sig,
+			BT_VALUE_CSTRING(&context, "to_string"),
+			BT_VALUE_OBJECT(bt_make_native(&context, tostring_sig, bt_tostring)));
+		UPERF_POP();
 
-	bt_Type* max_args[] = { context.types.number };
-	bt_Type* max_sig = bt_make_vararg(&context, bt_make_signature(&context, context.types.number, max_args, 1), context.types.number);
-	bt_module_export(&context, core_module,
-		max_sig,
-		BT_VALUE_CSTRING(&context, "max"),
-		BT_VALUE_OBJECT(bt_make_native(&context, max_sig, bt_max)));
+		UPERF_EVENT("Register time()");
+		bt_Type* time_sig = bt_make_signature(&context, context.types.number, NULL, 0);
+		bt_module_export(&context, core_module,
+			time_sig,
+			BT_VALUE_CSTRING(&context, "time"),
+			BT_VALUE_OBJECT(bt_make_native(&context, time_sig, bt_time)));
+		UPERF_POP();
 
-	bt_Type* sqrt_args[] = { context.types.number };
-	bt_Type* sqrt_sig = bt_make_signature(&context, context.types.number, sqrt_args, 1);
-	bt_module_export(&context, core_module,
-		sqrt_sig,
-		BT_VALUE_CSTRING(&context, "sqrt"),
-		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_sqrt)));
+		UPERF_EVENT("Register max()");
+		bt_Type* max_args[] = { context.types.number };
+		bt_Type* max_sig = bt_make_vararg(&context, bt_make_signature(&context, context.types.number, max_args, 1), context.types.number);
+		bt_module_export(&context, core_module,
+			max_sig,
+			BT_VALUE_CSTRING(&context, "max"),
+			BT_VALUE_OBJECT(bt_make_native(&context, max_sig, bt_max)));
+		UPERF_POP();
 
-	bt_module_export(&context, core_module,
-		sqrt_sig,
-		BT_VALUE_CSTRING(&context, "abs"),
-		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_abs)));
+		UPERF_EVENT("Register sqrt()");
+		bt_Type* sqrt_args[] = { context.types.number };
+		bt_Type* sqrt_sig = bt_make_signature(&context, context.types.number, sqrt_args, 1);
+		bt_module_export(&context, core_module,
+			sqrt_sig,
+			BT_VALUE_CSTRING(&context, "sqrt"),
+			BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_sqrt)));
+		UPERF_POP();
 
-	bt_Type* gc_sig = bt_make_signature(&context, NULL, NULL, 0);
-	bt_module_export(&context, core_module,
-		gc_sig,
-		BT_VALUE_CSTRING(&context, "gc"),
-		BT_VALUE_OBJECT(bt_make_native(&context, gc_sig, bt_gc)));
+		UPERF_EVENT("Register abs()");
+		bt_module_export(&context, core_module,
+			sqrt_sig,
+			BT_VALUE_CSTRING(&context, "abs"),
+			BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_abs)));
+		UPERF_POP();
 
-	struct_type = bt_make_userdata_type(&context, "BoltAccessableStruct");
-	bt_userdata_type_field_double(&context, struct_type, "x", offsetof(BoltAccessableStruct, x));
-	bt_userdata_type_field_double(&context, struct_type, "y", offsetof(BoltAccessableStruct, y));
-	bt_userdata_type_field_float(&context,  struct_type, "width", offsetof(BoltAccessableStruct, width));
-	bt_userdata_type_field_float(&context, struct_type, "height", offsetof(BoltAccessableStruct, height));
-	bt_userdata_type_field_uint32(&context, struct_type, "count", offsetof(BoltAccessableStruct, count));
-	bt_userdata_type_field_int32(&context,  struct_type, "offset", offsetof(BoltAccessableStruct, offset));
+		UPERF_EVENT("Register gc()");
+		bt_Type* gc_sig = bt_make_signature(&context, NULL, NULL, 0);
+		bt_module_export(&context, core_module,
+			gc_sig,
+			BT_VALUE_CSTRING(&context, "gc"),
+			BT_VALUE_OBJECT(bt_make_native(&context, gc_sig, bt_gc)));
+		UPERF_POP();
 
-	bt_Type* moveto_args[] = { struct_type, context.types.number, context.types.number };
-	bt_userdata_type_method(&context, struct_type, "move_by", bt_struct_moveto, NULL,
-		moveto_args, 3);
+		UPERF_EVENT("Register BoltAccessableStruct");
+		struct_type = bt_make_userdata_type(&context, "BoltAccessableStruct");
+		bt_userdata_type_field_double(&context, struct_type, "x", offsetof(BoltAccessableStruct, x));
+		bt_userdata_type_field_double(&context, struct_type, "y", offsetof(BoltAccessableStruct, y));
+		bt_userdata_type_field_float(&context, struct_type, "width", offsetof(BoltAccessableStruct, width));
+		bt_userdata_type_field_float(&context, struct_type, "height", offsetof(BoltAccessableStruct, height));
+		bt_userdata_type_field_uint32(&context, struct_type, "count", offsetof(BoltAccessableStruct, count));
+		bt_userdata_type_field_int32(&context, struct_type, "offset", offsetof(BoltAccessableStruct, offset));
 
-	bt_module_export(&context, core_module, context.types.type, BT_VALUE_CSTRING(&context, "BoltAccessableStruct"), BT_VALUE_OBJECT(struct_type));
+		bt_Type* moveto_args[] = { struct_type, context.types.number, context.types.number };
+		bt_userdata_type_method(&context, struct_type, "move_by", bt_struct_moveto, NULL,
+			moveto_args, 3);
 
-	bt_Type* get_struct_sig = bt_make_signature(&context, struct_type, NULL, 0);
-	bt_module_export(&context, core_module, get_struct_sig, BT_VALUE_CSTRING(&context, "get_struct"),
-		BT_VALUE_OBJECT(bt_make_native(&context, get_struct_sig, bt_get_struct)));
+		bt_module_export(&context, core_module, context.types.type, BT_VALUE_CSTRING(&context, "BoltAccessableStruct"), BT_VALUE_OBJECT(struct_type));
+		UPERF_POP();
 
+		UPERF_EVENT("Register get_struct()");
+		bt_Type* get_struct_sig = bt_make_signature(&context, struct_type, NULL, 0);
+		bt_module_export(&context, core_module, get_struct_sig, BT_VALUE_CSTRING(&context, "get_struct"),
+			BT_VALUE_OBJECT(bt_make_native(&context, get_struct_sig, bt_get_struct)));
+		UPERF_POP();
+	}
+
+	UPERF_EVENT("Register module");
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
+	UPERF_POP();
 
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "nested"));
-	bt_Module* loaded = bt_find_module(&context, module_name);
-	
+	UPERF_EVENT("Run code");
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "mandel"));
+	bt_find_module(&context, module_name);
+	UPERF_POP();
+
+#ifdef BOLT_PRINT_DEBUG
 	printf("KB allocated during execution: %lld\n", context.gc.byets_allocated / 1024);
-	
-	//while (bt_collect(&context.gc, 0));
+#endif
+
+	UPERF_POP();
+
+	if (uperf_is_capturing()) {
+		uperf_capture_end();
+		uperf_to_file("capture.uperf");
+	}
+
+#ifdef BOLT_PRINT_DEBUG
+	//uperf_print_capture();
+#endif
 
 	uint32_t cont = 1;
 	while (cont) {
 		uint64_t start = get_time();
 		cont = bt_collect(&context.gc, 0);
 		uint64_t end = get_time();
+#ifdef BOLT_PRINT_DEBUG
 		printf("GC cycle took %.2fms\n", (double)(end - start) / 1000.0);
+#endif
 	}
+#ifdef BOLT_PRINT_DEBUG
 	printf("KB allocated after gc: %lld\n", context.gc.byets_allocated / 1024);
 	printf("-----------------------------------------------------\n");
+#endif
 
  	return 0;
 }

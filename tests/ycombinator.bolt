@@ -1,0 +1,40 @@
+import print from core
+import * from math
+import * from meta
+
+import prelude
+import nested
+
+type FacType = fn(any, number): number
+
+fn fac_internal(self: any, n: number) {
+    if n < 1 { return 1 }
+
+    let ref = self into FacType!
+    return n * ref(ref, n - 1)
+}
+
+fn fac(n: number) {
+    return fac_internal(fac_internal, n)
+}
+
+print(fac(30))
+
+fn call_on(func: fn(number): number, arg: number) {
+    return func(arg)
+}
+
+print(call_on(fac, 30))
+
+let test = {
+    some: "field"
+}
+
+print(mem_size() / 1024)
+print(next_cycle() / 1024)
+
+grey(test)
+grey(100)
+
+print(constant)
+print(test_constant)

@@ -12,6 +12,8 @@
 #include "bt_debug.h"
 #include "bt_gc.h"
 
+#include "uperf/uperf.h"
+
 static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
 {
 	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE, BT_FALSE);
@@ -79,14 +81,19 @@ bt_bool bt_run(bt_Context* context, const char* source)
 
 bt_Module* bt_compile_module(bt_Context* context, const char* source)
 {
+	UPERF_EVENT("Compile module");
+#ifdef BOLT_PRINT_DEBUG
 	printf("%s\n", source);
 	printf("-----------------------------------------------------\n");
+#endif
 
-
+	UPERF_EVENT("Open Tokenizer");
 	bt_Tokenizer* tok = context->alloc(sizeof(bt_Tokenizer));
 	*tok = bt_open_tokenizer(context);
 	bt_tokenizer_set_source(tok, source);
+	UPERF_POP();
 
+	UPERF_EVENT("Parse source");
 	bt_Parser* parser = context->alloc(sizeof(bt_Parser));
 	*parser = bt_open_parser(tok);
 	if (bt_parse(parser) == BT_FALSE) {
@@ -96,9 +103,13 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 		context->free(tok);
 		return NULL;
 	}
-	
-	printf("-----------------------------------------------------\n");
+	UPERF_POP();
 
+#ifdef BOLT_PRINT_DEBUG
+	printf("-----------------------------------------------------\n");
+#endif 
+
+	UPERF_EVENT("Compile source");
 	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
 	*compiler = bt_open_compiler(parser);
 	bt_Module* result = bt_compile(compiler);
@@ -111,10 +122,16 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 		context->free(tok);
 		return NULL;
 	}
+	UPERF_POP();
 
+#ifdef BOLT_PRINT_DEBUG
+	UPERF_EVENT("Print compiler debug output");
 	bt_debug_print_module(context, result);
 	printf("-----------------------------------------------------\n");
+	UPERF_POP();
+#endif
 
+	UPERF_EVENT("Cleanup");
 	bt_close_compiler(compiler);
 	bt_close_parser(parser);
 	bt_close_tokenizer(tok);
@@ -122,6 +139,8 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 	context->free(compiler);
 	context->free(parser);
 	context->free(tok);
+	UPERF_POP();
+	UPERF_POP();
 
 	return result;
 }
@@ -281,9 +300,11 @@ void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module)
 
 bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 {
+	UPERF_EVENT("Find module");
 	// TODO: resolve module name with path
 	bt_Module* mod = BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
 	if (mod == 0) {
+		UPERF_EVENT("Locate source");
 		bt_String* to_load = BT_AS_OBJECT(name);
 		
 		char* name_as_bolt_file = context->alloc(to_load->len + 5 + 1);
@@ -294,12 +315,14 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		FILE* source;
 		fopen_s(&source, name_as_bolt_file, "rb");
 		context->free(name_as_bolt_file);
-		
+		UPERF_POP();
+
 		if (source == 0) {
 			assert(0 && "Cannot find module file!");
 			return NULL;
 		}
 
+		UPERF_EVENT("Read source");
 		fseek(source, 0, SEEK_END);
 		uint32_t len = ftell(source);
 		fseek(source, 0, SEEK_SET);
@@ -308,23 +331,29 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		fread(code, 1, len, source);
 		fclose(source);
 		code[len] = 0;
+		UPERF_POP();
 
 		bt_Module* new_mod = bt_compile_module(context, code);
 		context->free(code);
 
 		if (new_mod) {
+			UPERF_EVENT("Execute module");
 			bt_register_module(context, name, new_mod);
 			bt_execute(context, new_mod);
+			UPERF_POP();
 
-			bt_collect(&context->gc, 0);
+			//bt_collect(&context->gc, 0);
 
+			UPERF_POP();
 			return new_mod;
 		}
 		else {
+			UPERF_POP();
 			return NULL;
 		}
 	}
 
+	UPERF_POP();
 	return mod;
 }
 
@@ -353,9 +382,11 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 		return BT_FALSE;
 	}
 
+#ifdef BOLT_PRINT_DEBUG
 	bt_String* str = bt_to_string(context, thread.stack[0]);
 	printf("Module returned: '%s'\n", str->str);
 	printf("-----------------------------------------------------\n");
+#endif
 
 	context->current_thread = 0;
 

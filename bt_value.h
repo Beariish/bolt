@@ -3,10 +3,6 @@
 #include "bt_prelude.h"
 
 typedef uint64_t bt_Value;
-typedef union { bt_Value u; bt_number n; } bt_Val2Num;
-typedef union { bt_number n; bt_Value u; } bt_Num2Val;
-
-typedef struct bt_Type bt_Type;
 
 // IEEE 756 DOUBLE       S[Exponent-][Mantissa------------------------------------------]
 #define BT_SIGN_BIT   (0b1000000000000000000000000000000000000000000000000000000000000000)
@@ -38,7 +34,7 @@ typedef struct bt_Type bt_Type;
 
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
 
-#define BT_EPSILON 0.000001
+#define BT_EPSILON 0.0000001
 
 #define BT_AS_NUMBER(x) (bt_get_number((bt_Value)x))
 #define BT_AS_OBJECT(x) ((bt_Object*)(BT_VALUE_MASK & ((bt_Value)x)))

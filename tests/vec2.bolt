@@ -94,6 +94,7 @@ haver.print()
 
 print("---------------")
 
+/*
 for outer in 45 {
     let start_time = time()
     
@@ -108,3 +109,5 @@ for outer in 45 {
     let duration_ms = end_time - start_time
     print("1k vec2 iterations took", duration_ms / 1000, "ms")
 }
+
+*/

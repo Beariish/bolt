@@ -107,7 +107,7 @@ typedef struct bt_Userdata {
 	uint8_t* data;
 } bt_Userdata;
 
-#define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string(ctx, str))
+#define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string_hashed(ctx, str))
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
 int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value);
