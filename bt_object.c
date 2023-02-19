@@ -266,7 +266,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         return bt_table_get(obj, key);
     case BT_OBJECT_TYPE_TYPE: {
         bt_Type* type = obj;
-        return bt_table_get(type->as.table_shape.values, key);
+        return bt_table_get(type->prototype_values, key);
     } break;
     case BT_OBJECT_TYPE_USERDATA: {
         bt_Userdata* userdata = obj;
@@ -290,7 +290,11 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
 
         assert(0 && "This should never be reached due to typechecking!");
     } break;
-    default: __debugbreak();
+    case BT_OBJECT_TYPE_STRING:
+        return bt_table_get(ctx->types.string->prototype_values, key);
+    default: {
+        __debugbreak();
+    } break;
     }
 }
 
@@ -301,7 +305,7 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
         bt_table_set(ctx, obj, key, value);
         break;
     case BT_OBJECT_TYPE_TYPE:
-        bt_tableshape_set_field(ctx, obj, key, value);
+        bt_type_set_field(ctx, obj, key, value);
         break;
     case BT_OBJECT_TYPE_USERDATA: {
         bt_Userdata* userdata = obj;

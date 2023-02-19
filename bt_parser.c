@@ -622,7 +622,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 }
 
                 type = expr->resulting_type;
-                bt_tableshape_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
+                bt_type_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
             }
 
             bt_tableshape_add_layout(ctx, result, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
@@ -856,10 +856,18 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
                 bt_AstNode* args[16];
                 uint8_t max_arg = 0;
+                uint8_t self_arg = 0;
 
                 if (to_call->as.fn.is_method) {
                     if (lhs_node->type == BT_AST_NODE_BINARY_OP && lhs_node->source->type == BT_TOKEN_PERIOD) {
-                        args[max_arg++] = lhs_node->as.binary_op.left;
+                        bt_Buffer* args_ref = &to_call->as.fn.args;
+                        bt_Type* first_arg = *(bt_Type**)bt_buffer_at(args_ref, 0);
+
+                        bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
+                        if (first_arg->satisfier(first_arg, lhs_type)) {
+                            args[max_arg++] = lhs_node->as.binary_op.left;
+                            self_arg = 1;
+                        }
                     }
                 }
 
@@ -873,7 +881,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     }
                 }
 
-                if (max_arg == 0 || (max_arg == 1 && to_call->as.fn.is_method)) bt_tokenizer_emit(tok);
+                if (max_arg == 0 || self_arg) bt_tokenizer_emit(tok);
 
                 if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
                     assert(0 && "Couldn't find end of function call!");
@@ -1032,7 +1040,7 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
     }
 
     bt_ModuleImport* import = find_import(parse, ident);
-    if (import) return import->type;
+    if (import) { return import->type; }
 
     return NULL;
 }
@@ -1125,21 +1133,23 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Token* rhs = node->as.binary_op.right->source;
             bt_Value rhs_key = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, rhs->source.source, rhs->source.length));
 
+            bt_Table* proto = lhs->prototype_types;
+            if (proto) {
+                bt_Value proto_entry = bt_table_get(proto, rhs_key);
+                if (proto_entry != BT_VALUE_NULL) {
+                    bt_Type* entry = BT_AS_OBJECT(proto_entry);
+                    node->resulting_type = entry;
+                    UPERF_POP();
+                    return node;
+                }
+            }
+
             if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 bt_Table* layout = lhs->as.table_shape.layout;
                 bt_Value table_entry = bt_table_get(layout, rhs_key);
                 if (table_entry != BT_VALUE_NULL) {
                     bt_Type* type = BT_AS_OBJECT(table_entry);
                     node->resulting_type = type;
-                    UPERF_POP();
-                    return node;
-                }
-
-                bt_Table* proto = lhs->as.table_shape.proto;
-                bt_Value proto_entry = bt_table_get(proto, rhs_key);
-                if (proto_entry != BT_VALUE_NULL) {
-                    bt_Type* entry = BT_AS_OBJECT(proto_entry);
-                    node->resulting_type = entry;
                     UPERF_POP();
                     return node;
                 }
@@ -1294,7 +1304,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
             else {
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                    bt_Value add_mf = bt_table_get(lhs->as.table_shape.proto, BT_VALUE_OBJECT(parse->context->meta_names.add));
+                    bt_Value add_mf = bt_table_get(lhs->prototype_values, BT_VALUE_OBJECT(parse->context->meta_names.add));
                     if (add_mf == BT_VALUE_NULL) assert(0 && "Failed to find @add metamethod in tableshape!");
                     bt_Type* add = BT_AS_OBJECT(add_mf);
 
@@ -1339,7 +1349,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }                                                                                                                      \
             else {                                                                                                                 \
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
-                    bt_Value sub_mf = bt_table_get(lhs->as.table_shape.proto, BT_VALUE_OBJECT(parse->context->meta_names.metaname));\
+                    bt_Value sub_mf = bt_table_get(lhs->prototype_values, BT_VALUE_OBJECT(parse->context->meta_names.metaname));\
                     if (sub_mf == BT_VALUE_NULL) assert(0 && "Failed to find @" XSTR(metaname) " metamethod in tableshape!");                     \
                     bt_Type* sub = BT_AS_OBJECT(sub_mf);                                                                           \
                                                                                                                                    \
@@ -1695,7 +1705,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         }
 
         bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
-        bt_tableshape_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(fn), fn->resulting_type);
+        bt_type_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(fn), fn->resulting_type);
         UPERF_POP();
         return NULL;
     }
@@ -2016,7 +2026,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     parse->current_fn = parse->current_fn->as.method.outer;
 
     bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
-    bt_tableshape_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_OBJECT(result), result->resulting_type);
+    bt_type_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_OBJECT(result), result->resulting_type);
 
     UPERF_POP();
     return NULL;

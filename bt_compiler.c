@@ -1051,8 +1051,8 @@ static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrS
     UPERF_EVENT("Compile Type");
     type->is_compiled = BT_TRUE;
 
-    if (type->as.table_shape.values) {
-        bt_Buffer* to_compile = &type->as.table_shape.values->pairs;
+    if (type->prototype_values) {
+        bt_Buffer* to_compile = &type->prototype_values->pairs;
 
         push_registers(parent);
 

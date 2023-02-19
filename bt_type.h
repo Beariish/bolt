@@ -28,8 +28,6 @@ typedef struct bt_Type {
 
 		struct {
 			bt_Table* layout;
-			bt_Table* values;
-			bt_Table* proto;
 			bt_Type* parent;
 			bt_bool sealed;
 		} table_shape;
@@ -63,6 +61,10 @@ typedef struct bt_Type {
 	bt_Context* ctx;
 	char* name;
 	bt_TypeSatisfier satisfier;
+	
+	bt_Table* prototype_types;
+	bt_Table* prototype_values;
+
 	uint8_t category : 6;
 	bt_bool is_compiled : 1;
 	bt_bool is_optional : 1;
@@ -88,10 +90,11 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
-void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);
-void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
 void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent);
-bt_Table* bt_tableshape_get_proto(bt_Context* context, bt_Type* tshp);
+
+bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp);
+void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);
+void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
 
 bt_Type* bt_make_union(bt_Context* context);
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);

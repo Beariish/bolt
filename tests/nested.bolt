@@ -103,4 +103,12 @@ let b: string | number = 100
 
 a = b // this is fine! b is narrower than a
 
+for i in "long string".length() {
+    print(i)
+}
+
+for i in string.length("long string") {
+    print(i)
+}
+
 return 0

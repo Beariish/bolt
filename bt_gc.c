@@ -47,6 +47,9 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_Type* as_type = obj;
 		if (as_type->is_optional) as_type = as_type->as.nullable.base;
 
+		grey(gc, as_type->prototype_types);
+		grey(gc, as_type->prototype_values);
+
 		switch (as_type->category) {
 		case BT_TYPE_CATEGORY_ARRAY:
 			grey(gc, as_type->as.array.inner);
@@ -61,8 +64,6 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			}
 		} break;
 		case BT_TYPE_CATEGORY_TABLESHAPE: {
-			grey(gc, as_type->as.table_shape.proto);
-			grey(gc, as_type->as.table_shape.values);
 			grey(gc, as_type->as.table_shape.layout);
 			grey(gc, as_type->as.table_shape.parent);
 		} break;

@@ -115,6 +115,13 @@ static void bt_gc(bt_Context* ctx, bt_Thread* thread)
 	bt_collect(&ctx->gc, 6184);
 }
 
+static void bt_str_length(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value arg = bt_arg(thread, 0);
+	bt_String* as_str = (bt_String*)BT_AS_OBJECT(arg);
+	bt_return(thread, BT_VALUE_NUMBER(as_str->len));
+}
+
 typedef struct BoltAccessableStruct {
 	double x, y;
 	float width, height;
@@ -252,12 +259,21 @@ int main(int argc, char** argv) {
 		UPERF_POP();
 	}
 
+	UPERF_EVENT("Register string.length()");
+	bt_Type* string = context.types.string;
+	bt_Type* length_args[] = { context.types.string };
+	bt_Type* length_sig = bt_make_signature(&context, context.types.number, length_args, 1);
+	length_sig->as.fn.is_method = true;
+	bt_NativeFn* fn_ref = bt_make_native(&context, length_sig, bt_str_length);
+	bt_type_add_field(&context, string, BT_VALUE_CSTRING(&context, "length"), BT_VALUE_OBJECT(fn_ref), length_sig);
+	UPERF_POP();
+
 	UPERF_EVENT("Register module");
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 	UPERF_POP();
 
 	UPERF_EVENT("Run code");
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "mandel"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "nested"));
 	bt_find_module(&context, module_name);
 	UPERF_POP();
 

@@ -88,8 +88,8 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 
 	if (left->as.table_shape.sealed && right->as.table_shape.layout->pairs.length != left->as.table_shape.layout->pairs.length) return BT_FALSE;
 
-	if (left->as.table_shape.values &&
-		left->as.table_shape.values != right->as.table_shape.values) {
+	if (left->prototype_values &&
+		left->prototype_values != right->prototype_values) {
 		return BT_FALSE;
 	}
 
@@ -188,13 +188,17 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	bt_Type* result = BT_ALLOCATE(context, TYPE, bt_Type);
 	result->ctx = context;
 	
-	result->name = context->alloc(strlen(name) + 1);
-	strcpy(result->name, name);
+	if (name) {
+		result->name = context->alloc(strlen(name) + 1);
+		strcpy(result->name, name);
+	}
 
 	result->satisfier = satisfier;
 	result->category = category;
 	result->is_optional = is_optional;
 	result->is_compiled = BT_FALSE;
+	result->prototype_types = 0;
+	result->prototype_values = 0;
 	return result;
 }
 
@@ -349,8 +353,6 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
 	result->as.table_shape.sealed = sealed;
 	result->as.table_shape.layout = 0;
-	result->as.table_shape.values = 0;
-	result->as.table_shape.proto = 0;
 	result->as.table_shape.parent = 0;
 	return result;
 }
@@ -364,50 +366,52 @@ void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name,
 	bt_table_set(context, tshp->as.table_shape.layout, name, BT_VALUE_OBJECT(type));
 }
 
-void bt_tableshape_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
+void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
 {
-	if (tshp->as.table_shape.values == 0) {
-		tshp->as.table_shape.values = bt_make_table(context, 4);
-		tshp->as.table_shape.proto = bt_make_table(context, 4);
+	if (tshp->prototype_values == 0) {
+		tshp->prototype_values = bt_make_table(context, 4);
+		tshp->prototype_types = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, tshp->as.table_shape.proto, name, BT_VALUE_OBJECT(type));
-	bt_table_set(context, tshp->as.table_shape.values, name, value);
+	bt_table_set(context, tshp->prototype_types, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, tshp->prototype_values, name, value);
 }
 
-void bt_tableshape_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value)
+void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value)
 {
-	if (tshp->as.table_shape.values == 0) {
-		tshp->as.table_shape.values = bt_make_table(context, 4);
-		tshp->as.table_shape.proto = bt_make_table(context, 4);
+	if (tshp->prototype_values == 0) {
+		tshp->prototype_values = bt_make_table(context, 4);
+		tshp->prototype_types = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, tshp->as.table_shape.values, name, value);
+	bt_table_set(context, tshp->prototype_values, name, value);
 }
 
 void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent)
 {
 	tshp->as.table_shape.parent = parent;
 
-	if (tshp->as.table_shape.values == 0) {
-		tshp->as.table_shape.values = bt_make_table(context, 4);
-		tshp->as.table_shape.proto = bt_make_table(context, 4);
+	if (tshp->prototype_values == 0) {
+		tshp->prototype_values = bt_make_table(context, 4);
+		tshp->prototype_types = bt_make_table(context, 4);
 	}
 
-	tshp->as.table_shape.values->prototype = parent->as.table_shape.values;
+	tshp->prototype_types->prototype = parent->prototype_types;
+	tshp->prototype_values->prototype = parent->prototype_values;
 }
 
-bt_Table* bt_tableshape_get_proto(bt_Context* context, bt_Type* tshp)
+bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp)
 {
-	if (tshp->as.table_shape.values == 0 && tshp->as.table_shape.parent) {
-		tshp->as.table_shape.values = bt_make_table(context, 4);
+	if (tshp->prototype_values == 0 && tshp->as.table_shape.parent) {
+		tshp->prototype_values = bt_make_table(context, 4);
+		tshp->prototype_types = bt_make_table(context, 4);
 	}
 
 	if (tshp->as.table_shape.parent) {
-		tshp->as.table_shape.values->prototype = tshp->as.table_shape.parent->as.table_shape.values;
+		tshp->prototype_values->prototype = tshp->as.table_shape.parent->prototype_values;
 	}
 
-	return tshp->as.table_shape.values;
+	return tshp->prototype_values;
 }
 
 bt_Type* bt_make_union(bt_Context* context)
@@ -420,18 +424,7 @@ bt_Type* bt_make_union(bt_Context* context)
 
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
-	if (variant == 0) __debugbreak();
 	bt_buffer_push(context, &uni->as.selector.types, &variant);
-}
-
-void bt_tableshape_set_proto(bt_Context* context, bt_Type* tshp, bt_Table* proto)
-{
-	if (tshp->as.table_shape.values == 0) {
-		tshp->as.table_shape.values = bt_make_table(context, 4);
-		tshp->as.table_shape.proto = bt_make_table(context, 4);
-	}
-
-	tshp->as.table_shape.values->prototype = proto;
 }
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
