@@ -1,3 +1,6 @@
 import * from core
 
-print("hello!")
+let x = 10
+let y = x + 20
+
+let z = x + y * y / x + (10 - 5 * x) / y - abs(x - y * y) + sqrt(abs(sqrt(x)) + sqrt(y))

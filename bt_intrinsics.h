@@ -7,7 +7,7 @@
 #ifdef _MSC_VER
 #  include <intrin.h>
 #  pragma intrinsic(_BitScanForward)
-static __forceinline int ffsl(long x)
+static BT_FORCE_INLINE int ffsl(long x)
 {
 	unsigned long i;
 
@@ -16,7 +16,7 @@ static __forceinline int ffsl(long x)
 	return (0);
 }
 
-static __forceinline int ffs(int x)
+static BT_FORCE_INLINE int ffs(int x)
 {
 
 	return (ffsl(x));
@@ -26,7 +26,7 @@ static __forceinline int ffs(int x)
 #    pragma intrinsic(_BitScanForward64)
 #  endif
 
-static __forceinline int ffsll(unsigned __int64 x)
+static BT_FORCE_INLINE int ffsll(unsigned __int64 x)
 {
 	unsigned long i;
 #ifdef  _M_X64

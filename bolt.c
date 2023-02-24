@@ -501,7 +501,7 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 	bt_runtime_error(thread, "Unable to add values of type <TODO>!");
 }
 
-static __forceinline void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value rhs)
+static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(-BT_AS_NUMBER(rhs));
@@ -511,7 +511,7 @@ static __forceinline void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value r
 	bt_runtime_error(thread, "Cannot negate non-number value!");
 }
 
-static __forceinline void bt_not(bt_Thread* thread, bt_Value* result, bt_Value rhs)
+static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* result, bt_Value rhs)
 {
 	if (BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_FALSE(rhs));
@@ -521,7 +521,7 @@ static __forceinline void bt_not(bt_Thread* thread, bt_Value* result, bt_Value r
 	bt_runtime_error(thread, "Cannot 'not' non-bool value!");
 }
 
-static __forceinline void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) - BT_AS_NUMBER(rhs));
@@ -556,12 +556,12 @@ static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_
 	bt_runtime_error(thread, "Cannot divide non-number value!");
 }
 
-static __forceinline void bt_eq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 }
 
-static __forceinline void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
@@ -576,7 +576,7 @@ static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* result, bt_V
 	bt_runtime_error(thread, "Cannot lt non-number value!");
 }
 
-static __forceinline void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
@@ -586,7 +586,7 @@ static __forceinline void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value l
 	bt_runtime_error(thread, "Cannot lte non-number value!");
 }
 
-static __forceinline void bt_and(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) && BT_IS_TRUE(rhs));
@@ -596,7 +596,7 @@ static __forceinline void bt_and(bt_Thread* thread, bt_Value* result, bt_Value l
 	bt_runtime_error(thread, "Cannot 'and' non-bool value!");
 }
 
-static __forceinline void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
 {
 	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) || BT_IS_TRUE(rhs));
@@ -606,7 +606,7 @@ static __forceinline void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lh
 	bt_runtime_error(thread, "Cannot 'or' non-bool value!");
 }
 
-static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
+static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
@@ -653,8 +653,8 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 			stack[op.a] = BT_VALUE_OBJECT(cl);
 		} NEXT;
 
-		case BT_OP_LOADUP: __assume(upv); stack[op.a] = upv[op.b];  NEXT;
-		case BT_OP_STOREUP: __assume(upv); upv[op.a] = stack[op.b]; NEXT;
+		case BT_OP_LOADUP: BT_ASSUME(upv); stack[op.a] = upv[op.b];  NEXT;
+		case BT_OP_STOREUP: BT_ASSUME(upv); upv[op.a] = stack[op.b]; NEXT;
 
 		case BT_OP_NEG: bt_neg(thread, stack + op.a, stack[op.b]);              NEXT;
 		case BT_OP_ADD: bt_add(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
@@ -673,6 +673,9 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 
 		case BT_OP_LOAD_IDX: stack[op.a] = bt_get(context, BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
 		case BT_OP_STORE_IDX: bt_set(context, BT_AS_OBJECT(stack[op.a]), stack[op.b], stack[op.c]); NEXT;
+
+		case BT_OP_LOAD_IDX_K: stack[op.a] = bt_get(context, BT_AS_OBJECT(stack[op.b]), constants[op.c]); NEXT;
+		case BT_OP_STORE_IDX_K: bt_set(context, BT_AS_OBJECT(stack[op.a]), constants[op.b], stack[op.c]); NEXT;
 
 		case BT_OP_EXPECT:   stack[op.a] = stack[op.b]; if (stack[op.a] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!"); NEXT;
 		case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
@@ -753,7 +756,7 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 
 		case BT_OP_ITERFOR: {
 			bt_Closure* cl = BT_AS_OBJECT(stack[op.a + 1]);
-			__assume(cl);
+			BT_ASSUME(cl);
 			thread->top += op.a + 2;
 			call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
 			thread->top -= op.a + 2;
@@ -772,7 +775,7 @@ static __forceinline void call(bt_Context* context, bt_Thread* thread, bt_Callab
 			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) / BT_AS_NUMBER(stack[op.c]));
 		} NEXT;
 		case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
-		default: __assume(0);
+		default: BT_ASSUME(0);
 		}
 	}
 }

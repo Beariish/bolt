@@ -167,6 +167,7 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_LOAD_NULL:   printf("[%.3d]: NULL   %d\n", i, op.a);                     break;
 		case BT_OP_LOAD_BOOL:   printf("[%.3d]: BOOL   %d, %d\n", i, op.a, op.b);           break;
 		case BT_OP_LOAD_IDX:    printf("[%.3d]: LIDX   %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_LOAD_IDX_K:  printf("[%.3d]: LIDXK  %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_ADD:         printf("[%.3d]: ADD    %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_ADDF:        printf("[%.3d]: ADDF   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_SUB:         printf("[%.3d]: SUB    %d, %d, %d\n", i, op.a, op.b, op.c); break;
@@ -205,6 +206,7 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_TABLE:       printf("[%.3d]: TABLE  %d, %d\n", i, op.a, op.ibc);         break;
 		case BT_OP_TTABLE:      printf("[%.3d]: TTABLE %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_STORE_IDX:   printf("[%.3d]: SIDX   %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_STORE_IDX_K: printf("[%.3d]: SIDXK  %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}
 	}

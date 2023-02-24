@@ -39,8 +39,11 @@ typedef enum {
 	BT_OP_OR,	             // R(a) = R(b) or R(c)
 	BT_OP_NOT,				 // R(a) = not R(b)
 
-	BT_OP_LOAD_IDX,			 // R(a) = b.[c]
-	BT_OP_STORE_IDX,		 // b.[c] = R(a)
+	BT_OP_LOAD_IDX,			 // R(a) = R(b).[R(c)]
+	BT_OP_STORE_IDX,		 // R(b).[R(c)] = R(a)
+
+	BT_OP_LOAD_IDX_K,        // R(a) = R(b).[L(c)]
+	BT_OP_STORE_IDX_K,       // R(b).[L(c)] = R(a)
 
 	BT_OP_EXPECT,            // R(a) = R(b) ? FAIL
 	BT_OP_EXISTS,			 // R(a) = R(b) != null

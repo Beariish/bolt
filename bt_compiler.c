@@ -93,6 +93,52 @@ static uint8_t is_stored(FunctionContext* ctx, uint8_t idx)
 
 }
 
+static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
+{
+    UPERF_EVENT("emit_abc");
+
+    bt_Op op;
+    op.op = code;
+    op.a = a;
+    op.b = b;
+    op.c = c;
+
+    bt_buffer_push(ctx->context, &ctx->output, &op);
+
+    UPERF_POP();
+    return ctx->output.length - 1;
+}
+
+static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t ibc)
+{
+    UPERF_EVENT("emit_aibc");
+
+    bt_Op op;
+    op.op = code;
+    op.a = a;
+    op.ibc = ibc;
+
+    bt_buffer_push(ctx->context, &ctx->output, &op);
+
+    UPERF_POP();
+    return ctx->output.length - 1;
+}
+
+static uint32_t emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b)
+{
+    return emit_abc(ctx, code, a, b, 0);
+}
+
+static uint32_t emit_a(FunctionContext* ctx, bt_OpCode code, uint8_t a)
+{
+    return emit_abc(ctx, code, a, 0, 0);
+}
+
+static uint32_t emit(FunctionContext* ctx, bt_OpCode code)
+{
+    return emit_abc(ctx, code, 0, 0, 0);
+}
+
 static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t result_loc) {
     UPERF_EVENT("load_fn");
     uint8_t idx = push(ctx, BT_VALUE_OBJECT(fn));
@@ -246,51 +292,6 @@ static bt_Op* op_at(FunctionContext* ctx, uint32_t idx)
     return bt_buffer_at(&ctx->output, idx);
 }
 
-static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
-{
-    UPERF_EVENT("emit_abc");
-
-    bt_Op op;
-    op.op = code;
-    op.a = a;
-    op.b = b;
-    op.c = c;
-
-    bt_buffer_push(ctx->context, &ctx->output, &op);
-
-    UPERF_POP();
-    return ctx->output.length - 1;
-}
-
-static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t ibc)
-{
-    UPERF_EVENT("emit_aibc");
-    
-    bt_Op op;
-    op.op = code;
-    op.a = a;
-    op.ibc = ibc;
-
-    bt_buffer_push(ctx->context, &ctx->output, &op);
-
-    UPERF_POP();
-    return ctx->output.length - 1;
-}
-
-static uint32_t emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b)
-{
-    return emit_abc(ctx, code, a, b, 0);
-}
-
-static uint32_t emit_a(FunctionContext* ctx, bt_OpCode code, uint8_t a)
-{
-    return emit_abc(ctx, code, a, 0, 0);
-}
-
-static uint32_t emit(FunctionContext* ctx, bt_OpCode code)
-{
-    return emit_abc(ctx, code, 0, 0, 0);
-}
 
 static uint8_t push(FunctionContext* ctx, bt_Value value)
 {
@@ -627,7 +628,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         bt_AstNode* rhs = expr->as.binary_op.right;
 
         uint8_t lhs_loc = find_binding_or_compile_loc(ctx, lhs, result_loc);
-        uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
         StorageClass storage = STORAGE_REGISTER;
         if (is_assigning(expr->source->type)) {
@@ -639,6 +639,17 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 result_loc = lhs_loc;
             }
         }
+
+        if (expr->source->type == BT_TOKEN_PERIOD) {
+            if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+                uint8_t idx = push(ctx,
+                    BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
+                emit_abc(ctx, BT_OP_LOAD_IDX_K, result_loc, lhs_loc, idx);
+                goto try_store;
+            }
+        }
+
+        uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
         switch (expr->source->type) {
         case BT_TOKEN_PLUS:
@@ -708,6 +719,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         default: assert(0 && "Unimplemented binary operator!");
         }
 
+    try_store:
         if (storage == STORAGE_UPVAL) {
             uint8_t upval_idx = find_upval(ctx, lhs->source->source);
             store_hint(ctx, result_loc, STORAGE_UPVAL, upval_idx);
@@ -716,8 +728,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         else if (storage == STORAGE_INDEX) {
             push_registers(ctx);
             uint8_t tbl_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.left);
+
+            if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
+                lhs->as.binary_op.right->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+                bt_Token* source = lhs->as.binary_op.right->source;
+                uint8_t idx = push(ctx,
+                    BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, source->source.source, source->source.length)));
+                emit_abc(ctx, BT_OP_STORE_IDX_K, tbl_loc, idx, result_loc);
+                goto stored_fast;
+            }
+
             uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
             emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, idx_loc, result_loc);
+        stored_fast:
             restore_registers(ctx);
         }
 
@@ -746,7 +769,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_aibc(ctx, BT_OP_TABLE, result_loc, fields->length);
         }
 
-        uint8_t idx_loc = get_register(ctx);
         uint8_t val_loc = get_register(ctx);
 
         for (uint32_t i = 0; i < fields->length; ++i) {
@@ -755,11 +777,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             bt_String* idx = bt_make_string_hashed_len(ctx->context, name->source.source, name->source.length);
             uint8_t idx_idx = push(ctx, BT_VALUE_OBJECT(idx));
 
-            emit_ab(ctx, BT_OP_LOAD, idx_loc, idx_idx);
-
             compile_expression(ctx, entry->as.table_field.expr, val_loc);
 
-            emit_abc(ctx, BT_OP_STORE_IDX, result_loc, idx_loc, val_loc);
+            emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, idx_idx, val_loc);
         }
 
         restore_registers(ctx);
@@ -812,7 +832,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
     case BT_AST_NODE_EXPORT: {
         uint8_t type_lit = push(ctx, BT_VALUE_OBJECT(stmt->resulting_type));
         uint8_t name_lit = push(ctx,
-            BT_VALUE_OBJECT(bt_make_string_len(ctx->context,
+            BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context,
                 stmt->as.exp.name->source.source,
                 stmt->as.exp.name->source.length)));
 

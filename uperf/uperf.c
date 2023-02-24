@@ -1,5 +1,7 @@
 #include "uperf.h"
 
+#include "../bt_prelude.h"
+
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
@@ -8,7 +10,7 @@
 
 static uperf_capture_t* uperf_current_capture = NULL;
 
-static __forceinline uint64_t get_timestamp()
+static BT_FORCE_INLINE uint64_t get_timestamp()
 {
 	struct timespec ts;
 #ifdef _MSC_VER
@@ -20,7 +22,7 @@ static __forceinline uint64_t get_timestamp()
 	uint64_t seconds = ts.tv_sec;
 	uint64_t nano_seconds = ts.tv_nsec;
 
-	return (seconds * 1'000'000) + (nano_seconds / 1'000);
+	return (seconds * 1000000) + (nano_seconds / 1000);
 }
 
 static destroy_current()
@@ -78,18 +80,18 @@ bool uperf_is_capturing()
 	return uperf_current_capture && uperf_current_capture->active;
 }
 
-static __forceinline uint32_t to_idx(uperf_event_t* event)
+static BT_FORCE_INLINE uint32_t to_idx(uperf_event_t* event)
 {
 	ptrdiff_t offset = event - uperf_current_capture->event_buffer;
 	return offset;
 }
 
-static __forceinline uperf_event_t* from_idx(uint32_t idx)
+static BT_FORCE_INLINE uperf_event_t* from_idx(uint32_t idx)
 {
 	return uperf_current_capture->event_buffer + idx;
 }
 
-static __forceinline uperf_event_t* get_event()
+static BT_FORCE_INLINE uperf_event_t* get_event()
 {
 	uperf_capture_t* cc = uperf_current_capture;
 

@@ -88,8 +88,6 @@ for outer in 15 {
     print("10m typed iterations took", duration_ms / 1000, "ms", "|", total)
 }
 
-fn add_slow(x, y) { return x + y }
-
 for outer in 15 {
     let start_time = time()
     

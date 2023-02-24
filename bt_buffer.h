@@ -24,7 +24,7 @@ bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem);
 bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output);
 void bt_buffer_append(bt_Context* context, bt_Buffer* dst, bt_Buffer* src);
 
-static __forceinline void* bt_buffer_at(bt_Buffer* buffer, uint32_t index)
+static BT_FORCE_INLINE void* bt_buffer_at(bt_Buffer* buffer, uint32_t index)
 {
 	return (void*)((char*)buffer->data + (index * (size_t)buffer->element_size));
 }

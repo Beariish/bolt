@@ -41,5 +41,5 @@ typedef uint64_t bt_Value;
 
 bt_bool bt_value_is_equal(bt_Value a, bt_Value b);
 
-__forceinline bt_Value bt_make_number(bt_number num) { return *((bt_Value*)(bt_number*)&num); }
-__forceinline bt_number bt_get_number(bt_Value val) { return *((bt_number*)(bt_Value*)&val); }
+static BT_FORCE_INLINE bt_Value bt_make_number(bt_number num) { return *((bt_Value*)(bt_number*)&num); }
+static BT_FORCE_INLINE bt_number bt_get_number(bt_Value val) { return *((bt_number*)(bt_Value*)&val); }

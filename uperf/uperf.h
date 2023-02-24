@@ -30,7 +30,7 @@ typedef struct {
 	int16_t depth, active;
 } uperf_capture_t;
 
-extern uperf_capture_t* uperf_current_capture;
+static uperf_capture_t* uperf_current_capture;
 
 bool uperf_capture_begin();
 bool uperf_capture_end();

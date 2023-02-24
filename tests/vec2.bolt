@@ -5,18 +5,6 @@ type Vec2 = {
     y: number
 }
 
-type Vec2Haver = {
-    pos: Vec2,
-    dim: Vec2
-}
-
-fn Vec2Haver.new(pos: Vec2, dim: Vec2) {
-    return Vec2Haver => {
-        pos: pos,
-        dim: dim
-    }
-}
-
 fn Vec2.new(x: number, y: number) {
     return Vec2 => { x: x, y: y }
 }
@@ -37,64 +25,6 @@ method Vec2.@div(other: Vec2) {
     return Vec2 => { x: this.x / other.x, y: this.y / other.y }
 }
 
-method Vec2.sum(other: Vec2) {
-    let total = this + other
-    return total.x + total.y
-}
-
-method Vec2.print {
-    print(this.sum(this))
-}
-
-method Vec2Haver.print {
-    this.pos.print()
-    this.dim.print()
-}
-
-fn Vec2.double(this: Vec2) {
-    this.x *= 2
-    this.y *= 2
-}
-
-export Vec2
-
-type NativeHolder = {
-    handle: BoltAccessableStruct
-}
-
-let a = Vec2.new(5, 5)
-let b = Vec2.new(10, 10)
-
-let z = a + b * a / b - a
-z.print()
-
-print(a.sum(b))
-
-let struct = get_struct()
-
-print(struct.x, struct.y)
-
-struct.move_by(100, 100)
-
-print(struct.x, struct.y)
-
-let native = NativeHolder => { handle: get_struct() }
-
-fn takes_struct(str: BoltAccessableStruct) {
-    return str.x + str.y + str.width + str.height + str.offset + str.count
-}
-
-print(takes_struct(struct))
-print(takes_struct(native.handle))
-
-print("---------------")
-
-let haver = Vec2Haver.new(Vec2.new(10, 10), Vec2.new(15, 15))
-haver.print()
-
-print("---------------")
-
-/*
 for outer in 45 {
     let start_time = time()
     
@@ -107,7 +37,5 @@ for outer in 45 {
     let end_time = time()
     
     let duration_ms = end_time - start_time
-    print("1k vec2 iterations took", duration_ms / 1000, "ms")
+    print("100k vec2 iterations took", duration_ms / 1000, "ms")
 }
-
-*/
