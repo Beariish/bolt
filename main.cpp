@@ -122,6 +122,13 @@ static void bt_str_length(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_NUMBER(as_str->len));
 }
 
+static void bt_arr_length(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value arg = bt_arg(thread, 0);
+	bt_Array* as_arr = (bt_Array*)BT_AS_OBJECT(arg);
+	bt_return(thread, BT_VALUE_NUMBER(as_arr->items.length));
+}
+
 typedef struct BoltAccessableStruct {
 	double x, y;
 	float width, height;
@@ -266,6 +273,15 @@ int main(int argc, char** argv) {
 	length_sig->as.fn.is_method = true;
 	bt_NativeFn* fn_ref = bt_make_native(&context, length_sig, bt_str_length);
 	bt_type_add_field(&context, string, BT_VALUE_CSTRING(&context, "length"), BT_VALUE_OBJECT(fn_ref), length_sig);
+	UPERF_POP();
+
+	UPERF_EVENT("Register array.length()");
+	bt_Type* array = context.types.array;
+	bt_Type* alength_args[] = { context.types.array };
+	bt_Type* alength_sig = bt_make_signature(&context, context.types.number, alength_args, 1);
+	alength_sig->as.fn.is_method = true;
+	fn_ref = bt_make_native(&context, alength_sig, bt_arr_length);
+	bt_type_add_field(&context, array, BT_VALUE_CSTRING(&context, "length"), BT_VALUE_OBJECT(fn_ref), alength_sig);
 	UPERF_POP();
 
 	UPERF_EVENT("Register module");

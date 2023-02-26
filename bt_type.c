@@ -182,6 +182,7 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	result->category = category;
 	result->is_optional = is_optional;
 	result->is_compiled = BT_FALSE;
+	result->prototype = 0;
 	result->prototype_types = 0;
 	result->prototype_values = 0;
 	return result;
@@ -370,6 +371,14 @@ void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 	}
 
 	bt_table_set(context, tshp->prototype_values, name, value);
+}
+
+bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner)
+{
+	bt_Type* result = bt_make_type(context, "array", bt_type_satisfier_array, BT_TYPE_CATEGORY_ARRAY, BT_FALSE);
+	result->as.array.inner = inner;
+	result->prototype = context->types.array;
+	return result;
 }
 
 void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent)

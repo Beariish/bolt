@@ -692,7 +692,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_COMPOSE, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_PERIOD:
-            emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated && expr->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY) {
+                emit_abc(ctx, BT_OP_LOAD_SUB_F, result_loc, lhs_loc, rhs_loc);
+            } else emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_EQUALS:
             emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc);
@@ -782,6 +784,35 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, idx_idx, val_loc);
         }
 
+        restore_registers(ctx);
+    } break;
+    case BT_AST_NODE_ARRAY: {
+        push_registers(ctx);
+        bt_Buffer* items = &expr->as.arr.items;
+        emit_aibc(ctx, BT_OP_ARRAY, result_loc, items->length);
+
+        uint8_t idx_loc = get_register(ctx);
+        uint8_t val_loc = get_register(ctx);
+        
+        uint8_t one_loc;
+        if (items->length >= INT16_MAX) {
+            one_loc = get_register(ctx);
+            emit_aibc(ctx, BT_OP_LOAD_SMALL, one_loc, 1);
+        }
+
+        for (uint32_t i = 0; i < items->length; ++i) {
+            bt_AstNode* entry = *(bt_AstNode**)bt_buffer_at(items, i);
+
+            if (i < INT16_MAX) {
+                emit_aibc(ctx, BT_OP_LOAD_SMALL, idx_loc, i);
+            }
+            else {
+                emit_abc(ctx, BT_OP_ADDF, idx_loc, idx_loc, one_loc);
+            }
+            compile_expression(ctx, entry, val_loc);
+
+            emit_abc(ctx, BT_OP_STORE_IDX, result_loc, idx_loc, val_loc);
+        }
         restore_registers(ctx);
     } break;
     default: assert(0);

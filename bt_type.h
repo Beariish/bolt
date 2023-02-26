@@ -62,6 +62,7 @@ typedef struct bt_Type {
 	char* name;
 	bt_TypeSatisfier satisfier;
 	
+	bt_Type* prototype;
 	bt_Table* prototype_types;
 	bt_Table* prototype_values;
 
@@ -96,6 +97,8 @@ void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* paren
 bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp);
 void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);
 void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
+
+bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 
 bt_Type* bt_make_union(bt_Context* context);
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);

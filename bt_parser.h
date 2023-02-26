@@ -120,6 +120,11 @@ typedef struct bt_AstNode {
 		} table;
 
 		struct {
+			bt_Buffer items;
+			bt_Type* inner_type;
+		} arr;
+
+		struct {
 			bt_Type* type;
 			bt_Token* name;
 			bt_AstNode* expr;

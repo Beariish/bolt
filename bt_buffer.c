@@ -60,7 +60,7 @@ bt_Buffer bt_buffer_move(bt_Buffer* buffer)
     return result;
 }
 
-static void buffer_reserve(bt_Context* ctx, bt_Buffer* buffer, size_t cap)
+void bt_buffer_reserve(bt_Context* ctx, bt_Buffer* buffer, size_t cap)
 {
     if (buffer->capacity >= cap) return;
 
@@ -83,7 +83,7 @@ bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem)
         uint32_t new_capacity = ((buffer->capacity * 3) / 2) + 1; // * 1.5 in integer form
         new_capacity = new_capacity == 0 ? 8 : new_capacity;
 
-        buffer_reserve(context, buffer, new_capacity);
+        bt_buffer_reserve(context, buffer, new_capacity);
 
         allocated = BT_TRUE;
     }
@@ -104,149 +104,6 @@ uint32_t bt_buffer_size(bt_Buffer* buffer)
     return buffer->element_size * buffer->length;
 }
 
-static bt_Bucket* make_bucket(bt_Context* context, uint32_t bucket_size, uint32_t element_size, uint32_t base_index)
-{
-    bt_Bucket* result = context->alloc(sizeof(bt_Bucket));
-    result->base_index = base_index;
-    result->element_size = element_size;
-    result->capacity = bucket_size;
-    result->length = 0;
-    result->next = NULL;
-
-    result->data = context->alloc(element_size * bucket_size);
-    memset(result->data, 0xFF, element_size * bucket_size);
-
-    return result;
-}
-
-bt_BucketedBuffer bt_bucketed_buffer_new(bt_Context* context, uint32_t bucket_size, uint32_t element_size)
-{
-    bt_BucketedBuffer result;
-    result.bucket_size = bucket_size;
-    result.element_size = element_size;
-    result.root = make_bucket(context, bucket_size, element_size, 0);
-    result.current = result.root;
-
-    return result;
-}
-
-void bt_bucketed_buffer_destroy(bt_Context* context, bt_BucketedBuffer* buffer)
-{
-    bt_Bucket* bucket = buffer->root;
-    bt_Bucket* last_bucket = NULL;
-
-    do {
-        if (last_bucket) context->free(last_bucket);
-
-        context->free(bucket->data);
-        last_bucket = bucket;
-    } while (bucket = bucket->next);
-
-    context->free(bucket);
-}
-
-void* bt_bucketed_buffer_at(bt_BucketedBuffer* buffer, uint32_t index)
-{
-    // fast path as current bucket is often in cache
-    if (index >= buffer->current->base_index && index < buffer->current->base_index + buffer->current->length)
-    {
-        return (void*)((char*)buffer->current->data + ((index - buffer->current->base_index) * (size_t)buffer->element_size));
-    }
-
-    bt_Bucket* current = buffer->root;
-    while (current) {
-        if (index >= current->base_index && index < current->base_index + current->length)
-        {
-            return (void*)((char*)current->data + ((index - current->base_index) * (size_t)buffer->element_size));
-        }
-
-        current = current->next;
-    }
-
-    return NULL;
-}
-
-void* bt_bucket_at(bt_Bucket* bucket, uint32_t index)
-{
-    return (void*)((char*)bucket->data + index * bucket->element_size);
-}
-
-uint32_t bt_bucketed_buffer_insert(bt_Context* context, bt_BucketedBuffer* buffer, void* element)
-{
-    if (buffer->current->length < buffer->current->capacity) {
-        memcpy((char*)buffer->current->data + buffer->current->element_size * buffer->current->length, element, buffer->element_size);
-        return buffer->current->base_index + buffer->current->length++;
-    }
-
-    /*bt_Bucket* bucket = buffer->root;
-    while (bucket) {
-        if (bucket->length == bucket->capacity)
-            bucket = bucket->next;
-    }
-
-    if (bucket) {
-        buffer->current = bucket;
-        return bt_bucketed_buffer_insert(context, buffer, element);
-    }*/
-
-    buffer->current->next = make_bucket(context, buffer->bucket_size, buffer->element_size, buffer->current->base_index + buffer->bucket_size);
-    buffer->current = buffer->current->next;
-
-    return bt_bucketed_buffer_insert(context, buffer, element);
-}
-
-bt_bool bt_bucketed_buffer_remove(bt_Context* context, bt_BucketedBuffer* buffer, uint32_t index)
-{
-    // fast path as current bucket is often in cache
-    if (index > buffer->current->base_index && index < buffer->current->base_index + buffer->current->length)
-    {
-        uint32_t local_idx = index - buffer->current->base_index;
-        
-        memcpy((char*)buffer->current->data + buffer->current->element_size * local_idx,
-            (char*)buffer->current->data + buffer->current->element_size * (buffer->current->length - 1), 
-            buffer->element_size);
-        
-        buffer->current->length--;
-        return buffer->current->length != local_idx;
-    }
-
-    bt_Bucket* current = buffer->root;
-    while (current) {
-        if (index >= current->base_index && index < current->base_index + current->length)
-        {
-            uint32_t local_idx = index - current->base_index;
-            
-            memcpy((char*)current->data + current->element_size * local_idx,
-                (char*)current->data + current->element_size * (current->length - 1), 
-                buffer->element_size);
-            
-            current->length--;
-            return current->length != local_idx && current->length > 0;
-        }
-
-        current = current->next;
-    }
-
-    return BT_FALSE;
-}
-
-bt_bool bt_bucket_remove(bt_Bucket* bucket, uint32_t index)
-{
-    if (index >= bucket->base_index && index < bucket->base_index + bucket->length)
-    {
-        uint32_t local_idx = index - bucket->base_index;
-
-        memcpy((char*)bucket->data + bucket->element_size * local_idx,
-            (char*)bucket->data + bucket->element_size * (bucket->length - 1),
-            bucket->element_size);
-
-        bucket->length--;
-        return bucket->length != local_idx && bucket->length > 0;
-    }
-
-    return BT_FALSE;
-}
-
 bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output)
 {
     if (buffer->length > 0) {
@@ -260,7 +117,7 @@ bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output)
 void bt_buffer_append(bt_Context* context, bt_Buffer* dst, bt_Buffer* src)
 {
     assert(dst->element_size == src->element_size);
-    buffer_reserve(context, dst, dst->length + src->length);
+    bt_buffer_reserve(context, dst, dst->length + src->length);
     memcpy((char*)dst->data + dst->length * dst->element_size, src->data, src->length * src->element_size);
     dst->length += src->length;
 }

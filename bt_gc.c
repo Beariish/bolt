@@ -223,7 +223,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	while (*current) {
 		if ((*current)->mark) {
 			(*current)->mark = 0;
-			current = &((*current)->next);
+			current = &((bt_Object*)((*current)->next));
 		}
 		else {
 			bt_Object* to_free = *current;

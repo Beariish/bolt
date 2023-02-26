@@ -193,6 +193,47 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
     return bt_table_get(tbl, str);
 }
 
+bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity)
+{
+    bt_Array* arr = BT_ALLOCATE(ctx, ARRAY, bt_Array);
+    arr->items = bt_buffer_new(ctx, sizeof(bt_Value));
+    bt_buffer_reserve(ctx, &arr->items, initial_capacity);
+
+    return arr;
+}
+
+uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value)
+{
+    bt_buffer_push(ctx, &arr->items, &value);
+    return arr->items.length;
+}
+
+bt_Value bt_array_pop(bt_Array* arr)
+{
+    bt_Value result;
+    bt_buffer_pop(&arr->items, &result);
+    return result;
+}
+
+uint64_t bt_array_length(bt_Array* arr)
+{
+    return arr->items.length;
+}
+
+bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value)
+{
+    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!");
+    bt_Value* ref = bt_buffer_at(&arr->items, index);
+    *ref = value;
+    return BT_TRUE;
+}
+
+bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index)
+{
+    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!");
+    return *(bt_Value*)bt_buffer_at(&arr->items, index);
+}
+
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
@@ -268,6 +309,16 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         bt_Type* type = obj;
         return bt_table_get(type->prototype_values, key);
     } break;
+    case BT_OBJECT_TYPE_ARRAY: {
+        if (!BT_IS_NUMBER(key)) {
+            bt_Value proto = bt_table_get(ctx->types.array->prototype_values, key);
+            if (proto != BT_VALUE_NULL) return proto;
+            
+            bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!");
+        }
+
+        return bt_array_get(ctx, obj, BT_AS_NUMBER(key));
+    } break;
     case BT_OBJECT_TYPE_USERDATA: {
         bt_Userdata* userdata = obj;
         bt_Type* type = userdata->type;
@@ -304,6 +355,10 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
     case BT_OBJECT_TYPE_TABLE:
         bt_table_set(ctx, obj, key, value);
         break;
+    case BT_OBJECT_TYPE_ARRAY: {
+        if (!BT_IS_NUMBER(key)) bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!");
+        bt_array_set(ctx, obj, BT_AS_NUMBER(key), value);
+    } break;
     case BT_OBJECT_TYPE_TYPE:
         bt_type_set_field(ctx, obj, key, value);
         break;

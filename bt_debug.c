@@ -205,8 +205,10 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_ITERFOR:     printf("[%.3d]: ITRFOR %d, %d\n", i, op.a, op.ibc);         break;
 		case BT_OP_TABLE:       printf("[%.3d]: TABLE  %d, %d\n", i, op.a, op.ibc);         break;
 		case BT_OP_TTABLE:      printf("[%.3d]: TTABLE %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_ARRAY:       printf("[%.3d]: ARRAY  %d, %d\n", i, op.a, op.ibc); break;
 		case BT_OP_STORE_IDX:   printf("[%.3d]: SIDX   %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		case BT_OP_STORE_IDX_K: printf("[%.3d]: SIDXK  %d, %d, %d\n", i, op.a, op.b, op.c); break;
+		case BT_OP_LOAD_SUB_F:  printf("[%.3d]: LSUBF  %d, %d, %d\n", i, op.a, op.b, op.c); break;
 		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
 		}
 	}

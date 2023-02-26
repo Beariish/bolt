@@ -42,9 +42,7 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 
 	context->types.any = make_primitive_type(context, "any", bt_type_satisfier_any);
 	context->types.null = make_primitive_type(context, "null", bt_type_satisfier_null);
-	context->types.array = make_primitive_type(context, "array", bt_type_satisfier_array);
-	context->types.array->category = BT_TYPE_CATEGORY_ARRAY;
-	context->types.array->as.array.inner = context->types.any;
+	context->types.array = bt_make_array_type(context, context->types.any);
 
 	context->types.type = bt_make_fundamental(context);
 	context->types.type->as.type.boxed = context->types.any;
@@ -235,6 +233,10 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 
 		bt_buffer_destroy(context, &table->pairs);
 	} break;
+	case BT_OBJECT_TYPE_ARRAY: {
+		bt_Array* arr = obj;
+		bt_buffer_destroy(context, &arr->items);
+	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
 		bt_Userdata* userdata = obj;
 		context->free(userdata->data);
@@ -254,7 +256,7 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
 	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure);
 	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
-	case BT_OBEJCT_TYPE_ARRAY: assert(0); return 0;
+	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table);
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
 	}
@@ -635,6 +637,12 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			stack[op.a] = BT_VALUE_OBJECT(tbl);
 		} NEXT;
 
+		case BT_OP_ARRAY: {
+			bt_Array* arr = bt_make_array(context, op.ibc);
+			arr->items.length = op.ibc;
+			stack[op.a] = BT_VALUE_OBJECT(arr);
+		} NEXT;
+
 		case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
 
 		case BT_OP_EXPORT: {
@@ -775,6 +783,9 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) / BT_AS_NUMBER(stack[op.c]));
 		} NEXT;
 		case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
+		case BT_OP_LOAD_SUB_F: {
+			stack[op.a] = bt_array_get(context, BT_AS_OBJECT(stack[op.b]), BT_AS_NUMBER(stack[op.c]));
+		} NEXT;
 		default: BT_ASSUME(0);
 		}
 	}

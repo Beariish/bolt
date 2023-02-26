@@ -1,0 +1,34 @@
+import * from core
+
+let a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+for outer in 10 {
+    let start_time = time()
+    
+    let total = 0
+    for inner in 1000000 {    
+        for i in 10 {
+            total += a[i]
+        }
+    }
+
+    let end_time = time()
+        
+    let duration_ms = end_time - start_time
+    print("1m iter of sum([number; 10]) took", duration_ms / 1000, "ms", "|", total)
+}
+
+for outer in 10 {
+    let start_time = time()
+    
+    for inner in 1000000 {    
+        for i in 10 {
+            a[i] += 1
+        }
+    }
+
+    let end_time = time()
+        
+    let duration_ms = end_time - start_time
+    print("1m iter of add([number; 10], 1) took", duration_ms / 1000, "ms")
+}

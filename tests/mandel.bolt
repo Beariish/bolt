@@ -39,7 +39,7 @@ fn level(x: number, y: number) {
         zre = tre + cre
         zim = tim + cim
 
-        if sqrt(zre * zre - zim * (-zim)) > 2 {
+        if abs(zre, zim) > 2 {
             return l
         }
     }

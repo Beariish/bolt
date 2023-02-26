@@ -17,7 +17,7 @@ typedef enum {
 	BT_OBJECT_TYPE_NATIVE_FN,
 	BT_OBJECT_TYPE_CLOSURE,
 	BT_OBJECT_TYPE_METHOD,
-	BT_OBEJCT_TYPE_ARRAY,
+	BT_OBJECT_TYPE_ARRAY,
 	BT_OBJECT_TYPE_TABLE,
 	BT_OBJECT_TYPE_USERDATA
 } bt_ObjectType;
@@ -37,6 +37,11 @@ typedef struct bt_Table {
 	bt_Buffer pairs;
 	struct bt_Table* prototype;
 } bt_Table;
+
+typedef struct bt_Array {
+	bt_Object obj;
+	bt_Buffer items;
+} bt_Array;
 
 typedef struct bt_Module {
 	bt_Object obj;
@@ -125,6 +130,13 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
 bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value);
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
 bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
+
+bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity);
+uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value);
+bt_Value bt_array_pop(bt_Array* arr);
+uint64_t bt_array_length(bt_Array* arr);
+bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value);
+bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index);
 
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
 bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports);

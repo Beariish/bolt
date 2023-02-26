@@ -286,6 +286,49 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     return result;
 }
 
+static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
+{
+    bt_AstNode* result = make_node(parse->context, BT_AST_NODE_ARRAY);
+    result->as.arr.items = bt_buffer_new(parse->context, sizeof(bt_AstNode*));
+    result->as.arr.inner_type = 0;
+    result->source = source;
+
+    bt_Tokenizer* tok = parse->tokenizer;
+
+    bt_Token* next = bt_tokenizer_peek(tok);
+    while (next && next->type != BT_TOKEN_RIGHTBRACKET) {
+        bt_AstNode* expr = pratt_parse(parse, 0);
+        bt_buffer_push(parse->context, &result->as.arr.items, &expr);
+
+        bt_Type* item_type = type_check(parse, expr)->resulting_type;
+        if (result->as.arr.inner_type) {
+            if (!result->as.arr.inner_type->satisfier(result->as.arr.inner_type, item_type)) {
+                if (result->as.arr.inner_type->category != BT_TYPE_CATEGORY_UNION) {
+                    bt_Type* old = result->as.arr.inner_type;
+                    result->as.arr.inner_type = bt_make_union(parse->context);
+                    bt_push_union_variant(parse->context, result->as.arr.inner_type, old);
+                }
+
+                bt_push_union_variant(parse->context, result->as.arr.inner_type, item_type);
+            }
+        }
+        else {
+            result->as.arr.inner_type = item_type;
+        }
+
+        next = bt_tokenizer_peek(tok);
+        if (!next || !(next->type == BT_TOKEN_COMMA || next->type == BT_TOKEN_RIGHTBRACKET)) {
+            assert(0 && "Malformed array literal!");
+        }
+
+        next = bt_tokenizer_emit(tok);
+    }
+
+    result->resulting_type = bt_make_array_type(parse->context, result->as.arr.inner_type);
+
+    return result;
+}
+
 static bt_AstNode* token_to_node(bt_Parser* parse, bt_Token* token)
 {
     bt_AstNode* result = NULL;
@@ -325,6 +368,10 @@ static bt_AstNode* token_to_node(bt_Parser* parse, bt_Token* token)
 
     case BT_TOKEN_LEFTBRACE: {
         return parse_table(parse, token, NULL);
+    } break;
+
+    case BT_TOKEN_LEFTBRACKET: {
+        return parse_array(parse, token);
     } break;
     default:
         assert(0);
@@ -638,6 +685,20 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         UPERF_POP();
         return result;
     } break;
+    case BT_TOKEN_LEFTBRACKET: {
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_RIGHTBRACKET) {
+            bt_tokenizer_emit(tok);
+            UPERF_POP();
+            return ctx->types.array;
+        }
+
+        bt_Type* inner = parse_type(parse, BT_TRUE);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
+        UPERF_POP();
+        return bt_make_array_type(parse->context, inner);
+    } break;
+
     default: assert(0);
     }
 }
@@ -837,7 +898,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
             if (op->type == BT_TOKEN_LEFTBRACKET)
             {
-                bt_AstNode* rhs = pratt_parse(tok, 0);
+                bt_AstNode* rhs = pratt_parse(parse, 0);
                 bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
                 
                 bt_AstNode* lhs = lhs_node;
@@ -1113,6 +1174,24 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return NULL;
             }
         } break;
+        case BT_TOKEN_LEFTBRACKET: {
+            node->source->type = BT_TOKEN_PERIOD;
+            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
+            if (lhs->category == BT_TYPE_CATEGORY_ARRAY) {
+                bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
+                if (!(rhs == parse->context->types.number || rhs == parse->context->types.any)) {
+                    assert(0 && "Invalid index type!");
+                }
+
+                node->resulting_type = lhs->as.array.inner;
+                if (rhs == parse->context->types.number) {
+                    node->as.binary_op.accelerated = BT_TRUE;
+                }
+
+                UPERF_POP();
+                return node;
+            }
+        }
         case BT_TOKEN_PERIOD: {
             if (node->as.binary_op.right->type != BT_AST_NODE_IDENTIFIER) assert(0 && "Illegal identifier!");
 
@@ -1135,6 +1214,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Value rhs_key = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, rhs->source.source, rhs->source.length));
 
             bt_Table* proto = lhs->prototype_types;
+            if (!proto && lhs->prototype) proto = lhs->prototype->prototype_types;
             if (proto) {
                 bt_Value proto_entry = bt_table_get(proto, rhs_key);
                 if (proto_entry != BT_VALUE_NULL) {
