@@ -31,6 +31,7 @@ typedef uint64_t bt_Value;
 #define BT_IS_FALSE(x)    (x == BT_VALUE_FALSE)
 #define BT_IS_TRUTHY(x)   (!(x == BT_VALUE_FALSE || x == BT_VALUE_NULL))
 #define BT_IS_OBJECT(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_OBJECT)
+#define BT_IS_OBJECT_FAST(x) ((x & BT_TYPE_MASK) == BT_TYPE_OBJECT)
 
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
 

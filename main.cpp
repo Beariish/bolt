@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
 	UPERF_POP();
 
 	UPERF_EVENT("Run code");
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "ycombinator"));
 	bt_find_module(&context, module_name);
 	UPERF_POP();
 

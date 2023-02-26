@@ -4,21 +4,6 @@
 #include <memory.h>
 #include <string.h>
 
-bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right)
-{
-	return BT_TRUE;
-}
-
-bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right)
-{
-	return bt_type_satisfier_same(left, right) || left->is_optional;
-}
-
-bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right)
-{
-	return left == right;
-}
-
 bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 {
 	if (left->category != BT_TYPE_CATEGORY_SIGNATURE || right->category != BT_TYPE_CATEGORY_SIGNATURE)
@@ -434,11 +419,11 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (value == BT_VALUE_NULL) return BT_FALSE;
 	if (type == type->ctx->types.boolean && BT_IS_BOOL(value)) return BT_TRUE;
 	if (type == type->ctx->types.number && BT_IS_NUMBER(value)) return BT_TRUE;
-	if (type == type->ctx->types.string && BT_IS_OBJECT(value) && BT_AS_OBJECT(value)->type == BT_OBJECT_TYPE_STRING) return BT_TRUE;
 
-	if (!BT_IS_OBJECT(value)) return BT_FALSE;
-
+	if (!BT_IS_OBJECT_FAST(value)) return BT_FALSE;
 	bt_Object* as_obj = BT_AS_OBJECT(value);
+
+	if (type == type->ctx->types.string && as_obj->type == BT_OBJECT_TYPE_STRING) return BT_TRUE;
 
 	switch (type->category) {
 	case BT_TYPE_CATEGORY_TYPE:

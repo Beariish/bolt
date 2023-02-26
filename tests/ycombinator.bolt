@@ -1,9 +1,5 @@
-import print from core
-import * from math
-import * from meta
+import * from core
 
-import prelude
-import nested
 
 type FacType = fn(any, number): number
 
@@ -18,23 +14,26 @@ fn fac(n: number) {
     return fac_internal(fac_internal, n)
 }
 
-print(fac(30))
+type FibType = fn(any, number): number
 
-fn call_on(func: fn(number): number, arg: number) {
-    return func(arg)
+fn fib_internal(self: any, n: number) {
+    if n <= 1 { return n }
+
+    let ref = self into FibType!
+    return ref(ref, n - 1) + ref(ref, n - 2)
 }
 
-print(call_on(fac, 30))
-
-let test = {
-    some: "field"
+fn fib(n: number) {
+    return fib_internal(fib_internal, n)
 }
 
-print(mem_size() / 1024)
-print(next_cycle() / 1024)
-
-grey(test)
-grey(100)
-
-print(constant)
-print(test_constant)
+for iter in 100 {
+    let start_time = time()
+    
+    let result = fib(31)
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("fib(31) took", duration_ms / 1000, "ms", "|", result)
+}

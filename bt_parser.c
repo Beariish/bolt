@@ -881,7 +881,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     }
                 }
 
-                if (max_arg == 0 || self_arg) bt_tokenizer_emit(tok);
+                if (max_arg == 0 || (self_arg && max_arg == 1)) bt_tokenizer_emit(tok);
 
                 if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
                     assert(0 && "Couldn't find end of function call!");

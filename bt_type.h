@@ -70,9 +70,10 @@ typedef struct bt_Type {
 	bt_bool is_optional : 1;
 } bt_Type;
 
-bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right);
-bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right);
-bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right);
+static BT_FORCE_INLINE bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
+static BT_FORCE_INLINE bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
+static BT_FORCE_INLINE bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right) || left->is_optional; }
+
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right);
