@@ -248,6 +248,7 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("is", token, BT_TOKEN_IS)
 		else BT_TEST_KEYWORD("into", token, BT_TOKEN_INTO)
 		else BT_TEST_KEYWORD("unsealed", token, BT_TOKEN_UNSEALED)
+		else BT_TEST_KEYWORD("typeof", token, BT_TOKEN_TYPEOF)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, &token);

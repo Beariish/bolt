@@ -27,6 +27,10 @@ fn fib(n: number) {
     return fib_internal(fib_internal, n)
 }
 
+print("----------------------------")
+print(typeof(10))
+print("----------------------------")
+
 for iter in 10 {
     let start_time = time()
     

@@ -11,6 +11,7 @@
 #include <memory.h>
 
 static void parse_block(bt_Buffer* result, bt_Parser* parse);
+static void destroy_node(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power);
@@ -31,6 +32,7 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 
 void bt_close_parser(bt_Parser* parse)
 {
+    destroy_node(parse->context, parse->root);
 }
 
 static void push_scope(bt_Parser* parser, bt_bool is_fn_boundary)
@@ -212,6 +214,129 @@ static bt_AstNode* make_node(bt_Context* ctx, bt_AstNodeType type)
     new_node->source = 0;
 
     return new_node;
+}
+
+static void destroy_node(bt_Context* ctx, bt_AstNode* node)
+{
+    if (!node) return;
+
+    switch (node->type) {
+    case BT_AST_NODE_MODULE: {
+        for (uint32_t i = 0; i < node->as.module.body.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.module.body, i);
+            destroy_node(ctx, subobj);
+        }
+
+        bt_buffer_destroy(ctx, &node->as.module.body);
+        bt_buffer_destroy(ctx, &node->as.module.imports);
+    } break;
+
+    case BT_AST_NODE_EXPORT:
+        destroy_node(ctx, node->as.exp.value);
+        break;
+
+    case BT_AST_NODE_ARRAY: {
+        for (uint32_t i = 0; i < node->as.arr.items.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.arr.items, i);
+            destroy_node(ctx, subobj);
+        }
+
+        bt_buffer_destroy(ctx, &node->as.arr.items);
+    } break;
+
+    case BT_AST_NODE_TABLE: {
+        for (uint32_t i = 0; i < node->as.table.fields.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.table.fields, i);
+            destroy_node(ctx, subobj);
+        }
+
+        bt_buffer_destroy(ctx, &node->as.table.fields);
+    } break;
+
+    case BT_AST_NODE_TABLE_ENTRY:
+        destroy_node(ctx, node->as.table_field.expr);
+        break;
+    
+    case BT_AST_NODE_FUNCTION: 
+    case BT_AST_NODE_METHOD: {
+        bt_buffer_destroy(ctx, &node->as.fn.args);
+        bt_buffer_destroy(ctx, &node->as.fn.upvals);
+
+        for (uint32_t i = 0; i < node->as.fn.body.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.fn.body, i);
+            destroy_node(ctx, subobj);
+        }
+        bt_buffer_destroy(ctx, &node->as.fn.body);
+    } break;
+
+    case BT_AST_NODE_BINARY_OP:
+        destroy_node(ctx, node->as.binary_op.left);
+        destroy_node(ctx, node->as.binary_op.right);
+        break;
+
+    case BT_AST_NODE_UNARY_OP:
+        destroy_node(ctx, node->as.unary_op.operand);
+        break;
+
+    case BT_AST_NODE_RETURN:
+        destroy_node(ctx, node->as.ret.expr);
+        break;
+
+    case BT_AST_NODE_IF: {
+        destroy_node(ctx, node->as.branch.condition);
+        destroy_node(ctx, node->as.branch.next);
+
+        for (uint32_t i = 0; i < node->as.branch.body.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.branch.body, i);
+            destroy_node(ctx, subobj);
+        }
+        bt_buffer_destroy(ctx, &node->as.branch.body);
+    } break;
+
+    case BT_AST_NODE_LOOP_WHILE: assert(0);
+
+    case BT_AST_NODE_LOOP_ITERATOR: {
+        destroy_node(ctx, node->as.loop_iterator.identifier);
+        destroy_node(ctx, node->as.loop_iterator.iterator);
+
+        for (uint32_t i = 0; i < node->as.loop_iterator.body.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.loop_iterator.body, i);
+            destroy_node(ctx, subobj);
+        }
+        bt_buffer_destroy(ctx, &node->as.loop_iterator.body);
+    } break;
+
+    case BT_AST_NODE_LOOP_NUMERIC: {
+        destroy_node(ctx, node->as.loop_numeric.start);
+        destroy_node(ctx, node->as.loop_numeric.stop);
+        destroy_node(ctx, node->as.loop_numeric.step);
+        destroy_node(ctx, node->as.loop_numeric.identifier);
+
+        for (uint32_t i = 0; i < node->as.loop_numeric.body.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.loop_numeric.body, i);
+            destroy_node(ctx, subobj);
+        }
+
+        bt_buffer_destroy(ctx, &node->as.loop_numeric.body);
+    } break;
+
+    case BT_AST_NODE_LET: {
+        destroy_node(ctx, node->as.let.initializer);
+    } break;
+
+    case BT_AST_NODE_CALL: {
+        destroy_node(ctx, node->as.call.fn);
+
+        for (uint32_t i = 0; i < node->as.call.args.length; ++i) {
+            bt_AstNode* subobj = *(bt_AstNode**)bt_buffer_at(&node->as.call.args, i);
+            destroy_node(ctx, subobj);
+        }
+
+        bt_buffer_destroy(ctx, &node->as.call.args);
+    } break;
+    }
+
+    ctx->free(node);
 }
 
 static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type) {
@@ -875,6 +1000,12 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     else if (lhs->type == BT_TOKEN_LEFTPAREN) {
         lhs_node = pratt_parse(parse, 0);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+    }
+    else if (lhs->type == BT_TOKEN_TYPEOF) {
+        bt_AstNode* inner = pratt_parse(parse, 0);
+        bt_Type* result = type_check(parse, inner)->resulting_type;
+        lhs_node = make_node(parse->context, BT_AST_NODE_TYPE);
+        lhs_node->resulting_type = result;
     }
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(tok->context, BT_AST_NODE_UNARY_OP);

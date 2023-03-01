@@ -815,6 +815,10 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         }
         restore_registers(ctx);
     } break;
+    case BT_AST_NODE_TYPE: {
+        uint8_t type_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
+        emit_ab(ctx, BT_OP_LOAD, result_loc, type_idx);
+    } break;
     default: assert(0);
     }
 
