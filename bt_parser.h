@@ -38,10 +38,6 @@ typedef struct bt_FnArg {
 } bt_FnArg;
 
 typedef struct bt_AstNode {
-	bt_AstNodeType type;
-	bt_Token* source;
-	bt_Type* resulting_type;
-
 	union {
 		struct {
 			bt_Buffer body;
@@ -78,13 +74,11 @@ typedef struct bt_AstNode {
 			bt_Buffer upvals;
 			bt_Type* ret_type;
 			bt_AstNode* outer;
-			bt_Type* type;
-			bt_Token* name;
 		} fn, method;
 
 		struct {
-			bt_AstNode* fn;
 			bt_Buffer args;
+			bt_AstNode* fn;
 		} call;
 
 		struct {
@@ -128,6 +122,11 @@ typedef struct bt_AstNode {
 			bt_AstNode* expr;
 		} table_field;
 	} as; 
+
+	bt_Token* source;
+	bt_Type* resulting_type;
+
+	bt_AstNodeType type;
 } bt_AstNode;
 
 typedef struct bt_ParseBinding {
@@ -143,11 +142,22 @@ typedef struct bt_ParseScope {
 	bt_bool is_fn_boundary;
 } bt_ParseScope;
 
+#define BT_AST_NODE_POOL_SIZE 64
+
+typedef struct bt_AstNodePool {
+	bt_AstNode nodes[BT_AST_NODE_POOL_SIZE];
+	struct bt_AstNodePool* prev;
+
+	uint16_t count;
+} bt_AstNodePool;
+
 typedef struct {
 	bt_Context* context;
 	bt_Tokenizer* tokenizer;
 	bt_AstNode* root;
 	bt_AstNode* current_fn;
+
+	bt_AstNodePool* current_pool;
 
 	bt_ParseScope* scope;
 } bt_Parser;

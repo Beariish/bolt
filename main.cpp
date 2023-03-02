@@ -293,6 +293,10 @@ int main(int argc, char** argv) {
 	bt_find_module(&context, module_name);
 	UPERF_POP();
 
+	printf("Size of an ast node is: %d\n", sizeof(bt_AstNode));
+	printf("Size of an ast pool is: %d\n", sizeof(bt_AstNodePool));
+	printf("Size of a buffer is: %d\n", sizeof(bt_Buffer));
+
 #ifdef BOLT_PRINT_DEBUG
 	printf("KB allocated during execution: %lld\n", context.gc.byets_allocated / 1024);
 #endif
