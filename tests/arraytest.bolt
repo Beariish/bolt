@@ -1,6 +1,25 @@
 import * from core
 
-let a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+print("a is", a.length(), "long!")
+let b = a.pop()
+print(b, "; a is", a.length(), "long!")
+
+a.push(1250)
+print("a is", a.length(), "long!")
+
+print(strarr.pop()) // "wow"
+
+strarr.push("New string!")
+print(strarr.length()) // 3
+
+let strarr = ["hello", "world", "wow"]
+for str in strarr.each() {
+    print(str) // hello, world, wow
+}
+
+print(typeof(strarr.each())) // fn: string?
 
 for outer in 10 {
     let start_time = time()

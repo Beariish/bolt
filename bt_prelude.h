@@ -4,7 +4,7 @@
 
 #define BOLT_VERSION "0.0.1"
 
-//#define BOLT_PRINT_DEBUG
+#define BOLT_PRINT_DEBUG
 
 #ifdef _NDEBUG
 #undef BOLT_DEBUG

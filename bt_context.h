@@ -23,6 +23,7 @@ typedef void (*bt_Free)(void* ptr);
 
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
+	bt_Value* upvals;
 	uint8_t size, argc, user_top;
 	int8_t return_loc;
 } bt_StackFrame;
@@ -106,4 +107,7 @@ void bt_runtime_error(bt_Thread* thread, const char* message);
 
 void bt_push(bt_Thread* thread, bt_Value value); 
 bt_Value bt_pop(bt_Thread* thread);
+
+bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals);
+
 void bt_call(bt_Thread* thread, uint8_t argc);

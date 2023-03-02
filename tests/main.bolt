@@ -64,5 +64,3 @@ print(cnt())
 print(cnt())
 
 print("the most maxest is:", max(1, 2, 3, 4, 9, 5, 6, 1, 4, 7))
-
-//return mod.subber(mod.adder(a, mod.constant), 10)

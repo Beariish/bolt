@@ -221,10 +221,12 @@ static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifi
 
 static void next_pool(bt_Parser* parse)
 {
-    bt_AstNodePool* prev = parse->current_pool;
-    parse->current_pool = parse->context->alloc(sizeof(bt_AstNodePool));
-    parse->current_pool->prev = prev;
-    parse->current_pool->count = 0;
+    UPERF_BLOCK("Allocate new ast nodes") {
+        bt_AstNodePool* prev = parse->current_pool;
+        parse->current_pool = parse->context->alloc(sizeof(bt_AstNodePool));
+        parse->current_pool->prev = prev;
+        parse->current_pool->count = 0;
+    }
 }
 
 static bt_AstNode* make_node(bt_Parser* parse, bt_AstNodeType type)
@@ -769,6 +771,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
     default: assert(0);
     }
+
+    return NULL;
 }
 
 static bt_Type* infer_return(bt_Context* ctx, bt_Buffer* body, bt_Type* expected)
@@ -863,7 +867,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         } while (next && next->type == BT_TOKEN_COMMA);
     }
 
-    if (has_param_list && next->type != BT_TOKEN_RIGHTPAREN) {
+    if (has_param_list && (!next || next->type != BT_TOKEN_RIGHTPAREN)) {
         assert(0 && "Cannot find end of parameter list!");
     }
 
@@ -998,11 +1002,17 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
                 if (to_call->as.fn.is_method) {
                     if (lhs_node->type == BT_AST_NODE_BINARY_OP && lhs_node->source->type == BT_TOKEN_PERIOD) {
-                        bt_Buffer* args_ref = &to_call->as.fn.args;
-                        bt_Type* first_arg = *(bt_Type**)bt_buffer_at(args_ref, 0);
+                        if (!to_call->is_polymorphic) {
+                            bt_Buffer* args_ref = &to_call->as.fn.args;
+                            bt_Type* first_arg = *(bt_Type**)bt_buffer_at(args_ref, 0);
 
-                        bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
-                        if (first_arg->satisfier(first_arg, lhs_type)) {
+                            bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
+                            if (first_arg->satisfier(first_arg, lhs_type)) {
+                                args[max_arg++] = lhs_node->as.binary_op.left;
+                                self_arg = 1;
+                            }
+                        }
+                        else {
                             args[max_arg++] = lhs_node->as.binary_op.left;
                             self_arg = 1;
                         }
@@ -1023,6 +1033,18 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
                 if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
                     assert(0 && "Couldn't find end of function call!");
+                }
+
+                if (to_call->is_polymorphic) {
+                    bt_Type* arg_types[16];
+                    for (uint8_t i = 0; i < max_arg; ++i) {
+                        arg_types[i] = type_check(parse, args[i])->resulting_type;
+                    }
+
+                    to_call = to_call->as.poly_fn.applicator(parse->context, arg_types, max_arg);
+                    if (!to_call) {
+                        assert(0 && "Found no polymorhic mode for function!");
+                    }
                 }
 
                 if (max_arg != to_call->as.fn.args.length && to_call->as.fn.is_vararg == BT_FALSE) {

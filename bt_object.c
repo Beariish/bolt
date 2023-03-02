@@ -351,6 +351,8 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         __debugbreak();
     } break;
     }
+
+    return BT_VALUE_NULL;
 }
 
 void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)

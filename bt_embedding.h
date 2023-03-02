@@ -17,3 +17,13 @@ static BT_FORCE_INLINE void bt_return(bt_Thread* thread, bt_Value value)
 {
 	thread->stack[thread->top + thread->callstack[thread->depth - 1].return_loc] = value;
 }
+
+static BT_FORCE_INLINE bt_Value bt_getup(bt_Thread* thread, uint8_t idx)
+{
+	return thread->callstack[thread->depth - 1].upvals[idx];
+}
+
+static BT_FORCE_INLINE void bt_setup(bt_Thread* thread, uint8_t idx, bt_Value value)
+{
+	thread->callstack[thread->depth - 1].upvals[idx] = value;
+}

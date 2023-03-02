@@ -1,5 +1,7 @@
 import * from core
 
+import * from math
+
 type Vec2 = {
     x: number,
     y: number,

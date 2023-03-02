@@ -316,7 +316,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		FILE* source;
 		fopen_s(&source, name_as_bolt_file, "rb");
-		context->free(name_as_bolt_file);
+		//context->free(name_as_bolt_file);
 		UPERF_POP();
 
 		if (source == 0) {
@@ -411,6 +411,25 @@ bt_Value bt_pop(bt_Thread* thread)
 {
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
 	return thread->stack[thread->top + frame->size + frame->user_top--];
+}
+
+bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
+{
+	bt_StackFrame* frame = thread->callstack + thread->depth - 1;
+	bt_Value* true_top = thread->stack + thread->top + frame->size + frame->user_top;
+
+	bt_Buffer upvals = bt_buffer_with_capacity(thread->context, sizeof(bt_Value), num_upvals);
+	for (bt_Value* top = true_top - (num_upvals - 1); top <= true_top; top++) {
+		bt_buffer_push(thread->context, &upvals, top);
+	}
+
+	bt_Closure* cl = BT_ALLOCATE(thread->context, CLOSURE, bt_Closure);
+	cl->fn = BT_AS_OBJECT(*(true_top - num_upvals));
+	cl->upvals = upvals;
+
+	frame->user_top -= num_upvals + 1;
+
+	return BT_VALUE_OBJECT(cl);
 }
 
 void bt_call(bt_Thread* thread, uint8_t argc)
@@ -612,7 +631,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 {
 	bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
-	bt_Value* upv = ((bt_Closure*)callable)->upvals.data;
+	bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
 	bt_Object* obj;
 	bt_Op op;
 
@@ -737,9 +756,22 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
 				bt_Fn* callable = ((bt_Closure*)obj)->fn;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
-				call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
+				thread->callstack[thread->depth - 1].upvals = ((bt_Closure*)obj)->upvals.data;
+
+				if (callable->obj.type == BT_OBJECT_TYPE_FN) {
+					call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
+				}
+				else if (callable->obj.type == BT_OBJECT_TYPE_NATIVE_FN) {
+					thread->callstack[thread->depth - 1].size = 0;
+					bt_NativeFn* as_native = callable;
+					as_native->fn(context, thread);
+				}
+				else {
+					bt_runtime_error(thread, "Closure contained unsupported callable type.");
+				}
 			}
 			else if (obj->type == BT_OBJECT_TYPE_NATIVE_FN) {
+				thread->callstack[thread->depth - 1].size = 0;
 				bt_NativeFn* callable = (bt_NativeFn*)obj;
 				callable->fn(context, thread);
 			}
@@ -766,7 +798,15 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			bt_Closure* cl = BT_AS_OBJECT(stack[op.a + 1]);
 			BT_ASSUME(cl);
 			thread->top += op.a + 2;
-			call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
+			thread->depth++;
+			thread->callstack[thread->depth - 1].upvals = cl->upvals.data;
+
+			if (cl->fn->obj.type == BT_OBJECT_TYPE_FN) {
+				call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
+			}
+			else {
+				((bt_NativeFn*)cl->fn)->fn(context, thread);
+			}
 			thread->top -= op.a + 2;
 			if (stack[op.a] == BT_VALUE_NULL) { ip += op.ibc; }
 		} NEXT;

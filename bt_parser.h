@@ -142,7 +142,7 @@ typedef struct bt_ParseScope {
 	bt_bool is_fn_boundary;
 } bt_ParseScope;
 
-#define BT_AST_NODE_POOL_SIZE 64
+#define BT_AST_NODE_POOL_SIZE 256
 
 typedef struct bt_AstNodePool {
 	bt_AstNode nodes[BT_AST_NODE_POOL_SIZE];

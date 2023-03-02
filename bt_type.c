@@ -180,11 +180,13 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 
 	result->satisfier = satisfier;
 	result->category = category;
+	result->is_polymorphic = BT_FALSE;
 	result->is_optional = is_optional;
 	result->is_compiled = BT_FALSE;
 	result->prototype = 0;
 	result->prototype_types = 0;
 	result->prototype_values = 0;
+
 	return result;
 }
 
@@ -331,6 +333,15 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA, BT_FALSE);
 	result->as.userdata.fields = bt_buffer_empty();
 	result->as.userdata.functions = bt_buffer_empty();
+	return result;
+}
+
+bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySignature applicator)
+{
+	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
+	result->as.poly_fn.applicator = applicator;
+	result->is_polymorphic = BT_TRUE;
+
 	return result;
 }
 

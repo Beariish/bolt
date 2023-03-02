@@ -6,6 +6,7 @@
 typedef struct bt_Type bt_Type;
 
 typedef bt_bool(*bt_TypeSatisfier)(bt_Type* left, bt_Type* right);
+typedef bt_Type* (*bt_PolySignature)(bt_Context* ctx, bt_Type** args, uint8_t argc);
 
 typedef enum {
 	BT_TYPE_CATEGORY_TYPE,
@@ -41,6 +42,10 @@ typedef struct bt_Type {
 		} fn;
 
 		struct {
+			bt_PolySignature applicator;
+		} poly_fn;
+
+		struct {
 			bt_Type* inner;
 		} array;
 
@@ -69,11 +74,12 @@ typedef struct bt_Type {
 	uint8_t category : 6;
 	bt_bool is_compiled : 1;
 	bt_bool is_optional : 1;
+	bt_bool is_polymorphic : 1;
 } bt_Type;
 
 static BT_FORCE_INLINE bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
 static BT_FORCE_INLINE bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
-static BT_FORCE_INLINE bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right) || left->is_optional; }
+static BT_FORCE_INLINE bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right) | left->is_optional; }
 
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
@@ -89,6 +95,7 @@ bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs
 bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed);
 bt_Type* bt_make_fundamental(bt_Context* context);
 bt_Type* bt_make_userdata_type(bt_Context* context, const char* name);
+bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySignature applicator);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
