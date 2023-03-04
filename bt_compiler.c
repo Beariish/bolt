@@ -97,12 +97,7 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
 {
     UPERF_EVENT("emit_abc");
 
-    bt_Op op;
-    op.op = code;
-    op.a = a;
-    op.b = b;
-    op.c = c;
-
+    bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
     bt_buffer_push(ctx->context, &ctx->output, &op);
 
     UPERF_POP();
@@ -113,11 +108,7 @@ static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16
 {
     UPERF_EVENT("emit_aibc");
 
-    bt_Op op;
-    op.op = code;
-    op.a = a;
-    op.ibc = ibc;
-
+    bt_Op op = BT_MAKE_OP_AIBC(code, a, ibc);
     bt_buffer_push(ctx->context, &ctx->output, &op);
 
     UPERF_POP();
@@ -902,7 +893,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         
             if (current->as.branch.condition) {
                 bt_Op* jmpf = op_at(ctx, jump_loc);
-                jmpf->ibc = ctx->output.length - jump_loc - 1;
+                BT_SET_IBC(*jmpf, ctx->output.length - jump_loc - 1);
             }
 
             current = current->as.branch.next;
@@ -911,7 +902,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
         for (uint8_t i = 0; i < end_top; ++i) {
             bt_Op* jmp = op_at(ctx, end_points[i]);
-            jmp->ibc = ctx->output.length - end_points[i] - 1;
+            BT_SET_IBC(*jmp, ctx->output.length - end_points[i] - 1);
         }
     } break;
     case BT_AST_NODE_LOOP_ITERATOR: {
@@ -929,7 +920,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
         emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
         bt_Op* skip_op = op_at(ctx, skip_loc);
-        skip_op->ibc = ctx->output.length - skip_loc - 1;
+        BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
         
         pop_scope(ctx);
         restore_registers(ctx);
@@ -956,7 +947,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
         emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
         bt_Op* skip_op = op_at(ctx, skip_loc);
-        skip_op->ibc = ctx->output.length - skip_loc - 1;
+        BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
 
         pop_scope(ctx);
         restore_registers(ctx);

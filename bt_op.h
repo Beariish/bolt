@@ -92,6 +92,27 @@ typedef enum {
 	BT_OP_STORE_SUB_F,
 } bt_OpCode;
 
+#ifdef BT_MASK_OP
+typedef uint32_t bt_Op;
+
+#define BT_MAKE_OP_ABC(op, a, b, c) \
+	((((bt_Op)op)) | (((bt_Op)a) << 8) | (((bt_Op)b) << 16) | ((bt_Op)c) << 24)
+
+#define BT_MAKE_OP_AIBC(op, a, ibc) \
+	((((bt_Op)op)) | (((bt_Op)a) << 8) | ((uint32_t)((uint16_t)ibc) << 16))
+
+#define BT_MAKE_OP_AUBC(op, a, ubc) \
+	((((bt_Op)op)) | (((bt_Op)a) << 8) | (((bt_Op)ubc) << 16))
+
+#define BT_GET_OPCODE(op) (op & 0xff)
+#define BT_GET_A(op) ((op >> 8) & 0xff)
+#define BT_GET_B(op) ((op >> 16) & 0xff)
+#define BT_GET_C(op) ((op >> 24) & 0xff)
+#define BT_GET_IBC(op) (int16_t)((op >> 16) & 0xffff)
+#define BT_GET_UBC(op) ((op >> 16) & 0xffff)
+
+#define BT_SET_IBC(op, ibc) (op) = (((op) & (~(bt_Op)0xFFFF0000)) | (((uint32_t)((uint16_t)ibc)) << 16))
+#else
 typedef struct bt_Op {
 	uint8_t op, a;
 	union {
@@ -100,3 +121,22 @@ typedef struct bt_Op {
 		struct { int16_t ibc; };
 	};
 } bt_Op;
+
+#define BT_MAKE_OP_ABC(code, a, b, c) \
+	((bt_Op){ .op = code, .a = a, .b = b, .c = c })
+
+#define BT_MAKE_OP_AIBC(code, a, ibc) \
+	((bt_Op){ .op = code, .a = a, .ibc = ibc })
+
+#define BT_MAKE_OP_AUBC(code, a, ubc) \
+	((bt_Op){ .op = code, .a = a, .ubc = ubc })
+
+#define BT_GET_OPCODE(op) op.op
+#define BT_GET_A(op) op.a
+#define BT_GET_B(op) op.b
+#define BT_GET_C(op) op.c
+#define BT_GET_IBC(op) op.ibc
+#define BT_GET_UBC(op) op.ubc
+
+#define BT_SET_IBC(op, _ibc) ((op).ibc = (_ibc))
+#endif

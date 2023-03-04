@@ -639,111 +639,111 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 #define RETURN return;
 	for (;;) {
 		op = *ip++;
-		switch (op.op) {
-		case BT_OP_LOAD:        stack[op.a] = constants[op.b];                       NEXT;
-		case BT_OP_LOAD_SMALL:  stack[op.a] = BT_VALUE_NUMBER(op.ibc);               NEXT;
-		case BT_OP_LOAD_NULL:   stack[op.a] = BT_VALUE_NULL;                         NEXT;
-		case BT_OP_LOAD_BOOL:   stack[op.a] = op.b ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
+		switch (BT_GET_OPCODE(op)) {
+		case BT_OP_LOAD:        stack[BT_GET_A(op)] = constants[BT_GET_B(op)];                       NEXT;
+		case BT_OP_LOAD_SMALL:  stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_GET_IBC(op));               NEXT;
+		case BT_OP_LOAD_NULL:   stack[BT_GET_A(op)] = BT_VALUE_NULL;                         NEXT;
+		case BT_OP_LOAD_BOOL:   stack[BT_GET_A(op)] = BT_GET_B(op) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		case BT_OP_LOAD_IMPORT:
-			stack[op.a] =
-				(*(bt_ModuleImport**)bt_buffer_at(&module->imports, op.ubc))->value;
+			stack[BT_GET_A(op)] =
+				(*(bt_ModuleImport**)bt_buffer_at(&module->imports, BT_GET_B(op)))->value;
 			NEXT;
 
-		case BT_OP_TABLE: stack[op.a] = BT_VALUE_OBJECT(bt_make_table(context, op.ibc)); NEXT;
+		case BT_OP_TABLE: stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); NEXT;
 		case BT_OP_TTABLE: {
-			bt_Table* tbl = bt_make_table(context, op.b);
-			tbl->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[op.c]));
-			stack[op.a] = BT_VALUE_OBJECT(tbl);
+			bt_Table* tbl = bt_make_table(context, BT_GET_B(op));
+			tbl->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(tbl);
 		} NEXT;
 
 		case BT_OP_ARRAY: {
-			bt_Array* arr = bt_make_array(context, op.ibc);
-			arr->items.length = op.ibc;
-			stack[op.a] = BT_VALUE_OBJECT(arr);
+			bt_Array* arr = bt_make_array(context, BT_GET_IBC(op));
+			arr->items.length = BT_GET_IBC(op);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(arr);
 		} NEXT;
 
-		case BT_OP_MOVE: stack[op.a] = stack[op.b]; NEXT;
+		case BT_OP_MOVE: stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
 		case BT_OP_EXPORT: {
-			bt_module_export(context, module, BT_AS_OBJECT(stack[op.c]), stack[op.a], stack[op.b]);
+			bt_module_export(context, module, BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]);
 		} NEXT;
 
 		case BT_OP_CLOSE: {
-			bt_Buffer upvals = bt_buffer_with_capacity(context, sizeof(bt_Value), op.c);
-			obj = BT_AS_OBJECT(stack[op.b]);
-			for (uint8_t i = 0; i < op.c; i++) {
-				bt_buffer_push(context, &upvals, stack + op.b + 1 + i);
+			bt_Buffer upvals = bt_buffer_with_capacity(context, sizeof(bt_Value), BT_GET_C(op));
+			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
+				bt_buffer_push(context, &upvals, stack + BT_GET_B(op) + 1 + i);
 			}
 			bt_Closure* cl = BT_ALLOCATE(context, CLOSURE, bt_Closure);
 			cl->fn = obj;
 			cl->upvals = upvals;
-			stack[op.a] = BT_VALUE_OBJECT(cl);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(cl);
 		} NEXT;
 
-		case BT_OP_LOADUP: BT_ASSUME(upv); stack[op.a] = upv[op.b];  NEXT;
-		case BT_OP_STOREUP: BT_ASSUME(upv); upv[op.a] = stack[op.b]; NEXT;
+		case BT_OP_LOADUP: BT_ASSUME(upv); stack[BT_GET_A(op)] = upv[BT_GET_B(op)];  NEXT;
+		case BT_OP_STOREUP: BT_ASSUME(upv); upv[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
-		case BT_OP_NEG: bt_neg(thread, stack + op.a, stack[op.b]);              NEXT;
-		case BT_OP_ADD: bt_add(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
-		case BT_OP_SUB: bt_sub(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
-		case BT_OP_MUL: bt_mul(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
-		case BT_OP_DIV: bt_div(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+		case BT_OP_NEG: bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)]);              NEXT;
+		case BT_OP_ADD: bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_SUB: bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_MUL: bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_DIV: bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
 
-		case BT_OP_EQ:  bt_eq(thread, stack + op.a, stack[op.b], stack[op.c]);  NEXT;
-		case BT_OP_NEQ: bt_neq(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
-		case BT_OP_LT:  bt_lt(thread, stack + op.a, stack[op.b], stack[op.c]);  NEXT;
-		case BT_OP_LTE: bt_lte(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
+		case BT_OP_EQ:  bt_eq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  NEXT;
+		case BT_OP_NEQ: bt_neq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_LT:  bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  NEXT;
+		case BT_OP_LTE: bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
 
-		case BT_OP_AND: bt_and(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
-		case BT_OP_OR:  bt_or(thread, stack + op.a, stack[op.b], stack[op.c]); NEXT;
-		case BT_OP_NOT: bt_not(thread, stack + op.a, stack[op.b]); NEXT;
+		case BT_OP_AND: bt_and(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_OR:  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_NOT: bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)]); NEXT;
 
-		case BT_OP_LOAD_IDX: stack[op.a] = bt_get(context, BT_AS_OBJECT(stack[op.b]), stack[op.c]); NEXT;
-		case BT_OP_STORE_IDX: bt_set(context, BT_AS_OBJECT(stack[op.a]), stack[op.b], stack[op.c]); NEXT;
+		case BT_OP_LOAD_IDX: stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_STORE_IDX: bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
 
-		case BT_OP_LOAD_IDX_K: stack[op.a] = bt_get(context, BT_AS_OBJECT(stack[op.b]), constants[op.c]); NEXT;
-		case BT_OP_STORE_IDX_K: bt_set(context, BT_AS_OBJECT(stack[op.a]), constants[op.b], stack[op.c]); NEXT;
+		case BT_OP_LOAD_IDX_K: stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
+		case BT_OP_STORE_IDX_K: bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
 
-		case BT_OP_EXPECT:   stack[op.a] = stack[op.b]; if (stack[op.a] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!"); NEXT;
-		case BT_OP_EXISTS:   stack[op.a] = stack[op.b] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
-		case BT_OP_COALESCE: stack[op.a] = stack[op.b] == BT_VALUE_NULL ? stack[op.c] : stack[op.b];   NEXT;
+		case BT_OP_EXPECT:   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!"); NEXT;
+		case BT_OP_EXISTS:   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
+		case BT_OP_COALESCE: stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)];   NEXT;
 
 		case BT_OP_TCHECK: {
-			stack[op.a] = bt_is_type(stack[op.b], BT_AS_OBJECT(stack[op.c])) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
+			stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 		} NEXT;
 
 		case BT_OP_TCAST: {
-			if (bt_is_type(stack[op.b], BT_AS_OBJECT(stack[op.c]))) {
-				stack[op.a] = bt_cast_type(stack[op.b], BT_AS_OBJECT(stack[op.c]));
+			if (bt_is_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
+				stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)]));
 			}
 			else {
-				stack[op.a] = BT_VALUE_NULL;
+				stack[BT_GET_A(op)] = BT_VALUE_NULL;
 			}
 		} NEXT;
 
 		case BT_OP_TALIAS: {
-			bt_Table* tbl = BT_AS_OBJECT(stack[op.b]);
-			tbl->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[op.c]));
-			stack[op.a] = stack[op.b];
+			bt_Table* tbl = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			tbl->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
+			stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
 		} NEXT;
 
 		case BT_OP_COMPOSE: {
-			bt_Table* lhs = BT_AS_OBJECT(stack[op.b]);
-			bt_Table* rhs = BT_AS_OBJECT(stack[op.c]);
+			bt_Table* lhs = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			bt_Table* rhs = BT_AS_OBJECT(stack[BT_GET_C(op)]);
 			bt_Table* result = bt_make_table(context, lhs->pairs.length + rhs->pairs.length);
 			bt_buffer_append(context, &result->pairs, &lhs->pairs);
 			bt_buffer_append(context, &result->pairs, &rhs->pairs);
-			stack[op.a] = BT_VALUE_OBJECT(result);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(result);
 		} NEXT;
 
 		case BT_OP_CALL: {
 			uint16_t old_top = thread->top;
 
-			obj = BT_AS_OBJECT(stack[op.b]);
+			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 
-			thread->top += op.b + 1;
-			thread->callstack[thread->depth].return_loc = op.a - (op.b + 1);
-			thread->callstack[thread->depth].argc = op.c;
+			thread->top += BT_GET_B(op) + 1;
+			thread->callstack[thread->depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
+			thread->callstack[thread->depth].argc = BT_GET_C(op);
 			thread->callstack[thread->depth].callable = obj;
 			thread->callstack[thread->depth].user_top = 0;
 			thread->depth++;
@@ -751,7 +751,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			if (obj->type == BT_OBJECT_TYPE_FN) {
 				bt_Fn* callable = (bt_Fn*)obj;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
-				call(context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
+				call(context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, BT_GET_A(op) - (BT_GET_B(op) + 1));
 			}
 			else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
 				bt_Fn* callable = ((bt_Closure*)obj)->fn;
@@ -759,7 +759,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 				thread->callstack[thread->depth - 1].upvals = ((bt_Closure*)obj)->upvals.data;
 
 				if (callable->obj.type == BT_OBJECT_TYPE_FN) {
-					call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, op.a - (op.b + 1));
+					call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, BT_GET_A(op) - (BT_GET_B(op) + 1));
 				}
 				else if (callable->obj.type == BT_OBJECT_TYPE_NATIVE_FN) {
 					thread->callstack[thread->depth - 1].size = 0;
@@ -783,48 +783,48 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			thread->top = old_top;
 		} NEXT;
 
-		case BT_OP_JMP: ip += op.ibc; NEXT;
-		case BT_OP_JMPF: if (stack[op.a] == BT_VALUE_FALSE) ip += op.ibc; NEXT;
+		case BT_OP_JMP: ip += BT_GET_IBC(op); NEXT;
+		case BT_OP_JMPF: if (stack[BT_GET_A(op)] == BT_VALUE_FALSE) ip += BT_GET_IBC(op); NEXT;
 
-		case BT_OP_RETURN: stack[return_loc] = stack[op.a]; RETURN;
+		case BT_OP_RETURN: stack[return_loc] = stack[BT_GET_A(op)]; RETURN;
 		case BT_OP_END: RETURN;
 
 		case BT_OP_NUMFOR: {
-			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.a]) + BT_AS_NUMBER(stack[op.a + 1]));
-			if (stack[op.a] >= stack[op.a + 2]) ip += op.ibc; 
+			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_A(op)]) + BT_AS_NUMBER(stack[BT_GET_A(op) + 1]));
+			if (stack[BT_GET_A(op)] >= stack[BT_GET_A(op) + 2]) ip += BT_GET_IBC(op); 
 		} NEXT;
 
 		case BT_OP_ITERFOR: {
-			bt_Closure* cl = BT_AS_OBJECT(stack[op.a + 1]);
+			bt_Closure* cl = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			BT_ASSUME(cl);
-			thread->top += op.a + 2;
+			thread->top += BT_GET_A(op) + 2;
 			thread->depth++;
 			thread->callstack[thread->depth - 1].upvals = cl->upvals.data;
 
 			if (cl->fn->obj.type == BT_OBJECT_TYPE_FN) {
-				call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, op.a - thread->top);
+				call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, BT_GET_A(op) - thread->top);
 			}
 			else {
 				((bt_NativeFn*)cl->fn)->fn(context, thread);
 			}
-			thread->top -= op.a + 2;
-			if (stack[op.a] == BT_VALUE_NULL) { ip += op.ibc; }
+			thread->top -= BT_GET_A(op) + 2;
+			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		} NEXT;
 		case BT_OP_ADDF: {
-			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) + BT_AS_NUMBER(stack[op.c]));
+			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) + BT_AS_NUMBER(stack[BT_GET_C(op)]));
 		} NEXT;
 		case BT_OP_SUBF: {
-			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) - BT_AS_NUMBER(stack[op.c]));
+			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) - BT_AS_NUMBER(stack[BT_GET_C(op)]));
 		} NEXT;
 		case BT_OP_MULF: {
-			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) * BT_AS_NUMBER(stack[op.c]));
+			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) * BT_AS_NUMBER(stack[BT_GET_C(op)]));
 		} NEXT;
 		case BT_OP_DIVF: {
-			stack[op.a] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[op.b]) / BT_AS_NUMBER(stack[op.c]));
+			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) / BT_AS_NUMBER(stack[BT_GET_C(op)]));
 		} NEXT;
-		case BT_OP_LTF:  stack[op.a] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[op.b]) < BT_AS_NUMBER(stack[op.c])); NEXT;
+		case BT_OP_LTF:  stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) < BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		case BT_OP_LOAD_SUB_F: {
-			stack[op.a] = bt_array_get(context, BT_AS_OBJECT(stack[op.b]), BT_AS_NUMBER(stack[op.c]));
+			stack[BT_GET_A(op)] = bt_array_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)]));
 		} NEXT;
 		default: BT_ASSUME(0);
 		}
