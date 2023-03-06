@@ -359,7 +359,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 	return mod;
 }
 
-static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);
+static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);
 
 bt_bool bt_execute(bt_Context* context, bt_Module* module)
 {
@@ -379,7 +379,7 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 
 	int32_t result = setjmp(thread.error_loc);
 
-	if(result == 0) call(context, &thread, module, module, module->instructions.data, module->constants.data, 0);
+	if(result == 0) call(context, &thread, module, module->instructions.data, module->constants.data, 0);
 	else {
 		return BT_FALSE;
 	}
@@ -451,12 +451,12 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	if (obj->type == BT_OBJECT_TYPE_FN) {
 		bt_Fn* callable = (bt_Fn*)obj;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
-		call(thread->context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, -1);
+		call(thread->context, thread, callable->module, callable->instructions.data, callable->constants.data, -1);
 	}
 	else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
 		bt_Fn* callable = ((bt_Closure*)obj)->fn;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
-		call(thread->context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, -1);
+		call(thread->context, thread, callable->module, callable->instructions.data, callable->constants.data, -1);
 	}
 	else if (obj->type == BT_OBJECT_TYPE_NATIVE_FN) {
 		bt_NativeFn* callable = (bt_NativeFn*)obj;
@@ -627,7 +627,7 @@ static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value 
 	bt_runtime_error(thread, "Cannot 'or' non-bool value!");
 }
 
-static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
+static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
@@ -750,7 +750,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			if (obj->type == BT_OBJECT_TYPE_FN) {
 				bt_Fn* callable = (bt_Fn*)obj;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
-				call(context, thread, callable, callable->module, callable->instructions.data, callable->constants.data, BT_GET_A(op) - (BT_GET_B(op) + 1));
+				call(context, thread, callable->module, callable->instructions.data, callable->constants.data, BT_GET_A(op) - (BT_GET_B(op) + 1));
 			}
 			else if (obj->type == BT_OBJECT_TYPE_CLOSURE) {
 				bt_Fn* callable = ((bt_Closure*)obj)->fn;
@@ -758,11 +758,11 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 				thread->callstack[thread->depth - 1].upvals = ((bt_Closure*)obj)->upvals.data;
 
 				if (callable->obj.type == BT_OBJECT_TYPE_FN) {
-					call(context, thread, (bt_Closure*)obj, callable->module, callable->instructions.data, callable->constants.data, BT_GET_A(op) - (BT_GET_B(op) + 1));
+					call(context, thread, callable->module, callable->instructions.data, callable->constants.data, BT_GET_A(op) - (BT_GET_B(op) + 1));
 				}
 				else if (callable->obj.type == BT_OBJECT_TYPE_NATIVE_FN) {
 					thread->callstack[thread->depth - 1].size = 0;
-					thread->callstack[thread->depth].user_top = 0;
+					thread->callstack[thread->depth - 1].user_top = 0;
 					bt_NativeFn* as_native = callable;
 					as_native->fn(context, thread);
 				}
@@ -772,7 +772,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			}
 			else if (obj->type == BT_OBJECT_TYPE_NATIVE_FN) {
 				thread->callstack[thread->depth - 1].size = 0;
-				thread->callstack[thread->depth].user_top = 0;
+				thread->callstack[thread->depth - 1].user_top = 0;
 				bt_NativeFn* callable = (bt_NativeFn*)obj;
 				callable->fn(context, thread);
 			}
@@ -799,11 +799,11 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Callable* callable, 
 			bt_Closure* cl = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			BT_ASSUME(cl);
 			thread->top += BT_GET_A(op) + 2;
+			thread->callstack[thread->depth].upvals = cl->upvals.data;
 			thread->depth++;
-			thread->callstack[thread->depth - 1].upvals = cl->upvals.data;
 
 			if (cl->fn->obj.type == BT_OBJECT_TYPE_FN) {
-				call(context, thread, cl, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, BT_GET_A(op) - thread->top);
+				call(context, thread, cl->fn->module, cl->fn->instructions.data, cl->fn->constants.data, BT_GET_A(op) - thread->top);
 			}
 			else {
 				((bt_NativeFn*)cl->fn)->fn(context, thread);
