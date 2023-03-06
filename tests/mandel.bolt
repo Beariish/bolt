@@ -1,23 +1,5 @@
 import * from core
 
-for outer in 15 {
-    let start_time = time()
-
-    for i in 100000 {
-        let ax = 5
-        let ay = 5
-        let bx = 10
-        let b_y = 10   
-        let cx = ax + bx
-        let cy = ay + b_y
-    }
-
-    let end_time = time()
-        
-    let duration_ms = end_time - start_time
-    print("100k num iterations took", duration_ms / 1000, "ms")
-}
-
 fn norm2(re: number, im: number) {
     return re * re - im * (-im)
 }
@@ -70,35 +52,4 @@ for outer in 15 {
 
     let duration_ms = time() - start
     print("Finished in", duration_ms / 1000, "ms", "|", result)
-}
-
-
-for outer in 15 {
-    let start_time = time()
-    
-    let total: number = 0
-    let inner = 10
-    for i in 10000000 {
-        total += inner
-    }
-    
-    let end_time = time()
-    
-    let duration_ms = end_time - start_time
-    print("10m typed iterations took", duration_ms / 1000, "ms", "|", total)
-}
-
-for outer in 15 {
-    let start_time = time()
-    
-    let total: any = 0
-    let inner: any = 10
-    for i in 10000000 {
-        total += inner
-    }
-    
-    let end_time = time()
-    
-    let duration_ms = end_time - start_time
-    print("10m untyped iterations took", duration_ms / 1000, "ms", "|", total)
 }
