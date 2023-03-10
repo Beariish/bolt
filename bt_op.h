@@ -50,6 +50,7 @@ typedef enum {
 	BT_OP_COALESCE,			 // R(a) = R(b) == null ? R(c) : R(b)
 
 	BT_OP_TCHECK,            // R(a) = R(b) is Type(c)
+	BT_OP_TSATIS,            // R(a) = R(b) satisfies Type(c)
 	BT_OP_TCAST,             // R(a) = R(b) as Type(c)
 	BT_OP_TALIAS,            // R(a) = (Type(c))R(b)
 	BT_OP_COMPOSE,           // R(a) = fieldsof(b) + fieldsof(c)

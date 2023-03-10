@@ -202,6 +202,7 @@ static void print_code(bt_Buffer* code)
 		case BT_OP_EXISTS:      printf("[%.3d]: EXISTS %d, %d\n", i, a, b);	        break;
 		case BT_OP_EXPECT:      printf("[%.3d]: EXPECT %d, %d\n", i, a, b);	        break;
 		case BT_OP_TCHECK:      printf("[%.3d]: TCHECK %d, %d, %d\n", i, a, b, c); break;
+		case BT_OP_TSATIS:      printf("[%.3d]: TSATIS %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_TCAST:       printf("[%.3d]: TCAST  %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_TALIAS:      printf("[%.3d]: TALIAS %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_COMPOSE:     printf("[%.3d]: TCMP   %d, %d, %d\n", i, a, b, c); break;

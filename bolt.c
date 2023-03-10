@@ -715,13 +715,12 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 		} NEXT;
 
+		case BT_OP_TSATIS: {
+			stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
+		} NEXT;
+
 		case BT_OP_TCAST: {
-			if (bt_is_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
-				stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)]));
-			}
-			else {
-				stack[BT_GET_A(op)] = BT_VALUE_NULL;
-			}
+			stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)]));
 		} NEXT;
 
 		case BT_OP_TALIAS: {
@@ -830,7 +829,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		case BT_OP_LOAD_SUB_F: {
 			stack[BT_GET_A(op)] = bt_array_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)]));
 		} NEXT;
-		default: BT_ASSUME(0); __debugbreak();
+		default: BT_ASSUME(0);
 		}
 	}
 }

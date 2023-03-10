@@ -112,4 +112,5 @@ bt_Type* bt_make_union(bt_Context* context);
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type);
+bt_bool bt_satisfies_type(bt_Value value, bt_Type* type);
 bt_Value bt_cast_type(bt_Value value, bt_Type* type);

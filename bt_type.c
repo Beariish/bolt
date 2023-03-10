@@ -464,7 +464,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		bt_Table* as_tbl = as_obj;
 
 		while (type) {
-			bt_Buffer* layout = &type->as.table_shape.layout;
+			bt_Buffer* layout = &type->as.table_shape.layout->pairs;
 			for (uint32_t i = 0; i < layout->length; i++) {
 				bt_TablePair* pair = bt_buffer_at(layout, i);
 
@@ -482,6 +482,33 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 	// TODO: Table and array types
 	return BT_FALSE;
+}
+
+bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
+{
+	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		bt_Object* obj = BT_AS_OBJECT(value);
+		if (obj->type != BT_OBJECT_TYPE_TABLE) {
+			return BT_FALSE;
+		}
+
+		bt_Table* src = obj;
+		bt_Buffer* layout = &type->as.table_shape.layout->pairs;
+
+		for (uint32_t i = 0; i < layout->length; ++i) {
+			bt_TablePair* pair = bt_buffer_at(layout, i);
+
+			bt_Value val = bt_table_get(src, pair->key);
+
+			if (val == BT_VALUE_NULL && ((bt_Type*)BT_AS_OBJECT(pair->value))->is_optional == BT_FALSE) {
+				return BT_FALSE;
+			}
+		}
+
+		return BT_TRUE;
+	}
+
+	return bt_is_type(value, type);
 }
 
 bt_Value bt_cast_type(bt_Value value, bt_Type* type)

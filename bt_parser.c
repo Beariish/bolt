@@ -10,8 +10,6 @@
 #include <assert.h>
 #include <memory.h>
 
-#include <stdio.h>
-
 static void parse_block(bt_Buffer* result, bt_Parser* parse);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
@@ -469,6 +467,7 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
     case BT_TOKEN_IS: case BT_TOKEN_INTO:
     case BT_TOKEN_FATARROW: case BT_TOKEN_COMPOSE:
+    case BT_TOKEN_SATISFIES:
         return BT_TRUE;
     default:
         return BT_FALSE;
@@ -520,7 +519,7 @@ return (InfixBindingPower) { 4, 3 };
         return (InfixBindingPower) { 9, 10 };
 
     case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 11, 12 };
-    case BT_TOKEN_IS: case BT_TOKEN_INTO: return (InfixBindingPower) { 13, 14 };
+    case BT_TOKEN_IS: case BT_TOKEN_INTO: case BT_TOKEN_SATISFIES: return (InfixBindingPower) { 13, 14 };
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
     case BT_TOKEN_PERIOD: return (InfixBindingPower) { 19, 20 };
@@ -1335,7 +1334,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         node->as.binary_op.hoistable = BT_TRUE;
                         node->as.binary_op.from = lhs;
                         node->as.binary_op.key = rhs_key;
-                        printf("Attempting to accelerate %.*s!\n", rhs->source.length, rhs->source.source);
                     }
 
                     UPERF_POP();
@@ -1355,7 +1353,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         if (as_idx != -1 && as_idx < UINT8_MAX) {
                             node->as.binary_op.accelerated = BT_TRUE;
                             node->as.binary_op.idx = as_idx;
-                            printf("Accelerated %.*s to %d!\n", rhs->source.length, rhs->source.source, as_idx);
                         }
                     }
 
@@ -1403,6 +1400,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_IS: {
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
                 assert(0 && "Expected right hand of 'is' to be Type!");
+            node->resulting_type = parse->context->types.boolean;
+        } break;
+        case BT_TOKEN_SATISFIES: {
+            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
+                assert(0 && "Expected right hand of 'satisfies' to be Type!");
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_INTO: {

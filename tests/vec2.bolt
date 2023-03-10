@@ -36,6 +36,18 @@ let b = { y: 1, x: 10 } into Vec2!
 let c = a + b
 print(c.x, c.y)
 
+if { y: 1, x: 10 } satisfies Vec2 {
+    print("satisfies!")
+} else {
+    print("does not satisfy!")
+}
+
+if { x: 10 } satisfies Vec2 {
+    print("satisfies!")
+} else {
+    print("does not satisfy!")
+}
+
 for outer in 15 {
     let start_time = time()
     

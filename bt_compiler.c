@@ -716,6 +716,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_IS:
             emit_abc(ctx, BT_OP_TCHECK, result_loc, lhs_loc, rhs_loc);
             break;
+        case BT_TOKEN_SATISFIES:
+            emit_abc(ctx, BT_OP_TSATIS, result_loc, lhs_loc, rhs_loc);
+            break;
         case BT_TOKEN_INTO:
             if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_TALIAS, result_loc, lhs_loc, rhs_loc);
             else emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc);
