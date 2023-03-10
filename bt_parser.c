@@ -613,6 +613,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
     bt_Token* token = bt_tokenizer_emit(tok);
     bt_Context* ctx = tok->context;
     bt_bool is_sealed = BT_TRUE;
+    bt_bool is_final = BT_FALSE;
 
     switch (token->type) {
     case BT_TOKEN_NULL_LITERAL: {
@@ -703,12 +704,18 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         UPERF_POP();
         return bt_make_signature(ctx, return_type, args, arg_top);
     } break;
+    case BT_TOKEN_FINAL: 
+        is_final = BT_TRUE;
+        if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
+            assert(0 && "Expected opening brace to follow keyword 'final'");
+        }
+        goto parse_table;
     case BT_TOKEN_UNSEALED:
         is_sealed = BT_FALSE;
         if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
             assert(0 && "Expected opening brace to follow keyword 'unsealed'");
         }
-    case BT_TOKEN_LEFTBRACE: {
+    case BT_TOKEN_LEFTBRACE: parse_table: {
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_RIGHTBRACE) {
             bt_tokenizer_emit(tok);
@@ -717,6 +724,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         }
 
         bt_Type* result = bt_make_tableshape(ctx, "<tableshape>", is_sealed);
+        result->as.table_shape.final = is_final;
         while (token && token->type != BT_TOKEN_RIGHTBRACE) {
             token = bt_tokenizer_emit(tok);
             if (token->type != BT_TOKEN_IDENTIFIER) {
@@ -1121,6 +1129,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             lhs_node = make_node(parse, BT_AST_NODE_BINARY_OP);
             lhs_node->source = op;
             lhs_node->as.binary_op.accelerated = BT_FALSE;
+            lhs_node->as.binary_op.hoistable = BT_FALSE;
             lhs_node->as.binary_op.left = lhs;
             lhs_node->as.binary_op.right = rhs;
             type_check(parse, lhs_node);
@@ -1321,6 +1330,14 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 if (proto_entry != BT_VALUE_NULL) {
                     bt_Type* entry = BT_AS_OBJECT(proto_entry);
                     node->resulting_type = entry;
+
+                    if (lhs->as.table_shape.final) {
+                        node->as.binary_op.hoistable = BT_TRUE;
+                        node->as.binary_op.from = lhs;
+                        node->as.binary_op.key = rhs_key;
+                        printf("Attempting to accelerate %.*s!\n", rhs->source.length, rhs->source.source);
+                    }
+
                     UPERF_POP();
                     return node;
                 }
@@ -1417,7 +1434,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     bt_bool found = BT_FALSE;
 
                     for (uint32_t j = 0; j < rhs->length; j++) {
-                        bt_TablePair* inner = bt_buffer_at(rhs, i);
+                        bt_TablePair* inner = bt_buffer_at(rhs, j);
                         if (bt_value_is_equal(inner->key, current->key)) {
                             found = BT_TRUE;
                             bt_Type* left = BT_AS_OBJECT(current->value);
@@ -1425,10 +1442,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                             if (!right->satisfier(right, left)) {
                                 assert(0 && "Type of field failed to satisfy!");
                             }
+
+                            if (i != j) node->as.binary_op.accelerated = 0;
                         }
                     }
-
-                    if (!found) node->as.binary_op.accelerated = 0;
 
                     if (!found && from->as.table_shape.sealed) {
                         assert(0 && "Failed to find field in tablehape!");
@@ -1484,65 +1501,24 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 type_check(parse, node->as.binary_op.right)->resulting_type) assert(0);
             node->resulting_type = parse->context->types.boolean;
         } break;
-        case BT_TOKEN_PLUS: case BT_TOKEN_PLUSEQ: {
-            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
-            bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
-
-            if (lhs == parse->context->types.number || lhs == parse->context->types.any || lhs == parse->context->types.string) {
-                if (!lhs->satisfier(lhs, rhs)) {
-                    assert(0 && "Cannot add rhs to lhs!");
-                }
-                node->resulting_type = lhs;
-            }
-            else {
-                if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                    bt_Value add_mf = bt_table_get(lhs->prototype_types, BT_VALUE_OBJECT(parse->context->meta_names.add));
-                    if (add_mf == BT_VALUE_NULL) assert(0 && "Failed to find @add metamethod in tableshape!");
-                    bt_Type* add = BT_AS_OBJECT(add_mf);
-
-                    if (add->category != BT_TYPE_CATEGORY_SIGNATURE) {
-                        assert(0 && "Expected metamethod to be function!");
-                    }
-
-                    if (add->as.fn.args.length != 2 || add->as.fn.is_vararg) {
-                        assert(0 && "Expected metamethod to take exactly 2 arguments!");
-                    }
-
-                    bt_Type* arg_lhs = *(bt_Type**)bt_buffer_at(&add->as.fn.args, 0);
-                    bt_Type* arg_rhs = *(bt_Type**)bt_buffer_at(&add->as.fn.args, 1);
-
-                    if (!arg_lhs->satisfier(arg_lhs, lhs) || !arg_rhs->satisfier(arg_rhs, rhs)) {
-                        assert(0 && "Invalid arguments for @add!");
-                    }
-
-                    node->resulting_type = add->as.fn.return_type;
-                }
-                else {
-                    assert(0 && "Lhs is not an addable type!");
-                }
-            }
-
-            if (node->resulting_type == parse->context->types.number) {
-                node->as.binary_op.accelerated = BT_TRUE;
-            } break;
-        } break;
-
 #define XSTR(x) #x
 #define TYPE_ARITH(tok1, tok2, metaname)                                                                                           \
         case tok1: case tok2: {                                                                                                    \
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;                                             \
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;                                            \
                                                                                                                                    \
-            if (lhs == parse->context->types.number || lhs == parse->context->types.any) {                                         \
+            if (lhs == parse->context->types.number || lhs == parse->context->types.any || (lhs == parse->context->types.string && \
+                ((tok1) == BT_TOKEN_PLUS && (tok2) == BT_TOKEN_PLUSEQ))) {                                                         \
                 if (!lhs->satisfier(lhs, rhs)) {                                                                                   \
-                    assert(0 && "Cannot " XSTR(metaname) " rhs to lhs!");                                                            \
+                    assert(0 && "Cannot " XSTR(metaname) " rhs to lhs!");                                                          \
                 }                                                                                                                  \
                 node->resulting_type = lhs;                                                                                        \
             }                                                                                                                      \
             else {                                                                                                                 \
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
-                    bt_Value sub_mf = bt_table_get(lhs->prototype_values, BT_VALUE_OBJECT(parse->context->meta_names.metaname));\
-                    if (sub_mf == BT_VALUE_NULL) assert(0 && "Failed to find @" XSTR(metaname) " metamethod in tableshape!");                     \
+                    bt_Value mf_key = BT_VALUE_OBJECT(parse->context->meta_names.metaname);                                        \
+                    bt_Value sub_mf = bt_table_get(lhs->prototype_types, mf_key);                                                 \
+                    if (sub_mf == BT_VALUE_NULL) assert(0 && "Failed to find @" XSTR(metaname) " metamethod in tableshape!");      \
                     bt_Type* sub = BT_AS_OBJECT(sub_mf);                                                                           \
                                                                                                                                    \
                     if (sub->category != BT_TYPE_CATEGORY_SIGNATURE) {                                                             \
@@ -1557,13 +1533,18 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     bt_Type* arg_rhs = *(bt_Type**)bt_buffer_at(&sub->as.fn.args, 1);                                              \
                                                                                                                                    \
                     if (!arg_lhs->satisfier(arg_lhs, lhs) || !arg_rhs->satisfier(arg_rhs, rhs)) {                                  \
-                        assert(0 && "Invalid arguments for @" XSTR(metaname) "!");                                                                \
+                        assert(0 && "Invalid arguments for @" XSTR(metaname) "!");                                                 \
                     }                                                                                                              \
                                                                                                                                    \
                     node->resulting_type = sub->as.fn.return_type;                                                                 \
+                    if(lhs->as.table_shape.final) {                                                                                \
+                        node->as.binary_op.hoistable = BT_TRUE;                                                                    \
+                        node->as.binary_op.from = lhs;                                                                             \
+                        node->as.binary_op.key = mf_key;                                                                           \
+                    }                                                                                                              \
                 }                                                                                                                  \
                 else {                                                                                                             \
-                    assert(0 && "Lhs is not an " XSTR(metaname) "able type!");                                                                    \
+                    assert(0 && "Lhs is not an " XSTR(metaname) "able type!");                                                     \
                 }                                                                                                                  \
             }                                                                                                                      \
                                                                                                                                    \
@@ -1571,6 +1552,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 node->as.binary_op.accelerated = BT_TRUE;                                                                          \
             } break;                                                                                                               \
         } break;
+        TYPE_ARITH(BT_TOKEN_PLUS, BT_TOKEN_PLUSEQ, add);
         TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub);
         TYPE_ARITH(BT_TOKEN_MUL, BT_TOKEN_MULEQ, mul);
         TYPE_ARITH(BT_TOKEN_DIV, BT_TOKEN_DIVEQ, div);

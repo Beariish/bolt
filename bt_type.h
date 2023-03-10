@@ -30,7 +30,8 @@ typedef struct bt_Type {
 		struct {
 			bt_Table* layout;
 			bt_Type* parent;
-			bt_bool sealed;
+			bt_bool sealed : 1;
+			bt_bool final : 1;
 		} table_shape;
 
 		struct {

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 
 #include "bt_intrinsics.h"
 #include "bt_context.h"
@@ -632,7 +633,15 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         }
 
         if (expr->source->type == BT_TOKEN_PERIOD) {
-            if (expr->as.binary_op.accelerated) {
+            if (expr->as.binary_op.hoistable) {
+                bt_StrSlice name = { expr->as.binary_op.from->name, strlen(expr->as.binary_op.from->name) };
+                compile_type(ctx->compiler, ctx, name, expr->as.binary_op.from);
+                bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);
+                uint8_t idx = push(ctx, hoisted);
+                emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+                goto try_store;
+            }
+            else if (expr->as.binary_op.accelerated) {
                 emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx);
                 goto try_store;
             }
@@ -646,25 +655,53 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
+#define HOISTABLE_OP \
+        else if (expr->as.binary_op.hoistable) {                                                                 \
+            bt_StrSlice name = { expr->as.binary_op.from->name, strlen(expr->as.binary_op.from->name) };         \
+            compile_type(ctx->compiler, ctx, name, expr->as.binary_op.from);                                     \
+            bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);  \
+            uint8_t idx = push(ctx, hoisted);                                                                    \
+                                                                                                                 \
+            if (lhs_loc != result_loc + 1 || rhs_loc != result_loc + 2) {                                        \
+                push_registers(ctx);                                                                             \
+                                                                                                                 \
+                uint8_t fn_loc = get_registers(ctx, 3);                                                          \
+                emit_ab(ctx, BT_OP_LOAD, fn_loc, idx);                                                           \
+                emit_ab(ctx, BT_OP_MOVE, fn_loc + 1, lhs_loc);                                                   \
+                emit_ab(ctx, BT_OP_MOVE, fn_loc + 2, rhs_loc);                                                   \
+                emit_abc(ctx, BT_OP_CALL, result_loc, fn_loc, 2);                                                \
+                                                                                                                 \
+                restore_registers(ctx);                                                                          \
+            }                                                                                                    \
+            else {                                                                                               \
+                emit_ab(ctx, BT_OP_LOAD, result_loc, idx);                                                       \
+                emit_abc(ctx, BT_OP_CALL, result_loc, result_loc, 2);                                            \
+            }                                                                                                    \
+        }                                                                                                        
+
         switch (expr->source->type) {
         case BT_TOKEN_PLUS:
         case BT_TOKEN_PLUSEQ:
-            if(expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_ADDF, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_ADDF, result_loc, lhs_loc, rhs_loc);
+            HOISTABLE_OP
             else emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_MINUS:
         case BT_TOKEN_MINUSEQ:
             if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_SUBF, result_loc, lhs_loc, rhs_loc);
+            HOISTABLE_OP
             else emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_MUL:
         case BT_TOKEN_MULEQ:
             if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_MULF, result_loc, lhs_loc, rhs_loc);
+            HOISTABLE_OP
             else emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_DIV:
         case BT_TOKEN_DIVEQ:
             if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_DIVF, result_loc, lhs_loc, rhs_loc);
+            HOISTABLE_OP
             else emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_AND:
@@ -1110,24 +1147,14 @@ static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrS
 
         push_registers(parent);
 
-        uint8_t type_loc = get_register(parent);
-        uint8_t type_idx = find_named(parent, name);
-        emit_ab(parent, BT_OP_LOAD, type_loc, type_idx);
-
-        uint8_t idx_loc = get_register(parent);
-        uint8_t val_loc = get_register(parent);
-
         for (uint32_t i = 0; i < to_compile->length; ++i) {
             bt_TablePair* pair = bt_buffer_at(to_compile, i);
 
             bt_String* name = BT_AS_OBJECT(pair->key);
-            uint8_t name_idx = push(parent, BT_VALUE_OBJECT(name));
-            emit_ab(parent, BT_OP_LOAD, idx_loc, name_idx);
-
             bt_AstNode* fn = BT_AS_OBJECT(pair->value);
-            compile_expression(parent, fn, val_loc);
-
-            emit_abc(parent, BT_OP_STORE_IDX, type_loc, idx_loc, val_loc);
+            bt_Fn* as_fn = compile_fn(compiler, parent, fn);
+            
+            pair->value = BT_VALUE_OBJECT(as_fn);
         }
 
         restore_registers(parent);

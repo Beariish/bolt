@@ -1,6 +1,6 @@
 import * from core
 
-type Vec2 = {
+type Vec2 = final {
     x: number,
     y: number
 }
@@ -31,6 +31,11 @@ method Vec2.distance(other: Vec2) {
     return sqrt(sx * sx + sy * sy)
 }
 
+let a = Vec2.new(1, 10)
+let b = { y: 1, x: 10 } into Vec2!
+let c = a + b
+print(c.x, c.y)
+
 for outer in 15 {
     let start_time = time()
     
@@ -44,6 +49,21 @@ for outer in 15 {
     
     let duration_ms = end_time - start_time
     print("100k vec2 iterations took", duration_ms / 1000, "ms")
+}
+
+for outer in 15 {
+    let start_time = time()
+    
+    let a = Vec2.new(5, 5)
+    let b = Vec2.new(10, 10)   
+    for i in 100000 {
+        let c = a + b
+    }
+
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("100k vec2 operators took", duration_ms / 1000, "ms")
 }
 
 
@@ -61,3 +81,5 @@ for outer in 15 {
     let duration_ms = end_time - start_time
     print("1m vec2 methods took", duration_ms / 1000, "ms")
 }
+
+

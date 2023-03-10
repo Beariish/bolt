@@ -14,6 +14,7 @@ typedef enum {
 	BT_AST_NODE_ARRAY,
 	BT_AST_NODE_TABLE,
 	BT_AST_NODE_TABLE_ENTRY,
+	BT_AST_NODE_HOIST,
 
 	BT_AST_NODE_FUNCTION,
 	BT_AST_NODE_METHOD,
@@ -50,6 +51,10 @@ typedef struct bt_AstNode {
 
 			uint8_t idx;
 			bt_bool accelerated;
+
+			bt_Type* from;
+			bt_Value key;
+			bt_bool hoistable;
 		} binary_op;
 
 		struct {
