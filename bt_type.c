@@ -486,6 +486,37 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 {
-	// TODO: Actual dynamic casting
-	return value;
+	if (type == type->ctx->types.string) {
+		return BT_VALUE_OBJECT(bt_to_string(type->ctx, value));
+	}
+
+	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		bt_Object* obj = BT_AS_OBJECT(value);
+		if (obj->type != BT_OBJECT_TYPE_TABLE) {
+			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!");
+		}
+
+		bt_Table* src = obj;
+		bt_Buffer* layout = &type->as.table_shape.layout->pairs;
+		
+		bt_Table* dst = bt_make_table(type->ctx, layout->length);
+
+		for (uint32_t i = 0; i < layout->length; ++i) {
+			bt_TablePair* pair = bt_buffer_at(layout, i);
+
+			bt_Value val = bt_table_get(src, pair->key);
+
+			if (val == BT_VALUE_NULL && ((bt_Type*)BT_AS_OBJECT(pair->value))->is_optional == BT_FALSE) {
+				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!");
+			}
+
+			bt_table_set(type->ctx, dst, pair->key, val);
+		}
+
+		dst->prototype = bt_type_get_proto(type->ctx, type);
+		return BT_VALUE_OBJECT(dst);
+	}
+
+	bt_runtime_error(type->ctx->current_thread, "Cannot cast into type!");
+	return BT_VALUE_NULL;
 }
