@@ -632,7 +632,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         }
 
         if (expr->source->type == BT_TOKEN_PERIOD) {
-            if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+            if (expr->as.binary_op.accelerated) {
+                emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx);
+                goto try_store;
+            }
+            else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
                 emit_abc(ctx, BT_OP_LOAD_IDX_K, result_loc, lhs_loc, idx);
@@ -722,7 +726,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             push_registers(ctx);
             uint8_t tbl_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.left);
 
-            if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
+            if (expr->as.binary_op.accelerated) {
+                emit_abc(ctx, BT_OP_STORE_IDX_F, tbl_loc, expr->as.binary_op.idx, result_loc);
+                goto stored_fast;
+            }
+            else if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
                 lhs->as.binary_op.right->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 bt_Token* source = lhs->as.binary_op.right->source;
                 uint8_t idx = push(ctx,

@@ -47,6 +47,8 @@ typedef struct bt_AstNode {
 		struct {
 			bt_AstNode* left;
 			bt_AstNode* right;
+
+			uint8_t idx;
 			bt_bool accelerated;
 		} binary_op;
 

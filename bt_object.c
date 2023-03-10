@@ -197,6 +197,16 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
     return bt_table_get(tbl, str);
 }
 
+int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
+{
+    for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
+        bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
+        if (bt_value_is_equal(pair->key, key)) {
+            return i;
+        }
+    }
+}
+
 bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity)
 {
     bt_Array* arr = BT_ALLOCATE(ctx, ARRAY, bt_Array);

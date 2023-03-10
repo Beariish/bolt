@@ -10,6 +10,8 @@
 #include <assert.h>
 #include <memory.h>
 
+#include <stdio.h>
+
 static void parse_block(bt_Buffer* result, bt_Parser* parse);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
@@ -1330,6 +1332,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 if (table_entry != BT_VALUE_NULL) {
                     bt_Type* type = BT_AS_OBJECT(table_entry);
                     node->resulting_type = type;
+
+                    if (lhs->as.table_shape.sealed) {
+                        int16_t as_idx = bt_table_get_idx(layout, rhs_key);
+                        if (as_idx != -1 && as_idx < UINT8_MAX) {
+                            node->as.binary_op.accelerated = BT_TRUE;
+                            node->as.binary_op.idx = as_idx;
+                            printf("Accelerated %.*s to %d!\n", rhs->source.length, rhs->source.source, as_idx);
+                        }
+                    }
+
                     UPERF_POP();
                     return node;
                 }

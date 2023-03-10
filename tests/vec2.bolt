@@ -30,8 +30,8 @@ method Vec2.distance(other: Vec2) {
     let sy = this.y + other.y
     return sqrt(sx * sx + sy * sy)
 }
-/*
-for outer in 10 {
+
+for outer in 15 {
     let start_time = time()
     
     for i in 100000 {
@@ -45,9 +45,9 @@ for outer in 10 {
     let duration_ms = end_time - start_time
     print("100k vec2 iterations took", duration_ms / 1000, "ms")
 }
-*/
 
-for outer in 40 {
+
+for outer in 15 {
     let start_time = time()
     
     let a = Vec2.new(5, 5)
