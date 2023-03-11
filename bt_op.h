@@ -93,7 +93,7 @@ typedef enum {
 	BT_OP_STORE_SUB_F,
 } bt_OpCode;
 
-#ifdef BT_MASK_OP
+#ifdef BOLT_BITMASK_OP
 typedef uint32_t bt_Op;
 
 #define BT_MAKE_OP_ABC(op, a, b, c) \
