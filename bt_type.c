@@ -443,17 +443,17 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (!BT_IS_OBJECT_FAST(value)) return BT_FALSE;
 	bt_Object* as_obj = BT_AS_OBJECT(value);
 
-	if (type == type->ctx->types.string && as_obj->type == BT_OBJECT_TYPE_STRING) return BT_TRUE;
+	if (type == type->ctx->types.string && BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_STRING) return BT_TRUE;
 
 	switch (type->category) {
 	case BT_TYPE_CATEGORY_TYPE:
-		return as_obj->type == BT_OBJECT_TYPE_TYPE;
+		return BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
-		if (as_obj->type == BT_OBJECT_TYPE_FN) {
+		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_FN) {
 			bt_Fn* as_fn = as_obj;
 			return type->satisfier(type, as_fn->signature);
 		}
-		else if (as_obj->type == BT_OBJECT_TYPE_CLOSURE) {
+		else if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) {
 			bt_Closure* cl = as_obj;
 			return type->satisfier(type, cl->fn->signature);
 		}
@@ -488,7 +488,7 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 {
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
 		bt_Object* obj = BT_AS_OBJECT(value);
-		if (obj->type != BT_OBJECT_TYPE_TABLE) {
+		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
 			return BT_FALSE;
 		}
 
@@ -519,7 +519,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
 		bt_Object* obj = BT_AS_OBJECT(value);
-		if (obj->type != BT_OBJECT_TYPE_TABLE) {
+		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
 			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!");
 		}
 

@@ -22,9 +22,9 @@ bt_GC bt_make_gc(bt_Context* ctx)
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
-	if (!obj || obj->mark) return;
+	if (!obj || BT_OBJECT_GET_MARK(obj)) return;
 
-	obj->mark = 1;
+	BT_OBJECT_MARK(obj);
 
 	if (gc->grey_count == gc->grey_cap) {
 		gc->grey_cap *= 2;
@@ -41,7 +41,7 @@ void bt_grey_obj(bt_Context* ctx, bt_Object* obj)
 
 static void blacken(bt_GC* gc, bt_Object* obj)
 {
-	switch (obj->type) {
+	switch (BT_OBJECT_GET_TYPE(obj)) {
 	case BT_OBJECT_TYPE_NONE: break; // Reserved for root object
 	case BT_OBJECT_TYPE_TYPE: {
 		bt_Type* as_type = obj;
@@ -211,7 +211,8 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 
 	uint32_t n_collected = 0;
 
-	bt_Object** current = &ctx->root;
+	bt_Object* prev = ctx->root;
+	bt_Object* current = BT_OBJECT_NEXT(prev);
 
 	bt_Thread gc_thread = { 0 };
 	gc_thread.context = ctx;
@@ -220,15 +221,18 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	bt_Thread* old_thr = ctx->current_thread;
 	ctx->current_thread = &gc_thread;
 
-	while (*current) {
-		if ((*current)->mark) {
-			(*current)->mark = 0;
-			current = &((bt_Object*)((*current)->next));
+	while (current) {
+		if (BT_OBJECT_GET_MARK(current)) {
+			BT_OBJECT_CLEAR(current);
+
+			prev = current;
+			current = BT_OBJECT_NEXT(current);
 		}
 		else {
-			bt_Object* to_free = *current;
+			bt_Object* to_free = current;
 				
-			*current = (*current)->next;
+			current = BT_OBJECT_NEXT(current);
+			BT_OBJECT_SET_NEXT(prev, current);
 			bt_free(ctx, to_free);
 
 			n_collected++;

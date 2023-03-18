@@ -22,14 +22,39 @@ typedef enum {
 	BT_OBJECT_TYPE_USERDATA
 } bt_ObjectType;
 
-#define BT_OBJECT_NEXT(__obj) ((bt_Object*)__obj->next)
-#define BT_OBJECT_SET_NEXT(__obj, __next) (__obj->next = (uint64_t)__next)
+#ifdef BOLT_USE_MASKED_GC_HEADER
+typedef struct bt_Object {
+	uint64_t mask;
+} bt_Object;
 
+#define BT_OBJ_PTR_BITS 0b0000000000000000111111111111111111111111111111111111111111111100ull
+
+#define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->mask &= (BT_OBJ_PTR_BITS | 1ull); ((bt_Object*)(__obj))->mask |= (uint64_t)__type << 56ull;
+#define BT_OBJECT_GET_TYPE(__obj) ((((bt_Object*)(__obj))->mask) >> 56)
+
+#define BT_OBJECT_NEXT(__obj) (((bt_Object*)(__obj))->mask & BT_OBJ_PTR_BITS)
+#define BT_OBJECT_SET_NEXT(__obj, __next) (__obj)->mask = ((__obj)->mask & ~BT_OBJ_PTR_BITS) | ((uint64_t)__next)
+
+#define BT_OBJECT_GET_MARK(__obj) (__obj)->mask & 1ull
+#define BT_OBJECT_MARK(__obj) (__obj)->mask |= 1ull
+#define BT_OBJECT_CLEAR(__obj) (__obj)->mask &= ~1ull
+#else
 typedef struct bt_Object {
 	struct bt_Object* next;
-	uint64_t mark : 1;
 	uint64_t type : 5;
+	uint64_t mark : 1;
 } bt_Object;
+
+#define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->type = __type
+#define BT_OBJECT_GET_TYPE(__obj) ((bt_Object*)(__obj))->type
+
+#define BT_OBJECT_NEXT(__obj) ((bt_Object*)(__obj)->next)
+#define BT_OBJECT_SET_NEXT(__obj, __next) (__obj)->next = __next
+
+#define BT_OBJECT_GET_MARK(__obj) ((bt_Object*)(__obj)->mark)
+#define BT_OBJECT_MARK(__obj) (__obj)->mark = 1
+#define BT_OBJECT_CLEAR(__obj) (__obj)->mark = 0
+#endif
 
 typedef struct bt_Table {
 	bt_Object obj;
@@ -57,9 +82,9 @@ typedef struct bt_Module {
 
 typedef struct bt_String {
 	bt_Object obj;
-	uint32_t len;
 	char* str;
 	uint64_t hash;
+	uint32_t len;
 } bt_String;
 
 typedef struct bt_TablePair {

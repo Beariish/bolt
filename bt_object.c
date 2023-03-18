@@ -21,7 +21,7 @@ static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
 {
-    if (BT_IS_OBJECT(value) && BT_AS_OBJECT(value)->type == BT_OBJECT_TYPE_STRING) return BT_AS_OBJECT(value);
+    if (BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING) return BT_AS_OBJECT(value);
 
     char buffer[4096];
     int32_t len = bt_to_string_inplace(ctx, buffer, 4096, value);
@@ -44,7 +44,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
         case BT_TYPE_NULL: len = sprintf_s(buffer, size, "null"); break;
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
-            switch (obj->type) {
+            switch (BT_OBJECT_GET_TYPE(obj)) {
             case BT_OBJECT_TYPE_STRING: {
                 bt_String* str = BT_AS_OBJECT(value);
                 len = str->len;
@@ -316,7 +316,7 @@ void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Valu
 
 bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
 {
-    switch (obj->type) {
+    switch (BT_OBJECT_GET_TYPE(obj)) {
     case BT_OBJECT_TYPE_TABLE:
         return bt_table_get(obj, key);
     case BT_OBJECT_TYPE_TYPE: {
@@ -367,7 +367,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
 
 void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
 {
-    switch (obj->type) {
+    switch (BT_OBJECT_GET_TYPE(obj)) {
     case BT_OBJECT_TYPE_TABLE:
         bt_table_set(ctx, obj, key, value);
         break;
