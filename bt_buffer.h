@@ -2,34 +2,55 @@
 
 #include "bt_prelude.h"
 
-typedef struct {
-	void* data;
-
-	uint32_t length, capacity, element_size;
-} bt_Buffer;
-
-bt_Buffer bt_buffer_with_capacity(bt_Context* context, uint32_t element_size, uint32_t capacity);
-bt_Buffer bt_buffer_new(bt_Context* context, uint32_t element_size);
-
-void bt_buffer_destroy(bt_Context* context, bt_Buffer* buffer);
-
-bt_Buffer bt_buffer_empty();
-bt_Buffer bt_buffer_clone(bt_Context* context, bt_Buffer* buffer);
-bt_Buffer bt_buffer_move(bt_Buffer* buffer);
-void bt_buffer_reserve(bt_Context* ctx, bt_Buffer* buffer, size_t cap);
-
-#define BT_BUFFER_NEW(context, type) bt_buffer_new(context, sizeof(type))
-#define BT_BUFFER_WITH_CAPACITY(context, type, capacity) bt_buffer_with_capacity(context, sizeof(type), capacity)
-
-bt_bool bt_buffer_push(bt_Context* context, bt_Buffer* buffer, void* elem);
-bt_bool bt_buffer_pop(bt_Buffer* buffer, void* output);
-void bt_buffer_append(bt_Context* context, bt_Buffer* dst, bt_Buffer* src);
-
-static BT_FORCE_INLINE void* bt_buffer_at(bt_Buffer* buffer, uint32_t index)
-{
-	return (void*)((char*)buffer->data + (index * (size_t)buffer->element_size));
+#define bt_Buffer(T) struct {  \
+	T* elements;			   \
+	uint32_t length, capacity; \
 }
 
-void* bt_buffer_last(bt_Buffer* buffer);
+#define bt_buffer_unpack(b) \
+	(char**)&(b)->elements, &(b)->length, &(b)->capacity, sizeof(*(b)->elements)
 
-uint32_t bt_buffer_size(bt_Buffer* buffer);
+#define bt_buffer_empty(b) \
+	{ (b)->elements = (b)->length = (b)->capacity = 0; }
+
+#define bt_buffer_with_capacity(b, ctx, cap) \
+	{ bt_buffer_empty(b); bt_buffer_reserve(ctx, bt_buffer_unpack(b), cap); }
+
+#define bt_buffer_destroy(ctx, b) \
+	{ bt_buffer_free(ctx, bt_buffer_unpack(b)); }
+
+#define bt_buffer_clone(ctx, dst, src) \
+	{ bt_buffer_clone_(ctx, bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
+
+#define bt_buffer_push(ctx, b, elem) \
+	{ bt_buffer_expand(ctx, bt_buffer_unpack(b), 1); \
+		(b)->elements[(b)->length++] = elem; }
+
+#define bt_buffer_append(ctx, dst, src) \
+	{ bt_buffer_append_(ctx, bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
+
+#define bt_buffer_pop(b) \
+	(b)->elements[--(b)->length]
+
+#define bt_buffer_last(b) \
+	(b)->elements[(b)->length - 1]
+
+#define bt_buffer_size(b) \
+	(sizeof(*(b)->elements) * (b)->capacity)
+
+#define bt_buffer_move(dst, src) \
+	{ bt_buffer_move_(bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
+
+
+void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap);
+void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t by);
+void bt_buffer_free(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size);
+
+void bt_buffer_clone_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1, 
+									 char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2);
+
+void bt_buffer_append_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1, 
+									 char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2);
+
+void bt_buffer_move_(char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1,
+					 char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2);

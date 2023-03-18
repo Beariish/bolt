@@ -143,7 +143,7 @@ bt_StrSlice bt_as_strslice(bt_String* str)
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 {
     bt_Table* table = BT_ALLOCATE(ctx, TABLE, bt_Table);
-    table->pairs = BT_BUFFER_WITH_CAPACITY(ctx, bt_TablePair, initial_size);
+    bt_buffer_with_capacity(&table->pairs, ctx, initial_size);
     table->prototype = NULL;
 
     return table;
@@ -151,10 +151,8 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
-    //if (bt_value_is_equal(key, BT_VALUE_OBJECT(ctx->meta_names.add))) __debugbreak();
-
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
+        bt_TablePair* pair = tbl->pairs.elements + i;
         if (bt_value_is_equal(pair->key, key)) {
             pair->value = value;
             return BT_TRUE;
@@ -164,7 +162,7 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
     bt_TablePair newpair;
     newpair.key = key;
     newpair.value = value;
-    bt_buffer_push(ctx, &tbl->pairs, &newpair);
+    bt_buffer_push(ctx, &tbl->pairs, newpair);
 
     return BT_FALSE;
 }
@@ -178,7 +176,7 @@ bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Va
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
+        bt_TablePair* pair = tbl->pairs.elements + i;
         if (bt_value_is_equal(pair->key, key)) {
             return pair->value;
         }
@@ -200,7 +198,7 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
 int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
 {
     for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
+        bt_TablePair* pair = tbl->pairs.elements + i;
         if (bt_value_is_equal(pair->key, key)) {
             return i;
         }
@@ -210,22 +208,20 @@ int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
 bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity)
 {
     bt_Array* arr = BT_ALLOCATE(ctx, ARRAY, bt_Array);
-    arr->items = bt_buffer_new(ctx, sizeof(bt_Value));
-    bt_buffer_reserve(ctx, &arr->items, initial_capacity);
+    bt_buffer_with_capacity(&arr->items, ctx, initial_capacity);
 
     return arr;
 }
 
 uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value)
 {
-    bt_buffer_push(ctx, &arr->items, &value);
+    bt_buffer_push(ctx, &arr->items, value);
     return arr->items.length;
 }
 
 bt_Value bt_array_pop(bt_Array* arr)
 {
-    bt_Value result;
-    bt_buffer_pop(&arr->items, &result);
+    bt_Value result = bt_buffer_pop(&arr->items);
     return result;
 }
 
@@ -237,18 +233,17 @@ uint64_t bt_array_length(bt_Array* arr)
 bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value)
 {
     if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!");
-    bt_Value* ref = bt_buffer_at(&arr->items, index);
-    *ref = value;
+    arr->items.elements[index] = value;
     return BT_TRUE;
 }
 
 bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index)
 {
     if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!");
-    return *(bt_Value*)bt_buffer_at(&arr->items, index);
+    return arr->items.elements[index];
 }
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size)
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
     
@@ -257,17 +252,17 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buf
 
     result->module = module;
 
-    result->constants = bt_buffer_clone(ctx, constants);
-    result->instructions = bt_buffer_clone(ctx, instructions);
+    bt_buffer_clone(ctx, &result->constants, constants);
+    bt_buffer_clone(ctx, &result->instructions, instructions);
 
     return result;
 }
 
-bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports)
+bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
 {
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
 
-    result->imports = bt_buffer_clone(ctx, imports);
+    bt_buffer_clone(ctx, &result->imports, imports);
     result->exports = bt_make_table(ctx, 0);
     result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
 
@@ -279,10 +274,10 @@ bt_Module* bt_make_user_module(bt_Context* ctx)
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
     
     result->stack_size = 0;
-    result->imports = bt_buffer_empty();
-    result->instructions = bt_buffer_empty();
-    result->constants = bt_buffer_empty();
-    result->exports = bt_make_table(ctx, 0);
+    bt_buffer_empty(&result->imports);
+    bt_buffer_empty(&result->instructions);
+    bt_buffer_empty(&result->constants);
+    result->exports = bt_make_table(ctx, 1);
     result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
 
     return result;
@@ -337,17 +332,17 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         bt_Userdata* userdata = obj;
         bt_Type* type = userdata->type;
         
-        bt_Buffer* fields = &type->as.userdata.fields;
+        bt_FieldBuffer* fields = &type->as.userdata.fields;
         for (uint32_t i = 0; i < fields->length; i++) {
-            bt_UserdataField* field = bt_buffer_at(fields, i);
+            bt_UserdataField* field = fields->elements + i;
             if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), key)) {
                 return field->getter(ctx, userdata->data, field->offset);
             }
         }
 
-        bt_Buffer* methods = &type->as.userdata.functions;
+        bt_MethodBuffer* methods = &type->as.userdata.functions;
         for (uint32_t i = 0; i < methods->length; i++) {
-            bt_UserdataMethod* method = bt_buffer_at(methods, i);
+            bt_UserdataMethod* method = methods->elements + i;
             if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), key)) {
                 return BT_VALUE_OBJECT(method->fn);
             }
@@ -382,9 +377,9 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
         bt_Userdata* userdata = obj;
         bt_Type* type = userdata->type;
 
-        bt_Buffer* fields = &type->as.userdata.fields;
+        bt_FieldBuffer* fields = &type->as.userdata.fields;
         for (uint32_t i = 0; i < fields->length; i++) {
-            bt_UserdataField* field = bt_buffer_at(fields, i);
+            bt_UserdataField* field = fields->elements + i;
             if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), key)) {
                 field->setter(ctx, userdata->data, field->offset, value);
                 return;

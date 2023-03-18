@@ -59,7 +59,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			grey(gc, as_type->as.fn.return_type);
 			grey(gc, as_type->as.fn.varargs_type);
 			for (uint32_t i = 0; i < as_type->as.fn.args.length; ++i) {
-				bt_Type* arg = *(bt_Type**)bt_buffer_at(&as_type->as.fn.args, i);
+				bt_Type* arg = as_type->as.fn.args.elements[i];
 				grey(gc, arg);
 			}
 		} break;
@@ -71,24 +71,24 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			grey(gc, as_type->as.type.boxed);
 		} break;
 		case BT_TYPE_CATEGORY_USERDATA: {
-			bt_Buffer* fields = &as_type->as.userdata.fields;
+			bt_FieldBuffer* fields = &as_type->as.userdata.fields;
 			for (uint32_t i = 0; i < fields->length; i++) {
-				bt_UserdataField* field = bt_buffer_at(fields, i);
+				bt_UserdataField* field = fields->elements + i;
 				grey(gc, field->bolt_type);
 				grey(gc, field->name);
 			}
 
-			bt_Buffer* methods = &as_type->as.userdata.functions;
+			bt_MethodBuffer* methods = &as_type->as.userdata.functions;
 			for (uint32_t i = 0; i < methods->length; i++) {
-				bt_UserdataMethod* method = bt_buffer_at(methods, i);
+				bt_UserdataMethod* method = methods->elements + i;
 				grey(gc, method->name);
 				grey(gc, method->fn);
 			}
 		} break;
 		case BT_TYPE_CATEGORY_UNION: {
-			bt_Buffer* entries = &as_type->as.selector.types;
+			bt_TypeBuffer* entries = &as_type->as.selector.types;
 			for (uint32_t i = 0; i < entries->length; ++i) {
-				bt_Type* type = *(bt_Type**)bt_buffer_at(entries, i);
+				bt_Type* type = entries->elements[i];
 				grey(gc, type);
 			}
 		} break;
@@ -100,12 +100,12 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		grey(gc, mod->exports);
 
 		for (uint32_t i = 0; i < mod->imports.length; ++i) {
-			bt_Object* import = *(bt_Object**)bt_buffer_at(&mod->imports, i);
+			bt_Object* import = mod->imports.elements[i];
 			grey(gc, import);
 		}
 
 		for (uint32_t i = 0; i < mod->constants.length; ++i) {
-			bt_Constant* constant = bt_buffer_at(&mod->constants, i);
+			bt_Constant* constant = mod->constants.elements + i;
 			if (BT_IS_OBJECT(constant->value)) {
 				grey(gc, BT_AS_OBJECT(constant->value));
 			}
@@ -122,7 +122,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		grey(gc, fn->module);
 		grey(gc, fn->signature);
 		for (uint32_t i = 0; i < fn->constants.length; ++i) {
-			bt_Constant* constant = bt_buffer_at(&fn->constants, i);
+			bt_Constant* constant = fn->constants.elements + i;
 			if (BT_IS_OBJECT(constant->value)) {
 				grey(gc, BT_AS_OBJECT(constant->value));
 			}
@@ -132,7 +132,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_Closure* cl = obj;
 		grey(gc, cl->fn);
 		for (uint32_t i = 0; i < cl->upvals.length; ++i) {
-			bt_Value upval = bt_buffer_at(&cl->upvals, i);
+			bt_Value upval = cl->upvals.elements[i];
 			if (BT_IS_OBJECT(upval)) grey(gc, BT_AS_OBJECT(upval));
 		};
 	} break;
@@ -144,7 +144,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_Table* tbl = obj;
 		grey(gc, tbl->prototype);
 		for (uint32_t i = 0; i < tbl->pairs.length; i++) {
-			bt_TablePair* pair = bt_buffer_at(&tbl->pairs, i);
+			bt_TablePair* pair = tbl->pairs.elements + i;
 			if (BT_IS_OBJECT(pair->key))   grey(gc, BT_AS_OBJECT(pair->key));
 			if (BT_IS_OBJECT(pair->value)) grey(gc, BT_AS_OBJECT(pair->value));
 		}

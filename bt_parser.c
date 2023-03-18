@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <memory.h>
 
-static void parse_block(bt_Buffer* result, bt_Parser* parse);
+static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
@@ -55,7 +55,7 @@ static void push_scope(bt_Parser* parser, bt_bool is_fn_boundary)
 
     parser->scope = new_scope;
 
-    new_scope->bindings = BT_BUFFER_NEW(parser->context, bt_ParseBinding);
+    bt_buffer_empty(&new_scope->bindings);
 
     UPERF_POP();
 }
@@ -98,13 +98,13 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
 
     bt_ParseScope* topmost = parse->scope;
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
-        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&topmost->bindings, i);
+        bt_ParseBinding* binding = topmost->bindings.elements + i;
         if (bt_strslice_compare(binding->name, new_binding.name)) {
             //assert(0); // Binding redifinition
         }
     }
 
-    bt_buffer_push(parse->context, &topmost->bindings, &new_binding);
+    bt_buffer_push(parse->context, &topmost->bindings, new_binding);
     UPERF_POP();
 }
 
@@ -119,13 +119,13 @@ static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
 
     bt_ParseScope* topmost = parse->scope;
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
-        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&topmost->bindings, i);
+        bt_ParseBinding* binding = topmost->bindings.elements + i;
         if (bt_strslice_compare(binding->name, new_binding.name)) {
             assert(0); // Binding redifinition
         }
     }
 
-    bt_buffer_push(parse->context, &topmost->bindings, &new_binding);
+    bt_buffer_push(parse->context, &topmost->bindings, new_binding);
     UPERF_POP();
 }
 
@@ -137,7 +137,7 @@ static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
 
     while (current) {
         for (uint32_t i = 0; i < current->bindings.length; ++i) {
-            bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&current->bindings, i);
+            bt_ParseBinding* binding = current->bindings.elements + i;
             if (bt_strslice_compare(binding->name, identifier->source->source)) {
                 return binding;
             }
@@ -155,7 +155,7 @@ static bt_ParseBinding* find_local_fast(bt_Parser* parse, bt_StrSlice identifier
 
     while (current) {
         for (uint32_t i = 0; i < current->bindings.length; ++i) {
-            bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&current->bindings, i);
+            bt_ParseBinding* binding = current->bindings.elements + i;
             if (bt_strslice_compare(binding->name, identifier)) {
                 return binding;
             }
@@ -169,9 +169,9 @@ static bt_ParseBinding* find_local_fast(bt_Parser* parse, bt_StrSlice identifier
 
 static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
 {
-    bt_Buffer* imports = &parser->root->as.module.imports;
+    bt_ImportBuffer* imports = &parser->root->as.module.imports;
     for (uint32_t i = 0; i < imports->length; ++i) {
-        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(imports, i);
+        bt_ModuleImport* import = imports->elements[i];
         if (bt_strslice_compare(bt_as_strslice(import->name), identifier->source->source)) {
             identifier->type = BT_AST_NODE_IMPORT_REFERENCE;
             return import;
@@ -181,12 +181,12 @@ static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
     // Import not found, _should_ we import from prelude?
     bt_Table* prelude = parser->context->prelude;
     for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
+        bt_ModuleImport* entry = BT_AS_OBJECT(prelude->pairs.elements[i].value);
 
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier->source->source)) {
-            bt_buffer_push(parser->context, imports, &entry);
+            bt_buffer_push(parser->context, imports, entry);
             identifier->type = BT_AST_NODE_IMPORT_REFERENCE;
-            return *(bt_ModuleImport**)bt_buffer_last(imports);
+            return bt_buffer_last(imports);
         }
 
     }
@@ -196,9 +196,9 @@ static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
 
 static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifier)
 {
-    bt_Buffer* imports = &parser->root->as.module.imports;
+    bt_ImportBuffer* imports = &parser->root->as.module.imports;
     for (uint32_t i = 0; i < imports->length; ++i) {
-        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(imports, i);
+        bt_ModuleImport* import = imports->elements[i];
         if (bt_strslice_compare(bt_as_strslice(import->name), identifier)) {
             return import;
         }
@@ -207,11 +207,11 @@ static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifi
     // Import not found, _should_ we import from prelude?
     bt_Table* prelude = parser->context->prelude;
     for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT(((bt_TablePair*)bt_buffer_at(&prelude->pairs, i))->value);
+        bt_ModuleImport* entry = BT_AS_OBJECT(prelude->pairs.elements[i].value);
 
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier)) {
-            bt_buffer_push(parser->context, imports, &entry);
-            return *(bt_ModuleImport**)bt_buffer_last(imports);
+            bt_buffer_push(parser->context, imports, entry);
+            return bt_buffer_last(imports);
         }
 
     }
@@ -292,7 +292,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_TABLE);
     result->source = token;
-    result->as.table.fields = BT_BUFFER_NEW(parse->context, bt_AstNode*);
+    bt_buffer_empty(&result->as.table.fields);
     result->as.table.typed = type ? BT_TRUE : BT_FALSE;
     result->resulting_type = type ? type : bt_make_tableshape(ctx, "<anonymous>", BT_TRUE);
 
@@ -343,7 +343,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             token = bt_tokenizer_peek(parse->tokenizer);
         }
 
-        bt_buffer_push(ctx, &result->as.table.fields, &field);
+        bt_buffer_push(ctx, &result->as.table.fields, field);
     }
 
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_RIGHTBRACE);
@@ -359,7 +359,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
 {
     bt_AstNode* result = make_node(parse, BT_AST_NODE_ARRAY);
-    result->as.arr.items = bt_buffer_new(parse->context, sizeof(bt_AstNode*));
+    bt_buffer_empty(&result->as.arr.items);
     result->as.arr.inner_type = 0;
     result->source = source;
 
@@ -368,7 +368,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
     bt_Token* next = bt_tokenizer_peek(tok);
     while (next && next->type != BT_TOKEN_RIGHTBRACKET) {
         bt_AstNode* expr = pratt_parse(parse, 0);
-        bt_buffer_push(parse->context, &result->as.arr.items, &expr);
+        bt_buffer_push(parse->context, &result->as.arr.items, expr);
 
         bt_Type* item_type = type_check(parse, expr)->resulting_type;
         if (result->as.arr.inner_type) {
@@ -638,16 +638,16 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             bt_Type* lhs = result;
             result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
 
-            bt_Buffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
-            bt_Buffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
 
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
-                bt_TablePair* field = bt_buffer_at(lhs_fields, i);
+                bt_TablePair* field = lhs_fields->elements + i;
                 bt_tableshape_add_layout(parse->context, result, field->key, BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
-                bt_TablePair* field = bt_buffer_at(rhs_fields, i);
+                bt_TablePair* field = rhs_fields->elements + i;
                 if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     assert(0 && "Both lhs and rhs have a feild with name %s!");
                     break;
@@ -784,11 +784,11 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
     return NULL;
 }
 
-static bt_Type* infer_return(bt_Context* ctx, bt_Buffer* body, bt_Type* expected)
+static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_Type* expected)
 {
     UPERF_EVENT("infer_return");
     for (uint32_t i = 0; i < body->length; ++i) {
-        bt_AstNode* expr = *(bt_AstNode**)bt_buffer_at(body, i);
+        bt_AstNode* expr = body->elements[i];
         if (!expr) continue;
 
         if (expr->type == BT_AST_NODE_RETURN) {
@@ -830,11 +830,11 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     bt_Tokenizer* tok = parse->tokenizer;
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_FUNCTION);
-    result->as.fn.args = BT_BUFFER_NEW(parse->context, bt_FnArg);
-    result->as.fn.body = BT_BUFFER_WITH_CAPACITY(parse->context, bt_AstNode*, 8);
+    bt_buffer_empty(&result->as.fn.args);
+    bt_buffer_with_capacity(&result->as.fn.body, parse->context, 8);
     result->as.fn.ret_type = NULL;
     result->as.fn.outer = parse->current_fn;
-    result->as.fn.upvals = bt_buffer_empty();
+    bt_buffer_empty(&result->as.fn.upvals);
 
     parse->current_fn = result;
 
@@ -870,7 +870,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
             }
 
 
-            bt_buffer_push(parse->context, &result->as.fn.args, &this_arg);
+            bt_buffer_push(parse->context, &result->as.fn.args, this_arg);
 
             next = bt_tokenizer_emit(tok);
         } while (next && next->type == BT_TOKEN_COMMA);
@@ -893,7 +893,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         push_scope(parse, BT_TRUE);
 
         for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
-            push_arg(parse, (bt_FnArg*)bt_buffer_at(&result->as.fn.args, i));
+            push_arg(parse, result->as.fn.args.elements + i);
         }
 
         parse_block(&result->as.fn.body, parse);
@@ -914,7 +914,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     bt_Type* args[16];
 
     for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
-        args[i] = ((bt_FnArg*)bt_buffer_at(&result->as.fn.args, i))->type;
+        args[i] = result->as.fn.args.elements[i].type;
     }
 
     result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
@@ -925,7 +925,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     return result;
 }
 
-static void parse_block(bt_Buffer* result, bt_Parser* parse)
+static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse)
 {
     UPERF_EVENT("parse_block");
     push_scope(parse, BT_FALSE);
@@ -935,7 +935,7 @@ static void parse_block(bt_Buffer* result, bt_Parser* parse)
     while (next->type != BT_TOKEN_RIGHTBRACE)
     {
         bt_AstNode* expression = parse_statement(parse);
-        bt_buffer_push(parse->context, result, &expression);
+        bt_buffer_push(parse->context, result, expression);
         next = bt_tokenizer_peek(parse->tokenizer);
     }
 
@@ -1012,8 +1012,8 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 if (to_call->as.fn.is_method) {
                     if (lhs_node->type == BT_AST_NODE_BINARY_OP && lhs_node->source->type == BT_TOKEN_PERIOD) {
                         if (!to_call->is_polymorphic) {
-                            bt_Buffer* args_ref = &to_call->as.fn.args;
-                            bt_Type* first_arg = *(bt_Type**)bt_buffer_at(args_ref, 0);
+                            bt_TypeBuffer* args_ref = &to_call->as.fn.args;
+                            bt_Type* first_arg = args_ref->elements[0];
 
                             bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
                             if (first_arg->satisfier(first_arg, lhs_type)) {
@@ -1062,18 +1062,18 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
                 bt_AstNode* call = make_node(parse, BT_AST_NODE_CALL);
                 call->as.call.fn = lhs_node;
-                call->as.call.args = BT_BUFFER_WITH_CAPACITY(parse->context, bt_AstNode*, max_arg);
+                bt_buffer_with_capacity(&call->as.call.args, parse->context, max_arg);
                 
                 for (uint8_t i = 0; i < max_arg; i++) {
                     bt_Type* arg_type = type_check(parse, args[i])->resulting_type;
                     
                     if (i < to_call->as.fn.args.length) {
-                        bt_Type* fn_type = *(bt_Type**)bt_buffer_at(&to_call->as.fn.args, i);
+                        bt_Type* fn_type = to_call->as.fn.args.elements[i];
                         if (!fn_type->satisfier(fn_type, arg_type)) {
                             assert(0 && "Invalid argument type!");
                         }
                         else {
-                            bt_buffer_push(parse->context, &call->as.call.args, &args[i]);
+                            bt_buffer_push(parse->context, &call->as.call.args, args[i]);
                         }
                     }
                     else {
@@ -1081,7 +1081,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                             assert(0 && "Arg doesn't match typed vararg");
                         }
                         else {
-                            bt_buffer_push(parse->context, &call->as.call.args, &args[i]);
+                            bt_buffer_push(parse->context, &call->as.call.args, args[i]);
                         }
                     }
                 }
@@ -1144,18 +1144,14 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
 static void push_upval(bt_Parser* parse, bt_AstNode* fn, bt_ParseBinding* upval)
 {
-    if (fn->as.fn.upvals.element_size == 0) {
-        fn->as.fn.upvals = BT_BUFFER_NEW(parse->context, bt_ParseBinding);
-    }
-
     for (uint32_t i = 0; i < fn->as.fn.upvals.length; ++i) {
-        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&fn->as.fn.upvals, i);
+        bt_ParseBinding* binding = fn->as.fn.upvals.elements + i;
         if (bt_strslice_compare(binding->name, upval->name)) {
             return;
         }
     }
 
-    bt_buffer_push(parse->context, &fn->as.fn.upvals, upval);
+    bt_buffer_push(parse->context, &fn->as.fn.upvals, *upval);
 }
 
 static bt_ParseBinding* find_upval(bt_Parser* parse, bt_AstNode* ident)
@@ -1165,7 +1161,7 @@ static bt_ParseBinding* find_upval(bt_Parser* parse, bt_AstNode* ident)
     if (!fn) return NULL;
 
     for (uint32_t i = 0; i < fn->as.fn.upvals.length; ++i) {
-        bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&fn->as.fn.upvals, i);
+        bt_ParseBinding* binding = fn->as.fn.upvals.elements + i;
         if (bt_strslice_compare(binding->name, ident->source->source)) {
             return binding;
         }
@@ -1191,7 +1187,7 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
 
     while (scope) {
         for (uint32_t i = 0; i < scope->bindings.length; ++i) {
-            bt_ParseBinding* binding = (bt_ParseBinding*)bt_buffer_at(&scope->bindings, i);
+            bt_ParseBinding* binding = scope->bindings.elements + i;
             if (bt_strslice_compare(binding->name, ident->source->source)) {
                 for (uint8_t j = 0; j < fns_top - 1; ++j) {
                     push_upval(parse, fns[j], binding);
@@ -1369,10 +1365,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return node;
             }
             else if (lhs->category == BT_TYPE_CATEGORY_USERDATA) {
-                bt_Buffer* fields = &lhs->as.userdata.fields;
+                bt_FieldBuffer* fields = &lhs->as.userdata.fields;
 
                 for (uint32_t i = 0; i < fields->length; i++) {
-                    bt_UserdataField* field = bt_buffer_at(fields, i);
+                    bt_UserdataField* field = fields->elements + i;
                     if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), rhs_key)) {
                         node->resulting_type = field->bolt_type;
                         UPERF_POP();
@@ -1380,10 +1376,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     }
                 }
 
-                bt_Buffer* methods = &lhs->as.userdata.functions;
+                bt_MethodBuffer* methods = &lhs->as.userdata.functions;
 
                 for (uint32_t i = 0; i < methods->length; i++) {
-                    bt_UserdataMethod* method = bt_buffer_at(methods, i);
+                    bt_UserdataMethod* method = methods->elements + i;
                     if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), rhs_key)) {
                         node->resulting_type = method->fn->type;
                         UPERF_POP();
@@ -1428,15 +1424,15 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
                 node->as.binary_op.accelerated = 1;
 
-                bt_Buffer* lhs = &from->as.table_shape.layout->pairs;
-                bt_Buffer* rhs = &to->as.table_shape.layout->pairs;
+                bt_TablePairBuffer* lhs = &from->as.table_shape.layout->pairs;
+                bt_TablePairBuffer* rhs = &to->as.table_shape.layout->pairs;
                 
                 for (uint32_t i = 0; i < lhs->length; ++i) {
-                    bt_TablePair* current = bt_buffer_at(lhs, i);
+                    bt_TablePair* current = lhs->elements + i;
                     bt_bool found = BT_FALSE;
 
                     for (uint32_t j = 0; j < rhs->length; j++) {
-                        bt_TablePair* inner = bt_buffer_at(rhs, j);
+                        bt_TablePair* inner = rhs->elements + j;
                         if (bt_value_is_equal(inner->key, current->key)) {
                             found = BT_TRUE;
                             bt_Type* left = BT_AS_OBJECT(current->value);
@@ -1469,18 +1465,18 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 assert(0 && "Operator compose '&' requires operands to be sealed types.");
             }
 
-            bt_Buffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
-            bt_Buffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
 
             bt_Type* resulting_type = bt_make_tableshape(parse->context, "", BT_TRUE);
 
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
-                bt_TablePair* field = bt_buffer_at(lhs_fields, i);
+                bt_TablePair* field = lhs_fields->elements + i;
                 bt_tableshape_add_layout(parse->context, resulting_type, field->key, BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
-                bt_TablePair* field = bt_buffer_at(rhs_fields, i);
+                bt_TablePair* field = rhs_fields->elements + i;
                 if (bt_table_get(resulting_type->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     assert(0 && "Both lhs and rhs have a feild with name %s!");
                     break;
@@ -1531,8 +1527,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         assert(0 && "Expected metamethod to take exactly 2 arguments!");                                           \
                     }                                                                                                              \
                                                                                                                                    \
-                    bt_Type* arg_lhs = *(bt_Type**)bt_buffer_at(&sub->as.fn.args, 0);                                              \
-                    bt_Type* arg_rhs = *(bt_Type**)bt_buffer_at(&sub->as.fn.args, 1);                                              \
+                    bt_Type* arg_lhs = sub->as.fn.args.elements[0];                                              \
+                    bt_Type* arg_rhs = sub->as.fn.args.elements[1];                                              \
                                                                                                                                    \
                     if (!arg_lhs->satisfier(arg_lhs, lhs) || !arg_rhs->satisfier(arg_rhs, rhs)) {                                  \
                         assert(0 && "Invalid arguments for @" XSTR(metaname) "!");                                                 \
@@ -1706,7 +1702,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         bt_Table* values = mod_to_import->exports;
 
         for (uint32_t i = 0; i < values->pairs.length; ++i) {
-            bt_TablePair* item = bt_buffer_at(&values->pairs, i);
+            bt_TablePair* item = values->pairs.elements + i;
             bt_Value type_val = bt_table_get(types, item->key);
 
             if (type_val == BT_VALUE_NULL) assert(0 && "Couldn't find import in module type!");
@@ -1716,7 +1712,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             import->type = BT_AS_OBJECT(type_val);
             import->value = item->value;
 
-            bt_buffer_push(parse->context, &parse->root->as.module.imports, &import);
+            bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
         UPERF_POP();
@@ -1729,8 +1725,9 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
     bt_Token* peek = bt_tokenizer_peek(tok);
     if (peek->type == BT_TOKEN_COMMA || peek->type == BT_TOKEN_FROM) {
-       bt_Buffer items = bt_buffer_new(parse->context, sizeof(bt_StrSlice));
-       bt_buffer_push(parse->context, &items, &name_or_first_item->source);
+       bt_Buffer(bt_StrSlice) items;
+       bt_buffer_with_capacity(&items, parse->context, 1);
+       bt_buffer_push(parse->context, &items, name_or_first_item->source);
     
        while (peek->type == BT_TOKEN_COMMA) {
            bt_tokenizer_emit(tok);
@@ -1738,7 +1735,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
            if (peek->type == BT_TOKEN_IDENTIFIER) {
                bt_tokenizer_emit(tok);
-               bt_buffer_push(parse->context, &items, &peek->source);
+               bt_buffer_push(parse->context, &items, peek->source);
                peek = bt_tokenizer_peek(tok);
            }
        }
@@ -1766,7 +1763,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
        bt_Table* values = mod_to_import->exports;
 
        for (uint32_t i = 0; i < items.length; ++i) {
-           bt_StrSlice* item = bt_buffer_at(&items, i);
+           bt_StrSlice* item = items.elements + i;
 
            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
            import->name = bt_make_string_hashed_len(parse->context, item->source, item->length);
@@ -1784,7 +1781,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
            import->type = BT_AS_OBJECT(type_val);
            import->value = value;
 
-           bt_buffer_push(parse->context, &parse->root->as.module.imports, &import);
+           bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
        }
 
        bt_buffer_destroy(parse->context, &items);
@@ -1814,7 +1811,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     import->type = mod_to_import->type;
     import->value = BT_VALUE_OBJECT(mod_to_import->exports);
 
-    bt_buffer_push(parse->context, &parse->root->as.module.imports, &import);
+    bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
 
     UPERF_POP();
     return NULL;
@@ -1873,7 +1870,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
     
         bt_StrSlice this_str = { "this", 4 };
         if (fn->as.fn.args.length) {
-            bt_FnArg* arg = bt_buffer_at(&fn->as.fn.args, 0);
+            bt_FnArg* arg = fn->as.fn.args.elements;
             if (bt_strslice_compare(arg->name, this_str) && arg->type->satisfier(arg->type, type)) {
                 fn->type = BT_AST_NODE_METHOD;
                 fn->resulting_type->as.fn.is_method = BT_TRUE;
@@ -1913,7 +1910,8 @@ static bt_AstNode* parse_if(bt_Parser* parser)
 
     bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
 
-    bt_Buffer body = BT_BUFFER_NEW(parser->context, bt_AstNode*);
+    bt_AstBuffer body;
+    bt_buffer_with_capacity(&body, parser->context, 8);
     parse_block(&body, parser);
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_IF);
@@ -1937,7 +1935,8 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             else_node->as.branch.condition = NULL;
             else_node->as.branch.next = NULL;
 
-            bt_Buffer body = BT_BUFFER_NEW(parser->context, bt_AstNode*);
+            bt_AstBuffer body;
+            bt_buffer_with_capacity(&body, parser->context, 8);
             
             bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
             parse_block(&body, parser);
@@ -2003,7 +2002,8 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         identifier->resulting_type = parse->context->types.number;
         result->as.loop_numeric.identifier = identifier;
 
-        bt_Buffer body = BT_BUFFER_NEW(parse->context, bt_AstNode*);
+        bt_AstBuffer body;
+        bt_buffer_with_capacity(&body, parse->context, 8);
 
         push_scope(parse, BT_FALSE);
 
@@ -2034,7 +2034,8 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     bt_Type* it_type = generated_type->as.nullable.base;
     identifier->resulting_type = it_type;
 
-    bt_Buffer body = BT_BUFFER_NEW(parse->context, bt_AstNode*);
+    bt_AstBuffer body;
+    bt_buffer_with_capacity(&body, parse->context, 8);
 
     push_scope(parse, BT_FALSE);
 
@@ -2105,18 +2106,19 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     }
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_METHOD);
-    result->as.method.args = BT_BUFFER_NEW(parse->context, bt_FnArg);
-    result->as.method.body = BT_BUFFER_WITH_CAPACITY(parse->context, bt_AstNode*, 8);
+    
+    bt_buffer_empty(&result->as.method.args);
+    bt_buffer_with_capacity(&result->as.method.body, parse->context, 8);
     result->as.method.ret_type = NULL;
     result->as.method.outer = parse->current_fn;
-    result->as.method.upvals = bt_buffer_empty();
+    bt_buffer_empty(&result->as.method.upvals);
 
     parse->current_fn = result;
 
     bt_FnArg this_arg;
     this_arg.name = (bt_StrSlice) { "this", 4 };
     this_arg.type = type;
-    bt_buffer_push(parse->context, &result->as.method.args, &this_arg);
+    bt_buffer_push(parse->context, &result->as.method.args, this_arg);
 
     bt_Token* next = bt_tokenizer_peek(tok);
 
@@ -2150,7 +2152,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
             }
 
 
-            bt_buffer_push(parse->context, &result->as.method.args, &this_arg);
+            bt_buffer_push(parse->context, &result->as.method.args, this_arg);
 
             next = bt_tokenizer_emit(tok);
         } while (next && next->type == BT_TOKEN_COMMA);
@@ -2173,7 +2175,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         push_scope(parse, BT_TRUE);
 
         for (uint8_t i = 0; i < result->as.method.args.length; i++) {
-            push_arg(parse, (bt_FnArg*)bt_buffer_at(&result->as.method.args, i));
+            push_arg(parse, result->as.method.args.elements + i);
         }
 
         parse_block(&result->as.method.body, parse);
@@ -2194,7 +2196,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     bt_Type* args[16];
 
     for (uint8_t i = 0; i < result->as.method.args.length; ++i) {
-        args[i] = ((bt_FnArg*)bt_buffer_at(&result->as.method.args, i))->type;
+        args[i] = result->as.method.args.elements[i].type;
     }
 
     result->resulting_type = bt_make_method(parse->context, result->as.method.ret_type, args, result->as.method.args.length);
@@ -2262,8 +2264,8 @@ bt_bool bt_parse(bt_Parser* parser)
 {
     parser->root = (bt_AstNode*)parser->context->alloc(sizeof(bt_AstNode));
     parser->root->type = BT_AST_NODE_MODULE;
-    parser->root->as.module.body = bt_buffer_new(parser->context, sizeof(bt_AstNode*));
-    parser->root->as.module.imports = bt_buffer_new(parser->context, sizeof(bt_ModuleImport*));
+    bt_buffer_empty(&parser->root->as.module.body);
+    bt_buffer_empty(&parser->root->as.module.imports);
     parser->current_fn = NULL;
 
     push_scope(parser, BT_FALSE);
@@ -2272,7 +2274,7 @@ bt_bool bt_parse(bt_Parser* parser)
     {
         bt_AstNode* expression = parse_statement(parser);
         if (expression) {
-            bt_buffer_push(parser->context, &parser->root->as.module.body, &expression);
+            bt_buffer_push(parser->context, &parser->root->as.module.body, expression);
         }
     }
 
