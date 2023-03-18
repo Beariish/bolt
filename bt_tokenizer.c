@@ -32,18 +32,19 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 	tok.context = context;
 	tok.source = tok.current = tok.last_consumed = 0;
 	tok.line = tok.col = 0;
-	tok.tokens = BT_BUFFER_WITH_CAPACITY(context, bt_Token*, 32);
-	tok.literals = BT_BUFFER_WITH_CAPACITY(context, bt_Literal, 4);
+
+	bt_buffer_with_capacity(&tok.tokens, context, 32);
+	bt_buffer_with_capacity(&tok.literals, context, 4);
 	
 	bt_Literal lit = {
 		BT_TOKEN_NUMBER_LITERAL
 	};
-	lit.as_num = 0;
 
-	bt_buffer_push(context, &tok.literals, &lit);
+	lit.as_num = 0;
+	bt_buffer_push(context, &tok.literals, lit);
 
 	lit.as_num = 1;
-	bt_buffer_push(context, &tok.literals, &lit);
+	bt_buffer_push(context, &tok.literals, lit);
 	
 	tok.literal_zero = make_token(context, (bt_StrSlice) { "0", 1 }, 0, 0, 0, BT_TOKEN_NUMBER_LITERAL);
 	tok.literal_one  = make_token(context, (bt_StrSlice) { "1", 1 }, 0, 0, 1, BT_TOKEN_NUMBER_LITERAL);
@@ -58,7 +59,7 @@ void bt_close_tokenizer(bt_Tokenizer* tok)
 
 	for (uint32_t i = 0; i < tok->tokens.length; i++)
 	{
-		tok->context->free(*(bt_Token**)bt_buffer_at(&tok->tokens, i));
+		tok->context->free(tok->tokens.elements[i]);
 	}
 
 	bt_buffer_destroy(tok->context, &tok->tokens);
@@ -80,7 +81,7 @@ bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok)
 {
 	if (tok->last_consumed < tok->tokens.length)
 	{
-		return *(bt_Token**)bt_buffer_at(&tok->tokens, tok->last_consumed++);
+		return tok->tokens.elements[tok->last_consumed++];
 	}
 
 eat_whitespace:
@@ -126,9 +127,9 @@ eat_whitespace:
 			token_type										  \
 		);													  \
 		tok->current++; tok->col++;							  \
-		bt_buffer_push(tok->context, &tok->tokens, &token);	  \
-		tok->last_consumed = tok->tokens.length;          \
-		return *(bt_Token**)bt_buffer_last(&tok->tokens);	  \
+		bt_buffer_push(tok->context, &tok->tokens, token);	  \
+		tok->last_consumed = tok->tokens.length;              \
+		return bt_buffer_last(&tok->tokens);	              \
 	}
 
 #define BT_COMPOSITE_TOKEN(character, once, second, twice)        \
@@ -146,9 +147,9 @@ eat_whitespace:
 			type										          \
 		);													      \
 		tok->current += len; tok->col += len;					  \
-		bt_buffer_push(tok->context, &tok->tokens, &token);		  \
+		bt_buffer_push(tok->context, &tok->tokens, token);		  \
 		tok->last_consumed = tok->tokens.length;			      \
-		return *(bt_Token**)bt_buffer_last(&tok->tokens);		  \
+		return bt_buffer_last(&tok->tokens);		              \
 	}
 
 #define BT_COMPOSITE_TOKEN_3(character, once, second, twice, third, thrice) \
@@ -170,9 +171,9 @@ eat_whitespace:
 			type										          \
 		);													      \
 		tok->current += len; tok->col += len;					  \
-		bt_buffer_push(tok->context, &tok->tokens, &token);		  \
+		bt_buffer_push(tok->context, &tok->tokens, token);		  \
 		tok->last_consumed = tok->tokens.length;			      \
-		return *(bt_Token**)bt_buffer_last(&tok->tokens);		  \
+		return bt_buffer_last(&tok->tokens);		              \
 	}
 
 #define BT_DOUBLEABLE_TOKEN(character, once, twice)               \
@@ -253,9 +254,9 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("typeof", token, BT_TOKEN_TYPEOF)
 
 		tok->current += length; tok->col += length;
-		bt_buffer_push(tok->context, &tok->tokens, &token);
+		bt_buffer_push(tok->context, &tok->tokens, token);
 		tok->last_consumed = tok->tokens.length;
-		return *(bt_Token**)bt_buffer_last(&tok->tokens);					  
+		return bt_buffer_last(&tok->tokens);					  
 	}
 
 	if (isdigit(*tok->current)) {
@@ -269,7 +270,7 @@ eat_whitespace:
 			};
 			lit.as_num = num;
 
-			bt_buffer_push(tok->context, &tok->literals, &lit);
+			bt_buffer_push(tok->context, &tok->literals, lit);
 
 			bt_Token* token = make_token(
 				tok->context,
@@ -280,9 +281,9 @@ eat_whitespace:
 
 			tok->current += length; tok->col += length;
 		
-			bt_buffer_push(tok->context, &tok->tokens, &token);
+			bt_buffer_push(tok->context, &tok->tokens, token);
 			tok->last_consumed = tok->tokens.length;
-			return *(bt_Token**)bt_buffer_last(&tok->tokens);
+			return bt_buffer_last(&tok->tokens);
 		}
 	}
 
@@ -314,7 +315,7 @@ eat_whitespace:
 		bt_Literal lit = { BT_TOKEN_STRING_LITERAL };
 		lit.as_str = (bt_StrSlice) { start, length };
 
-		bt_buffer_push(tok->context, &tok->literals, &lit);
+		bt_buffer_push(tok->context, &tok->literals, lit);
 		bt_Token* token = make_token(
 			tok->context,
 			(bt_StrSlice) { start - 1, length + 2 },
@@ -322,9 +323,9 @@ eat_whitespace:
 			BT_TOKEN_STRING_LITERAL
 		);
 
-		bt_buffer_push(tok->context, &tok->tokens, &token);
+		bt_buffer_push(tok->context, &tok->tokens, token);
 		tok->last_consumed = tok->tokens.length;
-		return *(bt_Token**)bt_buffer_last(&tok->tokens);
+		return bt_buffer_last(&tok->tokens);
 	}
 
 	return NULL;
@@ -338,7 +339,7 @@ bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok)
 		tok->last_consumed--;
 	}
 
-	return *(bt_Token**)bt_buffer_at(&tok->tokens, tok->last_consumed);
+	return tok->tokens.elements[tok->last_consumed];
 }
 
 bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type)

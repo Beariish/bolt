@@ -4,6 +4,7 @@
 
 #include "bt_value.h"
 #include "bt_buffer.h"
+#include "bt_op.h"
 
 typedef struct bt_Type bt_Type;
 
@@ -25,35 +26,31 @@ typedef enum {
 #define BT_OBJECT_NEXT(__obj) ((bt_Object*)__obj->next)
 #define BT_OBJECT_SET_NEXT(__obj, __next) (__obj->next = (uint64_t)__next)
 
+typedef bt_Buffer(bt_Value) bt_ValueBuffer;
+typedef bt_Buffer(bt_Op) bt_InstructionBuffer;
+
 typedef struct bt_Object {
 	struct bt_Object* next;
 	uint64_t mark : 1;
 	uint64_t type : 5;
 } bt_Object;
 
+typedef struct bt_TablePair {
+	bt_Value key, value;
+} bt_TablePair;
+
+typedef bt_Buffer(bt_TablePair) bt_TablePairBuffer;
+
 typedef struct bt_Table {
 	bt_Object obj;
-
-	bt_Buffer pairs;
+	bt_TablePairBuffer pairs;
 	struct bt_Table* prototype;
 } bt_Table;
 
 typedef struct bt_Array {
 	bt_Object obj;
-	bt_Buffer items;
+	bt_ValueBuffer items;
 } bt_Array;
-
-typedef struct bt_Module {
-	bt_Object obj;
-
-	bt_Buffer constants;
-	bt_Buffer instructions;
-	bt_Buffer imports;
-
-	bt_Table* exports;
-	bt_Type* type;
-	uint8_t stack_size;
-} bt_Module;
 
 typedef struct bt_String {
 	bt_Object obj;
@@ -62,15 +59,33 @@ typedef struct bt_String {
 	uint64_t hash;
 } bt_String;
 
-typedef struct bt_TablePair {
-	bt_Value key, value;
-} bt_TablePair;
+typedef struct bt_ModuleImport {
+	bt_Object obj;
+	bt_String* name;
+	bt_Type* type;
+	bt_Value value;
+} bt_ModuleImport;
+
+typedef bt_Buffer(bt_ModuleImport*) bt_ImportBuffer;
+
+typedef struct bt_Module {
+	bt_Object obj;
+
+	bt_ValueBuffer constants;
+	bt_InstructionBuffer instructions;
+	bt_ImportBuffer imports;
+
+	bt_Table* exports;
+	bt_Type* type;
+	uint8_t stack_size;
+} bt_Module;
+
 
 typedef struct bt_Fn {
 	bt_Object obj;
 
-	bt_Buffer constants;
-	bt_Buffer instructions;
+	bt_ValueBuffer constants;
+	bt_InstructionBuffer instructions;
 
 	bt_Type* signature;
 	bt_Module* module;
@@ -79,16 +94,9 @@ typedef struct bt_Fn {
 
 typedef struct bt_Closure {
 	bt_Object obj;
-	bt_Buffer upvals;
+	bt_Buffer(bt_Value) upvals;
 	bt_Fn* fn;
 } bt_Closure;
-
-typedef struct bt_ModuleImport {
-	bt_Object obj;
-	bt_String* name;
-	bt_Type* type;
-	bt_Value value;
-} bt_ModuleImport;
 
 typedef void (*bt_NativeProc)(bt_Context* ctx, bt_Thread* thread);
 
@@ -139,8 +147,8 @@ uint64_t bt_array_length(bt_Array* arr);
 bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value);
 bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index);
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Buffer* constants, bt_Buffer* instructions, uint8_t stack_size);
-bt_Module* bt_make_module(bt_Context* ctx, bt_Buffer* imports);
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
+bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports);
 bt_Module* bt_make_user_module(bt_Context* ctx);
 
 bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);

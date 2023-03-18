@@ -1,5 +1,6 @@
 #include "bt_userdata.h"
 #include "bt_context.h"
+#include "bt_type.h"
 
 #include <assert.h>
 
@@ -19,10 +20,7 @@ void bt_userdata_type_field_##fnname(bt_Context* ctx, bt_Type* type, const char*
 {																										  \
 	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  \
 																										  \
-	bt_Buffer* fields = &type->as.userdata.fields;														  \
-	if (fields->element_size == 0) {																	  \
-		*fields = BT_BUFFER_NEW(ctx, bt_UserdataField);													  \
-	}																									  \
+	bt_FieldBuffer* fields = &type->as.userdata.fields;													  \
 																										  \
 	bt_UserdataField field;                                                                               \
 	field.bolt_type = ctx->types.number;                                                                  \
@@ -31,7 +29,7 @@ void bt_userdata_type_field_##fnname(bt_Context* ctx, bt_Type* type, const char*
 	field.getter = userdata_get_##fnname;																  \
 	field.setter = userdata_set_##fnname;																  \
 																										  \
-	bt_buffer_push(ctx, fields, &field);																  \
+	bt_buffer_push(ctx, fields, field);																      \
 }																										  
 
 DEFINE_USERDATA_NUMBER_FIELD(double, bt_number); 
@@ -52,11 +50,7 @@ void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
 {
 	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  
 		
-	bt_Buffer* methods = &type->as.userdata.functions;														  
-	if (methods->element_size == 0) {
-		*methods = BT_BUFFER_NEW(ctx, bt_UserdataMethod);
-	}
-
+	bt_MethodBuffer* methods = &type->as.userdata.functions;														  
 
 	bt_Type* signature = bt_make_signature(ctx, ret, args, arg_count);
 	if (arg_count > 0 && args[0] == type) signature->as.fn.is_method = BT_TRUE;
@@ -67,5 +61,5 @@ void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
 	me.name = bt_make_string(ctx, name);
 	me.fn = fn;
 
-	bt_buffer_push(ctx, methods, &me);
+	bt_buffer_push(ctx, methods, me);
 }

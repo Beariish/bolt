@@ -2,6 +2,7 @@
 
 #include "bt_tokenizer.h"
 #include "bt_type.h"
+#include "bt_object.h"
 
 typedef enum {
 	BT_AST_NODE_MODULE,
@@ -38,11 +39,21 @@ typedef struct bt_FnArg {
 	bt_Type* type;
 } bt_FnArg;
 
+typedef struct bt_ParseBinding {
+	bt_StrSlice name;
+	bt_Type* type;
+	bt_AstNode* source;
+	bt_bool is_const;
+} bt_ParseBinding;
+
+typedef bt_Buffer(bt_AstNode*) bt_AstBuffer;
+typedef bt_Buffer(bt_FnArg) bt_ArgBuffer;
+
 typedef struct bt_AstNode {
 	union {
 		struct {
-			bt_Buffer body;
-			bt_Buffer imports;
+			bt_AstBuffer body;
+			bt_ImportBuffer imports;
 		} module;
 
 		struct {
@@ -76,15 +87,15 @@ typedef struct bt_AstNode {
 		} ret;
 
 		struct {
-			bt_Buffer args;
-			bt_Buffer body;
-			bt_Buffer upvals;
+			bt_ArgBuffer args;
+			bt_AstBuffer body;
+			bt_Buffer(bt_ParseBinding) upvals;
 			bt_Type* ret_type;
 			bt_AstNode* outer;
 		} fn, method;
 
 		struct {
-			bt_Buffer args;
+			bt_AstBuffer args;
 			bt_AstNode* fn;
 		} call;
 
@@ -94,19 +105,19 @@ typedef struct bt_AstNode {
 		} exp;
 
 		struct {
-			bt_Buffer body;
+			bt_AstBuffer body;
 			bt_AstNode* condition;
 			bt_AstNode* next;
 		} branch;
 
 		struct {
-			bt_Buffer body;
+			bt_AstBuffer body;
 			bt_AstNode* identifier;
 			bt_AstNode* iterator;
 		} loop_iterator;
 
 		struct {
-			bt_Buffer body;
+			bt_AstBuffer body;
 			bt_AstNode* identifier;
 			bt_AstNode* start;
 			bt_AstNode* stop;
@@ -114,12 +125,12 @@ typedef struct bt_AstNode {
 		} loop_numeric;
 
 		struct {
-			bt_Buffer fields;
+			bt_AstBuffer fields;
 			bt_bool typed;
 		} table;
 
 		struct {
-			bt_Buffer items;
+			bt_AstBuffer items;
 			bt_Type* inner_type;
 		} arr;
 
@@ -136,15 +147,8 @@ typedef struct bt_AstNode {
 	bt_AstNodeType type;
 } bt_AstNode;
 
-typedef struct bt_ParseBinding {
-	bt_StrSlice name;
-	bt_Type* type;
-	bt_AstNode* source;
-	bt_bool is_const;
-} bt_ParseBinding;
-
 typedef struct bt_ParseScope {
-	bt_Buffer bindings;
+	bt_Buffer(bt_ParseBinding) bindings;
 	struct bt_ParseScope* last;
 	bt_bool is_fn_boundary;
 } bt_ParseScope;

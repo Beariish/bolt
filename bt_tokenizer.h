@@ -66,7 +66,8 @@ typedef struct {
 typedef struct {
 	bt_Context* context;
 
-	bt_Buffer tokens, literals;
+	bt_Buffer(bt_Token*) tokens;
+	bt_Buffer(bt_Literal) literals;
 	int32_t last_consumed;
 
 	const char* source;

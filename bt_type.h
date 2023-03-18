@@ -2,6 +2,7 @@
 
 #include "bt_buffer.h"
 #include "bt_object.h"
+#include "bt_userdata.h"
 
 typedef struct bt_Type bt_Type;
 
@@ -19,12 +20,14 @@ typedef enum {
 	BT_TYPE_CATEGORY_UNION,
 } bt_TypeCategory;
 
+typedef bt_Buffer(bt_Type*) bt_TypeBuffer;
+
 typedef struct bt_Type {
 	bt_Object obj;
 
 	union {
 		struct {
-			bt_Buffer types;
+			bt_TypeBuffer types;
 		} selector;
 
 		struct {
@@ -35,7 +38,7 @@ typedef struct bt_Type {
 		} table_shape;
 
 		struct {
-			bt_Buffer args;
+			bt_TypeBuffer args;
 			bt_Type* return_type;
 			bt_Type* varargs_type;
 			bt_bool is_vararg : 1;
@@ -59,8 +62,8 @@ typedef struct bt_Type {
 		} type;
 
 		struct {
-			bt_Buffer fields;
-			bt_Buffer functions;
+			bt_FieldBuffer fields;
+			bt_MethodBuffer functions;
 		} userdata;
 	} as;
 

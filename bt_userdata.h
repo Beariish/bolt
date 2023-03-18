@@ -1,9 +1,14 @@
 #pragma once
 
-#include "bt_type.h"
+#include "bt_value.h"
+#include "bt_context.h"
 
 typedef bt_Value (*bt_UserdataFieldGetter)(bt_Context* ctx, uint8_t* userdata, uint32_t offset);
 typedef void     (*bt_UserdataFieldSetter)(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value);
+
+typedef struct bt_Type bt_Type;
+typedef struct bt_String bt_String;
+typedef struct bt_NativeFn bt_NativeFn;
 
 typedef struct bt_UserdataField {
 	bt_Type* bolt_type;
@@ -17,6 +22,9 @@ typedef struct bt_UserdataMethod {
 	bt_String* name;
 	bt_NativeFn* fn;
 } bt_UserdataMethod;
+
+typedef bt_Buffer(bt_UserdataField) bt_FieldBuffer;
+typedef bt_Buffer(bt_UserdataMethod) bt_MethodBuffer;
 
 void bt_userdata_type_field_double(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset); 
 

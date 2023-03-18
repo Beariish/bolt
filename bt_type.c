@@ -33,8 +33,8 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 		left->as.fn.args.length : right->as.fn.args.length;
 
 	for (uint32_t i = 0; i < n_typed_args; ++i) {
-		bt_Type* arg_left = *(bt_Type**)bt_buffer_at(&left->as.fn.args, i);
-		bt_Type* arg_right = *(bt_Type**)bt_buffer_at(&right->as.fn.args, i);
+		bt_Type* arg_left = left->as.fn.args.elements[i];
+		bt_Type* arg_right = right->as.fn.args.elements[i];
 		
 		if (!arg_right->satisfier(arg_right, arg_left))
 			return BT_FALSE;
@@ -42,7 +42,7 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 
 	uint32_t n_unnamed_args = left->as.fn.args.length - n_typed_args;
 	for (uint32_t i = 0; i < n_unnamed_args; ++i) {
-		bt_Type* arg_left = *(bt_Type**)bt_buffer_at(&left->as.fn.args, n_typed_args + i);
+		bt_Type* arg_left = left->as.fn.args.elements[n_typed_args + i];
 		bt_Type* arg_right = right->as.fn.varargs_type;
 	
 		if (!arg_right->satisfier(arg_right, arg_left))
