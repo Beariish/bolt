@@ -1,6 +1,6 @@
+#include "bt_type.h"
 #include "bt_userdata.h"
 #include "bt_context.h"
-#include "bt_type.h"
 
 #include <assert.h>
 

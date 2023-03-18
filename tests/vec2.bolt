@@ -51,6 +51,19 @@ if { x: 10 } satisfies Vec2 {
 for outer in 15 {
     let start_time = time()
     
+    for i in 10000000 {
+    }
+
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("10m numeric for operators took", duration_ms / 1000, "ms")
+}
+
+
+for outer in 15 {
+    let start_time = time()
+    
     for i in 100000 {
         let a = Vec2.new(5, 5)
         let b = Vec2.new(10, 10)   

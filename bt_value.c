@@ -20,8 +20,8 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 		bt_Object* obja = BT_AS_OBJECT(a);
 		bt_Object* objb = BT_AS_OBJECT(b);
 
-		if (obja->type == objb->type) {
-			if (obja->type == BT_OBJECT_TYPE_TYPE) {
+		if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_GET_TYPE(objb)) {
+			if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_TYPE) {
 				bt_Type* ta = obja;
 				bt_Type* tb = objb;
 
@@ -30,7 +30,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 				if (ta->satisfier != tb->satisfier) return BT_FALSE;
 				// TODO: Can we guarentee this is sane?
 				return strcmp(ta->name, tb->name) == 0;
-			} else if (obja->type == BT_OBJECT_TYPE_STRING) {
+			} else if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_STRING) {
 				bt_String* a_str = obja;
 				bt_String* b_str = objb;
 				if (a_str->hash && b_str->hash) return a_str->hash == b_str->hash;

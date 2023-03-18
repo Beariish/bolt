@@ -53,8 +53,8 @@ typedef struct FunctionContext {
     RegisterState temps[32];
     uint8_t temp_top;
 
-    bt_Buffer constants;
-    bt_Buffer output;
+    bt_Buffer(bt_Constant) constants;
+    bt_InstructionBuffer output;
 
     bt_Compiler* compiler;
     bt_Context* context;
@@ -99,7 +99,7 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
     UPERF_EVENT("emit_abc");
 
     bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
-    bt_buffer_push(ctx->context, &ctx->output, &op);
+    bt_buffer_push(ctx->context, &ctx->output, op);
 
     UPERF_POP();
     return ctx->output.length - 1;
@@ -110,7 +110,7 @@ static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16
     UPERF_EVENT("emit_aibc");
 
     bt_Op op = BT_MAKE_OP_AIBC(code, a, ibc);
-    bt_buffer_push(ctx->context, &ctx->output, &op);
+    bt_buffer_push(ctx->context, &ctx->output, op);
 
     UPERF_POP();
     return ctx->output.length - 1;
@@ -144,7 +144,7 @@ static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t r
         emit_ab(ctx, BT_OP_LOAD, start, idx);
 
         for (uint8_t i = 0; i < expr->as.fn.upvals.length; ++i) {
-            bt_ParseBinding* binding = bt_buffer_at(&expr->as.fn.upvals, i);
+            bt_ParseBinding* binding = expr->as.fn.upvals.elements + i;
             uint8_t loc = find_binding(ctx, binding->name);
             if (loc != INVALID_BINDING) {
                 emit_ab(ctx, BT_OP_MOVE, start + i + 1, loc);
@@ -241,7 +241,7 @@ static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name)
     }
 
     for (uint32_t i = 0; i < fn->as.fn.upvals.length; i++) {
-        bt_ParseBinding* bind = bt_buffer_at(&fn->as.fn.upvals, i);
+        bt_ParseBinding* bind = fn->as.fn.upvals.elements + i;
         if (bt_strslice_compare(bind->name, name)) {
             UPERF_POP();
             return i;
@@ -257,7 +257,7 @@ static uint16_t find_import(FunctionContext* ctx, bt_StrSlice name)
     bt_Module* mod = find_module(ctx);
 
     for (uint32_t i = 0; i < mod->imports.length; ++i) {
-        bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(&mod->imports, i);
+        bt_ModuleImport* import = mod->imports.elements[i];
         if (bt_strslice_compare(bt_as_strslice(import->name), name)) {
             return i;
         }
@@ -281,7 +281,7 @@ void bt_close_compiler(bt_Compiler* compiler)
 
 static bt_Op* op_at(FunctionContext* ctx, uint32_t idx)
 {
-    return bt_buffer_at(&ctx->output, idx);
+    return ctx->output.elements + idx;
 }
 
 
@@ -290,7 +290,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
     UPERF_EVENT("push_constant");
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Constant* constant = (bt_Constant*)bt_buffer_at(&ctx->constants, idx);
+        bt_Constant* constant = ctx->constants.elements + idx;
         if (bt_value_is_equal(constant->value, value)) {
             UPERF_POP();
             return idx;
@@ -301,7 +301,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
     con.name.length = 0;
     con.value = value;
 
-    bt_buffer_push(ctx->context, &ctx->constants, &con);
+    bt_buffer_push(ctx->context, &ctx->constants, con);
     UPERF_POP();
     return ctx->constants.length - 1;
 }
@@ -312,7 +312,7 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
 
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Constant* constant = bt_buffer_at(&ctx->constants, idx);
+        bt_Constant* constant = ctx->constants.elements + idx;
         if (bt_strslice_compare(constant->name, name)) { UPERF_POP(); return idx; }
         if (bt_value_is_equal(constant, value)) { UPERF_POP(); return idx; }
     }
@@ -321,7 +321,7 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
     con.value = value;
     con.name = name;
 
-    bt_buffer_push(ctx->context, &ctx->constants, &con);
+    bt_buffer_push(ctx->context, &ctx->constants, con);
     uint32_t ret = ctx->constants.length - 1;
 
     if (BT_IS_OBJECT(value)) {
@@ -339,7 +339,7 @@ static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name)
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Constant* constant = bt_buffer_at(&ctx->constants, idx);
+        bt_Constant* constant = ctx->constants.elements + idx;
         if (bt_strslice_compare(constant->name, name)) return idx;
     }
 
@@ -525,7 +525,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_a(ctx, BT_OP_LOAD_NULL, result_loc);
             break;
         case BT_TOKEN_NUMBER_LITERAL: {
-            bt_Literal* lit = (bt_Literal*)bt_buffer_at(&ctx->compiler->input->tokenizer->literals, inner->idx);
+            bt_Literal* lit = ctx->compiler->input->tokenizer->literals.elements + inner->idx;
             bt_number num = lit->as_num;
 
             if (floor(num) == num && num < (bt_number)INT16_MAX && num >(bt_number)INT16_MIN) {
@@ -537,7 +537,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
         } break;
         case BT_TOKEN_STRING_LITERAL: {
-            bt_Literal* lit = (bt_Literal*)bt_buffer_at(&ctx->compiler->input->tokenizer->literals, inner->idx);
+            bt_Literal* lit = ctx->compiler->input->tokenizer->literals.elements + inner->idx;
             uint8_t idx = push(ctx,
                 BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, lit->as_str.source, lit->as_str.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
@@ -577,7 +577,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     } break;
     case BT_AST_NODE_CALL: {
         bt_AstNode* lhs = expr->as.call.fn;
-        bt_Buffer* args = &expr->as.call.args;
+        bt_AstBuffer* args = &expr->as.call.args;
 
         push_registers(ctx);
 
@@ -585,7 +585,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         compile_expression(ctx, lhs, start_loc);
         for (uint8_t i = 0; i < args->length; i++) {
-            compile_expression(ctx, *(bt_AstNode**)bt_buffer_at(args, i), start_loc + i + 1);
+            compile_expression(ctx, args->elements[i], start_loc + i + 1);
         }
 
         emit_abc(ctx, BT_OP_CALL, result_loc, start_loc, args->length);
@@ -795,7 +795,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     case BT_AST_NODE_TABLE: {
         push_registers(ctx);
 
-        bt_Buffer* fields = &expr->as.table.fields;
+        bt_AstBuffer* fields = &expr->as.table.fields;
 
         if (expr->as.table.typed) {
             uint8_t t_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
@@ -813,7 +813,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t val_loc = get_register(ctx);
 
         for (uint32_t i = 0; i < fields->length; ++i) {
-            bt_AstNode* entry = *(bt_AstNode**)bt_buffer_at(fields, i);
+            bt_AstNode* entry = fields->elements[i];
             bt_Token* name = entry->as.table_field.name;
             bt_String* idx = bt_make_string_hashed_len(ctx->context, name->source.source, name->source.length);
             uint8_t idx_idx = push(ctx, BT_VALUE_OBJECT(idx));
@@ -827,7 +827,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     } break;
     case BT_AST_NODE_ARRAY: {
         push_registers(ctx);
-        bt_Buffer* items = &expr->as.arr.items;
+        bt_AstBuffer* items = &expr->as.arr.items;
         emit_aibc(ctx, BT_OP_ARRAY, result_loc, items->length);
 
         uint8_t idx_loc = get_register(ctx);
@@ -840,7 +840,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         }
 
         for (uint32_t i = 0; i < items->length; ++i) {
-            bt_AstNode* entry = *(bt_AstNode**)bt_buffer_at(items, i);
+            bt_AstNode* entry = items->elements[i];
 
             if (i < INT16_MAX) {
                 emit_aibc(ctx, BT_OP_LOAD_SMALL, idx_loc, i);
@@ -867,12 +867,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
 static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt);
 
-static bt_bool compile_body(FunctionContext* ctx, bt_Buffer* body) 
+static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body) 
 {
     UPERF_EVENT("compile_body");
     for (uint32_t i = 0; i < body->length; ++i)
     {
-        bt_AstNode* stmt = *(bt_AstNode**)bt_buffer_at(body, i);
+        bt_AstNode* stmt = body->elements[i];
         if (!stmt) continue;
         if (!compile_statement(ctx, stmt)) { UPERF_POP(); return BT_FALSE; }
     }
@@ -1017,8 +1017,8 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
 bt_Module* bt_compile(bt_Compiler* compiler)
 {
-    bt_Buffer* body = &compiler->input->root->as.module.body;
-    bt_Buffer* imports = &compiler->input->root->as.module.imports;
+    bt_AstBuffer* body = &compiler->input->root->as.module.body;
+    bt_ImportBuffer* imports = &compiler->input->root->as.module.imports;
 
     UPERF_EVENT("Setup context");
     FunctionContext fn;
@@ -1030,8 +1030,8 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.temp_top = 0;
     fn.binding_top = 0;
     fn.scope_depth = 0;
-    fn.output = BT_BUFFER_NEW(compiler->context, bt_Op);
-    fn.constants = BT_BUFFER_NEW(compiler->context, bt_Constant);
+    bt_buffer_empty(&fn.output);
+    bt_buffer_empty(&fn.constants);
     fn.context = compiler->context;
     fn.compiler = compiler;
     fn.fn = 0;
@@ -1047,16 +1047,17 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     emit(&fn, BT_OP_END);
 
     UPERF_EVENT("Copy constants");
-    bt_Buffer fn_constants = bt_buffer_with_capacity(compiler->context, sizeof(bt_Value), fn.constants.length);
+    bt_ValueBuffer fn_constants;
+    bt_buffer_with_capacity(&fn_constants, compiler->context, fn.constants.length);
     for (uint32_t i = 0; i < fn.constants.length; ++i) {
-        bt_buffer_push(compiler->context, &fn_constants, &((bt_Constant*)bt_buffer_at(&fn.constants, i))->value);
+        bt_buffer_push(compiler->context, &fn_constants, fn.constants.elements[i].value);
     }
     UPERF_POP();
 
     UPERF_EVENT("Clone results");
     result->stack_size = fn.min_top_register;
-    result->constants = bt_buffer_clone(compiler->context, &fn_constants);
-    result->instructions = bt_buffer_clone(compiler->context, &fn.output);
+    bt_buffer_clone(compiler->context, &result->constants, &fn_constants);
+    bt_buffer_clone(compiler->context, &result->instructions , &fn.output);
 
     bt_buffer_destroy(compiler->context, &fn_constants);
     bt_buffer_destroy(compiler->context, &fn.constants);
@@ -1080,8 +1081,8 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.temp_top = 0;
     ctx.binding_top = 0;
     ctx.scope_depth = 0;
-    ctx.output = BT_BUFFER_NEW(compiler->context, bt_Op);
-    ctx.constants = BT_BUFFER_NEW(compiler->context, bt_Constant);
+    bt_buffer_empty(&ctx.output);
+    bt_buffer_empty(&ctx.constants);
     ctx.context = compiler->context;
     ctx.compiler = compiler;
     ctx.outer = parent;
@@ -1092,15 +1093,15 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     push_scope(&ctx);
 
     UPERF_EVENT("Bind args");
-    bt_Buffer* args = &fn->as.fn.args;
+    bt_ArgBuffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {
-        bt_FnArg* arg = bt_buffer_at(args, i);
+        bt_FnArg* arg = args->elements + i;
         make_binding(&ctx, arg->name);
     }
     UPERF_POP();
 
     UPERF_EVENT("Compile body");
-    bt_Buffer* body = &fn->as.fn.body;
+    bt_AstBuffer* body = &fn->as.fn.body;
     compile_body(&ctx, body);
 
     if (!fn->as.fn.ret_type) {
@@ -1111,9 +1112,10 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     bt_Module* mod = find_module(&ctx);
 
     UPERF_EVENT("Copy constants");
-    bt_Buffer fn_constants = bt_buffer_with_capacity(compiler->context, sizeof(bt_Value), ctx.constants.length);
+    bt_ValueBuffer fn_constants;
+    bt_buffer_with_capacity(&fn_constants, compiler->context, ctx.constants.length);
     for (uint32_t i = 0; i < ctx.constants.length; ++i) {
-        bt_buffer_push(compiler->context, &fn_constants, &((bt_Constant*)bt_buffer_at(&ctx.constants, i))->value);
+        bt_buffer_push(compiler->context, &fn_constants, ctx.constants.elements[i].value);
     }
     UPERF_POP();
 
@@ -1146,12 +1148,12 @@ static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrS
     type->is_compiled = BT_TRUE;
 
     if (type->prototype_values) {
-        bt_Buffer* to_compile = &type->prototype_values->pairs;
+        bt_TablePairBuffer* to_compile = &type->prototype_values->pairs;
 
         push_registers(parent);
 
         for (uint32_t i = 0; i < to_compile->length; ++i) {
-            bt_TablePair* pair = bt_buffer_at(to_compile, i);
+            bt_TablePair* pair = to_compile->elements + i;
 
             bt_String* name = BT_AS_OBJECT(pair->key);
             bt_AstNode* fn = BT_AS_OBJECT(pair->value);

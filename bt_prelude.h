@@ -6,6 +6,7 @@
 
 #define BOLT_PRINT_DEBUG
 #define BOLT_BITMASK_OP
+#define BOLT_USE_MASKED_GC_HEADER
 
 #ifdef _NDEBUG
 #undef BOLT_DEBUG

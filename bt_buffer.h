@@ -14,7 +14,7 @@
 	{ (b)->elements = (b)->length = (b)->capacity = 0; }
 
 #define bt_buffer_with_capacity(b, ctx, cap) \
-	{ bt_buffer_reserve(ctx, bt_buffer_unpack(b), cap); }
+	{ bt_buffer_empty(b); bt_buffer_reserve(ctx, bt_buffer_unpack(b), cap); }
 
 #define bt_buffer_destroy(ctx, b) \
 	{ bt_buffer_free(ctx, bt_buffer_unpack(b)); }

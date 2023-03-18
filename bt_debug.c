@@ -97,7 +97,7 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 		printf("%*s%s\n", depth * 4, "", name);
 		recursive_print_ast_node(node->as.call.fn, depth + 1);
 		for (uint8_t i = 0; i < node->as.call.args.length; ++i) {
-			bt_AstNode* arg = *(bt_AstNode**)bt_buffer_at(&node->as.call.args, i);
+			bt_AstNode* arg = node->as.call.args.elements[i];
 			recursive_print_ast_node(arg, depth + 1);
 		}
 		break;
@@ -113,7 +113,7 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 			if(current->as.branch.condition)
 				recursive_print_ast_node(current->as.branch.condition, depth + 2);
 			for (uint8_t i = 0; i < current->as.branch.body.length; ++i) {
-				bt_AstNode* arg = *(bt_AstNode**)bt_buffer_at(&current->as.branch.body, i);
+				bt_AstNode* arg = current->as.branch.body.elements[i];
 				recursive_print_ast_node(arg, depth + 1);
 			}
 
@@ -132,34 +132,34 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 
 void bt_debug_print_parse_tree(bt_Parser* parser)
 {
-	bt_Buffer* body = &parser->root->as.module.body;
+	bt_AstBuffer* body = &parser->root->as.module.body;
 
 	for (uint32_t index = 0; index < body->length; index++)
 	{
-		bt_AstNode* current = *(bt_AstNode**)bt_buffer_at(body, index);
+		bt_AstNode* current = body->elements[index];
 
 		recursive_print_ast_node(current, 0);
 	}
 }
 
-static void print_constants(bt_Context* ctx, bt_Buffer* constants)
+static void print_constants(bt_Context* ctx, bt_ValueBuffer* constants)
 {
 	printf("Constants: [%d]\n", constants->length);
 	for (uint32_t i = 0; i < constants->length; ++i)
 	{
-		bt_Value val = *(bt_Value*)bt_buffer_at(constants, i);
+		bt_Value val = constants->elements[i];
 		bt_String* as_str = bt_to_string(ctx, val);
 		printf("[%d]: %s\n", i, as_str->str);
 	}
 }
 
-static void print_code(bt_Buffer* code)
+static void print_code(bt_InstructionBuffer* code)
 {
 	printf("Code: [%d]\n", code->length);
 
 	for (uint32_t i = 0; i < code->length; ++i)
 	{
-		bt_Op op = *(bt_Op*)bt_buffer_at(code, i);
+		bt_Op op = code->elements[i];
 		uint8_t code = BT_GET_OPCODE(op);
 		uint8_t a = BT_GET_A(op);
 		uint8_t b = BT_GET_B(op);
@@ -224,13 +224,13 @@ static void print_code(bt_Buffer* code)
 	}
 }
 
-static void print_imports(bt_Context* ctx, bt_Buffer* imports)
+static void print_imports(bt_Context* ctx, bt_ImportBuffer* imports)
 {
 	
 	printf("Imports: [%d]\n", imports->length);
 	for (uint32_t i = 0; i < imports->length; ++i)
 	{
-		bt_ModuleImport* import = *(bt_ModuleImport**)bt_buffer_at(imports, i);
+		bt_ModuleImport* import = imports->elements[i];
 		bt_String* as_str = bt_to_string(ctx, import->value);
 
 		printf("[%d]: %s: %s = %s\n", i, import->name->str, import->type->name, as_str->str);

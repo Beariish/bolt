@@ -78,15 +78,15 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 		return BT_FALSE;
 	}
 
-	bt_Buffer* lpairs = &left->as.table_shape.layout->pairs;
-	bt_Buffer* rpairs = &right->as.table_shape.layout->pairs;
+	bt_TablePairBuffer* lpairs = &left->as.table_shape.layout->pairs;
+	bt_TablePairBuffer* rpairs = &right->as.table_shape.layout->pairs;
 	
 	for (uint32_t i = 0; i < lpairs->length; ++i) {
-		bt_TablePair* lentry = bt_buffer_at(lpairs, i);
+		bt_TablePair* lentry = lpairs->elements + i;
 
 		bt_bool found = BT_FALSE;
 		for (uint32_t j = 0; j < rpairs->length; ++j) {
-			bt_TablePair* rentry = bt_buffer_at(rpairs, j);
+			bt_TablePair* rentry = rpairs->elements + j;
 
 			bt_Type* ltype = BT_AS_OBJECT(lentry->value);
 			bt_Type* rtype = BT_AS_OBJECT(rentry->value);
@@ -108,17 +108,17 @@ bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 {
 	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
 
-	bt_Buffer* types = &left->as.selector.types;
+	bt_TypeBuffer* types = &left->as.selector.types;
 
 	if (right->category == BT_TYPE_CATEGORY_UNION) {
-		bt_Buffer* rtypes = &right->as.selector.types;
+		bt_TypeBuffer* rtypes = &right->as.selector.types;
 		for (uint32_t i = 0; i < rtypes->length; ++i) {
-			bt_Type* rtype = *(bt_Type**)bt_buffer_at(rtypes, i);
+			bt_Type* rtype = rtypes->elements[i];
 			
 			bt_bool found = BT_FALSE;
 
 			for (uint32_t j = 0; j < types->length; ++j) {
-				bt_Type* type = *(bt_Type**)bt_buffer_at(types, j);
+				bt_Type* type = types->elements[j];
 				if (type->satisfier(type, rtype)) {
 					found = BT_TRUE;
 					break;
@@ -134,7 +134,7 @@ bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 	}
 	else {
 		for (uint32_t i = 0; i < types->length; ++i) {
-			bt_Type* type = *(bt_Type**)bt_buffer_at(types, i);
+			bt_Type* type = types->elements[i];
 			if (type->satisfier(type, right)) {
 				return BT_TRUE;
 			}
@@ -240,7 +240,7 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 	}
 
 	for (uint8_t i = 0; i < fn->as.fn.args.length; i++) {
-		bt_Type* arg = *(bt_Type**)bt_buffer_at(&fn->as.fn.args, i);
+		bt_Type* arg = fn->as.fn.args.elements[i];
 		strcpy(name_buf_cur, arg->name);
 		name_buf_cur += strlen(arg->name);
 		if (i < fn->as.fn.args.length - 1) {
@@ -287,8 +287,8 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 {	
 	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
 	result->as.fn.return_type = ret;
-	result->as.fn.args = BT_BUFFER_WITH_CAPACITY(context, bt_Type*, arg_count);
-	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args + i);
+	bt_buffer_with_capacity(&result->as.fn.args, context, arg_count);
+	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args[i]);
 	result->as.fn.is_vararg = BT_FALSE;
 	result->as.fn.varargs_type = NULL;
 	result->as.fn.is_method = BT_FALSE;
@@ -331,8 +331,8 @@ bt_Type* bt_make_fundamental(bt_Context* context)
 bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA, BT_FALSE);
-	result->as.userdata.fields = bt_buffer_empty();
-	result->as.userdata.functions = bt_buffer_empty();
+	bt_buffer_empty(&result->as.userdata.fields);
+	bt_buffer_empty(&result->as.userdata.functions);
 	return result;
 }
 
@@ -422,14 +422,13 @@ bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp)
 bt_Type* bt_make_union(bt_Context* context)
 {
 	bt_Type* result = bt_make_type(context, "<union>", bt_type_satisfier_union, BT_TYPE_CATEGORY_UNION, BT_FALSE);
-	result->as.selector.types = BT_BUFFER_NEW(context, bt_Type*);
-
+	bt_buffer_empty(&result->as.selector.types);
 	return result;
 }
 
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
-	bt_buffer_push(context, &uni->as.selector.types, &variant);
+	bt_buffer_push(context, &uni->as.selector.types, variant);
 }
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
@@ -443,17 +442,17 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (!BT_IS_OBJECT_FAST(value)) return BT_FALSE;
 	bt_Object* as_obj = BT_AS_OBJECT(value);
 
-	if (type == type->ctx->types.string && as_obj->type == BT_OBJECT_TYPE_STRING) return BT_TRUE;
+	if (type == type->ctx->types.string && BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_STRING) return BT_TRUE;
 
 	switch (type->category) {
 	case BT_TYPE_CATEGORY_TYPE:
-		return as_obj->type == BT_OBJECT_TYPE_TYPE;
+		return BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
-		if (as_obj->type == BT_OBJECT_TYPE_FN) {
+		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_FN) {
 			bt_Fn* as_fn = as_obj;
 			return type->satisfier(type, as_fn->signature);
 		}
-		else if (as_obj->type == BT_OBJECT_TYPE_CLOSURE) {
+		else if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) {
 			bt_Closure* cl = as_obj;
 			return type->satisfier(type, cl->fn->signature);
 		}
@@ -464,9 +463,9 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		bt_Table* as_tbl = as_obj;
 
 		while (type) {
-			bt_Buffer* layout = &type->as.table_shape.layout->pairs;
+			bt_TablePairBuffer* layout = &type->as.table_shape.layout->pairs;
 			for (uint32_t i = 0; i < layout->length; i++) {
-				bt_TablePair* pair = bt_buffer_at(layout, i);
+				bt_TablePair* pair = layout->elements + i;
 
 				bt_Value val = bt_table_get(as_tbl, pair->key);
 				if (val == BT_VALUE_NULL) return BT_FALSE;
@@ -488,15 +487,15 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 {
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
 		bt_Object* obj = BT_AS_OBJECT(value);
-		if (obj->type != BT_OBJECT_TYPE_TABLE) {
+		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
 			return BT_FALSE;
 		}
 
 		bt_Table* src = obj;
-		bt_Buffer* layout = &type->as.table_shape.layout->pairs;
+		bt_TablePairBuffer* layout = &type->as.table_shape.layout->pairs;
 
 		for (uint32_t i = 0; i < layout->length; ++i) {
-			bt_TablePair* pair = bt_buffer_at(layout, i);
+			bt_TablePair* pair = layout->elements + i;
 
 			bt_Value val = bt_table_get(src, pair->key);
 
@@ -519,17 +518,17 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
 		bt_Object* obj = BT_AS_OBJECT(value);
-		if (obj->type != BT_OBJECT_TYPE_TABLE) {
+		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
 			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!");
 		}
 
 		bt_Table* src = obj;
-		bt_Buffer* layout = &type->as.table_shape.layout->pairs;
+		bt_TablePairBuffer* layout = &type->as.table_shape.layout->pairs;
 		
 		bt_Table* dst = bt_make_table(type->ctx, layout->length);
 
 		for (uint32_t i = 0; i < layout->length; ++i) {
-			bt_TablePair* pair = bt_buffer_at(layout, i);
+			bt_TablePair* pair = layout->elements + i;
 
 			bt_Value val = bt_table_get(src, pair->key);
 

@@ -11,7 +11,7 @@ void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t*
     void* new_data = ctx->alloc(element_size * new_cap);
 
     if (*capacity > 0) {
-        memcpy(new_data, *data, *capacity * element_size);
+        memcpy(new_data, *data, (*capacity) * element_size);
         ctx->free(*data);
     }
 
@@ -21,8 +21,8 @@ void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t*
 
 void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t by)
 {
-    if (*length + by < *capacity) {
-        bt_buffer_reserve(ctx, data, length, capacity, element_size, *capacity * 2);
+    if ((*length) + by > *capacity) {
+        bt_buffer_reserve(ctx, data, length, capacity, element_size, (*capacity) * 2 + 1);
     }
 }
 
