@@ -543,6 +543,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 		return BT_VALUE_OBJECT(dst);
 	}
 
-	bt_runtime_error(type->ctx->current_thread, "Cannot cast into type!");
+	if (bt_is_type(value, type)) { return value; }
+
 	return BT_VALUE_NULL;
 }

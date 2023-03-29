@@ -247,7 +247,6 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("as", token, BT_TOKEN_AS)
 		else BT_TEST_KEYWORD("from", token, BT_TOKEN_FROM)
 		else BT_TEST_KEYWORD("is", token, BT_TOKEN_IS)
-		else BT_TEST_KEYWORD("into", token, BT_TOKEN_INTO)
 		else BT_TEST_KEYWORD("satisfies", token, BT_TOKEN_SATISFIES)
 		else BT_TEST_KEYWORD("final", token, BT_TOKEN_FINAL)
 		else BT_TEST_KEYWORD("unsealed", token, BT_TOKEN_UNSEALED)

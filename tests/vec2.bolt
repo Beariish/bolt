@@ -36,8 +36,19 @@ method Vec2.distance(other: Vec2) {
 print(test.y, test.renamed)
 print(test.add(10, 10))
 
+fn make_any: any { return 10 }
+
+let as_num = make_any() as number
+
+fn number_printer(x: number) {
+    print(x)
+}
+
+number_printer(as_num!)
+print(as_num, typeof(as_num))
+
 let a = Vec2.new(1, 10)
-let b = { y: 1, x: 10 } into Vec2!
+let b = { y: 1, x: 10 } as Vec2!
 let c = a + b
 print(c.x, c.y)
 
