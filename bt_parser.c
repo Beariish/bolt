@@ -1821,18 +1821,21 @@ static bt_AstNode* parse_export(bt_Parser* parse)
 {
     UPERF_EVENT("parse_export");
     bt_Tokenizer* tok = parse->tokenizer;
-    bt_AstNode* to_export = pratt_parse(parse, 0);
+    bt_AstNode* to_export = parse_statement(parse);
     
-    bt_Token* name = to_export->source;
+    bt_StrSlice name;
 
-    bt_Token* peek = bt_tokenizer_peek(tok);
-    if (peek && peek->type == BT_TOKEN_AS) {
-        bt_tokenizer_emit(tok);
-        name = bt_tokenizer_emit(tok);
-        if (name->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected valid export name!");
+    if (to_export->type == BT_AST_NODE_LET) {
+        name = to_export->as.let.name;
     }
-    else if (to_export->type != BT_AST_NODE_IDENTIFIER) {
-        assert(0 && "Expected 'as' statement following expression export!");
+    else if (to_export->type == BT_AST_NODE_ALIAS) {
+        name = to_export->source->source;
+    }
+    else if (to_export->type == BT_AST_NODE_IDENTIFIER) {
+        name = to_export->source->source;
+    }
+    else {
+        assert(0 && "Unexportable expression following 'export'!");
     }
 
     bt_AstNode* export = make_node(parse, BT_AST_NODE_EXPORT);

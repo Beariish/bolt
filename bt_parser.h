@@ -100,7 +100,7 @@ typedef struct bt_AstNode {
 		} call;
 
 		struct {
-			bt_Token* name;
+			bt_StrSlice name;
 			bt_AstNode* value;
 		} exp;
 

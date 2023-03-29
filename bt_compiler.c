@@ -904,11 +904,13 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         return BT_TRUE;
     } break;
     case BT_AST_NODE_EXPORT: {
+        push_registers(ctx);
+
         uint8_t type_lit = push(ctx, BT_VALUE_OBJECT(stmt->resulting_type));
         uint8_t name_lit = push(ctx,
             BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context,
-                stmt->as.exp.name->source.source,
-                stmt->as.exp.name->source.length)));
+                stmt->as.exp.name.source,
+                stmt->as.exp.name.length)));
 
         uint8_t type_loc = get_register(ctx);
         emit_ab(ctx, BT_OP_LOAD, type_loc, type_lit);
@@ -916,9 +918,30 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         uint8_t name_loc = get_register(ctx);
         emit_ab(ctx, BT_OP_LOAD, name_loc, name_lit);
 
-        uint8_t value_loc = get_register(ctx);
-        compile_expression(ctx, stmt->as.exp.value, value_loc);
-        emit_abc(ctx, BT_OP_EXPORT, name_loc, value_loc, type_loc);
+        if (stmt->as.exp.value->type != BT_AST_NODE_IDENTIFIER) {
+            compile_statement(ctx, stmt->as.exp.value);
+        }
+
+        if (stmt->as.exp.value->type == BT_AST_NODE_ALIAS) {
+            uint8_t alias_loc = find_named(ctx, stmt->as.exp.name);
+            if (alias_loc == INVALID_BINDING) {
+                assert(0 && "Failed to find identifer for export!");
+            }
+
+            uint8_t export_loc = get_register(ctx);
+            emit_ab(ctx, BT_OP_LOAD, export_loc, alias_loc);
+            emit_abc(ctx, BT_OP_EXPORT, name_loc, export_loc, type_loc);
+        }
+        else {
+            uint8_t binding_loc = find_binding(ctx, stmt->as.exp.name);
+            if (binding_loc == INVALID_BINDING) {
+                assert(0 && "Failed to find identifer for export!");
+            }
+
+            emit_abc(ctx, BT_OP_EXPORT, name_loc, binding_loc, type_loc);
+        }
+
+        restore_registers(ctx);
     } break;
     case BT_AST_NODE_IF: {
         uint32_t end_points[64];

@@ -1,5 +1,7 @@
 import * from core
 
+import export_test as test
+
 type Vec2 = final {
     x: number,
     y: number
@@ -30,6 +32,9 @@ method Vec2.distance(other: Vec2) {
     let sy = this.y + other.y
     return sqrt(sx * sx + sy * sy)
 }
+
+print(test.y, test.renamed)
+print(test.add(10, 10))
 
 let a = Vec2.new(1, 10)
 let b = { y: 1, x: 10 } into Vec2!

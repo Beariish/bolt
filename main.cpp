@@ -383,7 +383,22 @@ int main(int argc, char** argv) {
 
 	UPERF_EVENT("Run code");
 	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
-	bt_find_module(&context, module_name);
+	bt_Module* mod = bt_find_module(&context, module_name);
+
+	bt_TablePairBuffer* pairs = &mod->exports->pairs;
+	if (pairs->length > 0) {
+		printf("Module exported %d items:\n", pairs->length);
+		for (uint32_t i = 0; i < pairs->length; ++i) {
+			bt_TablePair* pair = pairs->elements + i;
+			
+			bt_String* key = bt_to_string(&context, pair->key);
+			bt_String* value = bt_to_string(&context, pair->value);
+
+			printf("[%d] '%s': %s\n", i, key->str, value->str);
+		}
+
+		printf("-----------------------------------------------------\n");
+	}
 	UPERF_POP();
 
 #ifdef BOLT_PRINT_DEBUG
