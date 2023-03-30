@@ -67,6 +67,8 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->meta_names.format = bt_make_string_hashed_len(context, "@format", 7);
 	context->meta_names.collect = bt_make_string_hashed_len(context, "@collect", 8);
 
+	context->compiler_options.generate_debug_info = BT_TRUE;
+
 	context->is_valid = BT_TRUE;
 }
 
@@ -109,7 +111,7 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 
 	UPERF_EVENT("Compile source");
 	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
-	*compiler = bt_open_compiler(parser);
+	*compiler = bt_open_compiler(parser, context->compiler_options);
 	bt_Module* result = bt_compile(compiler);
 	if (result == 0) {
 		bt_close_compiler(compiler);
@@ -212,11 +214,27 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		bt_buffer_destroy(context, &mod->constants);
 		bt_buffer_destroy(context, &mod->instructions);
 		bt_buffer_destroy(context, &mod->imports);
+
+		if (mod->debug_locs) {
+			bt_buffer_destroy(context, mod->debug_locs);
+
+			for (uint32_t i = 0; i < mod->debug_tokens.length; i++) {
+				context->free(mod->debug_tokens.elements[i]);
+			}
+
+			bt_buffer_destroy(context, &mod->debug_tokens);
+			context->free(mod->debug_locs);
+			context->free(mod->debug_source);
+		}
 	} break;
 	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* fn = obj;
 		bt_buffer_destroy(context, &fn->constants);
 		bt_buffer_destroy(context, &fn->instructions);
+		if (fn->debug) {
+			bt_buffer_destroy(context, fn->debug);
+			context->free(fn->debug);
+		}
 	} break;
 	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Closure* cl = obj;
@@ -396,9 +414,28 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	return BT_TRUE;
 }
 
-void bt_runtime_error(bt_Thread* thread, const char* message)
+void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 {
 	printf("BOLT ERROR: %s\n", message);
+
+	if (ip != NULL) {
+		bt_Callable* callable = thread->callstack[thread->depth - 1].callable;
+		const char* source = bt_get_debug_source(callable);
+
+		bt_DebugLocBuffer* loc_buffer = bt_get_debug_locs(callable);
+		uint32_t loc_index = bt_get_debug_index(callable, ip);
+
+		bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
+
+		bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
+
+		bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
+
+		printf("On line %d:\n", source_token->line - 1);
+		printf("\t%.*s\n", line_source.length, line_source.source);
+	}
+
+	thread->context->current_thread = NULL;
 	longjmp(thread->error_loc, 1);
 }
 
@@ -465,11 +502,92 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 		callable->fn(thread->context, thread);
 	}
 	else {
-		bt_runtime_error(thread, "Unsupported callable type.");
+		bt_runtime_error(thread, "Unsupported callable type.", NULL);
 	}
 
 	thread->depth--;
 	thread->top = old_top;
+}
+
+const char* bt_get_debug_source(bt_Callable* callable)
+{
+	switch (BT_OBJECT_GET_TYPE(callable)) {
+	case BT_OBJECT_TYPE_FN:
+		return callable->fn.module->debug_source;
+	case BT_OBJECT_TYPE_MODULE:
+		return callable->module.debug_source;
+	case BT_OBJECT_TYPE_CLOSURE:
+		return callable->cl.fn->module->debug_source;
+	}
+
+	return NULL;
+}
+
+bt_TokenBuffer* bt_get_debug_tokens(bt_Callable* callable)
+{
+	switch (BT_OBJECT_GET_TYPE(callable)) {
+	case BT_OBJECT_TYPE_FN:
+		return &callable->fn.module->debug_tokens;
+	case BT_OBJECT_TYPE_MODULE:
+		return &callable->module.debug_tokens;
+	case BT_OBJECT_TYPE_CLOSURE:
+		return &callable->cl.fn->module->debug_tokens;
+	}
+
+	return NULL;
+}
+
+bt_StrSlice bt_get_debug_line(const char* source, uint16_t line)
+{
+	uint16_t cur_line = 1;
+	while (*source) {
+		if (cur_line == line) {
+			const char* line_start = source;
+			while (*source && *source != '\n') source++;
+			return (bt_StrSlice) { line_start, source - line_start };
+		}
+
+		if (*source == '\n') cur_line++;
+		source++;
+	}
+
+	return (bt_StrSlice) { source, 0 };
+}
+
+bt_DebugLocBuffer* bt_get_debug_locs(bt_Callable* callable)
+{
+	switch (BT_OBJECT_GET_TYPE(callable)) {
+	case BT_OBJECT_TYPE_FN:
+		return callable->fn.debug;
+	case BT_OBJECT_TYPE_MODULE:
+		return callable->module.debug_locs;
+	case BT_OBJECT_TYPE_CLOSURE:
+		return callable->cl.fn->debug;
+	}
+
+	return NULL;
+}
+
+uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip)
+{
+	bt_InstructionBuffer* instructions = NULL;
+	switch (BT_OBJECT_GET_TYPE(callable)) {
+	case BT_OBJECT_TYPE_FN:
+		instructions = &callable->fn.instructions;
+		break;
+	case BT_OBJECT_TYPE_MODULE:
+		instructions = &callable->module.instructions;
+		break;
+	case BT_OBJECT_TYPE_CLOSURE:
+		instructions = &callable->cl.fn->instructions;
+		break;
+	}
+
+	if (instructions) {
+		return ip - instructions->elements;
+	}
+
+	return 0;
 }
 
 #define XSTR(x) #x
@@ -479,7 +597,7 @@ if (BT_IS_OBJECT(lhs)) {																			 \
 	if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_TABLE) {														 \
 		bt_Table* tbl = obj;																		 \
 		bt_Value add_fn = bt_table_get(tbl, BT_VALUE_OBJECT(thread->context->meta_names.name));		 \
-		if (add_fn == BT_VALUE_NULL) bt_runtime_error(thread, "Unable to find @" XSTR(name) "metafunction!");	 \
+		if (add_fn == BT_VALUE_NULL) bt_runtime_error(thread, "Unable to find @" #name "metafunction!", ip);	 \
 																									 \
 		bt_push(thread, add_fn);																	 \
 		bt_push(thread, lhs);																		 \
@@ -491,7 +609,7 @@ if (BT_IS_OBJECT(lhs)) {																			 \
 	}																								 \
 }
 
-static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) + BT_AS_NUMBER(rhs));
@@ -518,33 +636,33 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 	ARITH_MF(add);
 
 	if (BT_TYPEOF(lhs) != BT_TYPEOF(rhs)) {
-		bt_runtime_error(thread, "Cannot add separate types!");
+		bt_runtime_error(thread, "Cannot add separate types!", ip);
 	}
 
-	bt_runtime_error(thread, "Unable to add values of type <TODO>!");
+	bt_runtime_error(thread, "Unable to add values of type <TODO>!", ip);
 }
 
-static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value rhs)
+static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(-BT_AS_NUMBER(rhs));
 		return;
 	}
 
-	bt_runtime_error(thread, "Cannot negate non-number value!");
+	bt_runtime_error(thread, "Cannot negate non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* result, bt_Value rhs)
+static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* result, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_FALSE(rhs));
 		return;
 	}
 
-	bt_runtime_error(thread, "Cannot 'not' non-bool value!");
+	bt_runtime_error(thread, "Cannot 'not' non-bool value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) - BT_AS_NUMBER(rhs));
@@ -553,9 +671,9 @@ static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value
 
 	ARITH_MF(sub);
 
-	bt_runtime_error(thread, "Cannot subtract non-number value!");
+	bt_runtime_error(thread, "Cannot subtract non-number value!", ip);
 }
-static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) * BT_AS_NUMBER(rhs));
@@ -564,10 +682,10 @@ static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_
 
 	ARITH_MF(mul);
 
-	bt_runtime_error(thread, "Cannot multiply non-number value!");
+	bt_runtime_error(thread, "Cannot multiply non-number value!", ip);
 }
 
-static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) / BT_AS_NUMBER(rhs));
@@ -576,66 +694,65 @@ static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_
 
 	ARITH_MF(div);
 
-	bt_runtime_error(thread, "Cannot divide non-number value!");
+	bt_runtime_error(thread, "Cannot divide non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 }
 
-static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
 
-static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) < BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 		return;
 	}
 
-	bt_runtime_error(thread, "Cannot lt non-number value!");
+	bt_runtime_error(thread, "Cannot lt non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 		return;
 	}
 
-	bt_runtime_error(thread, "Cannot lte non-number value!");
+	bt_runtime_error(thread, "Cannot lte non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) && BT_IS_TRUE(rhs));
 		return;
 	}
 
-	bt_runtime_error(thread, "Cannot 'and' non-bool value!");
+	bt_runtime_error(thread, "Cannot 'and' non-bool value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs)
+static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) || BT_IS_TRUE(rhs));
 		return;
 	}
 
-	bt_runtime_error(thread, "Cannot 'or' non-bool value!");
+	bt_runtime_error(thread, "Cannot 'or' non-bool value!", ip);
 }
 
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
-	bt_Value* stack = thread->stack + thread->top;
+	register bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
-	bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
-	bt_Object* obj;
-	bt_Op op;
+	register bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
+	register bt_Op op;
 
 #define NEXT break;
 #define RETURN return;
@@ -644,7 +761,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		switch (BT_GET_OPCODE(op)) {
 		case BT_OP_LOAD:        stack[BT_GET_A(op)] = constants[BT_GET_B(op)];                       NEXT;
 		case BT_OP_LOAD_SMALL:  stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_GET_IBC(op));               NEXT;
-		case BT_OP_LOAD_NULL:   stack[BT_GET_A(op)] = BT_VALUE_NULL;                         NEXT;
+		case BT_OP_LOAD_NULL:   stack[BT_GET_A(op)] = BT_VALUE_NULL;                                 NEXT;
 		case BT_OP_LOAD_BOOL:   stack[BT_GET_A(op)] = BT_GET_B(op) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		case BT_OP_LOAD_IMPORT: stack[BT_GET_A(op)] = module->imports.elements[BT_GET_B(op)]->value; NEXT;
 
@@ -670,7 +787,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		case BT_OP_CLOSE: {
 			bt_ValueBuffer upvals;
 			bt_buffer_with_capacity(&upvals, context, BT_GET_C(op));
-			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			bt_Object* obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
 				bt_buffer_push(context, &upvals, stack[BT_GET_B(op) + 1 + i]);
 			}
@@ -683,20 +800,20 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		case BT_OP_LOADUP: BT_ASSUME(upv); stack[BT_GET_A(op)] = upv[BT_GET_B(op)];  NEXT;
 		case BT_OP_STOREUP: BT_ASSUME(upv); upv[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
-		case BT_OP_NEG: bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)]);              NEXT;
-		case BT_OP_ADD: bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
-		case BT_OP_SUB: bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
-		case BT_OP_MUL: bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
-		case BT_OP_DIV: bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_NEG: bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
+		case BT_OP_ADD: bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		case BT_OP_SUB: bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		case BT_OP_MUL: bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		case BT_OP_DIV: bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
 
-		case BT_OP_EQ:  bt_eq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  NEXT;
-		case BT_OP_NEQ: bt_neq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
-		case BT_OP_LT:  bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  NEXT;
-		case BT_OP_LTE: bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		case BT_OP_EQ:  bt_eq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
+		case BT_OP_NEQ: bt_neq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		case BT_OP_LT:  bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
+		case BT_OP_LTE: bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
 
-		case BT_OP_AND: bt_and(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
-		case BT_OP_OR:  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
-		case BT_OP_NOT: bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)]); NEXT;
+		case BT_OP_AND: bt_and(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		case BT_OP_OR:  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
+		case BT_OP_NOT: bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
 
 		case BT_OP_LOAD_IDX: stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
 		case BT_OP_STORE_IDX: bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
@@ -707,7 +824,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		case BT_OP_LOAD_IDX_F: stack[BT_GET_A(op)] = ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value; NEXT;
 		case BT_OP_STORE_IDX_F: ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value = stack[BT_GET_C(op)]; NEXT;
 
-		case BT_OP_EXPECT:   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!"); NEXT;
+		case BT_OP_EXPECT:   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
 		case BT_OP_EXISTS:   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
 		case BT_OP_COALESCE: stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)];   NEXT;
 
@@ -741,7 +858,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		case BT_OP_CALL: {
 			uint16_t old_top = thread->top;
 
-			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			bt_Object* obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 
 			thread->top += BT_GET_B(op) + 1;
 			thread->callstack[thread->depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
@@ -769,7 +886,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 					as_native->fn(context, thread);
 				}
 				else {
-					bt_runtime_error(thread, "Closure contained unsupported callable type.");
+					bt_runtime_error(thread, "Closure contained unsupported callable type.", ip);
 				}
 			}
 			else if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_NATIVE_FN) {
@@ -779,7 +896,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 				callable->fn(context, thread);
 			}
 			else {
-				bt_runtime_error(thread, "Unsupported callable type.");
+				bt_runtime_error(thread, "Unsupported callable type.", ip);
 			}
 
 			thread->depth--;

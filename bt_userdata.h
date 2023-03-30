@@ -1,7 +1,7 @@
 #pragma once
 
+#include "bt_prelude.h"
 #include "bt_value.h"
-#include "bt_context.h"
 
 typedef bt_Value (*bt_UserdataFieldGetter)(bt_Context* ctx, uint8_t* userdata, uint32_t offset);
 typedef void     (*bt_UserdataFieldSetter)(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value);

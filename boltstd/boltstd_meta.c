@@ -47,7 +47,7 @@ static void btstd_grey(bt_Context* ctx, bt_Thread* thread)
 
 static void btstd_push_root(bt_Context* ctx, bt_Thread* thread)
 {
-	if (!BT_IS_OBJECT(bt_arg(thread, 0))) bt_runtime_error(thread, "Can't push non-reference object as root!");
+	if (!BT_IS_OBJECT(bt_arg(thread, 0))) bt_runtime_error(thread, "Can't push non-reference object as root!", NULL);
 
 	bt_Object* arg = BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_push_root(ctx, arg);

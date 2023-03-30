@@ -6,6 +6,7 @@
 #include "bt_op.h"
 #include "bt_object.h"
 #include "bt_gc.h"
+#include "bt_compiler.h"
 
 #include <setjmp.h>
 
@@ -29,6 +30,8 @@ typedef struct bt_StackFrame {
 } bt_StackFrame;
 
 struct bt_Context {
+	bt_CompilerOptions compiler_options;
+
 	bt_Alloc alloc;
 	bt_Free free;
 	bt_Realloc realloc;
@@ -75,7 +78,7 @@ struct bt_Context {
 void bt_push_root(bt_Context* ctx, bt_Object* root);
 void bt_pop_root(bt_Context* ctx);
 
-typedef __declspec(align(64)) struct bt_Thread {
+typedef struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];
 	uint32_t top;
 
@@ -103,7 +106,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name);
 
 bt_bool bt_execute(bt_Context* context, bt_Module* module);
 
-void bt_runtime_error(bt_Thread* thread, const char* message);
+void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip);
 
 void bt_push(bt_Thread* thread, bt_Value value); 
 bt_Value bt_pop(bt_Thread* thread);
@@ -111,3 +114,9 @@ bt_Value bt_pop(bt_Thread* thread);
 bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals);
 
 void bt_call(bt_Thread* thread, uint8_t argc);
+
+const char* bt_get_debug_source(bt_Callable* callable);
+bt_TokenBuffer* bt_get_debug_tokens(bt_Callable* callable);
+bt_StrSlice bt_get_debug_line(const char* source, uint16_t line);
+bt_DebugLocBuffer* bt_get_debug_locs(bt_Callable* callable); 
+uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip);

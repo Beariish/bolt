@@ -830,6 +830,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     bt_Tokenizer* tok = parse->tokenizer;
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_FUNCTION);
+    result->source = bt_tokenizer_peek(parse->tokenizer);
     bt_buffer_empty(&result->as.fn.args);
     bt_buffer_with_capacity(&result->as.fn.body, parse->context, 8);
     result->as.fn.ret_type = NULL;
@@ -964,6 +965,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         if (!result) assert(0 && "Expression did not evaluate to type!");
 
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
+        lhs_node->source = inner->source;
         lhs_node->resulting_type = result;
     }
     else if (prefix_binding_power(lhs)) {
@@ -1061,6 +1063,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 }
 
                 bt_AstNode* call = make_node(parse, BT_AST_NODE_CALL);
+                call->source = lhs_node->source;
                 call->as.call.fn = lhs_node;
                 bt_buffer_with_capacity(&call->as.call.args, parse->context, max_arg);
                 
@@ -1578,6 +1581,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     UPERF_EVENT("parse_let");
     bt_Tokenizer* tok = parse->tokenizer;
     bt_AstNode* node = make_node(parse, BT_AST_NODE_LET);
+    node->source = bt_tokenizer_peek(tok);
     node->as.let.is_const = BT_FALSE;
 
     bt_Token* name_or_const = bt_tokenizer_emit(tok);
@@ -1667,6 +1671,7 @@ static bt_AstNode* parse_return(bt_Parser* parse)
 {
     UPERF_EVENT("parse_return");
     bt_AstNode* node = make_node(parse, BT_AST_NODE_RETURN);
+    node->source = bt_tokenizer_peek(parse->tokenizer);
     node->as.ret.expr = pratt_parse(parse, 0);
     node->resulting_type = type_check(parse, node->as.ret.expr)->resulting_type;
     UPERF_POP();
@@ -1839,6 +1844,7 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     }
 
     bt_AstNode* export = make_node(parse, BT_AST_NODE_EXPORT);
+    export->source = to_export->source;
     export->as.exp.name = name;
     export->as.exp.value = to_export;
     export->resulting_type = type_check(parse, to_export)->resulting_type;
@@ -1890,6 +1896,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
     if (fn->type != BT_AST_NODE_FUNCTION) assert(0 && "Expected function literal!");
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_LET);
+    result->source = ident;
     result->resulting_type = type_check(parser, fn)->resulting_type;
     result->as.let.name = ident->source;
     result->as.let.initializer = fn;
@@ -1918,6 +1925,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     parse_block(&body, parser);
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_IF);
+    result->source = condition->source;
     result->as.branch.condition = condition;
     result->as.branch.body = body;
     result->as.branch.next = NULL;

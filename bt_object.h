@@ -5,6 +5,7 @@
 #include "bt_value.h"
 #include "bt_buffer.h"
 #include "bt_op.h"
+#include "bt_tokenizer.h"
 
 typedef struct bt_Type bt_Type;
 
@@ -23,6 +24,7 @@ typedef enum {
 	BT_OBJECT_TYPE_USERDATA
 } bt_ObjectType;
 
+typedef bt_Buffer(uint32_t) bt_DebugLocBuffer;
 typedef bt_Buffer(bt_Value) bt_ValueBuffer;
 typedef bt_Buffer(bt_Op) bt_InstructionBuffer;
 
@@ -99,11 +101,14 @@ typedef struct bt_Module {
 	bt_InstructionBuffer instructions;
 	bt_ImportBuffer imports;
 
+	bt_TokenBuffer debug_tokens;
+	const char* debug_source;
+	bt_DebugLocBuffer* debug_locs;
+
 	bt_Table* exports;
 	bt_Type* type;
 	uint8_t stack_size;
 } bt_Module;
-
 
 typedef struct bt_Fn {
 	bt_Object obj;
@@ -113,6 +118,8 @@ typedef struct bt_Fn {
 
 	bt_Type* signature;
 	bt_Module* module;
+	bt_DebugLocBuffer* debug;
+
 	uint8_t stack_size;
 } bt_Fn;
 
@@ -174,6 +181,7 @@ bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index);
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
 bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports);
 bt_Module* bt_make_user_module(bt_Context* ctx);
+void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok);
 
 bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);
 

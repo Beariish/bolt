@@ -232,14 +232,14 @@ uint64_t bt_array_length(bt_Array* arr)
 
 bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value)
 {
-    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!");
+    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!", NULL);
     arr->items.elements[index] = value;
     return BT_TRUE;
 }
 
 bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index)
 {
-    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!");
+    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!", NULL);
     return arr->items.elements[index];
 }
 
@@ -265,6 +265,12 @@ bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
     bt_buffer_clone(ctx, &result->imports, imports);
     result->exports = bt_make_table(ctx, 0);
     result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
+    
+    result->debug_source = 0;
+    result->stack_size = 0;
+    bt_buffer_empty(&result->instructions);
+    bt_buffer_empty(&result->constants);
+    bt_buffer_empty(&result->debug_tokens);
 
     return result;
 }
@@ -273,14 +279,23 @@ bt_Module* bt_make_user_module(bt_Context* ctx)
 {
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
     
+    result->debug_source = 0;
     result->stack_size = 0;
     bt_buffer_empty(&result->imports);
     bt_buffer_empty(&result->instructions);
     bt_buffer_empty(&result->constants);
-    result->exports = bt_make_table(ctx, 1);
+    bt_buffer_empty(&result->debug_tokens);
+    result->exports = bt_make_table(ctx, 0);
     result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
 
     return result;
+}
+
+void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok)
+{
+    bt_buffer_move(&module->debug_tokens, &tok->tokens);
+    module->debug_source = tok->source;
+    tok->source = 0;
 }
 
 bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc)
@@ -323,7 +338,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
             bt_Value proto = bt_table_get(ctx->types.array->prototype_values, key);
             if (proto != BT_VALUE_NULL) return proto;
             
-            bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!");
+            bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!", NULL);
         }
 
         return bt_array_get(ctx, obj, BT_AS_NUMBER(key));
@@ -367,7 +382,7 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
         bt_table_set(ctx, obj, key, value);
         break;
     case BT_OBJECT_TYPE_ARRAY: {
-        if (!BT_IS_NUMBER(key)) bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!");
+        if (!BT_IS_NUMBER(key)) bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!", NULL);
         bt_array_set(ctx, obj, BT_AS_NUMBER(key), value);
     } break;
     case BT_OBJECT_TYPE_TYPE:

@@ -54,7 +54,6 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 
 void bt_close_tokenizer(bt_Tokenizer* tok)
 {
-	tok->source = tok->current = 0;
 	tok->line = tok->col = 0;
 
 	for (uint32_t i = 0; i < tok->tokens.length; i++)
@@ -67,11 +66,18 @@ void bt_close_tokenizer(bt_Tokenizer* tok)
 
 	tok->context->free(tok->literal_zero);
 	tok->context->free(tok->literal_one);
+	tok->context->free(tok->source);
+	tok->source = tok->current = 0;
 }
 
 void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
 {
-	tok->source = tok->current = source;
+	size_t source_len = strlen(source);
+	char* new_source = tok->context->alloc(source_len + 1);
+	memcpy(new_source, source, source_len);
+	new_source[source_len] = 0;
+
+	tok->source = tok->current = new_source;
 	tok->line = tok->col = 1;
 }
 
@@ -123,7 +129,7 @@ eat_whitespace:
 		bt_Token* token = make_token(                         \
 			tok->context,                                     \
 			(bt_StrSlice) { tok->current, 1 },				  \
-			tok->line, tok->col, 0,							  \
+			tok->line, tok->col, tok->tokens.length,		  \
 			token_type										  \
 		);													  \
 		tok->current++; tok->col++;							  \
@@ -143,7 +149,7 @@ eat_whitespace:
 		bt_Token* token = make_token(                             \
 			tok->context,                                         \
 			(bt_StrSlice) { tok->current, 1 },				      \
-			tok->line, tok->col, 0,							      \
+			tok->line, tok->col, tok->tokens.length,		      \
 			type										          \
 		);													      \
 		tok->current += len; tok->col += len;					  \
@@ -167,7 +173,7 @@ eat_whitespace:
 		bt_Token* token = make_token(                             \
 			tok->context,                                         \
 			(bt_StrSlice) { tok->current, 1 },				      \
-			tok->line, tok->col, 0,							      \
+			tok->line, tok->col, tok->tokens.length,              \
 			type										          \
 		);													      \
 		tok->current += len; tok->col += len;					  \
@@ -219,7 +225,7 @@ eat_whitespace:
 		bt_Token* token = make_token(
 			tok->context, 
 			(bt_StrSlice) { tok->current, length },
-			tok->line, tok->col, 0, 
+			tok->line, tok->col, tok->tokens.length,
 			BT_TOKEN_IDENTIFIER
 		);													      
 

@@ -14,8 +14,6 @@
 
 static const uint8_t INVALID_BINDING = 255;
 
-// Stores the occupancy of each register at a given time, each being 256 bits / 32 bytes
-
 typedef struct CompilerBinding {
     bt_StrSlice name;
     uint8_t loc;
@@ -55,6 +53,7 @@ typedef struct FunctionContext {
 
     bt_Buffer(bt_Constant) constants;
     bt_InstructionBuffer output;
+    bt_DebugLocBuffer debug;
 
     bt_Compiler* compiler;
     bt_Context* context;
@@ -100,6 +99,19 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
 
     bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
     bt_buffer_push(ctx->context, &ctx->output, op);
+
+    if (ctx->compiler->options.generate_debug_info) {
+        if (ctx->compiler->debug_top) {
+            bt_AstNode* node = ctx->compiler->debug_stack[ctx->compiler->debug_top - 1];
+            if (node->source) {
+                bt_buffer_push(ctx->context, &ctx->debug, node->source->idx);
+            }
+            else {
+                assert(0 && "AST node is missing source!");
+                bt_buffer_push(ctx->context, &ctx->debug, 0);
+            }
+        }
+    }
 
     UPERF_POP();
     return ctx->output.length - 1;
@@ -266,11 +278,14 @@ static uint16_t find_import(FunctionContext* ctx, bt_StrSlice name)
     return INVALID_BINDING;
 }
 
-bt_Compiler bt_open_compiler(bt_Parser* parser)
+bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions options)
 {
     bt_Compiler result;
     result.context = parser->context;
     result.input = parser;
+    result.options = options;
+    result.debug_top = 0;
+    memset(result.debug_stack, 0, sizeof(bt_AstNode*) * 128);
 
     return result;
 }
@@ -510,6 +525,10 @@ static bt_bool is_assigning(bt_TokenType op) {
 static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_t result_loc)
 {
     UPERF_EVENT("compile_expression");
+
+    if (ctx->compiler->options.generate_debug_info) {
+        ctx->compiler->debug_stack[ctx->compiler->debug_top++] = expr;
+    }
 
     switch (expr->type) {
     case BT_AST_NODE_LITERAL: {
@@ -862,6 +881,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     }
 
     UPERF_POP();
+    if (ctx->compiler->options.generate_debug_info) {
+        --ctx->compiler->debug_top;
+    }
     return BT_TRUE;
 }
 
@@ -885,22 +907,35 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 {
     UPERF_EVENT("compile_statement");
 
+    if (ctx->compiler->options.generate_debug_info) {
+        ctx->compiler->debug_stack[ctx->compiler->debug_top++] = stmt;
+    }
+
     switch (stmt->type) {
     case BT_AST_NODE_LET: {
         uint8_t new_loc = make_binding(ctx, stmt->as.let.name);
         if (new_loc == INVALID_BINDING) assert(0);
         if (stmt->as.let.initializer) {
             UPERF_POP();
+            if (ctx->compiler->options.generate_debug_info) {
+                --ctx->compiler->debug_top;
+            }
             return compile_expression(ctx, stmt->as.let.initializer, new_loc);
         }
 
         UPERF_POP();
+        if (ctx->compiler->options.generate_debug_info) {
+            --ctx->compiler->debug_top;
+        }
         return BT_TRUE;
     } break;
     case BT_AST_NODE_RETURN: {
         uint8_t ret_loc = find_binding_or_compile_temp(ctx, stmt->as.ret.expr);
         emit_a(ctx, BT_OP_RETURN, ret_loc);
         UPERF_POP();
+        if (ctx->compiler->options.generate_debug_info) {
+            --ctx->compiler->debug_top;
+        }
         return BT_TRUE;
     } break;
     case BT_AST_NODE_EXPORT: {
@@ -1031,10 +1066,16 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         bt_bool result = compile_expression(ctx, stmt, get_register(ctx));
         restore_registers(ctx);
         UPERF_POP();
+        if (ctx->compiler->options.generate_debug_info) {
+            --ctx->compiler->debug_top;
+        }
         return result;
     }
 
     UPERF_POP();
+    if (ctx->compiler->options.generate_debug_info) {
+        --ctx->compiler->debug_top;
+    }
     return BT_TRUE;
 }
 
@@ -1055,6 +1096,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     fn.scope_depth = 0;
     bt_buffer_empty(&fn.output);
     bt_buffer_empty(&fn.constants);
+    bt_buffer_empty(&fn.debug);
     fn.context = compiler->context;
     fn.compiler = compiler;
     fn.fn = 0;
@@ -1068,6 +1110,14 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     compile_body(&fn, body);
 
     emit(&fn, BT_OP_END);
+    
+    if (compiler->options.generate_debug_info) {
+        UPERF_EVENT("Copy debug info");
+        bt_module_set_debug_info(result, compiler->input->tokenizer);
+        result->debug_locs = compiler->context->alloc(sizeof(bt_DebugLocBuffer));
+        bt_buffer_move(result->debug_locs, &fn.debug);
+        UPERF_POP();
+    }
 
     UPERF_EVENT("Copy constants");
     bt_ValueBuffer fn_constants;
@@ -1106,6 +1156,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.scope_depth = 0;
     bt_buffer_empty(&ctx.output);
     bt_buffer_empty(&ctx.constants);
+    bt_buffer_empty(&ctx.debug);
     ctx.context = compiler->context;
     ctx.compiler = compiler;
     ctx.outer = parent;
@@ -1145,6 +1196,13 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     UPERF_EVENT("Make object");
     bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
     UPERF_POP();
+
+    if (compiler->options.generate_debug_info) {
+        UPERF_EVENT("Copy debug info");
+        result->debug = compiler->context->alloc(sizeof(bt_DebugLocBuffer));
+        bt_buffer_move(result->debug, &ctx.debug);
+        UPERF_POP();
+    }
 
 #ifdef BOLT_PRINT_DEBUG
     UPERF_EVENT("Debug print fn");

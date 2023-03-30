@@ -38,7 +38,7 @@ print(test.add(10, 10))
 
 fn make_any: any { return 10 }
 
-let as_num = make_any() as number
+let as_num = make_any as number
 
 fn number_printer(x: number) {
     print(x)
@@ -46,6 +46,16 @@ fn number_printer(x: number) {
 
 number_printer(as_num!)
 print(as_num, typeof(as_num))
+
+fn takes_callback(cb: fn: number, param: number) {
+    print("Param is", param)
+    print("callback is", cb())
+}
+
+takes_callback(fn {
+    print("I'm callback!!")
+    return 20
+}, 10)
 
 let a = Vec2.new(1, 10)
 let b = { y: 1, x: 10 } as Vec2!

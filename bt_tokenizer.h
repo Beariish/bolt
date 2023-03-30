@@ -63,10 +63,12 @@ typedef struct {
 	};
 } bt_Literal;
 
+typedef bt_Buffer(bt_Token*) bt_TokenBuffer;
+
 typedef struct {
 	bt_Context* context;
 
-	bt_Buffer(bt_Token*) tokens;
+	bt_TokenBuffer tokens;
 	bt_Buffer(bt_Literal) literals;
 	int32_t last_consumed;
 

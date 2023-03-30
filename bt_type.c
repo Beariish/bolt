@@ -519,7 +519,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
 		bt_Object* obj = BT_AS_OBJECT(value);
 		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
-			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!");
+			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!", NULL);
 		}
 
 		bt_Table* src = obj;
@@ -533,7 +533,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 			bt_Value val = bt_table_get(src, pair->key);
 
 			if (val == BT_VALUE_NULL && ((bt_Type*)BT_AS_OBJECT(pair->value))->is_optional == BT_FALSE) {
-				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!");
+				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
 			}
 
 			bt_table_set(type->ctx, dst, pair->key, val);
