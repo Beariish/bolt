@@ -42,6 +42,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             else                   len = sprintf_s(buffer, size, "false");
             break;
         case BT_TYPE_NULL: len = sprintf_s(buffer, size, "null"); break;
+        case BT_TYPE_ENUM: len = sprintf_s(buffer, size, "%d", (uint32_t)BT_AS_ENUM(value)); break;
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (BT_OBJECT_GET_TYPE(obj)) {

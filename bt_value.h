@@ -15,6 +15,7 @@ typedef uint64_t bt_Value;
 
 #define BT_TYPE_NULL    (0b0000000000000000000000000000000000000000000000000000000000000000)
 #define BT_TYPE_BOOL    (0b0000000000000001000000000000000000000000000000000000000000000000)
+#define BT_TYPE_ENUM    (0b0000000000000010000000000000000000000000000000000000000000000000)
 #define BT_TYPE_OBJECT  (0b0000000000000011000000000000000000000000000000000000000000000000)
 
 #define BT_VALUE_NULL       ((bt_Value)(BT_NAN_MASK | BT_TYPE_NULL))
@@ -22,6 +23,7 @@ typedef uint64_t bt_Value;
 #define BT_VALUE_TRUE       ((bt_Value)(BT_NAN_MASK | (BT_TYPE_BOOL | 1)))
 #define BT_VALUE_BOOL(x)    ((x) ? BT_VALUE_TRUE : BT_VALUE_FALSE)
 #define BT_VALUE_NUMBER(x)  (bt_make_number((bt_number)x))
+#define BT_VALUE_ENUM(x)    ((bt_Value)(BT_NAN_MASK | BT_TYPE_ENUM | (uint32_t)x))
 #define BT_VALUE_OBJECT(x)  ((bt_Value)(BT_NAN_MASK | (BT_TYPE_OBJECT | (bt_Value)x)))
 
 #define BT_IS_NUMBER(x)   (((x) & BT_NAN_MASK) != BT_NAN_MASK)
@@ -30,6 +32,7 @@ typedef uint64_t bt_Value;
 #define BT_IS_TRUE(x)     (x == BT_VALUE_TRUE)
 #define BT_IS_FALSE(x)    (x == BT_VALUE_FALSE)
 #define BT_IS_TRUTHY(x)   (!(x == BT_VALUE_FALSE || x == BT_VALUE_NULL))
+#define BT_IS_ENUM(x)     (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_ENUM)
 #define BT_IS_OBJECT(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_OBJECT)
 #define BT_IS_OBJECT_FAST(x) ((x & BT_TYPE_MASK) == BT_TYPE_OBJECT)
 
@@ -38,6 +41,7 @@ typedef uint64_t bt_Value;
 #define BT_EPSILON 0.0000001
 
 #define BT_AS_NUMBER(x) (bt_get_number((bt_Value)x))
+#define BT_AS_ENUM(x)   (((bt_Value)x) & 0xFFFFFFFFu)
 #define BT_AS_OBJECT(x) ((bt_Object*)(BT_VALUE_MASK & ((bt_Value)x)))
 
 bt_bool bt_value_is_equal(bt_Value a, bt_Value b);

@@ -10,6 +10,7 @@ typedef enum {
 	BT_AST_NODE_EXPORT,
 
 	BT_AST_NODE_LITERAL,
+	BT_AST_NODE_ENUM_LITERAL,
 	BT_AST_NODE_IDENTIFIER,
 	BT_AST_NODE_IMPORT_REFERENCE,
 	BT_AST_NODE_ARRAY,
@@ -139,6 +140,10 @@ typedef struct bt_AstNode {
 			bt_Token* name;
 			bt_AstNode* expr;
 		} table_field;
+
+		struct {
+			bt_Value value;
+		} enum_literal;
 	} as; 
 
 	bt_Token* source;

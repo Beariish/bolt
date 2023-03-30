@@ -18,6 +18,7 @@ typedef enum {
 	BT_TYPE_CATEGORY_NATIVE_FN,
 	BT_TYPE_CATEGORY_USERDATA,
 	BT_TYPE_CATEGORY_UNION,
+	BT_TYPE_CATEGORY_ENUM,
 } bt_TypeCategory;
 
 typedef bt_Buffer(bt_Type*) bt_TypeBuffer;
@@ -65,6 +66,11 @@ typedef struct bt_Type {
 			bt_FieldBuffer fields;
 			bt_MethodBuffer functions;
 		} userdata;
+
+		struct {
+			bt_String* name;
+			bt_Table* options;
+		} enum_;
 	} as;
 
 	bt_Context* ctx;
@@ -113,6 +119,11 @@ bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 
 bt_Type* bt_make_union(bt_Context* context);
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
+
+bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name);
+void bt_enum_push_option(bt_Context* context, bt_Type* enum_, bt_StrSlice name, bt_Value value);
+bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value value);
+bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name);
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type);
 bt_bool bt_satisfies_type(bt_Value value, bt_Type* type);

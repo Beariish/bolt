@@ -84,6 +84,24 @@ static void btstd_find_type(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, type ? BT_VALUE_OBJECT(type) : BT_VALUE_NULL);
 }
 
+static void btstd_get_enum_name(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Type* enum_ = BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_Value value = bt_arg(thread, 1);
+
+	if (enum_->category != BT_TYPE_CATEGORY_ENUM) {
+		bt_runtime_error(thread, "meta.get_enum_name: Type provided was not enum!", NULL);
+	}
+
+	bt_Value result = bt_enum_contains(ctx, enum_, value);
+
+	if (result == BT_VALUE_NULL) {
+		bt_runtime_error(thread, "meta.get_enum_name: enum did not contain provided option", NULL);
+	}
+
+	bt_return(thread, result);
+}
+
 void boltstd_open_meta(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -108,6 +126,9 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_Type* findtype_args[] = { context->types.string };
 	bt_Type* findtype_sig = bt_make_signature(context, bt_make_nullable(context, context->types.type), findtype_args, 1);
+
+	bt_Type* getenumname_args[] = { context->types.type, context->types.any };
+	bt_Type* getenumname_sig = bt_make_signature(context, context->types.string, getenumname_args, 2);
 
 	//bt_module_export(context, module, arg_sig, BT_VALUE_CSTRING(context, "arg"), BT_VALUE_OBJECT(
 	//	bt_make_native(context, arg_sig, btstd_arg)));
@@ -141,6 +162,9 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_module_export(context, module, findtype_sig, BT_VALUE_CSTRING(context, "find_type"), BT_VALUE_OBJECT(
 		bt_make_native(context, findtype_sig, btstd_find_type)));
+
+	bt_module_export(context, module, getenumname_sig, BT_VALUE_CSTRING(context, "get_enum_name"), BT_VALUE_OBJECT(
+		bt_make_native(context, getenumname_sig, btstd_get_enum_name)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "meta"), module);
 }

@@ -431,6 +431,40 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 	bt_buffer_push(context, &uni->as.selector.types, variant);
 }
 
+bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name)
+{
+	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
+	bt_Type* result = bt_make_type(context, owned_name->str, bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM, BT_FALSE);
+	result->as.enum_.name = owned_name;
+	result->as.enum_.options = bt_make_table(context, 0);
+
+	return result;
+}
+
+void bt_enum_push_option(bt_Context* context, bt_Type* enum_, bt_StrSlice name, bt_Value value)
+{
+	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
+
+	bt_table_set(context, enum_->as.enum_.options, BT_VALUE_OBJECT(owned_name), value);
+}
+
+bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value value)
+{
+	bt_TablePairBuffer* pairs = &enum_->as.enum_.options->pairs;
+	for (uint32_t i = 0; i < pairs->length; i++) {
+		if (bt_value_is_equal(pairs->elements[i].value, value)) {
+			return pairs->elements[i].key;
+		}
+	}
+
+	return BT_VALUE_NULL;
+}
+
+bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name)
+{
+	return bt_table_get(enum_->as.enum_.options, BT_VALUE_OBJECT(name));
+}
+
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
 {
 	if (type == type->ctx->types.any) return BT_TRUE;

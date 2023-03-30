@@ -1,6 +1,26 @@
 import * from core
+import meta
 
 import export_test as test
+
+type Shape = enum { Circle Triangle Square }
+
+fn print_shape(shape: Shape) {
+    print("Value of the shape enum is:", shape)
+    print("Name of the shape enum is:", meta.get_enum_name(Shape, shape))
+
+    if shape == Shape.Circle {
+        print("We are circle!")
+    }
+
+    print("") // just for the newline
+}
+
+print_shape(Shape.Circle)
+print_shape(Shape.Triangle)
+print_shape(Shape.Square)
+
+print("Name of Shape.Circle is", meta.get_enum_name(Shape, Shape.Circle))
 
 type Vec2 = final {
     x: number,
@@ -38,7 +58,7 @@ print(test.add(10, 10))
 
 fn make_any: any { return 10 }
 
-let as_num = make_any as number
+let as_num = make_any() as number
 
 fn number_printer(x: number) {
     print(x)

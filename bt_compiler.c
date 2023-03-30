@@ -568,6 +568,10 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         } break;
         }
     } break;
+    case BT_AST_NODE_ENUM_LITERAL: {
+        uint8_t idx = push(ctx, expr->as.enum_literal.value);
+        emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+    } break;
     case BT_AST_NODE_IDENTIFIER: { // simple copy
         uint8_t loc = find_binding(ctx, expr->source->source);
         if (loc != INVALID_BINDING) {

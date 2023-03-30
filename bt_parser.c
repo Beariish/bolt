@@ -777,7 +777,27 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         UPERF_POP();
         return bt_make_array_type(parse->context, inner);
     } break;
+    case BT_TOKEN_ENUM: {
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
 
+        bt_Type* result = bt_make_enum(parse->context, (bt_StrSlice) { "<enum>", 6 });
+        
+        uint32_t option_idx = 0;
+        while (bt_tokenizer_peek(tok)->type == BT_TOKEN_IDENTIFIER) {
+            bt_Token* name = bt_tokenizer_emit(tok);
+            
+            bt_enum_push_option(parse->context, result, name->source, BT_VALUE_ENUM(option_idx));
+            option_idx++;
+
+            if (bt_tokenizer_peek(tok)->type == BT_TOKEN_COMMA) {
+                bt_tokenizer_emit(tok);
+            }
+        }
+
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+        return result;
+    } break;
     default: assert(0);
     }
 
@@ -1391,6 +1411,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
 
                 assert(0 && "Field not found in userdata type!");
+            }
+            else if (lhs->category == BT_TYPE_CATEGORY_ENUM) {
+                bt_String* as_str = BT_AS_OBJECT(rhs_key);
+                bt_Value result = bt_enum_get(parse->context, lhs, as_str);
+                if (result == BT_VALUE_NULL) assert(0 && "Invalid enum option!");
+                node->type = BT_AST_NODE_ENUM_LITERAL;
+                node->as.enum_literal.value = result;
+                node->resulting_type = lhs;
+                UPERF_POP();
+                return node;
             }
             else {
                 assert(0 && "lhs is unindexable type");
