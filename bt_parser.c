@@ -1559,8 +1559,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 bt_AstNode* left = node->as.binary_op.left;                                                                        \
                 while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;                                        \
                 bt_ParseBinding* binding = find_local(parse, left);                                                                \
-                if (!binding) assert(0 && "Failed to find bidning!");                                                              \
-                if (binding->is_const) assert(0 && "Cannot mutate const binding!");                                                \
+                if (binding && binding->is_const) assert(0 && "Cannot mutate const binding!");                                                \
             }                                                                                                                      \
                                                                                                                                    \
             if (lhs == parse->context->types.number || lhs == parse->context->types.any || (lhs == parse->context->types.string && \
@@ -1616,8 +1615,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_AstNode* left = node->as.binary_op.left;
             while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;
             bt_ParseBinding* binding = find_local(parse, left);
-            if (!binding) assert(0 && "Failed to find bidning!");
-            if (binding->is_const) assert(0 && "Cannot reassign to const binding!");
+            if (binding && binding->is_const) assert(0 && "Cannot reassign to const binding!");
         }
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
