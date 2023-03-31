@@ -1555,6 +1555,14 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;                                             \
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;                                            \
                                                                                                                                    \
+            if(node->source->type == tok2) {                                                                                       \
+                bt_AstNode* left = node->as.binary_op.left;                                                                        \
+                while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;                                        \
+                bt_ParseBinding* binding = find_local(parse, left);                                                                \
+                if (!binding) assert(0 && "Failed to find bidning!");                                                              \
+                if (binding->is_const) assert(0 && "Cannot mutate const binding!");                                                \
+            }                                                                                                                      \
+                                                                                                                                   \
             if (lhs == parse->context->types.number || lhs == parse->context->types.any || (lhs == parse->context->types.string && \
                 ((tok1) == BT_TOKEN_PLUS && (tok2) == BT_TOKEN_PLUSEQ))) {                                                         \
                 if (!lhs->satisfier(lhs, rhs)) {                                                                                   \
@@ -1565,7 +1573,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             else {                                                                                                                 \
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
                     bt_Value mf_key = BT_VALUE_OBJECT(parse->context->meta_names.metaname);                                        \
-                    bt_Value sub_mf = bt_table_get(lhs->prototype_types, mf_key);                                                 \
+                    bt_Value sub_mf = bt_table_get(lhs->prototype_types, mf_key);                                                  \
                     if (sub_mf == BT_VALUE_NULL) assert(0 && "Failed to find @" XSTR(metaname) " metamethod in tableshape!");      \
                     bt_Type* sub = BT_AS_OBJECT(sub_mf);                                                                           \
                                                                                                                                    \
@@ -1577,8 +1585,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         assert(0 && "Expected metamethod to take exactly 2 arguments!");                                           \
                     }                                                                                                              \
                                                                                                                                    \
-                    bt_Type* arg_lhs = sub->as.fn.args.elements[0];                                              \
-                    bt_Type* arg_rhs = sub->as.fn.args.elements[1];                                              \
+                    bt_Type* arg_lhs = sub->as.fn.args.elements[0];                                                                \
+                    bt_Type* arg_rhs = sub->as.fn.args.elements[1];                                                                \
                                                                                                                                    \
                     if (!arg_lhs->satisfier(arg_lhs, lhs) || !arg_rhs->satisfier(arg_rhs, rhs)) {                                  \
                         assert(0 && "Invalid arguments for @" XSTR(metaname) "!");                                                 \
@@ -1604,6 +1612,13 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub);
         TYPE_ARITH(BT_TOKEN_MUL, BT_TOKEN_MULEQ, mul);
         TYPE_ARITH(BT_TOKEN_DIV, BT_TOKEN_DIVEQ, div);
+        case BT_TOKEN_ASSIGN: {
+            bt_AstNode* left = node->as.binary_op.left;
+            while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;
+            bt_ParseBinding* binding = find_local(parse, left);
+            if (!binding) assert(0 && "Failed to find bidning!");
+            if (binding->is_const) assert(0 && "Cannot reassign to const binding!");
+        }
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
