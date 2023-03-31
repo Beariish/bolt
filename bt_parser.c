@@ -1072,9 +1072,26 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                         arg_types[i] = type_check(parse, args[i])->resulting_type;
                     }
 
+                    bt_Type* old_to_call = to_call;
                     to_call = to_call->as.poly_fn.applicator(parse->context, arg_types, max_arg);
                     if (!to_call) {
-                        assert(0 && "Found no polymorhic mode for function!");
+                        if (self_arg) {
+                            // If we have a self arg and fail to polymorphize, let's discard self and try with the remaining args.
+                            for (uint8_t i = 0; i < max_arg; i++) {
+                                args[i] = args[i + 1];
+                                arg_types[i] = arg_types[i + 1];
+                            }
+                            max_arg--;
+
+                            to_call = old_to_call->as.poly_fn.applicator(parse->context, arg_types, max_arg);
+
+                            if (!to_call) {
+                                assert(0 && "Found no polymorhic mode for function!");
+                            }
+                        }
+                        else {
+                            assert(0 && "Found no polymorhic mode for function!");
+                        }
                     }
                 }
 

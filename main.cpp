@@ -195,12 +195,13 @@ static void bt_arr_each_iter(bt_Context* ctx, bt_Thread* thread)
 static bt_Type* bt_arr_each_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 {
 	if (argc != 1) return NULL;
-	bt_Type* arg = args[0];
+	bt_Type* arg = bt_type_dealias(args[0]);
+
 	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
 
 	bt_Type* iter_sig = bt_make_signature(ctx, bt_make_nullable(ctx, arg->as.array.inner), NULL, 0);
 
-	bt_Type* sig = bt_make_signature(ctx, iter_sig, args, 1);
+	bt_Type* sig = bt_make_signature(ctx, iter_sig, &arg, 1);
 	sig->as.fn.is_method = true;
 
 	return sig;
@@ -352,6 +353,7 @@ int main(int argc, char** argv) {
 	bt_type_add_field(&context, string, BT_VALUE_CSTRING(&context, "length"), BT_VALUE_OBJECT(fn_ref), length_sig);
 	UPERF_POP();
 
+	bt_Module* array_module = bt_make_user_module(&context);
 	UPERF_EVENT("Register array.length()");
 	bt_Type* array = context.types.array;
 	bt_Type* alength_args[] = { context.types.array };
@@ -382,7 +384,7 @@ int main(int argc, char** argv) {
 	UPERF_POP();
 
 	UPERF_EVENT("Run code");
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "speak"));
 	bt_Module* mod = bt_find_module(&context, module_name);
 
 	bt_TablePairBuffer* pairs = &mod->exports->pairs;

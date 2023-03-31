@@ -27,6 +27,9 @@ type Vec2 = final {
     y: number
 }
 
+let ptest = (10 + 10)
+print("ptest is", ptest)
+
 fn Vec2.new(x: number, y: number) {
     return Vec2 => { x: x, y: y }
 }
@@ -154,3 +157,4 @@ for outer in 15 {
 }
 
 
+// is this still true?

@@ -465,6 +465,12 @@ bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name)
 	return bt_table_get(enum_->as.enum_.options, BT_VALUE_OBJECT(name));
 }
 
+bt_Type* bt_type_dealias(bt_Type* type)
+{
+	if (type->category == BT_TYPE_CATEGORY_TYPE) return bt_type_dealias(type->as.type.boxed);
+	return type;
+}
+
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
 {
 	if (type == type->ctx->types.any) return BT_TRUE;
