@@ -896,12 +896,14 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt);
 static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body) 
 {
     UPERF_EVENT("compile_body");
+    push_scope(ctx);
     for (uint32_t i = 0; i < body->length; ++i)
     {
         bt_AstNode* stmt = body->elements[i];
         if (!stmt) continue;
-        if (!compile_statement(ctx, stmt)) { UPERF_POP(); return BT_FALSE; }
+        if (!compile_statement(ctx, stmt)) { UPERF_POP(); pop_scope(ctx); return BT_FALSE; }
     }
+    pop_scope(ctx);
 
     UPERF_POP();
     return BT_TRUE;

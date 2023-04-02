@@ -1993,7 +1993,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
     bt_Token* next = bt_tokenizer_peek(tok);
-    if (next->type == BT_TOKEN_ELSE) {
+    if (next && next->type == BT_TOKEN_ELSE) {
         bt_tokenizer_emit(tok);
         next = bt_tokenizer_peek(tok);
 
