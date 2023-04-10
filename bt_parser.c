@@ -268,7 +268,9 @@ static void destroy_subobj(bt_Context* ctx, bt_AstNode* node)
         bt_buffer_destroy(ctx, &node->as.branch.body);
     } break;
 
-    case BT_AST_NODE_LOOP_WHILE: assert(0);
+    case BT_AST_NODE_LOOP_WHILE: {
+        bt_buffer_destroy(ctx, &node->as.loop_while.body);
+    }
 
     case BT_AST_NODE_LOOP_ITERATOR: {
         bt_buffer_destroy(ctx, &node->as.loop_iterator.body);
@@ -2026,13 +2028,39 @@ static bt_AstNode* parse_if(bt_Parser* parser)
 static bt_AstNode* parse_for(bt_Parser* parse)
 {
     UPERF_EVENT("parse_for");
-    bt_AstNode* identifier = pratt_parse(parse, 0);
-    if (identifier->type != BT_AST_NODE_IDENTIFIER)
-        assert(0 && "Invalid loop identifier!");
-
     bt_Tokenizer* tok = parse->tokenizer;
+    bt_AstNode* identifier = pratt_parse(parse, 0);
+
+    if (identifier->type != BT_AST_NODE_IDENTIFIER)
+    {
+    while_loop:
+        // "while"-style loop
+        if (type_check(parse, identifier)->resulting_type != parse->context->types.boolean) {
+            assert(0 && "'while'-style loop condition must be boolean expression!");
+        }
+
+        bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_WHILE);
+        result->as.loop_while.condition = identifier;
+
+        bt_AstBuffer body;
+        bt_buffer_with_capacity(&body, parse->context, 8);
+
+        push_scope(parse, BT_FALSE);
+
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+        parse_block(&body, parse);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+        pop_scope(parse);
+
+        result->as.loop_while.body = body;
+        UPERF_POP();
+        return result;
+    }
+
     bt_Token* token = bt_tokenizer_peek(tok);
 
+    if (token->type == BT_TOKEN_LEFTBRACE) goto while_loop;
     if (token->type != BT_TOKEN_IN) assert(0 && "Expected keyword 'in'!");
     bt_tokenizer_emit(tok);
 

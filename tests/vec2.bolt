@@ -110,6 +110,12 @@ for i in 10 {
     if i == 8 { break }
     print(i)
 }
+
+let i = true
+for i {
+    i = false
+    print("Looped once!")
+}
 print("--- CONTINUE/BREAK")
 
 for outer in 15 {

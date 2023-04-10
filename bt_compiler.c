@@ -1072,6 +1072,28 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         pop_scope(ctx);
         restore_registers(ctx);
     } break;
+    case BT_AST_NODE_LOOP_WHILE: {
+        push_registers(ctx);
+        push_scope(ctx);
+
+        uint8_t condition_loc = get_register(ctx);
+
+        uint32_t loop_start = ctx->output.length;
+        compile_expression(ctx, stmt->as.loop_while.condition, condition_loc);
+        uint32_t skip_loc = emit_aibc(ctx, BT_OP_JMPF, condition_loc, 0);
+
+        setup_loop(ctx, loop_start);
+
+        compile_body(ctx, &stmt->as.loop_while.body);
+
+        emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
+        bt_Op* skip_op = op_at(ctx, skip_loc);
+        BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
+
+        resolve_breaks(ctx);
+        pop_scope(ctx);
+        restore_registers(ctx);
+    } break;
     case BT_AST_NODE_ALIAS: {
         push_named(ctx, stmt->source->source, BT_VALUE_OBJECT(stmt->as.alias.type));
     } break;

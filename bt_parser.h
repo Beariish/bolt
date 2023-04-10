@@ -116,6 +116,11 @@ typedef struct bt_AstNode {
 
 		struct {
 			bt_AstBuffer body;
+			bt_AstNode* condition;
+		} loop_while;
+
+		struct {
+			bt_AstBuffer body;
 			bt_AstNode* identifier;
 			bt_AstNode* iterator;
 		} loop_iterator;
