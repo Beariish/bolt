@@ -2326,6 +2326,16 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         bt_tokenizer_emit(tok);
         return parse_alias(parse);
     }
+    case BT_TOKEN_BREAK: {
+        bt_AstNode* result = make_node(parse, BT_AST_NODE_BREAK);
+        result->source = bt_tokenizer_emit(tok);
+        return result;
+    }
+    case BT_TOKEN_CONTINUE: {
+        bt_AstNode* result = make_node(parse, BT_AST_NODE_CONTINUE);
+        result->source = bt_tokenizer_emit(tok);
+        return result;
+    }
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);
     }

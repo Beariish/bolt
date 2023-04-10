@@ -97,6 +97,21 @@ if { x: 10 } satisfies Vec2 {
     print("does not satisfy!")
 }
 
+print("+++ CONTINUE/BREAK")
+let const nums = [1, 2, 3, 4, 5]
+for i in nums.each() {
+    if i == 2 { continue }
+    if i == 4 { break }
+    print(i)
+}
+
+for i in 10 {
+    if i == 2 { continue }
+    if i == 8 { break }
+    print(i)
+}
+print("--- CONTINUE/BREAK")
+
 for outer in 15 {
     let start_time = time()
     
@@ -156,5 +171,3 @@ for outer in 15 {
     print("1m vec2 methods took", duration_ms / 1000, "ms")
 }
 
-
-// is this still true?

@@ -258,6 +258,8 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("unsealed", token, BT_TOKEN_UNSEALED)
 		else BT_TEST_KEYWORD("typeof", token, BT_TOKEN_TYPEOF)
 		else BT_TEST_KEYWORD("enum", token, BT_TOKEN_ENUM)
+		else BT_TEST_KEYWORD("break", token, BT_TOKEN_BREAK)
+		else BT_TEST_KEYWORD("continue", token, BT_TOKEN_CONTINUE)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, token);

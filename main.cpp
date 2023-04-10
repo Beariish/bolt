@@ -384,7 +384,7 @@ int main(int argc, char** argv) {
 	UPERF_POP();
 
 	UPERF_EVENT("Run code");
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "speak"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
 	bt_Module* mod = bt_find_module(&context, module_name);
 
 	bt_TablePairBuffer* pairs = &mod->exports->pairs;

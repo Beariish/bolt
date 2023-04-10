@@ -31,6 +31,9 @@ typedef enum {
 	BT_AST_NODE_LET,
 	BT_AST_NODE_CALL,
 	BT_AST_NODE_ALIAS,
+
+	BT_AST_NODE_BREAK,
+	BT_AST_NODE_CONTINUE,
 } bt_AstNodeType;
 
 typedef struct bt_AstNode bt_AstNode;

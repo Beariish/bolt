@@ -26,30 +26,20 @@ typedef enum StorageClass {
     STORAGE_INDEX
 } StorageClass;
 
-typedef struct LastStore {
-    StorageClass type;
-    uint8_t idx;
-    bt_bool alive;
-} LastStore;
-
 typedef struct RegisterState {
     uint64_t regs[4];
-    uint8_t last_load[256];
 } RegisterState;
 
 typedef struct FunctionContext {
-    uint8_t min_top_register;
-
     CompilerBinding bindnings[128];
-    uint8_t binding_top;
-
     uint8_t binding_tops[32];
-    uint8_t scope_depth;
 
     RegisterState registers;
-
     RegisterState temps[32];
-    uint8_t temp_top;
+
+    uint16_t loop_starts[16];
+    uint16_t pending_breaks[16][16];
+    uint8_t break_counts[16];
 
     bt_Buffer(bt_Constant) constants;
     bt_InstructionBuffer output;
@@ -62,6 +52,12 @@ typedef struct FunctionContext {
     bt_AstNode* fn;
 
     struct FunctionContext* outer;
+    
+    uint8_t loop_depth;
+    uint8_t temp_top;
+    uint8_t scope_depth;
+    uint8_t binding_top;
+    uint8_t min_top_register;
 } FunctionContext;
 
 static uint8_t get_register(FunctionContext* ctx);
@@ -72,26 +68,6 @@ static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t push(FunctionContext* ctx, bt_Value value);
-
-static void store_hint(FunctionContext* ctx, uint8_t reg, StorageClass class, uint8_t idx)
-{
-    RegisterState* regs = &ctx->registers;
-    regs->last_load[reg] = idx;
-
-    for (uint8_t t = 0; t < ctx->temp_top; ++t) {
-        ctx->temps[t].last_load[reg] = idx;
-    }
-}
-
-static uint8_t is_stored(FunctionContext* ctx, uint8_t idx) 
-{
-    return INVALID_BINDING;
-    for (uint8_t i = 0; i < 255; ++i)
-    {
-        if (ctx->registers.last_load[i] == idx) return i;
-    }
-
-}
 
 static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
 {
@@ -115,6 +91,8 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
 
     UPERF_POP();
     return ctx->output.length - 1;
+
+    sizeof(FunctionContext);
 }
 
 static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t ibc)
@@ -374,7 +352,6 @@ static uint8_t get_register(FunctionContext* ctx)
 
         uint8_t result = offset + found;
         if (result > ctx->min_top_register) ctx->min_top_register = result;
-        store_hint(ctx, result - 1, STORAGE_UPVAL, INVALID_BINDING);
         UPERF_POP();
         return result - 1;
     }
@@ -413,7 +390,6 @@ static uint8_t get_registers(FunctionContext* ctx, uint8_t count)
         if (found != UINT8_MAX) {
             uint8_t result = offset + found;
             if (result + count > ctx->min_top_register) ctx->min_top_register = result + count;
-            for (uint8_t i = 0; i < count; ++i) store_hint(ctx, result + i, STORAGE_UPVAL, INVALID_BINDING);
             UPERF_POP();
             return result;
         }
@@ -453,8 +429,7 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
         loc = find_binding(ctx, expr->source->source);
         
         if (loc == INVALID_BINDING) {
-            uint8_t upval_idx = find_upval(ctx, expr->source->source);
-            loc = is_stored(ctx, upval_idx);
+            loc = find_upval(ctx, expr->source->source);
         }
     }
 
@@ -782,7 +757,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     try_store:
         if (storage == STORAGE_UPVAL) {
             uint8_t upval_idx = find_upval(ctx, lhs->source->source);
-            store_hint(ctx, result_loc, STORAGE_UPVAL, upval_idx);
             emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc);
         }
         else if (storage == STORAGE_INDEX) {
@@ -901,12 +875,37 @@ static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body)
     {
         bt_AstNode* stmt = body->elements[i];
         if (!stmt) continue;
-        if (!compile_statement(ctx, stmt)) { UPERF_POP(); pop_scope(ctx); return BT_FALSE; }
+
+        if (stmt->type == BT_AST_NODE_CONTINUE) {
+            assert(ctx->loop_depth > 0);
+            emit_aibc(ctx, BT_OP_JMP, 0, ctx->loop_starts[ctx->loop_depth - 1] - ctx->output.length - 1);
+        } else if (stmt->type == BT_AST_NODE_BREAK) {
+            uint16_t break_loc = emit(ctx, BT_OP_JMP);
+            ctx->pending_breaks[ctx->loop_depth - 1][ctx->break_counts[ctx->loop_depth - 1]++] = break_loc;
+        }
+        else if (!compile_statement(ctx, stmt)) { UPERF_POP(); pop_scope(ctx); return BT_FALSE; }
     }
     pop_scope(ctx);
 
     UPERF_POP();
     return BT_TRUE;
+}
+
+static void setup_loop(FunctionContext* ctx, uint16_t loop_start)
+{
+    ctx->loop_starts[ctx->loop_depth] = loop_start;
+    ctx->break_counts[ctx->loop_depth] = 0;
+    ctx->loop_depth++;
+}
+
+static void resolve_breaks(FunctionContext* ctx)
+{
+    ctx->loop_depth--;
+    for (uint8_t i = 0; i < ctx->break_counts[ctx->loop_depth]; i++) {
+        uint16_t loc = ctx->pending_breaks[ctx->loop_depth][i];
+        bt_Op* op = op_at(ctx, loc);
+        BT_SET_IBC(*op, ctx->output.length - loc - 1);
+    }
 }
 
 static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
@@ -1028,11 +1027,16 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
         uint32_t loop_start = ctx->output.length;
         uint32_t skip_loc = emit_aibc(ctx, BT_OP_ITERFOR, base_loc, 0);
+
+        setup_loop(ctx, loop_start);
+
         compile_body(ctx, &stmt->as.loop_iterator.body);
 
         emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
         bt_Op* skip_op = op_at(ctx, skip_loc);
         BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
+
+        resolve_breaks(ctx);
         
         pop_scope(ctx);
         restore_registers(ctx);
@@ -1055,11 +1059,15 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         uint32_t loop_start = ctx->output.length;
         uint32_t skip_loc = emit_aibc(ctx, BT_OP_NUMFOR, it_loc, 0);
 
+        setup_loop(ctx, loop_start);
+
         compile_body(ctx, &stmt->as.loop_iterator.body);
 
         emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
         bt_Op* skip_op = op_at(ctx, skip_loc);
         BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
+
+        resolve_breaks(ctx);
 
         pop_scope(ctx);
         restore_registers(ctx);
@@ -1105,6 +1113,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     bt_buffer_empty(&fn.debug);
     fn.context = compiler->context;
     fn.compiler = compiler;
+    fn.loop_depth = 0;
     fn.fn = 0;
     UPERF_POP();
 
@@ -1167,6 +1176,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     ctx.compiler = compiler;
     ctx.outer = parent;
     ctx.module = 0;
+    ctx.loop_depth = 0;
     ctx.fn = fn;
     UPERF_POP();
 
