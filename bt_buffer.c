@@ -7,15 +7,7 @@
 void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap)
 {
     if (*capacity >= new_cap) return;
-
-    void* new_data = ctx->alloc(element_size * new_cap);
-
-    if (*capacity > 0) {
-        memcpy(new_data, *data, (*capacity) * element_size);
-        ctx->free(*data);
-    }
-
-    *data = new_data;
+    *data = ctx->realloc(*data, element_size * new_cap);
     *capacity = new_cap;
 }
 
