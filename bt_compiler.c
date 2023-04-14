@@ -533,7 +533,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_STRING_LITERAL: {
             bt_Literal* lit = ctx->compiler->input->tokenizer->literals.elements + inner->idx;
             uint8_t idx = push(ctx,
-                BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, lit->as_str.source, lit->as_str.length)));
+                BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(ctx->context, lit->as_str.source, lit->as_str.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
         } break;
         case BT_TOKEN_IDENTIFER_LITERAL: {

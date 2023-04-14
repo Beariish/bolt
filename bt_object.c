@@ -115,6 +115,32 @@ bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t 
     return bt_hash_string(result);
 }
 
+bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, uint32_t len)
+{
+    char* strbuf = ctx->alloc(len + 1);
+
+    uint32_t idx = 0;
+    bt_bool in_escape = BT_FALSE;
+    for (uint32_t i = 0; i < len; ++i) {
+        if (str[i] == '\\') {
+            switch (str[++i]) {
+            case 'n':  strbuf[idx++] = '\n'; break;
+            case 't':  strbuf[idx++] = '\t'; break;
+            case '"':  strbuf[idx++] = '"';  break;
+            case '\\': strbuf[idx++] = '\\'; break;
+            default: bt_runtime_error(ctx->current_thread, "Unhandled escape character in string!", NULL);
+            }
+        }
+        else {
+            strbuf[idx++] = str[i];
+        }
+    }
+
+    strbuf[idx] = 0;
+
+    return bt_make_string_moved(ctx, strbuf, idx);
+}
+
 bt_String* bt_make_string_moved(bt_Context* ctx, const char* str, uint32_t len)
 {
     bt_String* result = BT_ALLOCATE(ctx, STRING, bt_String);

@@ -98,25 +98,17 @@ if { x: 10 } satisfies Vec2 {
 }
 
 print("+++ CONTINUE/BREAK")
-let const nums = [1, 2, 3, 4, 5]
-for i in nums.each() {
-    if i == 2 { continue }
-    if i == 4 { break }
-    print(i)
+fn inspector(x) {
+	print("The type of", x, "is", typeof(x))
 }
 
-for i in 10 {
-    if i == 2 { continue }
-    if i == 8 { break }
-    print(i)
-}
-
-let i = true
-for i {
-    i = false
-    print("Looped once!")
-}
+inspector(10) // The type of 10 is number
+inspector(true) // The type of true is boolean
 print("--- CONTINUE/BREAK")
+
+print("\n\n")
+print("this message should have \n a newline in it!")
+print("\n\n")
 
 for outer in 15 {
     let start_time = time()
