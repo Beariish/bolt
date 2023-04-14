@@ -110,6 +110,8 @@ print("\n\n")
 print("this message should have \n a newline in it!")
 print("\n\n")
 
+print("this string is \"quoted\"")
+
 for outer in 15 {
     let start_time = time()
     

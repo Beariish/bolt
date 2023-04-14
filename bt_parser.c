@@ -100,7 +100,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
         bt_ParseBinding* binding = topmost->bindings.elements + i;
         if (bt_strslice_compare(binding->name, new_binding.name)) {
-            //assert(0); // Binding redifinition
+            assert(0); // Binding redifinition
         }
     }
 

@@ -6,7 +6,6 @@
 #include <math.h>
 #include <string.h>
 
-#include "bt_intrinsics.h"
 #include "bt_context.h"
 #include "bt_debug.h"
 
@@ -68,6 +67,21 @@ static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t push(FunctionContext* ctx, bt_Value value);
+
+// ffsll intrinsic isn't on all platforms. some complicated platform defines could speed this up
+// but it's good enough for now
+static uint8_t internal_ffsll(uint64_t mask)
+{
+    uint8_t bit;
+
+    if (mask == 0) return 0;
+
+    for (bit = 1; !(mask & 1); bit++) {
+        mask >>= 1;
+    }
+
+    return bit;
+}
 
 static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
 {
@@ -346,7 +360,7 @@ static uint8_t get_register(FunctionContext* ctx)
     for (uint8_t idx = 0; idx < 4; ++idx, offset += 64) {
         uint64_t mask = ctx->registers.regs[idx];
         if (mask == UINT64_MAX) continue;
-        uint8_t found = ffsll(~mask);
+        uint8_t found = internal_ffsll(~mask);
         mask |= (1ull << (found - 1));
         ctx->registers.regs[idx] = mask;
 
