@@ -295,6 +295,9 @@ bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
     
     result->debug_source = 0;
     result->stack_size = 0;
+    result->name = 0;
+    result->path = 0;
+
     bt_buffer_empty(&result->instructions);
     bt_buffer_empty(&result->constants);
     bt_buffer_empty(&result->debug_tokens);

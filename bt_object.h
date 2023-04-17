@@ -105,6 +105,9 @@ typedef struct bt_Module {
 	const char* debug_source;
 	bt_DebugLocBuffer* debug_locs;
 
+	bt_String* path;
+	bt_String* name;
+
 	bt_Table* exports;
 	bt_Type* type;
 	uint8_t stack_size;

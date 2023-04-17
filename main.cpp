@@ -241,6 +241,29 @@ static void bt_struct_moveto(bt_Context* ctx, bt_Thread* thread)
 	self->y += dy;
 }
 
+static void bt_error(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col) {
+	switch (type)
+	{
+	case BT_ERROR_PARSE: {
+		printf("PARSING ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+	} break;
+
+	case BT_ERROR_COMPILE: {
+		printf("COMPILATION ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+	} break;
+
+	case BT_ERROR_RUNTIME: {
+		printf("RUNTIME ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+	} break;
+	}
+}
+
+static void bt_throw_error(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_String* message = bt_to_string(ctx, bt_arg(thread, 0));
+	bt_runtime_error(thread, message->str, NULL);
+}
+
 int main(int argc, char** argv) {
 	init_time();
 
@@ -250,7 +273,7 @@ int main(int argc, char** argv) {
 
 	UPERF_EVENT("Open Context");
 	bt_Context context;
-	bt_open(&context, malloc, realloc, free);
+	bt_open(&context, malloc, realloc, free, bt_error);
 	UPERF_POP();
 
 	UPERF_EVENT("Open stdlib");
@@ -269,6 +292,15 @@ int main(int argc, char** argv) {
 			print_sig,
 			BT_VALUE_CSTRING(&context, "print"),
 			BT_VALUE_OBJECT(bt_make_native(&context, print_sig, bt_print)));
+		UPERF_POP();
+
+		UPERF_EVENT("Register error()");
+		bt_Type* error_args[] = { context.types.string };
+		bt_Type* error_sig = bt_make_signature(&context, NULL, error_args, 1);
+		bt_module_export(&context, core_module,
+			error_sig,
+			BT_VALUE_CSTRING(&context, "error"),
+			BT_VALUE_OBJECT(bt_make_native(&context, error_sig, bt_throw_error)));
 		UPERF_POP();
 
 		UPERF_EVENT("Register tostring()");
@@ -387,19 +419,21 @@ int main(int argc, char** argv) {
 	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
 	bt_Module* mod = bt_find_module(&context, module_name);
 
-	bt_TablePairBuffer* pairs = &mod->exports->pairs;
-	if (pairs->length > 0) {
-		printf("Module exported %d items:\n", pairs->length);
-		for (uint32_t i = 0; i < pairs->length; ++i) {
-			bt_TablePair* pair = pairs->elements + i;
-			
-			bt_String* key = bt_to_string(&context, pair->key);
-			bt_String* value = bt_to_string(&context, pair->value);
+	if(mod != NULL) {
+		bt_TablePairBuffer* pairs = &mod->exports->pairs;
+		if (pairs->length > 0) {
+			printf("Module exported %d items:\n", pairs->length);
+			for (uint32_t i = 0; i < pairs->length; ++i) {
+				bt_TablePair* pair = pairs->elements + i;
 
-			printf("[%d] '%s': %s\n", i, key->str, value->str);
+				bt_String* key = bt_to_string(&context, pair->key);
+				bt_String* value = bt_to_string(&context, pair->value);
+
+				printf("[%d] '%s': %s\n", i, key->str, value->str);
+			}
+
+			printf("-----------------------------------------------------\n");
 		}
-
-		printf("-----------------------------------------------------\n");
 	}
 	UPERF_POP();
 

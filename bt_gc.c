@@ -22,6 +22,7 @@ bt_GC bt_make_gc(bt_Context* ctx)
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
+	bt_ObjectType type = obj ? BT_OBJECT_GET_TYPE(obj) :  0;
 	if (!obj || BT_OBJECT_GET_MARK(obj)) return;
 
 	BT_OBJECT_MARK(obj);

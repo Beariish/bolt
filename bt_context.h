@@ -22,6 +22,14 @@ typedef void (*bt_Free)(void* ptr);
 #define BT_CALLSTACK_SIZE 128
 #endif
 
+typedef enum {
+	BT_ERROR_PARSE,
+	BT_ERROR_COMPILE,
+	BT_ERROR_RUNTIME,
+} bt_ErrorType;
+
+typedef void (*bt_ErrorFunc)(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col);
+
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
 	bt_Value* upvals;
@@ -35,6 +43,7 @@ struct bt_Context {
 	bt_Alloc alloc;
 	bt_Free free;
 	bt_Realloc realloc;
+	bt_ErrorFunc on_error;
 
 	bt_Object* root;
 	bt_Object* next;

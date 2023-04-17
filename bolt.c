@@ -19,11 +19,12 @@ static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSa
 	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE, BT_FALSE);
 }
 
-void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Free free)
+void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Free free, bt_ErrorFunc error)
 {
 	context->alloc = allocator;
 	context->free = free;
 	context->realloc = realloc;
+	context->on_error = error;
 
 	context->gc = bt_make_gc(context);
 
@@ -242,14 +243,6 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_TABLE: {
 		bt_Table* table = obj;
-
-		bt_Value collect_fn = bt_table_get(table, BT_VALUE_OBJECT(context->meta_names.collect));
-		if (collect_fn != BT_VALUE_NULL) {
-			bt_push(context->current_thread, collect_fn);
-			bt_push(context->current_thread, BT_VALUE_OBJECT(table));
-			bt_call(context->current_thread, 1);
-		}
-
 		bt_buffer_destroy(context, &table->pairs);
 	} break;
 	case BT_OBJECT_TYPE_ARRAY: {
@@ -289,8 +282,6 @@ void bt_free(bt_Context* context, bt_Object* obj)
 	context->gc.byets_allocated -= get_object_size(obj);
 	free_subobjects(context, obj);
 	context->free(obj);
-
-	//memset(obj, 0, sizeof(bt_Object));
 }
 
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
@@ -335,11 +326,11 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		FILE* source;
 		fopen_s(&source, name_as_bolt_file, "rb");
-		//context->free(name_as_bolt_file);
 		UPERF_POP();
 
 		if (source == 0) {
 			assert(0 && "Cannot find module file!");
+			context->free(name_as_bolt_file);
 			return NULL;
 		}
 
@@ -355,18 +346,25 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		UPERF_POP();
 
 		bt_Module* new_mod = bt_compile_module(context, code);
+		new_mod->name = BT_AS_OBJECT(name);
+		new_mod->path = bt_make_string_len(context, name_as_bolt_file, to_load->len + 5);
+		context->free(name_as_bolt_file);
 		context->free(code);
 
 		if (new_mod) {
 			UPERF_EVENT("Execute module");
-			bt_register_module(context, name, new_mod);
-			bt_execute(context, new_mod);
-			UPERF_POP();
+			if (bt_execute(context, new_mod)) {
+				bt_register_module(context, name, new_mod);
 
-			//bt_collect(&context->gc, 0);
-
-			UPERF_POP();
-			return new_mod;
+				UPERF_POP();
+				UPERF_POP();
+				return new_mod;
+			}
+			else {
+				UPERF_POP();
+				UPERF_POP();
+				return NULL;
+			}
 		}
 		else {
 			UPERF_POP();
@@ -382,24 +380,25 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 bt_bool bt_execute(bt_Context* context, bt_Module* module)
 {
-	bt_Thread thread;
-	thread.depth = 0;
-	thread.top = 0;
-	thread.context = context;
+	bt_Thread* thread = context->alloc(sizeof(bt_Thread));
+	thread->depth = 0;
+	thread->top = 0;
+	thread->context = context;
 
-	thread.callstack[thread.depth].return_loc = 0;
-	thread.callstack[thread.depth].argc = 0;
-	thread.callstack[thread.depth].size = module->stack_size;
-	thread.callstack[thread.depth].callable = module;
-	thread.callstack[thread.depth].user_top = 0;
-	thread.depth++;
+	thread->callstack[thread->depth].return_loc = 0;
+	thread->callstack[thread->depth].argc = 0;
+	thread->callstack[thread->depth].size = module->stack_size;
+	thread->callstack[thread->depth].callable = module;
+	thread->callstack[thread->depth].user_top = 0;
+	thread->depth++;
 
-	context->current_thread = &thread;
+	context->current_thread = thread;
 
-	int32_t result = setjmp(thread.error_loc);
+	int32_t result = setjmp(&thread->error_loc);
 
-	if(result == 0) call(context, &thread, module, module->instructions.elements, module->constants.elements, 0);
+	if(result == 0) call(context, thread, module, module->instructions.elements, module->constants.elements, 0);
 	else {
+		context->free(thread);
 		return BT_FALSE;
 	}
 
@@ -410,14 +409,24 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 #endif
 
 	context->current_thread = 0;
+	context->free(thread);
 
 	return BT_TRUE;
 }
 
+static bt_Module* get_module(bt_Callable* cb)
+{
+	switch (BT_OBJECT_GET_TYPE(&cb->obj)) {
+	case BT_OBJECT_TYPE_FN: return cb->fn.module;
+	case BT_OBJECT_TYPE_CLOSURE: return cb->cl.fn->module;
+	case BT_OBJECT_TYPE_MODULE: return &cb->module;
+	case BT_OBJECT_TYPE_NATIVE_FN: return NULL;
+	default: assert(0); return NULL;
+	}
+}
+
 void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 {
-	printf("BOLT ERROR: %s\n", message);
-
 	if (ip != NULL) {
 		bt_Callable* callable = thread->callstack[thread->depth - 1].callable;
 		const char* source = bt_get_debug_source(callable);
@@ -431,8 +440,15 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 
 		bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
 
-		printf("On line %d:\n", source_token->line - 1);
-		printf("\t%.*s\n", line_source.length, line_source.source);
+		bt_Module* module = get_module(callable);
+
+		//printf("On line %d:\n", source_token->line - 1);
+		//printf("\t%.*s\n", line_source.length, line_source.source);
+
+		thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? module->path->str : "", message, source_token->line - 1, source_token->col);
+	}
+	else {
+		thread->context->on_error(BT_ERROR_RUNTIME, "<native>", message, 0, 0);
 	}
 
 	thread->context->current_thread = NULL;

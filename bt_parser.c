@@ -1740,6 +1740,11 @@ static bt_AstNode* parse_return(bt_Parser* parse)
     return node;
 }
 
+static bt_String* parse_module_name(bt_Parser* parse)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+}
+
 static bt_AstNode* parse_import(bt_Parser* parse)
 {
     UPERF_EVENT("parse_import");
