@@ -14,6 +14,12 @@ static bt_bool can_contain_identifier(char character) {
 	return isdigit(character) || can_start_identifier(character);
 }
 
+static bt_Token BT_TOKEN_EOF = {
+	{ NULL, 0 },
+	0, 0, 0,
+	BT_TOKEN_EOS
+};
+
 static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
 {
 	bt_Token* new_token = ctx->alloc(sizeof(bt_Token));
@@ -336,14 +342,14 @@ eat_whitespace:
 		return bt_buffer_last(&tok->tokens);
 	}
 
-	return NULL;
+	return &BT_TOKEN_EOF;
 }
 
 bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok)
 {
 	if (tok->last_consumed == tok->tokens.length)
 	{
-		if (!bt_tokenizer_emit(tok)) return NULL;
+		if (bt_tokenizer_emit(tok)->type == BT_TOKEN_EOS) return &BT_TOKEN_EOF;
 		tok->last_consumed--;
 	}
 

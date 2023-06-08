@@ -1,0 +1,39 @@
+import * from core
+
+fn speak(animal: string) {
+	if animal == "cat" { return "meow" }
+	else if animal == "dog" { return "woof" }
+	else if animal == "mouse" { return "squeak" }
+	
+	return "nothing!"
+}
+
+let const animals = [ "cat", "dog", "mouse", "monkey" ]
+for animal in array.each(animals) {
+	print(animal, "says", speak(animal))
+}
+
+let x = 5
+
+if true {
+    let x = 10
+    print(x)
+}
+
+if true {
+    let x = 20
+    print(x)
+}
+
+print(x)
+
+fn do_expensive_work { print("doing expensive work!") }
+
+fn do_thing(oncomplete: fn) {
+	do_expensive_work()
+	oncomplete()
+}
+
+do_thing(fn {
+	print("thing is complete!")
+})

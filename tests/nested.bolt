@@ -2,6 +2,7 @@ import * from core
 
 import * from math
 
+/*
 type Vec2 = {
     x: number,
     y: number,
@@ -38,7 +39,7 @@ method Entity.@format {
 fn Player.new(x: number, y: number) {
     let player = Entity.new(100, 100) & {
         velocity: Vec2.new(0, 0)
-    } into Player!
+    } as Player!
 
     player.id = "Player"
 
@@ -97,7 +98,7 @@ fn pow(x: number, exp: number) {
 
 print(pow(10, 2))
 print(pow(2, 8))
-print((pow(0, 0) into Error!).what)
+print((pow(0, 0) as Error!).what)
 
 
 let a: bool | string | number = false
@@ -113,4 +114,4 @@ for i in string.length("long string") {
     print(i)
 }
 
-return 0
+return 0*/

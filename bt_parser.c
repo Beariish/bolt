@@ -1003,7 +1003,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         bt_Token* op = bt_tokenizer_peek(tok);
 
         // end of file is end of expression, two non-operators following each other is also an expression bound
-        if (op == NULL || !is_operator(op)) break;
+        if (op->type == BT_TOKEN_EOS || !is_operator(op)) break;
 
         uint8_t post_bp = postfix_binding_power(op);
         if (post_bp) {
@@ -1740,9 +1740,60 @@ static bt_AstNode* parse_return(bt_Parser* parse)
     return node;
 }
 
-static bt_String* parse_module_name(bt_Parser* parse)
+/*
+import thing.thing
+import thing.thing as thing
+import * from thing.thing
+import a, b, c from thing.thing
+*/
+
+/*
+parse name
+if name is star -> glob
+    parse from
+    parse name
+    import all
+if followed by comma or from -> hoist
+    parse from
+    parse name
+    import list
+if followed by as -> rename
+    parse newname
+    bind module
+if nothing
+    get last segment of name
+    bind module
+*/
+
+static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
 {
     bt_Tokenizer* tok = parse->tokenizer;
+    
+    bt_Token* tokens[16];
+    uint8_t token_top = 0;
+
+    if (first) tokens[token_top++] = first;
+    else tokens[token_top++] = bt_tokenizer_emit(tok);
+
+    while (bt_tokenizer_peek(tok)->type == BT_TOKEN_PERIOD) {
+        bt_tokenizer_expect(tok, BT_TOKEN_PERIOD);
+
+        tokens[token_top++] = bt_tokenizer_emit(tok);
+    }
+
+    char path_buf[1024];
+    uint16_t path_len = 0;
+
+    for (uint8_t i = 0; i < token_top; ++i) {
+        memcpy(path_buf + path_len, tokens[i]->source.source, tokens[i]->source.length);
+        path_len += tokens[i]->source.length;
+
+        if(i < token_top - 1) path_buf[path_len++] = '/';
+    }
+
+    path_buf[path_len] = '\0';
+
+    return bt_make_string_len(parse->context, path_buf, path_len);
 }
 
 static bt_AstNode* parse_import(bt_Parser* parse)
@@ -1750,19 +1801,18 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     UPERF_EVENT("parse_import");
     bt_Tokenizer* tok = parse->tokenizer;
 
-    bt_Token* name_or_first_item = bt_tokenizer_emit(tok);
+    bt_Token* name_or_first_item = bt_tokenizer_peek(tok);
     bt_Token* output_name = name_or_first_item;
 
     if (name_or_first_item->type == BT_TOKEN_MUL) {
+        bt_tokenizer_emit(tok);
+        
         // glob import
         bt_Token* next = bt_tokenizer_emit(tok);
         if (next->type != BT_TOKEN_FROM) assert(0 && "Expected 'from' statement!");
-        next = bt_tokenizer_emit(tok);
-        if (next->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected module name!");
-
-        bt_Value module_name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context,
-            next->source.source, next->source.length));
-
+        
+        bt_String* module_name_str = parse_module_name(parse, NULL);
+        bt_Value module_name = BT_VALUE_OBJECT(module_name_str);
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
         if (!mod_to_import) {
@@ -1795,72 +1845,73 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         assert(0 && "Invalid import statement!");
     }
 
+    bt_tokenizer_emit(tok);
     bt_Token* peek = bt_tokenizer_peek(tok);
     if (peek->type == BT_TOKEN_COMMA || peek->type == BT_TOKEN_FROM) {
-       bt_Buffer(bt_StrSlice) items;
-       bt_buffer_with_capacity(&items, parse->context, 1);
-       bt_buffer_push(parse->context, &items, name_or_first_item->source);
-    
-       while (peek->type == BT_TOKEN_COMMA) {
-           bt_tokenizer_emit(tok);
-           peek = bt_tokenizer_peek(tok);
+        bt_Buffer(bt_StrSlice) items;
+        bt_buffer_with_capacity(&items, parse->context, 1);
+        bt_buffer_push(parse->context, &items, name_or_first_item->source);
 
-           if (peek->type == BT_TOKEN_IDENTIFIER) {
-               bt_tokenizer_emit(tok);
-               bt_buffer_push(parse->context, &items, peek->source);
-               peek = bt_tokenizer_peek(tok);
-           }
-       }
+        while (peek->type == BT_TOKEN_COMMA) {
+            bt_tokenizer_emit(tok);
+            peek = bt_tokenizer_peek(tok);
 
-       if (peek->type != BT_TOKEN_FROM) {
-           assert(0 && "Expected 'from' statement!");
-       }
+            if (peek->type == BT_TOKEN_IDENTIFIER) {
+                bt_tokenizer_emit(tok);
+                bt_buffer_push(parse->context, &items, peek->source);
+                peek = bt_tokenizer_peek(tok);
+            }
+        }
 
-       bt_tokenizer_emit(tok);
+        if (peek->type != BT_TOKEN_FROM) {
+            assert(0 && "Expected 'from' statement!");
+        }
 
-       bt_Token* mod_name = bt_tokenizer_emit(tok);
-       if (mod_name->type != BT_TOKEN_IDENTIFIER) assert(0 && "Expected module name!");
+        bt_tokenizer_emit(tok);
 
-       bt_Value module_name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context,
-           mod_name->source.source, mod_name->source.length));
+        bt_Value module_name = BT_VALUE_OBJECT(parse_module_name(parse, NULL));
 
-       bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+        bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
-       if (!mod_to_import) {
-           assert(0 && "Failed to import module!");
-       }
+        if (!mod_to_import) {
+            assert(0 && "Failed to import module!");
+        }
 
-       bt_Type* export_types = mod_to_import->type;
-       bt_Table* types = export_types->as.table_shape.layout;
-       bt_Table* values = mod_to_import->exports;
+        bt_Type* export_types = mod_to_import->type;
+        bt_Table* types = export_types->as.table_shape.layout;
+        bt_Table* values = mod_to_import->exports;
 
-       for (uint32_t i = 0; i < items.length; ++i) {
-           bt_StrSlice* item = items.elements + i;
+        for (uint32_t i = 0; i < items.length; ++i) {
+            bt_StrSlice* item = items.elements + i;
 
-           bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
-           import->name = bt_make_string_hashed_len(parse->context, item->source, item->length);
+            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            import->name = bt_make_string_hashed_len(parse->context, item->source, item->length);
 
-           bt_Value type_val = bt_table_get(types, BT_VALUE_OBJECT(import->name));
-           bt_Value value = bt_table_get(values, BT_VALUE_OBJECT(import->name));
+            bt_Value type_val = bt_table_get(types, BT_VALUE_OBJECT(import->name));
+            bt_Value value = bt_table_get(values, BT_VALUE_OBJECT(import->name));
 
-           bt_Type* type = BT_AS_OBJECT(type_val);
-           bt_Type* valt = BT_AS_OBJECT(value);
+            bt_Type* type = BT_AS_OBJECT(type_val);
+            bt_Type* valt = BT_AS_OBJECT(value);
 
-           if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
-               assert(0 && "Failed to hoist import from module!");
-           }
+            if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
+                assert(0 && "Failed to hoist import from module!");
+            }
 
-           import->type = BT_AS_OBJECT(type_val);
-           import->value = value;
+            import->type = BT_AS_OBJECT(type_val);
+            import->value = value;
 
-           bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
-       }
+            bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
+        }
 
-       bt_buffer_destroy(parse->context, &items);
-       UPERF_POP();
-       return NULL;
+        bt_buffer_destroy(parse->context, &items);
+        UPERF_POP();
+        return NULL;
     }
-    else if (peek->type == BT_TOKEN_AS) {
+
+    bt_Value module_name = BT_VALUE_OBJECT(parse_module_name(parse, name_or_first_item));
+
+    peek = bt_tokenizer_peek(tok);
+    if (peek->type == BT_TOKEN_AS) {
         bt_tokenizer_emit(tok);
         output_name = bt_tokenizer_emit(tok);
 
@@ -1868,9 +1919,6 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             assert(0 && "Invalid import statement!");
         }
     }
-
-    bt_Value module_name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context,
-        name_or_first_item->source.source, name_or_first_item->source.length));
     
     bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
@@ -2369,6 +2417,9 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         result->source = bt_tokenizer_emit(tok);
         return result;
     }
+    case BT_TOKEN_EOS: {
+        return NULL;
+    }
     default: // no statment structure found, assume expression
         return pratt_parse(parse, 0);
     }
@@ -2384,7 +2435,7 @@ bt_bool bt_parse(bt_Parser* parser)
 
     push_scope(parser, BT_FALSE);
 
-    while (bt_tokenizer_peek(parser->tokenizer))
+    while (bt_tokenizer_peek(parser->tokenizer)->type != BT_TOKEN_EOS)
     {
         bt_AstNode* expression = parse_statement(parser);
         if (expression) {
