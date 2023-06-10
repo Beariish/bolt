@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include <immintrin.h>
+#include <string.h>
 
 #include "bt_tokenizer.h"
 #include "bt_parser.h"
@@ -69,6 +70,10 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->meta_names.collect = bt_make_string_hashed_len(context, "@collect", 8);
 
 	context->compiler_options.generate_debug_info = BT_TRUE;
+
+	context->module_paths = NULL;
+	bt_append_module_path(context, "%s.bolt");
+	bt_append_module_path(context, "%s/module.bolt");
 
 	context->is_valid = BT_TRUE;
 }
@@ -310,6 +315,21 @@ void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module)
 	bt_table_set(context, context->loaded_modules, name, BT_VALUE_OBJECT(module));
 }
 
+void bt_append_module_path(bt_Context* context, const char* spec)
+{
+	bt_Path** ptr_next = &context->module_paths;
+	while (*ptr_next) {
+		ptr_next = &(*ptr_next)->next;
+	}
+
+	bt_Path* actual_next = context->alloc(sizeof(bt_Path));
+	actual_next->spec = context->alloc(strlen(spec) + 1);
+	strcpy(actual_next->spec, spec);
+	actual_next->next = NULL;
+
+	*ptr_next = actual_next;
+}
+
 bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 {
 	UPERF_EVENT("Find module");
@@ -319,18 +339,29 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		UPERF_EVENT("Locate source");
 		bt_String* to_load = BT_AS_OBJECT(name);
 		
-		char* name_as_bolt_file = context->alloc(to_load->len + 5 + 1);
-		memcpy(name_as_bolt_file, to_load->str, to_load->len);
-		memcpy(name_as_bolt_file + to_load->len, ".bolt", 5);
-		name_as_bolt_file[to_load->len + 5] = 0;
+		char path_buf[256];
+		uint32_t path_len = 0;
+		FILE* source = NULL;
+		
+		bt_Path* pathspec = context->module_paths;
+		while (pathspec && !source) {
+			path_len = sprintf_s(path_buf, 256, pathspec->spec, to_load->str);
 
-		FILE* source;
-		fopen_s(&source, name_as_bolt_file, "rb");
+			if (path_len >= 256) {
+				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
+				return NULL;
+			}
+
+			path_buf[path_len] = 0;
+			fopen_s(&source, path_buf, "rb");
+
+			pathspec = pathspec->next;
+		}
+
 		UPERF_POP();
 
 		if (source == 0) {
 			assert(0 && "Cannot find module file!");
-			context->free(name_as_bolt_file);
 			return NULL;
 		}
 
@@ -347,8 +378,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		bt_Module* new_mod = bt_compile_module(context, code);
 		new_mod->name = BT_AS_OBJECT(name);
-		new_mod->path = bt_make_string_len(context, name_as_bolt_file, to_load->len + 5);
-		context->free(name_as_bolt_file);
+		new_mod->path = bt_make_string_len(context, path_buf, path_len);
 		context->free(code);
 
 		if (new_mod) {

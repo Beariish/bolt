@@ -37,6 +37,11 @@ typedef struct bt_StackFrame {
 	int8_t return_loc;
 } bt_StackFrame;
 
+typedef struct bt_Path {
+	const char const* spec;
+	struct bt_Path* next;
+} bt_Path;
+
 struct bt_Context {
 	bt_CompilerOptions compiler_options;
 
@@ -52,6 +57,8 @@ struct bt_Context {
 
 	bt_GC gc;
 	uint32_t n_allocated;
+
+	bt_Path* module_paths;
 
 	struct {
 		bt_Type* any;
@@ -123,6 +130,8 @@ bt_Value bt_pop(bt_Thread* thread);
 bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals);
 
 void bt_call(bt_Thread* thread, uint8_t argc);
+
+void bt_append_module_path(bt_Context* context, const char* spec);
 
 const char* bt_get_debug_source(bt_Callable* callable);
 bt_TokenBuffer* bt_get_debug_tokens(bt_Callable* callable);
