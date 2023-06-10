@@ -78,6 +78,27 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	context->is_valid = BT_TRUE;
 }
 
+void bt_close(bt_Context* context)
+{
+	bt_Object* obj = context->root;
+
+	while (obj) {
+		bt_Object* next = BT_OBJECT_NEXT(obj);
+		bt_free(context, obj);
+		obj = next;
+	}
+
+	bt_Path* path = context->module_paths;
+	while (path) {
+		bt_Path* next = path->next;
+		context->free(path->spec);
+		context->free(path);
+		path = next;
+	}
+
+	bt_destroy_gc(context, &context->gc);
+}
+
 bt_bool bt_run(bt_Context* context, const char* source)
 {
 	bt_Module* mod = bt_compile_module(context, source);

@@ -5,6 +5,10 @@ import nested.test
 
 import export_test as test
 
+import SOME_CONSTANT from library
+
+print("SOME_CONSTANT:", SOME_CONSTANT)
+
 type Shape = enum { Circle Triangle Square }
 
 fn print_shape(shape: Shape) {
@@ -28,9 +32,6 @@ type Vec2 = final {
     x: number,
     y: number
 }
-
-let ptest = (10 + 10)
-print("ptest is", ptest)
 
 fn Vec2.new(x: number, y: number) {
     return Vec2 => { x: x, y: y }
@@ -111,12 +112,6 @@ print("--- CONTINUE/BREAK")
 print("\n\n")
 print("this message should have \n a newline in it!")
 print("\n\n")
-
-fn add_untyped(a, b) {
-    return a + b
-}
-
-add_untyped(10, "hello!")
 
 print("this string is \"quoted\"")
 

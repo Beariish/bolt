@@ -20,8 +20,11 @@ void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* 
 
 void bt_buffer_free(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size)
 {
-    ctx->free(*data); *data = 0;
-    *length = 0; *capacity = 0;
+    if (*length > 0)
+    {
+        ctx->free(*data); *data = 0;
+        *length = 0; *capacity = 0;
+    }
 }
 
 void bt_buffer_clone_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1, char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2)

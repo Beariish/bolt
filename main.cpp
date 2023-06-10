@@ -466,5 +466,7 @@ int main(int argc, char** argv) {
 	printf("-----------------------------------------------------\n");
 #endif
 
+	bt_close(&context);
+
  	return 0;
 }
