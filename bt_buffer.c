@@ -39,7 +39,7 @@ void bt_buffer_append_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_
 {
     assert(element_size1 == element_size2);
     bt_buffer_reserve(ctx, data1, length1, capacity1, element_size1, *length1 + *length2);
-    memcpy(*data1 + *length1, *data2, *length2 * element_size1);
+    memcpy(*data1 + (*length1 * element_size1), *data2, *length2 * element_size1);
     *length1 += *length2;
 }
 

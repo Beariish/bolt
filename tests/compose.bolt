@@ -20,6 +20,6 @@ method Vec2.print_self {
 let a = A => { x: 10 }
 let b = B => { y: 10 }
 
-let c = a & b into Vec2!
+let c = a & b as Vec2!
 
 c.print_self()
