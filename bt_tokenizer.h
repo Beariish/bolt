@@ -78,6 +78,10 @@ typedef struct {
 
 	bt_Token* literal_zero;
 	bt_Token* literal_one;
+	bt_Token* literal_true;
+	bt_Token* literal_false;
+	bt_Token* literal_empty_string;
+	bt_Token* literal_null;
 
 	uint16_t line, col;
 } bt_Tokenizer;

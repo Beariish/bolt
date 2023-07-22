@@ -97,7 +97,7 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
                 bt_buffer_push(ctx->context, &ctx->debug, node->source->idx);
             }
             else {
-                assert(0 && "AST node is missing source!");
+                //assert(0 && "AST node is missing source!");
                 bt_buffer_push(ctx->context, &ctx->debug, 0);
             }
         }
@@ -825,8 +825,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         for (uint32_t i = 0; i < fields->length; ++i) {
             bt_AstNode* entry = fields->elements[i];
-            bt_Token* name = entry->as.table_field.name;
-            bt_String* idx = bt_make_string_hashed_len(ctx->context, name->source.source, name->source.length);
+            bt_String* idx = entry->as.table_field.name;
             uint8_t idx_idx = push(ctx, BT_VALUE_OBJECT(idx));
 
             compile_expression(ctx, entry->as.table_field.expr, val_loc);

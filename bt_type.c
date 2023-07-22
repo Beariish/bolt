@@ -78,27 +78,30 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 		return BT_FALSE;
 	}
 
-	bt_TablePairBuffer* lpairs = &left->as.table_shape.layout->pairs;
-	bt_TablePairBuffer* rpairs = &right->as.table_shape.layout->pairs;
+	// Make sure that empty unsealed "{}" table binds to everything
+	if (left->as.table_shape.layout) {
+		bt_TablePairBuffer* lpairs = &left->as.table_shape.layout->pairs;
+		bt_TablePairBuffer* rpairs = &right->as.table_shape.layout->pairs;
 	
-	for (uint32_t i = 0; i < lpairs->length; ++i) {
-		bt_TablePair* lentry = lpairs->elements + i;
+		for (uint32_t i = 0; i < lpairs->length; ++i) {
+			bt_TablePair* lentry = lpairs->elements + i;
 
-		bt_bool found = BT_FALSE;
-		for (uint32_t j = 0; j < rpairs->length; ++j) {
-			bt_TablePair* rentry = rpairs->elements + j;
+			bt_bool found = BT_FALSE;
+			for (uint32_t j = 0; j < rpairs->length; ++j) {
+				bt_TablePair* rentry = rpairs->elements + j;
 
-			bt_Type* ltype = BT_AS_OBJECT(lentry->value);
-			bt_Type* rtype = BT_AS_OBJECT(rentry->value);
+				bt_Type* ltype = BT_AS_OBJECT(lentry->value);
+				bt_Type* rtype = BT_AS_OBJECT(rentry->value);
 
-			if (bt_value_is_equal(lentry->key, rentry->key) &&
-				ltype->satisfier(ltype, rtype)) {
-				found = BT_TRUE;
-				break;
+				if (bt_value_is_equal(lentry->key, rentry->key) &&
+					ltype->satisfier(ltype, rtype)) {
+					found = BT_TRUE;
+					break;
+				}
 			}
-		}
 
-		if (found == BT_FALSE) return BT_FALSE;
+			if (found == BT_FALSE) return BT_FALSE;
+		}
 	}
 
 	return BT_TRUE;

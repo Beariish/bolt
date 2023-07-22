@@ -1,0 +1,50 @@
+import * from core
+
+let a: number
+let b: bool
+let c: null
+let d: string
+let e: []
+let f: {}
+
+let g: [number]
+
+let h: {
+    x: number,
+    y: number,
+    a: []
+}
+
+type Child = {
+    name: string,
+    age: number
+}
+
+type Person = {
+    name: string,
+    age: number,
+    children: [Child]
+}
+
+let i: Person
+let j: string?
+
+type Options = enum { One Two Three }
+let k: Options
+
+fn print_with_separator(args: [], separator: string) {
+    let result = ""
+    for arg in args.each() {
+        result += to_string(arg)
+        result += separator
+    }
+    
+    print(result)
+}
+
+fn print_all(args: []) {
+    print_with_separator(args, " ")
+}
+
+print_all([a, b, /*c,*/ d, e, f, g, h, i, /*j,*/ k])
+print("done!")

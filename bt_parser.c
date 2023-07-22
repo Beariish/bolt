@@ -308,7 +308,8 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
 
         bt_AstNode* field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
-        field->as.table_field.name = token;
+        bt_String* str = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
+        field->as.table_field.name = str;
         field->source = token;
 
         token = bt_tokenizer_emit(parse->tokenizer);
@@ -320,8 +321,6 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         field->as.table_field.type = type_check(parse, expr)->resulting_type;
         field->as.table_field.expr = expr;
 
-        bt_String* str = bt_make_string_hashed_len(ctx, field->as.table_field.name->source.source,
-            field->as.table_field.name->source.length);
 
         if (type) {
             bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, BT_VALUE_OBJECT(str)));
@@ -394,6 +393,13 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         }
 
         next = bt_tokenizer_emit(tok);
+    }
+
+    // empty array literal
+    // I would really like this to infer the type from the binding on the lhs, but I 
+    // don't think we really have the capability to do that yet
+    if (result->as.arr.inner_type == 0) {
+
     }
 
     result->resulting_type = bt_make_array_type(parse->context, result->as.arr.inner_type);
@@ -1638,6 +1644,75 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
     return node;
 }
 
+static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
+{
+    UPERF_EVENT("generate_initializer");
+    
+    bt_AstNode* result = 0;
+
+    switch (type->category) {
+    case BT_TYPE_CATEGORY_PRIMITIVE: {
+        result = make_node(parse, BT_AST_NODE_LITERAL);
+        result->resulting_type = type;
+        if (type == parse->context->types.number) {
+            result->source = parse->tokenizer->literal_zero;
+        }
+        else if (type == parse->context->types.boolean) {
+            result->source = parse->tokenizer->literal_false;
+        }
+        else if (type == parse->context->types.string) {
+            result->source = parse->tokenizer->literal_empty_string;
+        }
+        else if (type == parse->context->types.null || type->is_optional) {
+            result->source = parse->tokenizer->literal_null;
+        }
+    } break;
+    case BT_TYPE_CATEGORY_ARRAY: {
+        result = make_node(parse, BT_AST_NODE_ARRAY);
+        bt_buffer_empty(&result->as.arr.items);
+        result->as.arr.inner_type = type->as.array.inner;
+        result->source = 0;
+    } break;
+    case BT_TYPE_CATEGORY_TABLESHAPE: {
+        result = make_node(parse, BT_AST_NODE_TABLE);
+        result->as.table.typed = true;
+        result->resulting_type = type;
+        bt_buffer_empty(&result->as.table.fields);
+
+        if (type->as.table_shape.layout) {
+            bt_TablePairBuffer* items = &type->as.table_shape.layout->pairs;
+            for (uint32_t idx = 0; idx < items->length; idx++) {
+                bt_TablePair* pair = items->elements + idx;
+                
+                bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
+                entry->as.table_field.type = BT_AS_OBJECT(pair->value);
+                entry->as.table_field.name = BT_AS_OBJECT(pair->key);
+                entry->as.table_field.expr = generate_initializer(parse, entry->as.table_field.type);
+
+                if (!entry->as.table_field.expr) {
+                    assert(0 && "Failed to generate intiailzier for table field x!");
+                }
+
+                bt_buffer_push(parse->context, &result->as.table.fields, entry);
+            }
+        }
+    } break;
+    case BT_TYPE_CATEGORY_ENUM: {
+        result = make_node(parse, BT_AST_NODE_ENUM_LITERAL);
+        result->resulting_type = type;
+        bt_Table* options = type->as.enum_.options;
+        if (options->pairs.length == 0) {
+            assert(0 && "Cannot generate initializer for enum with 0 variants!");
+        }
+
+        result->as.enum_literal.value = options->pairs.elements[0].value;
+    } break;
+    }
+
+    UPERF_POP();
+    return result;
+}
+
 static bt_AstNode* parse_let(bt_Parser* parse)
 {
     UPERF_EVENT("parse_let");
@@ -1686,8 +1761,15 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         }
     }
     else {
-        if (!node->resulting_type)
-            assert(0); // no explicit type or expression to infer from!
+        // if there's no assignment expression, we need to generate a default initializer!
+
+        // If there's no type specified either, assume any
+        if (!node->resulting_type) node->resulting_type = parse->context->types.any;
+        
+        bt_AstNode* initializer = generate_initializer(parse, node->resulting_type);
+        assert(initializer && "Failed to generate default initializer for {}!"); // no explicit type or expression to infer from!
+        
+        node->as.let.initializer = initializer;
     }
 
     push_local(parse, node);

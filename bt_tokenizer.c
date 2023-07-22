@@ -51,9 +51,17 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 
 	lit.as_num = 1;
 	bt_buffer_push(context, &tok.literals, lit);
+
+	lit.type = BT_TOKEN_STRING_LITERAL;
+	lit.as_str = (bt_StrSlice) { "", 0 };
+	bt_buffer_push(context, &tok.literals, lit);
 	
-	tok.literal_zero = make_token(context, (bt_StrSlice) { "0", 1 }, 0, 0, 0, BT_TOKEN_NUMBER_LITERAL);
-	tok.literal_one  = make_token(context, (bt_StrSlice) { "1", 1 }, 0, 0, 1, BT_TOKEN_NUMBER_LITERAL);
+	tok.literal_zero  = make_token(context, (bt_StrSlice) { "0",     1 }, 0, 0, 0, BT_TOKEN_NUMBER_LITERAL);
+	tok.literal_one   = make_token(context, (bt_StrSlice) { "1",     1 }, 0, 0, 1, BT_TOKEN_NUMBER_LITERAL);
+	tok.literal_true  = make_token(context, (bt_StrSlice) { "true",  4 }, 0, 0, 0, BT_TOKEN_TRUE_LITERAL);
+	tok.literal_false = make_token(context, (bt_StrSlice) { "false", 5 }, 0, 0, 0, BT_TOKEN_FALSE_LITERAL);
+	tok.literal_null  = make_token(context, (bt_StrSlice) { "null",  4 }, 0, 0, 0, BT_TOKEN_NULL_LITERAL);
+	tok.literal_empty_string = make_token(context, (bt_StrSlice) { "", 0 }, 0, 0, 2, BT_TOKEN_STRING_LITERAL);
 
 	return tok;
 }

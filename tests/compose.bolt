@@ -13,6 +13,9 @@ type Vec2 = {
     y: number,
 }
 
+let test = to_string(null)
+print(test)
+
 method Vec2.print_self {
     print("Vec2(x: ", this.x, ", y: ", this.y, ")")
 }
@@ -23,3 +26,30 @@ let b = B => { y: 10 }
 let c = a & b as Vec2!
 
 c.print_self()
+
+fn print_with_separator(args: [], separator: string) {
+    let result = ""
+    for arg in args.each() {
+        result += to_string(arg)
+        result += separator
+    }
+
+    print(result)
+}
+
+fn print_type_value_pairs(args: []) {
+    let new_args: []
+
+    for arg in args.each() {
+        new_args.push(typeof(arg))
+        new_args.push(arg)
+    }
+
+    print_with_separator(new_args, " ")
+}
+
+fn print_all(args: []) {
+    print_with_separator(args, " ")
+}
+
+print_type_value_pairs(["Hello", "world!", 69, true, false, "last"])
