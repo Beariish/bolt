@@ -1,12 +1,9 @@
 #pragma once
 
+#include "bt_config.h"
 #include <stdint.h>
 
 #define BOLT_VERSION "0.0.1"
-
-//#define BOLT_PRINT_DEBUG
-#define BOLT_BITMASK_OP
-#define BOLT_USE_MASKED_GC_HEADER
 
 #ifdef _NDEBUG
 #undef BOLT_DEBUG
