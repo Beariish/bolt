@@ -191,8 +191,6 @@ bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType ty
 
 	bt_ObjectType g_type = BT_OBJECT_GET_TYPE(obj);
 
-//	bt_grey_obj(context, obj);
-
 	if (context->next) {
 		BT_OBJECT_SET_NEXT(context->next, obj);
 	}
@@ -488,13 +486,8 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 		bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
 
 		bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
-
 		bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
-
 		bt_Module* module = get_module(callable);
-
-		//printf("On line %d:\n", source_token->line - 1);
-		//printf("\t%.*s\n", line_source.length, line_source.source);
 
 		thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? module->path->str : "", message, source_token->line - 1, source_token->col);
 	}
