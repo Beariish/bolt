@@ -234,6 +234,7 @@ static bt_AstNode* make_node(bt_Parser* parse, bt_AstNodeType type)
     if (!parse->current_pool || parse->current_pool->count == BT_AST_NODE_POOL_SIZE - 1) next_pool(parse);
 
     bt_AstNode* new_node = &parse->current_pool->nodes[parse->current_pool->count++];
+    memset(new_node, 0, sizeof(bt_AstNode));
     new_node->type = type;
     new_node->resulting_type = NULL;
     new_node->source = 0;
@@ -1663,7 +1664,7 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
         else if (type == parse->context->types.string) {
             result->source = parse->tokenizer->literal_empty_string;
         }
-        else if (type == parse->context->types.null || type->is_optional) {
+        else if (type == parse->context->types.null || type->is_optional || type == parse->context->types.any) {
             result->source = parse->tokenizer->literal_null;
         }
     } break;

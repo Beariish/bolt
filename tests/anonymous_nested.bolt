@@ -1,0 +1,26 @@
+import * from core 
+
+type Person = {
+    name: string,
+    age: number,
+    children: [{
+        name: string,
+        age: {
+            min: number,
+            max: number
+        }
+    }]
+}
+
+let i: Person
+
+print(i.children)
+
+i.children.push({
+    name: "Alfred",
+    age: { min: 10, max: 20 }
+})
+
+print(i.children)
+
+print("min:", i.children[0].age.min, "max:", i.children[0].age.max)

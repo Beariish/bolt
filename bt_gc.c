@@ -111,9 +111,9 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		}
 
 		for (uint32_t i = 0; i < mod->constants.length; ++i) {
-			bt_Constant* constant = mod->constants.elements + i;
-			if (BT_IS_OBJECT(constant->value)) {
-				grey(gc, BT_AS_OBJECT(constant->value));
+			bt_Value constant = mod->constants.elements[i];
+			if (BT_IS_OBJECT(constant)) {
+				grey(gc, BT_AS_OBJECT(constant));
 			}
 		}
 	} break;

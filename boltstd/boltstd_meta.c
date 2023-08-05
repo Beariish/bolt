@@ -173,7 +173,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export(context, module, getenumname_sig, BT_VALUE_CSTRING(context, "get_enum_name"), BT_VALUE_OBJECT(
 		bt_make_native(context, getenumname_sig, btstd_get_enum_name)));
 
-	bt_module_export(context, module, findtype_sig, BT_VALUE_CSTRING(context, "add_mdoule_path"), BT_VALUE_OBJECT(
+	bt_module_export(context, module, findtype_sig, BT_VALUE_CSTRING(context, "add_module_path"), BT_VALUE_OBJECT(
 		bt_make_native(context, findtype_sig, btstd_add_module_path)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "meta"), module);

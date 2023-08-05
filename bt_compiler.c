@@ -654,8 +654,10 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 goto try_store;
             }
             else if (expr->as.binary_op.accelerated) {
-                emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx);
-                goto try_store;
+                if (expr->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
+                    emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx);
+                    goto try_store;
+                }
             }
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 uint8_t idx = push(ctx,

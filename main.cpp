@@ -416,7 +416,7 @@ int main(int argc, char** argv) {
 	UPERF_POP();
 
 	UPERF_EVENT("Run code");
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "defaults"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "anonymous_nested"));
 	bt_Module* mod = bt_find_module(&context, module_name);
 
 	if(mod != NULL) {
