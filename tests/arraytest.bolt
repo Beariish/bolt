@@ -9,11 +9,6 @@ print(b, "; a is", a.length(), "long!")
 a.push(1250)
 print("a is", a.length(), "long!")
 
-print(strarr.pop()) // "wow"
-
-strarr.push("New string!")
-print(strarr.length()) // 3
-
 let strarr = ["hello", "world", "wow"]
 for str in strarr.each() {
     print(str) // hello, world, wow
