@@ -110,8 +110,11 @@ typedef struct bt_AstNode {
 
 		struct {
 			bt_AstBuffer body;
+			bt_Token* identifier;
 			bt_AstNode* condition;
 			bt_AstNode* next;
+			bt_Type* bound_type;
+			bt_bool is_let;
 		} branch;
 
 		struct {

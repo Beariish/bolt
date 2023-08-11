@@ -1009,7 +1009,16 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
             uint32_t jump_loc = 0;
 
-            if (current->as.branch.condition) {
+            if (current->as.branch.is_let) {
+                push_scope(ctx);
+                uint8_t bind_loc = make_binding(ctx, current->as.branch.identifier->source);
+                compile_expression(ctx, current->as.branch.condition, bind_loc);
+                uint8_t test_loc = get_register(ctx);
+
+                emit_ab(ctx, BT_OP_EXISTS, test_loc, bind_loc);
+                jump_loc = emit_a(ctx, BT_OP_JMPF, test_loc);
+            }
+            else if (current->as.branch.condition) {
                 uint8_t condition_loc = find_binding_or_compile_temp(ctx, current->as.branch.condition);
                 jump_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
             }
@@ -1017,6 +1026,10 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
             compile_body(ctx, &current->as.branch.body);
             if (current->as.branch.next) end_points[end_top++] = emit(ctx, BT_OP_JMP);
         
+            if (current->as.branch.is_let) {
+                pop_scope(ctx);
+            }
+
             if (current->as.branch.condition) {
                 bt_Op* jmpf = op_at(ctx, jump_loc);
                 BT_SET_IBC(*jmpf, ctx->output.length - jump_loc - 1);

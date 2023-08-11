@@ -1,0 +1,35 @@
+import * from core
+
+type Error = final {
+    what: string
+}
+
+fn error(what: string) {
+    return Error => { what: what }
+}
+
+fn div(a: number, b: number): number | Error {
+    if b == 0 {
+        return error("Cannot divide by 0!")
+    }
+
+    return a / b
+}
+
+for i in 4 {
+    let result = div(10, i)
+    
+    if result is Error {
+        print("we got an error!:", (result as Error!).what)
+    } else {
+        print("There was no error!", result as number!)
+    }
+
+    if let err = result as Error {
+        print("we got an error!:", err.what)
+    }
+}
+
+if let result = div(10, 2) as number {
+    print("We got", result)
+}

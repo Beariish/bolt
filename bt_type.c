@@ -512,7 +512,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 				bt_Value val = bt_table_get(as_tbl, pair->key);
 				if (val == BT_VALUE_NULL) return BT_FALSE;
-				if (!bt_is_type(val, pair->value)) return BT_FALSE;
+				if (!bt_is_type(val, BT_AS_OBJECT(pair->value))) return BT_FALSE;
 			}
 
 			type = type->as.table_shape.parent;
@@ -560,6 +560,8 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 	}
 
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		if (!BT_IS_OBJECT_FAST(value)) return BT_VALUE_NULL;
+
 		bt_Object* obj = BT_AS_OBJECT(value);
 		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
 			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!", NULL);

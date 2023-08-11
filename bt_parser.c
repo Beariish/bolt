@@ -93,6 +93,13 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         name[node->source->source.length] = 0;
         new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);;
     } break;
+    case BT_AST_NODE_IF: {
+        assert(node->as.branch.is_let);
+
+        new_binding.is_const = BT_TRUE;
+        new_binding.name = node->as.branch.identifier->source;
+        new_binding.type = node->as.branch.bound_type;
+    } break;
     default: assert(0);
     }
 
@@ -2111,26 +2118,73 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     UPERF_EVENT("parse_if");
     bt_Tokenizer* tok = parser->tokenizer;
 
-    bt_AstNode* condition = pratt_parse(parser, 0);
-    if (type_check(parser, condition)->resulting_type != parser->context->types.boolean) {
-        assert(0 && "If expression must evaluate to boolean!");
-    }
-
-    bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-
-    bt_AstBuffer body;
-    bt_buffer_with_capacity(&body, parser->context, 8);
-    parse_block(&body, parser);
+    bt_Token* next = bt_tokenizer_peek(tok);
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_IF);
-    result->source = condition->source;
-    result->as.branch.condition = condition;
-    result->as.branch.body = body;
     result->as.branch.next = NULL;
 
-    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+    if (next->type == BT_TOKEN_LET) {
+        bt_tokenizer_emit(tok);
 
-    bt_Token* next = bt_tokenizer_peek(tok);
+        bt_Token* ident = bt_tokenizer_emit(tok);
+
+        if (ident->type != BT_TOKEN_IDENTIFIER) {
+            assert(0 && "Expected identifier!");
+        }
+
+        bt_Token* assign = bt_tokenizer_emit(tok);
+        if (assign->type != BT_TOKEN_ASSIGN) {
+            assert(0 && "Expected assignment!");
+        }
+
+        bt_AstNode* expr = pratt_parse(parser, 0);
+        bt_Type* result_type = type_check(parser, expr)->resulting_type;
+        if (!result_type->is_optional) {
+            assert(0 && "Type must be optional!");
+        }
+
+        bt_Type* binding_type = bt_remove_nullable(parser->context, result_type);
+
+        result->source = ident;
+        result->as.branch.is_let = BT_TRUE;
+        result->as.branch.identifier = ident;
+        result->as.branch.condition = expr;
+        result->as.branch.bound_type = binding_type;
+
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+
+        push_scope(parser, BT_FALSE);
+        push_local(parser, result);
+        bt_AstBuffer body;
+        bt_buffer_with_capacity(&body, parser->context, 8);
+        parse_block(&body, parser);
+        pop_scope(parser);
+
+        result->as.branch.body = body;
+
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+    }
+    else {
+        bt_AstNode* condition = pratt_parse(parser, 0);
+        if (type_check(parser, condition)->resulting_type != parser->context->types.boolean) {
+            assert(0 && "If expression must evaluate to boolean!");
+        }
+
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+
+        bt_AstBuffer body;
+        bt_buffer_with_capacity(&body, parser->context, 8);
+        parse_block(&body, parser);
+
+        result->source = condition->source;
+        result->as.branch.condition = condition;
+        result->as.branch.body = body;
+        result->as.branch.is_let = BT_FALSE;
+
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+    }
+
+    next = bt_tokenizer_peek(tok);
     if (next && next->type == BT_TOKEN_ELSE) {
         bt_tokenizer_emit(tok);
         next = bt_tokenizer_peek(tok);
@@ -2143,6 +2197,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             bt_AstNode* else_node = make_node(parser, BT_AST_NODE_IF);
             else_node->as.branch.condition = NULL;
             else_node->as.branch.next = NULL;
+            else_node->as.branch.is_let = BT_FALSE;
 
             bt_AstBuffer body;
             bt_buffer_with_capacity(&body, parser->context, 8);

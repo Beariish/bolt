@@ -27,6 +27,9 @@ print("min:", i.children[0].age.min, "max:", i.children[0].age.max)
 
 fn anon_arg(a: { name: string, age: number | string }) {
     print("Arg is { name:", a.name, "age:", a.age, "}")
+
+    if a.age is number { print("AGE IS NUMBER") }
+    if a.age is string { print("AGE IS STRING") }
 }
 
 anon_arg({
