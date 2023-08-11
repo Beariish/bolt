@@ -27,6 +27,8 @@ for i in 4 {
 
     if let err = result as Error {
         print("we got an error!:", err.what)
+    } else if let num = result as number {
+        print("we got number : )", num)
     }
 }
 
