@@ -1,0 +1,37 @@
+import * from core
+
+fn return_maybe(x: number): number? {
+    if x < 5 { return x }
+    return null
+}
+
+let a = return_maybe(1)
+let b = return_maybe(6)
+
+print(a, b)
+
+fn mega_union(op: bool, op2: bool): number | string | null {
+    if op {
+        if op2 { return 10 }
+
+        return "hello!"
+    }
+
+    return null
+}
+
+let c = mega_union(false, false)
+let d = mega_union(true, false)
+let e = mega_union(true, true)
+
+if let c2 = c {
+    print("c2 is non-null!", c2)
+}
+
+if let d2 = d {
+    print("d2 is non-null!", d2)
+}
+
+if let e2 = e {
+    print("e2 is non-null!", e2)
+}

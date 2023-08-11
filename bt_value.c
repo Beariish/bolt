@@ -26,7 +26,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 				bt_Type* tb = objb;
 
 				if (ta->category != tb->category) return BT_FALSE;
-				if (ta->is_optional != tb->is_optional) return BT_FALSE;
+				if (bt_is_optional(ta) != bt_is_optional(tb)) return BT_FALSE;
 				if (ta->satisfier != tb->satisfier) return BT_FALSE;
 				// TODO: Can we guarentee this is sane?
 				return strcmp(ta->name, tb->name) == 0;

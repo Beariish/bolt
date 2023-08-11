@@ -3,6 +3,7 @@
 
 #include <memory.h>
 #include <string.h>
+#include <assert.h>
 
 bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 {
@@ -50,6 +51,22 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 	}
 
 	return BT_TRUE;
+}
+
+bt_bool bt_is_optional(bt_Type* type)
+{
+	if (type == type->ctx->types.null) return BT_TRUE;
+
+	if (type->category == BT_TYPE_CATEGORY_UNION) {
+		bt_TypeBuffer* types = &type->as.selector.types;
+	
+		for (uint32_t i = 0; i < types->length; ++i) {
+			bt_Type* inner = types->elements[i];
+			if (inner == type->ctx->types.null) return BT_TRUE;
+		}
+	}
+
+	return BT_FALSE;
 }
 
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
@@ -147,16 +164,6 @@ bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 	return BT_FALSE;
 }
 
-bt_bool type_satisifer_nullable(bt_Type* left, bt_Type* right)
-{
-	if (right->is_optional) {
-		return left->as.nullable.base->satisfier(left->as.nullable.base, right->as.nullable.base);
-	}
-
-	return left->as.nullable.base->satisfier(left->as.nullable.base, right) ||
-		(left->is_optional && right == left->ctx->types.null);
-}
-
 bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
 {
 	if (right->category == BT_TYPE_CATEGORY_TYPE) {
@@ -171,7 +178,7 @@ bt_bool type_satisfier_type(bt_Type* left, bt_Type* right)
 	return right->category == BT_TYPE_CATEGORY_TYPE;
 }
 
-bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category, bt_bool is_optional)
+bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category)
 {
 	bt_Type* result = BT_ALLOCATE(context, TYPE, bt_Type);
 	result->ctx = context;
@@ -184,7 +191,6 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	result->satisfier = satisfier;
 	result->category = category;
 	result->is_polymorphic = BT_FALSE;
-	result->is_optional = is_optional;
 	result->is_compiled = BT_FALSE;
 	result->prototype = 0;
 	result->prototype_types = 0;
@@ -207,24 +213,49 @@ bt_Type* bt_derive_type(bt_Context* context, bt_Type* original)
 
 bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
 {
-	bt_Type* new_type = bt_derive_type(context, to_nullable);
+	bt_Type* new_type = bt_make_union(context);
+	bt_push_union_variant(context, new_type, to_nullable);
+	bt_push_union_variant(context, new_type, context->types.null);
 
-	context->free(new_type->name);
+	/*context->free(new_type->name);
 	size_t len = strlen(to_nullable->name);
 	new_type->name = context->alloc(len + 2);
 	strcpy(new_type->name, to_nullable->name);
 
 	new_type->name[len] = '?';
-	new_type->name[len + 1] = 0;
+	new_type->name[len + 1] = 0;*/
 
-	new_type->is_optional = BT_TRUE;
-	new_type->as.nullable.base = to_nullable;
-	new_type->satisfier = type_satisifer_nullable;
 	return new_type;
 }
 
 bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
-	return to_unnull->as.nullable.base;
+	assert(to_unnull->category == BT_TYPE_CATEGORY_UNION);
+
+	int32_t found_idx = -1;
+	bt_TypeBuffer* types = &to_unnull->as.selector.types;
+
+	for (uint32_t i = 0; i < types->length; i++) {
+		if (types->elements[i] == context->types.null) {
+			found_idx = i;
+		}
+	}
+
+	assert(found_idx >= 0);
+	assert(types->length > 1);
+
+	// fast path for regular optionals!
+	if (types->length == 2) {
+		return types->elements[1 - found_idx];
+	}
+
+	bt_Type* result = bt_make_union(context);
+	for (uint32_t i = 0; i < types->length; i++) {
+		if (i == found_idx) continue;
+
+		bt_push_union_variant(context, result, types->elements[i]);
+	}
+
+	return result;
 }
 
 static void update_sig_name(bt_Context* ctx, bt_Type* fn)
@@ -542,7 +573,7 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 
 			bt_Value val = bt_table_get(src, pair->key);
 
-			if (val == BT_VALUE_NULL && ((bt_Type*)BT_AS_OBJECT(pair->value))->is_optional == BT_FALSE) {
+			if (val == BT_VALUE_NULL && bt_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
 				return BT_FALSE;
 			}
 		}
@@ -577,7 +608,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 
 			bt_Value val = bt_table_get(src, pair->key);
 
-			if (val == BT_VALUE_NULL && ((bt_Type*)BT_AS_OBJECT(pair->value))->is_optional == BT_FALSE) {
+			if (val == BT_VALUE_NULL && bt_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
 				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
 			}
 

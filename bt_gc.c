@@ -51,7 +51,6 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 	case BT_OBJECT_TYPE_NONE: break; // Reserved for root object
 	case BT_OBJECT_TYPE_TYPE: {
 		bt_Type* as_type = obj;
-		if (as_type->is_optional) as_type = as_type->as.nullable.base;
 
 		grey(gc, as_type->prototype_types);
 		grey(gc, as_type->prototype_values);

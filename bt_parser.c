@@ -1295,7 +1295,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
     case BT_AST_NODE_UNARY_OP: {
         switch (node->source->type) {
         case BT_TOKEN_QUESTION:
-            if (!type_check(parse, node->as.unary_op.operand)->resulting_type->is_optional) {
+            if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 assert(0 && "Unary operator ? can only be applied to nullable types.");
                 UPERF_POP();
                 return NULL;
@@ -1303,12 +1303,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = parse->context->types.boolean;
             break;
         case BT_TOKEN_BANG:
-            if (!type_check(parse, node->as.unary_op.operand)->resulting_type->is_optional) {
+            if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 assert(0 && "Unary operator ! can only be applied to nullable types.");
                 UPERF_POP();
                 return NULL;
             }
-            node->resulting_type = node->as.unary_op.operand->resulting_type->as.nullable.base;
+            node->resulting_type = bt_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
             break;
         default:
             node->resulting_type = type_check(parse, node->as.unary_op.operand)->resulting_type;
@@ -1321,7 +1321,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = type_check(parse, node->as.binary_op.right)->resulting_type;
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
 
-            if (!lhs->is_optional) {
+            if (!bt_is_optional(lhs)) {
                 assert(0 && "Lhs is non-optional, cannot coalesce!");
                 UPERF_POP();
                 return NULL;
@@ -1671,7 +1671,7 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
         else if (type == parse->context->types.string) {
             result->source = parse->tokenizer->literal_empty_string;
         }
-        else if (type == parse->context->types.null || type->is_optional || type == parse->context->types.any) {
+        else if (bt_is_optional(type) || type == parse->context->types.any) {
             result->source = parse->tokenizer->literal_null;
         }
     } break;
@@ -2139,7 +2139,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
 
         bt_AstNode* expr = pratt_parse(parser, 0);
         bt_Type* result_type = type_check(parser, expr)->resulting_type;
-        if (!result_type->is_optional) {
+        if (!bt_is_optional(result_type)) {
             assert(0 && "Type must be optional!");
         }
 
@@ -2319,9 +2319,9 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     else if (generator_type->category != BT_TYPE_CATEGORY_SIGNATURE) assert(0 && "Expected iterator to be function!");
 
     bt_Type* generated_type = generator_type->as.fn.return_type;
-    if (!generated_type->is_optional) assert(0 && "Iterator return type must be optional!");
+    if (!bt_is_optional(generated_type)) assert(0 && "Iterator return type must be optional!");
 
-    bt_Type* it_type = generated_type->as.nullable.base;
+    bt_Type* it_type = bt_remove_nullable(parse->context, generated_type);
     identifier->resulting_type = it_type;
 
     bt_AstBuffer body;

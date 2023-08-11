@@ -214,10 +214,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		if (type->name) {
 			switch (type->category) {
 			case BT_TYPE_CATEGORY_SIGNATURE:
-				if (!type->is_optional) {
-					bt_buffer_destroy(context, &type->as.fn.args);
-				}
-
+				bt_buffer_destroy(context, &type->as.fn.args);
 				break;
 			case BT_TYPE_CATEGORY_UNION:
 				bt_buffer_destroy(context, &type->as.selector.types);
