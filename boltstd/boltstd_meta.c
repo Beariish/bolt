@@ -111,6 +111,10 @@ static void btstd_add_module_path(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_meta(bt_Context* context)
 {
+	static bt_bool IS_OPEN = BT_FALSE;
+	if (IS_OPEN) return;
+	IS_OPEN = BT_TRUE;
+
 	bt_Module* module = bt_make_user_module(context);
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "stack_size"), bt_make_number(BT_STACK_SIZE));

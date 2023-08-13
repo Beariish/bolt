@@ -85,6 +85,10 @@ COMPLEX_OP(atan2, atan2);
 
 void boltstd_open_math(bt_Context* context)
 {
+	static bt_bool IS_OPEN = BT_FALSE;
+	if (IS_OPEN) return;
+	IS_OPEN = BT_TRUE;
+
 	bt_Module* module = bt_make_user_module(context);
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "pi"), BT_VALUE_NUMBER(M_PI));

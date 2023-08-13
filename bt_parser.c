@@ -812,6 +812,16 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
+        UPERF_POP();
+        return result;
+    } break;
+    case BT_TOKEN_TYPEOF: {
+        bt_AstNode* inner = pratt_parse(parse, 0);
+        bt_Type* result = type_check(parse, inner)->resulting_type;
+
+        if (!result) assert(0 && "Expression did not evaluate to type!");
+
+        UPERF_POP();
         return result;
     } break;
     default: assert(0);
@@ -1002,7 +1012,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
         lhs_node->source = inner->source;
-        lhs_node->resulting_type = result;
+        lhs_node->resulting_type = bt_make_alias(parse->context, result->name, result);
     }
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);

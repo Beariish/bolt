@@ -449,7 +449,7 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	}
 
 #ifdef BOLT_PRINT_DEBUG
-	bt_String* str = bt_to_string(context, thread.stack[0]);
+	bt_String* str = bt_to_string(context, thread->stack[0]);
 	printf("Module returned: '%s'\n", str->str);
 	printf("-----------------------------------------------------\n");
 #endif

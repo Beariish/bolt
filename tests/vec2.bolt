@@ -37,8 +37,8 @@ fn Vec2.new(x: number, y: number) {
     return Vec2 => { x: x, y: y }
 }
 
-method Vec2.@add(other: Vec2) {
-    return Vec2 => { x: this.x + other.x, y: this.y + other.y }
+fn Vec2.@add(a: Vec2, b: Vec2) {
+    return Vec2 => { x: a.x + b.x, y: a.y + b.y }
 }
 
 method Vec2.@sub(other: Vec2) {
@@ -174,3 +174,14 @@ for outer in 15 {
     print("1m vec2 methods took", duration_ms / 1000, "ms")
 }
 
+let a123 = Vec2.new(10, 10)
+let a234: typeof(a123)
+
+print("Default typeof'd is", a234.x, a234.y)
+
+fn serialize(value: any, t: Type) {
+    print("serialzing", value, "of type", t)
+}
+
+serialize(a123, Vec2)
+serialize(a234, typeof(a234))
