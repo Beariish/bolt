@@ -35,3 +35,23 @@ if let d2 = d {
 if let e2 = e {
     print("e2 is non-null!", e2)
 }
+
+type Vec3 = { x: number, y: number, z: number }
+
+method Vec3.cross(other: Vec3) {
+    return Vec3 => {
+        x: this.y * other.z - this.z * other.y,
+        y: this.z * other.x - this.x * other.z,
+        z: this.x * other.y - this.y * other.x
+    }
+}
+
+method Vec3.cross2(other: Vec3) {
+    let result: Vec3
+
+    result.x = this.y * other.z - this.z * other.y
+    result.y = this.z * other.x - this.x * other.z
+    result.z = this.x * other.y - this.y * other.x
+    
+    return result
+}

@@ -174,6 +174,24 @@ static bt_ParseBinding* find_local_fast(bt_Parser* parse, bt_StrSlice identifier
     return NULL;
 }
 
+static bt_ParseBinding* find_local_exhaustive(bt_Parser* parse, bt_StrSlice identifier)
+{
+    bt_ParseScope* current = parse->scope;
+
+    while (current) {
+        for (uint32_t i = 0; i < current->bindings.length; ++i) {
+            bt_ParseBinding* binding = current->bindings.elements + i;
+            if (bt_strslice_compare(binding->name, identifier)) {
+                return binding;
+            }
+        }
+
+        current = current->last;
+    }
+
+    return NULL;
+}
+
 static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
 {
     bt_ImportBuffer* imports = &parser->root->as.module.imports;
@@ -552,7 +570,7 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
         assert(0 && "Expected identifier to be valid!");
     }
 
-    bt_ParseBinding* binding = find_local_fast(parse, identifier->source);
+    bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
 
     bt_Type* result = 0;
     if (binding) {
@@ -591,7 +609,7 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
         assert(0 && "Expected identifier to be valid!");
     }
 
-    bt_ParseBinding* binding = find_local_fast(parse, identifier->source);
+    bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
 
     bt_Type* result = 0;
     if (binding) {
