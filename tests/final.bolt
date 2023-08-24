@@ -1,0 +1,101 @@
+import * from core
+
+type Vec2 = final {
+    x: number,
+    y: number
+}
+
+fn Vec2.new(x: number, y: number) {
+    return Vec2 => { x: x, y: y }
+}
+
+type Vec2Slow = {
+    x: number,
+    y: number
+}
+
+fn Vec2Slow.new(x: number, y: number) {
+    return Vec2Slow => { x: x, y: y }
+}
+
+
+method Vec2Slow.distance {
+    return this.x * this.x + this.y * this.y
+}
+
+method Vec2.distance {
+    return this.x * this.x + this.y * this.y
+}
+
+for iter in 5 {
+    let start_time = time()
+    
+    let a = Vec2Slow.new(5, 5)
+    let b = Vec2Slow.new(10, 10)
+    for i in 1000000 {
+        let c = a.distance() + b.distance()
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("1m slow vec2 adds took", duration_ms / 1000, "ms")
+}
+
+print("-------------")
+
+for iter in 5 {
+    let start_time = time()
+    
+    let a = Vec2.new(5, 5)
+    let b = Vec2.new(10, 10)
+    for i in 1000000 {
+        let c = a.distance() + b.distance()
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("1m fast vec2 adds took", duration_ms / 1000, "ms")
+}
+
+print("-------------")
+
+for iter in 5 {
+    let start_time = time()
+    
+    let a = Vec2.new(5, 5)
+    let b = Vec2.new(10, 10)
+
+    for i in 1000000 {
+        let c = (a.x * a.x + a.y * a.y) + (b.x * b.x + b.y * b.y)
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("1m superfast vec2 adds took", duration_ms / 1000, "ms")
+}
+
+print("-------------")
+
+for iter in 5 {
+    let start_time = time()
+    
+    let a = Vec2.new(5, 5)
+    let b = Vec2.new(10, 10)
+
+    let ax = a.x
+    let ay = a.y
+    let bx = b.x
+    let _by = b.y
+
+    for i in 1000000 {
+        let c = (ax * ax + ay * ay) + (bx * bx + _by * _by)
+    }
+    
+    let end_time = time()
+    
+    let duration_ms = end_time - start_time
+    print("1m ultrafast vec2 adds took", duration_ms / 1000, "ms")
+}

@@ -1031,6 +1031,17 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
         lhs_node->source = inner->source;
         lhs_node->resulting_type = bt_make_alias(parse->context, result->name, result);
+        return lhs_node;
+    }
+    else if (lhs->type == BT_TOKEN_TYPE) {
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
+        bt_Type* inner = parse_type(parse, BT_TRUE);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+
+        lhs_node = make_node(parse, BT_AST_NODE_TYPE);
+        lhs_node->source = lhs;
+        lhs_node->resulting_type = bt_make_alias(parse->context, inner->name, inner);
+        return lhs_node;
     }
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
@@ -2248,11 +2259,14 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 {
     UPERF_EVENT("parse_for");
     bt_Tokenizer* tok = parse->tokenizer;
-    bt_AstNode* identifier = pratt_parse(parse, 0);
+    bt_Token* token = bt_tokenizer_peek(tok);
+
+    bt_AstNode* identifier;
+    if (token->type == BT_TOKEN_LEFTBRACE) identifier = token_to_node(parse, tok->literal_true);
+    else identifier = pratt_parse(parse, 0);
 
     if (identifier->type != BT_AST_NODE_IDENTIFIER)
     {
-    while_loop:
         // "while"-style loop
         if (type_check(parse, identifier)->resulting_type != parse->context->types.boolean) {
             assert(0 && "'while'-style loop condition must be boolean expression!");
@@ -2277,9 +2291,8 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         return result;
     }
 
-    bt_Token* token = bt_tokenizer_peek(tok);
+    token = bt_tokenizer_peek(tok);
 
-    if (token->type == BT_TOKEN_LEFTBRACE) goto while_loop;
     if (token->type != BT_TOKEN_IN) assert(0 && "Expected keyword 'in'!");
     bt_tokenizer_emit(tok);
 

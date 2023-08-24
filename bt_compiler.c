@@ -443,7 +443,8 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
         loc = find_binding(ctx, expr->source->source);
         
         if (loc == INVALID_BINDING) {
-            loc = find_upval(ctx, expr->source->source);
+            loc = get_register(ctx);
+            if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");
         }
     }
 

@@ -36,7 +36,7 @@ if let e2 = e {
     print("e2 is non-null!", e2)
 }
 
-type Vec3 = { x: number, y: number, z: number }
+type Vec3 = final { x: number, y: number, z: number }
 
 method Vec3.cross(other: Vec3) {
     return Vec3 => {
@@ -54,4 +54,12 @@ method Vec3.cross2(other: Vec3) {
     result.z = this.x * other.y - this.y * other.x
     
     return result
+}
+
+method Vec3.length {
+    return this.x
+}
+
+method Vec3.length {
+    return this.x + this.y + this.z
 }

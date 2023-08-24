@@ -109,6 +109,24 @@ static void btstd_add_module_path(bt_Context* ctx, bt_Thread* thread)
 	bt_append_module_path(ctx, pathspec->str);
 }
 
+static void btstd_get_union_size(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Type* u = bt_type_dealias(BT_AS_OBJECT(bt_arg(thread, 0)));
+	if (u->category != BT_TYPE_CATEGORY_UNION) bt_runtime_error(thread, "Non-union type passed to function!", NULL);
+
+	bt_return(thread, BT_VALUE_NUMBER(u->as.selector.types.length));
+}
+
+static void btstd_get_union_entry(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Type* u = bt_type_dealias(BT_AS_OBJECT(bt_arg(thread, 0)));
+	bt_number idx = BT_AS_NUMBER(bt_arg(thread, 1));
+	if (u->category != BT_TYPE_CATEGORY_UNION) bt_runtime_error(thread, "Non-union type passed to function!", NULL);
+	if (idx < 0 || idx >= u->as.selector.types.length) bt_runtime_error(thread, "Union index out of bounds!", NULL);
+
+	bt_return(thread, BT_VALUE_OBJECT(u->as.selector.types.elements[(uint64_t)idx]));
+}
+
 void boltstd_open_meta(bt_Context* context)
 {
 	static bt_bool IS_OPEN = BT_FALSE;
@@ -140,6 +158,12 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_Type* getenumname_args[] = { context->types.type, context->types.any };
 	bt_Type* getenumname_sig = bt_make_signature(context, context->types.string, getenumname_args, 2);
+
+	bt_Type* get_union_size_args[] = { context->types.type };
+	bt_Type* get_union_size_sig = bt_make_signature(context, context->types.number, get_union_size_args, 1);
+
+	bt_Type* get_union_entry_args[] = { context->types.type, context->types.number };
+	bt_Type* get_union_entry_sig = bt_make_signature(context, context->types.type, get_union_entry_args, 2);
 
 	//bt_module_export(context, module, arg_sig, BT_VALUE_CSTRING(context, "arg"), BT_VALUE_OBJECT(
 	//	bt_make_native(context, arg_sig, btstd_arg)));
@@ -179,6 +203,12 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_module_export(context, module, findtype_sig, BT_VALUE_CSTRING(context, "add_module_path"), BT_VALUE_OBJECT(
 		bt_make_native(context, findtype_sig, btstd_add_module_path)));
+
+	bt_module_export(context, module, get_union_size_sig, BT_VALUE_CSTRING(context, "get_union_size"), BT_VALUE_OBJECT(
+		bt_make_native(context, get_union_size_sig, btstd_get_union_size)));
+
+	bt_module_export(context, module, get_union_entry_sig, BT_VALUE_CSTRING(context, "get_union_entry"), BT_VALUE_OBJECT(
+		bt_make_native(context, get_union_entry_sig, btstd_get_union_entry)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "meta"), module);
 }

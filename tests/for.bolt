@@ -1,0 +1,48 @@
+import print from core
+
+let i = 0
+for {
+    i += 1
+    print(i)
+    if i > 10 { break }
+}
+
+for i < 20 {
+    i += 1
+    print(i)
+}
+
+for x in 10 {
+    print(x)
+}
+
+for x in 0 to 10 by 1 {
+    print(x)
+}
+
+for x in 10 by 2 {
+    print(x)
+}
+
+for x in -5 to 5 by 1 {
+    print(x)
+}
+
+let nums = [ 10, 20, 30, 40, 50 ]
+
+for n in nums.each() {
+    print(n)
+}
+
+fn range(stop: number) {
+    let iter = -1
+    return fn {
+        iter += 1
+        if iter < stop { return iter }
+        return null
+    }
+}
+
+for x in range(10) {
+    print(x)
+}

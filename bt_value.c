@@ -22,13 +22,27 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 
 		if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_GET_TYPE(objb)) {
 			if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_TYPE) {
-				bt_Type* ta = obja;
-				bt_Type* tb = objb;
+				bt_Type* ta = bt_type_dealias(obja);
+				bt_Type* tb = bt_type_dealias(objb);
 
 				if (ta->category != tb->category) return BT_FALSE;
-				if (bt_is_optional(ta) != bt_is_optional(tb)) return BT_FALSE;
 				if (ta->satisfier != tb->satisfier) return BT_FALSE;
-				// TODO: Can we guarentee this is sane?
+
+				if (ta->category == BT_TYPE_CATEGORY_UNION) {
+					for (uint32_t i = 0; i < ta->as.selector.types.length; i++) {
+						bt_Type* inner_a = ta->as.selector.types.elements[i];
+
+						bt_bool found = BT_FALSE;
+						for (uint32_t j = 0; j < tb->as.selector.types.length; j++) {
+							bt_Type* inner_b = tb->as.selector.types.elements[j];
+
+							found |= bt_value_is_equal(BT_VALUE_OBJECT(inner_a), BT_VALUE_OBJECT(inner_b));
+						}
+
+						if (!found) return BT_FALSE;
+					}
+				}
+
 				return strcmp(ta->name, tb->name) == 0;
 			} else if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_STRING) {
 				bt_String* a_str = obja;
