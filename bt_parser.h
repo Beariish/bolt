@@ -147,9 +147,9 @@ typedef struct bt_AstNode {
 		} arr;
 
 		struct {
-			bt_Type* type;
-			bt_String* name;
-			bt_AstNode* expr;
+			bt_Type* value_type;
+			bt_Value key;
+			bt_AstNode* value_expr;
 		} table_field;
 
 		struct {

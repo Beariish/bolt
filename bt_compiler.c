@@ -828,12 +828,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         for (uint32_t i = 0; i < fields->length; ++i) {
             bt_AstNode* entry = fields->elements[i];
-            bt_String* idx = entry->as.table_field.name;
-            uint8_t idx_idx = push(ctx, BT_VALUE_OBJECT(idx));
+            uint8_t key_idx = push(ctx, entry->as.table_field.key);
 
-            compile_expression(ctx, entry->as.table_field.expr, val_loc);
+            compile_expression(ctx, entry->as.table_field.value_expr, val_loc);
 
-            emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, idx_idx, val_loc);
+            emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, key_idx, val_loc);
         }
 
         restore_registers(ctx);

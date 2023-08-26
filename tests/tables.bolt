@@ -1,0 +1,50 @@
+import print from core
+
+// Unshaped table assignments
+let a: {}
+print(a)
+
+a["test"] = 10
+print(a["test"])
+
+a[10] = "hello"
+print(a[10])
+
+a[true] = false
+print(a[true])
+
+a[null] = "weird, but allowed!"
+print(a[null])
+
+let key = { x: 10 }
+a[key] = key
+print(a[key])
+
+// Anonymous table shapes
+let b = {
+    x: 10,
+    y: "hello"
+}
+
+print(b.x is number)
+print(b.y is string)
+
+/*
+// map types
+let c: { ..number: string }*/
+
+// non-identifier table literals
+let d = {
+    1: true,
+    "helo": 10,
+    true: fn { print("What!!") },
+    null: "erm.. okay"
+}
+
+print("------------")
+print(d[1])
+print(d["helo"])
+print(d.helo)
+print(d[true])
+d[true]()
+print(d[null])

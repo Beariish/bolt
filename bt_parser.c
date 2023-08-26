@@ -312,6 +312,37 @@ static void destroy_subobj(bt_Context* ctx, bt_AstNode* node)
     }
 }
 
+static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
+{
+    bt_Value result;
+
+    switch (node->type) {
+    case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: {
+        switch (node->source->type) {
+        case BT_TOKEN_IDENTIFER_LITERAL: case BT_TOKEN_IDENTIFIER: {
+            result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
+        } break;
+        case BT_TOKEN_STRING_LITERAL: {
+            // Cut off the quotes!
+            result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source + 1, node->source->source.length - 2));
+        } break;
+        case BT_TOKEN_NUMBER_LITERAL: {
+            bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
+            result = BT_VALUE_NUMBER(lit->as_num);
+        } break;
+        case BT_TOKEN_TRUE_LITERAL: result = BT_VALUE_TRUE; break;
+        case BT_TOKEN_FALSE_LITERAL: result = BT_VALUE_FALSE; break;
+        case BT_TOKEN_NULL_LITERAL: result = BT_VALUE_NULL; break;
+        default: assert(0 && "Unhandled token literal type!");
+        }
+    } break;
+
+    default: assert(0 && "Unhandled ast node type!");
+    }
+
+    return result;
+}
+
 static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type) {
     UPERF_EVENT("parse_table");
 
@@ -328,14 +359,12 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     token = bt_tokenizer_peek(parse->tokenizer);
     while (token && token->type != BT_TOKEN_RIGHTBRACE) {
-        token = bt_tokenizer_emit(parse->tokenizer);
-        if (token->type != BT_TOKEN_IDENTIFIER) {
-            assert(0 && "Expected identifier name for tableshape field!");
-        }
+        bt_AstNode* key_expr = pratt_parse(parse, 0);
 
         bt_AstNode* field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
-        bt_String* str = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
-        field->as.table_field.name = str;
+
+        bt_Value key = node_to_key(parse, key_expr);
+        field->as.table_field.key = key;
         field->source = token;
 
         token = bt_tokenizer_emit(parse->tokenizer);
@@ -343,25 +372,24 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             assert(0 && "Expected colon after table field name!");
         }
 
-        bt_AstNode* expr = pratt_parse(parse, 0);
-        field->as.table_field.type = type_check(parse, expr)->resulting_type;
-        field->as.table_field.expr = expr;
-
+        bt_AstNode* value_expr = pratt_parse(parse, 0);
+        field->as.table_field.value_expr = value_expr;
+        field->as.table_field.value_type = type_check(parse, value_expr)->resulting_type;
 
         if (type) {
-            bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, BT_VALUE_OBJECT(str)));
+            bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key));
             if (!expected && type->as.table_shape.sealed) {
                 assert(0 && "Unexpected field identifier!");
             }
 
-            if (expected && !expected->satisfier(field->as.table_field.type, expected)) {
+            if (expected && !expected->satisfier(field->as.table_field.value_type, expected)) {
                 assert(0 && "Invalid type for field!");
             }
 
             n_satisfied++;
         }
         else {
-            bt_tableshape_add_layout(ctx, result->resulting_type, BT_VALUE_OBJECT(str), BT_VALUE_OBJECT(field->as.table_field.type));
+            bt_tableshape_add_layout(ctx, result->resulting_type, key, BT_VALUE_OBJECT(field->as.table_field.value_type));
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -1393,25 +1421,22 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
         }
         case BT_TOKEN_PERIOD: {
-            if (node->as.binary_op.right->type != BT_AST_NODE_IDENTIFIER) assert(0 && "Illegal identifier!");
+            // dot syntax acceleration
+            if (node->as.binary_op.right->type == BT_AST_NODE_IDENTIFIER) {
+                node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
+                node->as.binary_op.right->resulting_type = parse->context->types.string;
+                node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFER_LITERAL;
+            }
 
-            node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
-            node->as.binary_op.right->resulting_type = parse->context->types.string;
-            node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFER_LITERAL;
-
-            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
+            // TODO(bearish): Make a smarter check than just comparing against literal table type
+            bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
             if (lhs == parse->context->types.table) {
                 node->resulting_type = parse->context->types.any;
                 UPERF_POP();
                 return node;
             }
 
-            if (lhs->category == BT_TYPE_CATEGORY_TYPE) {
-                lhs = lhs->as.type.boxed;
-            }
-
-            bt_Token* rhs = node->as.binary_op.right->source;
-            bt_Value rhs_key = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, rhs->source.source, rhs->source.length));
+            bt_Value rhs_key = node_to_key(parse, node->as.binary_op.right);
 
             bt_Table* proto = lhs->prototype_types;
             if (!proto && lhs->prototype) proto = lhs->prototype->prototype_types;
@@ -1600,8 +1625,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: {
-            if (type_check(parse, node->as.binary_op.left)->resulting_type !=
-                type_check(parse, node->as.binary_op.right)->resulting_type) assert(0);
+            if (bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type) !=
+                bt_type_dealias(type_check(parse, node->as.binary_op.right)->resulting_type)) assert(0);
             node->resulting_type = parse->context->types.boolean;
         } break;
 #define XSTR(x) #x
@@ -1732,11 +1757,11 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
                 bt_TablePair* pair = items->elements + idx;
                 
                 bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
-                entry->as.table_field.type = BT_AS_OBJECT(pair->value);
-                entry->as.table_field.name = BT_AS_OBJECT(pair->key);
-                entry->as.table_field.expr = generate_initializer(parse, entry->as.table_field.type);
+                entry->as.table_field.value_type = BT_AS_OBJECT(pair->value);
+                entry->as.table_field.key = pair->key;
+                entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type);
 
-                if (!entry->as.table_field.expr) {
+                if (!entry->as.table_field.value_expr) {
                     assert(0 && "Failed to generate intiailzier for table field x!");
                 }
 
