@@ -337,6 +337,10 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
         }
     } break;
 
+    case BT_AST_NODE_ENUM_LITERAL: {
+        result = node->as.enum_literal.value;
+    } break;
+
     default: assert(0 && "Unhandled ast node type!");
     }
 
@@ -389,7 +393,8 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             n_satisfied++;
         }
         else {
-            bt_tableshape_add_layout(ctx, result->resulting_type, key, BT_VALUE_OBJECT(field->as.table_field.value_type));
+            bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
+            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, BT_VALUE_OBJECT(field->as.table_field.value_type));
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -701,21 +706,26 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
 
             bt_TablePairBuffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* lhs_field_types = &lhs->as.table_shape.key_layout->pairs;
             bt_TablePairBuffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* rhs_field_types = &rhs->as.table_shape.key_layout->pairs;
 
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
                 bt_TablePair* field = lhs_fields->elements + i;
-                bt_tableshape_add_layout(parse->context, result, field->key, BT_AS_OBJECT(field->value));
+                bt_TablePair* type = lhs_field_types->elements + i;
+                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
                 bt_TablePair* field = rhs_fields->elements + i;
+                bt_TablePair* type = rhs_field_types->elements + i;
+
                 if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     assert(0 && "Both lhs and rhs have a feild with name %s!");
                     break;
                 }
 
-                bt_tableshape_add_layout(parse->context, result, field->key, BT_AS_OBJECT(field->value));
+                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
             }
 
             bt_tableshape_set_parent(parse->context, result, lhs);
@@ -784,6 +794,19 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             return ctx->types.table;
         }
 
+        if (token->type == BT_TOKEN_VARARG) {
+            bt_tokenizer_emit(tok);
+
+            bt_Type* key_type = parse_type(parse, BT_FALSE);
+            bt_tokenizer_expect(tok, BT_TOKEN_COLON);
+            bt_Type* value_type = parse_type(parse, BT_FALSE);
+
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+            UPERF_POP();
+            return bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
+        }
+
         bt_Type* result = bt_make_tableshape(ctx, "<tableshape>", is_sealed);
         result->as.table_shape.final = is_final;
         while (token && token->type != BT_TOKEN_RIGHTBRACE) {
@@ -813,7 +836,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 bt_type_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
             }
 
-            bt_tableshape_add_layout(ctx, result, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
+            bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
 
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COMMA) {
@@ -1458,6 +1481,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+                if (lhs->as.table_shape.map) {
+                    if (!lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
+                        assert(0 && "Key type mismatch!");
+                    }
+
+                    node->resulting_type = lhs->as.table_shape.value_type;
+                    UPERF_POP();
+                    return node;
+                }
+
                 bt_Table* layout = lhs->as.table_shape.layout;
                 bt_Value table_entry = bt_table_get(layout, rhs_key);
                 if (table_entry != BT_VALUE_NULL) {
@@ -1596,23 +1629,28 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             bt_TablePairBuffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* lhs_field_types = &lhs->as.table_shape.key_layout->pairs;
             bt_TablePairBuffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
+            bt_TablePairBuffer* rhs_field_types = &rhs->as.table_shape.key_layout->pairs;
 
             bt_Type* resulting_type = bt_make_tableshape(parse->context, "", BT_TRUE);
 
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
                 bt_TablePair* field = lhs_fields->elements + i;
-                bt_tableshape_add_layout(parse->context, resulting_type, field->key, BT_AS_OBJECT(field->value));
+                bt_TablePair* type = lhs_field_types->elements + i;
+                bt_tableshape_add_layout(parse->context, resulting_type, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
                 bt_TablePair* field = rhs_fields->elements + i;
+                bt_TablePair* type = rhs_field_types->elements + i;
+
                 if (bt_table_get(resulting_type->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     assert(0 && "Both lhs and rhs have a feild with name %s!");
                     break;
                 }
 
-                bt_tableshape_add_layout(parse->context, resulting_type, field->key, BT_AS_OBJECT(field->value));
+                bt_tableshape_add_layout(parse->context, resulting_type, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
             }
 
             node->resulting_type = resulting_type;
@@ -1893,31 +1931,6 @@ static bt_AstNode* parse_return(bt_Parser* parse)
     UPERF_POP();
     return node;
 }
-
-/*
-import thing.thing
-import thing.thing as thing
-import * from thing.thing
-import a, b, c from thing.thing
-*/
-
-/*
-parse name
-if name is star -> glob
-    parse from
-    parse name
-    import all
-if followed by comma or from -> hoist
-    parse from
-    parse name
-    import list
-if followed by as -> rename
-    parse newname
-    bind module
-if nothing
-    get last segment of name
-    bind module
-*/
 
 static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
 {

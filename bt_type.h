@@ -33,9 +33,13 @@ typedef struct bt_Type {
 
 		struct {
 			bt_Table* layout;
+			bt_Table* key_layout;
 			bt_Type* parent;
+			bt_Type* key_type;
+			bt_Type* value_type;
 			bt_bool sealed : 1;
 			bt_bool final : 1;
+			bt_bool map : 1;
 		} table_shape;
 
 		struct {
@@ -86,7 +90,7 @@ bt_bool bt_is_optional(bt_Type* type);
 
 static BT_FORCE_INLINE bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
 static BT_FORCE_INLINE bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
-static BT_FORCE_INLINE bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right) || bt_is_optional(left); }
+static BT_FORCE_INLINE bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right); }
 
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
@@ -105,8 +109,10 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name);
 bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySignature applicator);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
-void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type);
+void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_type, bt_Value key, bt_Type* type);
 void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent);
+
+bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value);
 
 bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp);
 void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);

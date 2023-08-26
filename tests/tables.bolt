@@ -29,9 +29,27 @@ let b = {
 print(b.x is number)
 print(b.y is string)
 
-/*
+
 // map types
-let c: { ..number: string }*/
+let c: { ..number: string } = {
+    1: "one",
+    2: "two"
+}
+
+c[3] = "three"
+print(c[1], c[2], c[3], c[4])
+print(typeof(c[1]))
+
+type Direction = enum { Up Down Left Right }
+
+let dir_to_ascii: { ..Direction: string } = {
+    Direction.Up: "^",
+    Direction.Down: "v",
+    Direction.Left: "<", 
+    Direction.Right: ">", 
+}
+
+print(dir_to_ascii[Direction.Up])
 
 // non-identifier table literals
 let d = {

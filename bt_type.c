@@ -124,6 +124,31 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 	return BT_TRUE;
 }
 
+static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
+{
+	if (left->category != BT_TYPE_CATEGORY_TABLESHAPE || right->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
+	
+	bt_Type* l_key = left->as.table_shape.key_type;
+	bt_Type* l_val = left->as.table_shape.value_type;
+	
+	if (left->as.table_shape.map != right->as.table_shape.map) {
+		bt_TablePairBuffer* keys = &right->as.table_shape.key_layout->pairs;
+		bt_TablePairBuffer* vals = &right->as.table_shape.layout->pairs;
+
+		for (uint32_t i = 0; i < keys->length; ++i) {
+			bt_Type* key_type = BT_AS_OBJECT(keys->elements[i].value);
+			bt_Type* val_type = BT_AS_OBJECT(vals->elements[i].value);
+		
+			if (l_key->satisfier(l_key, key_type) == BT_FALSE) return BT_FALSE;
+			if (l_val->satisfier(l_val, val_type) == BT_FALSE) return BT_FALSE;
+		}
+
+		return BT_TRUE;
+	}
+
+	return l_key->satisfier(l_key, right->as.table_shape.key_type) && l_val->satisfier(l_val, right->as.table_shape.value_type);
+}
+
 bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 {
 	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
@@ -385,16 +410,19 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 	result->as.table_shape.sealed = sealed;
 	result->as.table_shape.layout = 0;
 	result->as.table_shape.parent = 0;
+	result->as.table_shape.map = 0;
 	return result;
 }
 
-void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Type* type)
+void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_type, bt_Value key, bt_Type* type)
 {
 	if (tshp->as.table_shape.layout == 0) {
 		tshp->as.table_shape.layout = bt_make_table(context, 4);
+		tshp->as.table_shape.key_layout = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, tshp->as.table_shape.layout, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, tshp->as.table_shape.layout, key, BT_VALUE_OBJECT(type));
+	bt_table_set(context, tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
 }
 
 void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
@@ -437,6 +465,20 @@ void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* paren
 
 	tshp->prototype_types->prototype = parent->prototype_types;
 	tshp->prototype_values->prototype = parent->prototype_values;
+}
+
+bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value)
+{
+	bt_Type* result = bt_make_type(context, "map", bt_type_satisfier_map, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
+	result->as.table_shape.sealed = 0;
+	result->as.table_shape.layout = 0;
+	result->as.table_shape.parent = 0;
+	result->as.table_shape.map = 1;
+
+	result->as.table_shape.key_type = key;
+	result->as.table_shape.value_type = value;
+
+	return result;
 }
 
 bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp)
