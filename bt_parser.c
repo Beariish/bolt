@@ -96,7 +96,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     case BT_AST_NODE_IF: {
         assert(node->as.branch.is_let);
 
-        new_binding.is_const = BT_TRUE;
+        new_binding.is_const = BT_FALSE;
         new_binding.name = node->as.branch.identifier->source;
         new_binding.type = node->as.branch.bound_type;
     } break;
@@ -891,7 +891,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         if (!result) assert(0 && "Expression did not evaluate to type!");
 
         UPERF_POP();
-        return result;
+        return bt_type_dealias(result);
     } break;
     default: assert(0);
     }
@@ -1074,7 +1074,10 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
     }
     else if (lhs->type == BT_TOKEN_TYPEOF) {
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
         bt_AstNode* inner = pratt_parse(parse, 0);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+
         bt_Type* result = type_check(parse, inner)->resulting_type;
 
         if (!result) assert(0 && "Expression did not evaluate to type!");
@@ -1082,7 +1085,6 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
         lhs_node->source = inner->source;
         lhs_node->resulting_type = bt_make_alias(parse->context, result->name, result);
-        return lhs_node;
     }
     else if (lhs->type == BT_TOKEN_TYPE) {
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
@@ -1092,7 +1094,6 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
         lhs_node->source = lhs;
         lhs_node->resulting_type = bt_make_alias(parse->context, inner->name, inner);
-        return lhs_node;
     }
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
@@ -1663,8 +1664,9 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_EQUALS: case BT_TOKEN_NOTEQ: {
-            if (bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type) !=
-                bt_type_dealias(type_check(parse, node->as.binary_op.right)->resulting_type)) assert(0);
+            bt_Type* tl = type_check(parse, node->as.binary_op.left)->resulting_type;
+            bt_Type* tr = type_check(parse, node->as.binary_op.right)->resulting_type;
+            if (bt_type_dealias(tl)->satisfier(bt_type_dealias(tl), bt_type_dealias(tr)) == BT_FALSE) assert(0);
             node->resulting_type = parse->context->types.boolean;
         } break;
 #define XSTR(x) #x
@@ -1774,6 +1776,13 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
             result->source = parse->tokenizer->literal_empty_string;
         }
         else if (bt_is_optional(type) || type == parse->context->types.any) {
+            result->source = parse->tokenizer->literal_null;
+        }
+    } break;
+    case BT_TYPE_CATEGORY_UNION: {
+        if (bt_is_optional(type)) {
+            result = make_node(parse, BT_AST_NODE_LITERAL);
+            result->resulting_type = parse->context->types.null;
             result->source = parse->tokenizer->literal_null;
         }
     } break;

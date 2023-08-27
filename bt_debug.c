@@ -191,6 +191,7 @@ static void print_code(bt_InstructionBuffer* code)
 		case BT_OP_LTE:         printf("[%.3d]: LTE    %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_AND:         printf("[%.3d]: AND    %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_OR:          printf("[%.3d]: OR     %d, %d, %d\n", i, a, b, c); break;
+		case BT_OP_NOT:         printf("[%.3d]: NOT    %d, %d\n", i, a, b); break;
 		case BT_OP_COALESCE:    printf("[%.3d]: COALES %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_MOVE:        printf("[%.3d]: MOVE   %d, %d\n", i, a, b);	        break;
 		case BT_OP_EXPORT:      printf("[%.3d]: EXPORT %d, %d, %d\n", i, a, b, c); break;

@@ -1,68 +1,84 @@
 import print from core
+import test
 
-// Unshaped table assignments
-let a: {}
-print(a)
+test.case("Unshaped table assignments", fn {
+    let a: {}
+    //print(a)
+    
+    a["test"] = 10
+    //print(a["test"])
+    
+    a[10] = "hello"
+    //print(a[10])
+    
+    a[true] = false
+    //print(a[true])
+    
+    a[null] = "weird, but allowed!"
+    //print(a[null])
+    
+    let key = { x: 10 }
+    a[key] = key
+    //print(a[key])
+})
 
-a["test"] = 10
-print(a["test"])
+test.case("Anonymous table shapes", fn {
+    let x = {
+        a: 10,
+        b: "hello",
+        c: true,
+        d: null,
+        e: [1]
+    }
 
-a[10] = "hello"
-print(a[10])
+    test.expect(typeof(x.a) == number,         "Field 'a' has incorrect type deduction")
+    test.expect(typeof(x.b) == string,         "Field 'b' has incorrect type deduction")
+    test.expect(typeof(x.c) == bool,           "Field 'c' has incorrect type deduction")
+    test.expect(typeof(x.d) == type(null),     "Field 'd' has incorrect type deduction")
+    test.expect(typeof(x.e) == type([number]), "Field 'e' has incorrect type deduction")
+})
 
-a[true] = false
-print(a[true])
+test.case("Map types", fn {
+    let c: { ..number: string } = {
+        1: "one",
+        2: "two"
+    }
+    
+    c[3] = "three"
 
-a[null] = "weird, but allowed!"
-print(a[null])
+    test.expect(typeof(c[0]) == type(string?), "Map index produces incorrect type")
+    test.expect(    c[1]?, "Map index produces null incorrectly")
+    test.expect(not c[4]?, "Map index produces value incorrectly")
+    test.expect(c[3]! == "three", "Index produces incorrect result")
+})
 
-let key = { x: 10 }
-a[key] = key
-print(a[key])
+test.case("Enum maps", fn {
+    type Direction = enum { Up Down Left Right }
 
-// Anonymous table shapes
-let b = {
-    x: 10,
-    y: "hello"
-}
+    let dir_to_ascii: { ..Direction: string } = {
+        Direction.Up: "^",
+        Direction.Down: "v",
+        Direction.Left: "<", 
+        Direction.Right: ">", 
+    }
 
-print(b.x is number)
-print(b.y is string)
+    test.expect(dir_to_ascii[Direction.Up]! == "^", "Subscript 0 working")
+    test.expect(dir_to_ascii[Direction.Down]! == "v", "Subscript 1 working")
+    test.expect(dir_to_ascii[Direction.Left]! == "<", "Subscript 2 working")
+    test.expect(dir_to_ascii[Direction.Right]! == ">", "Subscript 3 working")
+})
 
-
-// map types
-let c: { ..number: string } = {
-    1: "one",
-    2: "two"
-}
-
-c[3] = "three"
-print(c[1], c[2], c[3], c[4])
-print(typeof(c[1]))
-
-type Direction = enum { Up Down Left Right }
-
-let dir_to_ascii: { ..Direction: string } = {
-    Direction.Up: "^",
-    Direction.Down: "v",
-    Direction.Left: "<", 
-    Direction.Right: ">", 
-}
-
-print(dir_to_ascii[Direction.Up])
-
-// non-identifier table literals
-let d = {
-    1: true,
-    "helo": 10,
-    true: fn { print("What!!") },
-    null: "erm.. okay"
-}
-
-print("------------")
-print(d[1])
-print(d["helo"])
-print(d.helo)
-print(d[true])
-d[true]()
-print(d[null])
+test.case("Non-identifier table literals", fn {
+    let d = {
+        1: true,
+        "helo": 10,
+        true: fn { return null },
+        null: "erm.. okay"
+    }
+    
+    test.expect(d[1] == true, "Number subscript")
+    test.expect(d["helo"] == 10, "String literal subscript")
+    test.expect(d.helo == 10, "Dot syntax subscript")
+    test.expect(d[true]() == null, "Boolean subscript")
+    test.expect(d[null] == "erm.. okay", "Null subscript")
+})

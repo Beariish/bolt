@@ -923,12 +923,13 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			thread->callstack[thread->depth].callable = obj;
 			thread->depth++;
 
-			if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_FN) {
+			uint32_t type = BT_OBJECT_GET_TYPE(obj);
+			if (type == BT_OBJECT_TYPE_FN) {
 				bt_Fn* callable = (bt_Fn*)obj;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
 				call(context, thread, callable->module, callable->instructions.elements, callable->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
 			}
-			else if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_CLOSURE) {
+			else if (type == BT_OBJECT_TYPE_CLOSURE) {
 				bt_Fn* callable = ((bt_Closure*)obj)->fn;
 				thread->callstack[thread->depth - 1].size = callable->stack_size;
 				thread->callstack[thread->depth - 1].upvals = ((bt_Closure*)obj)->upvals.elements;
@@ -946,13 +947,14 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 					bt_runtime_error(thread, "Closure contained unsupported callable type.", ip);
 				}
 			}
-			else if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_NATIVE_FN) {
+			else if (type == BT_OBJECT_TYPE_NATIVE_FN) {
 				thread->callstack[thread->depth - 1].size = 0;
 				thread->callstack[thread->depth - 1].user_top = 0;
 				bt_NativeFn* callable = (bt_NativeFn*)obj;
 				callable->fn(context, thread);
 			}
 			else {
+				bt_Type* as_type = obj;
 				bt_runtime_error(thread, "Unsupported callable type.", ip);
 			}
 
@@ -984,6 +986,8 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			else {
 				((bt_NativeFn*)cl->fn)->fn(context, thread);
 			}
+
+			thread->depth--;
 			thread->top -= BT_GET_A(op) + 2;
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		} NEXT;

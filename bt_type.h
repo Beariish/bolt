@@ -129,6 +129,7 @@ bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value value);
 bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name);
 
 bt_Type* bt_type_dealias(bt_Type* type);
+bt_bool bt_is_alias(bt_Type* type);
 bt_bool bt_is_type(bt_Value value, bt_Type* type);
 bt_bool bt_satisfies_type(bt_Value value, bt_Type* type);
 bt_Value bt_cast_type(bt_Value value, bt_Type* type);

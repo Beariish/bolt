@@ -621,6 +621,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_MINUS:
             emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc);
             break;
+        case BT_TOKEN_NOT: 
+            emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc);
+            break;
         default: assert(0 && "Unimplemented unary operator!");
         }
 
@@ -990,8 +993,15 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         else {
             uint8_t binding_loc = find_binding(ctx, stmt->as.exp.name);
             if (binding_loc == INVALID_BINDING) {
-                assert(0 && "Failed to find identifer for export!");
+                uint8_t alias_loc = find_named(ctx, stmt->as.exp.name);
+                if (alias_loc == INVALID_BINDING) {
+                    assert(0 && "Failed to find identifer for export!");
+                }
+
+                binding_loc = get_register(ctx);
+                emit_ab(ctx, BT_OP_LOAD, binding_loc, alias_loc);
             }
+
 
             emit_abc(ctx, BT_OP_EXPORT, name_loc, binding_loc, type_loc);
         }

@@ -547,6 +547,11 @@ bt_Type* bt_type_dealias(bt_Type* type)
 	return type;
 }
 
+bt_bool bt_is_alias(bt_Type* type)
+{
+	return type->satisfier == type_satisfier_alias;
+}
+
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
 {
 	if (type == type->ctx->types.any) return BT_TRUE;

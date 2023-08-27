@@ -1,0 +1,78 @@
+import * from core
+
+type TestCase = {
+    name: string,
+    result: bool,
+    failures: [string],
+    body: fn
+}
+
+
+let all_tests: [TestCase]
+
+fn case(name: string, body: fn) {
+    let failures: [string]
+    
+    all_tests.push(TestCase => {
+        name: name,
+        result: true,
+        failures: failures,
+        body: body
+    })
+}
+
+fn prefix(pfx: string) { 
+    return fn(name: string, body: fn) {
+        case(pfx + ": " + name, body)
+    } 
+}
+
+let current_test: { inner: TestCase? }
+
+fn expect(condition: bool, message: string) {
+    if not condition {
+        if let test = current_test.inner {
+            test.result = false
+            test.failures.push(message)
+        } else {
+            print("TRIED TO RAISE ERROR WITH NO CURRENT TEST SET!!")
+        }
+    }
+}
+
+fn run {
+    print("Running", all_tests.length(), "tests...")
+    
+    let start_time = time()
+
+    let success_count = 0
+    for test in all_tests.each() {
+        current_test.inner = test
+        test.body()
+        if test.result {
+            success_count += 1
+        }
+    }
+
+    let end_time = time()
+
+    print("Run complete in", to_string((end_time - start_time) / 1000) + "ms!")
+    print("[" + to_string(success_count) + "/" + to_string(all_tests.length()) + "] tests succeeded!")
+
+    if success_count < all_tests.length() {
+        print("Failures:")
+        for test in all_tests.each() {
+            if not test.result {
+                print("-", test.name)
+                for reason in test.failures.each() {
+                    print("   \"" + reason + "\"")
+                }
+            }
+        }
+    }
+}
+
+export case
+export prefix
+export expect
+export run
