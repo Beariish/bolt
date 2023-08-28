@@ -1,7 +1,9 @@
 import print from core
 import test
 
-test.case("Unshaped table assignments", fn {
+let const case = test.prefix("tables")
+
+case("Unshaped table assignments", fn {
     let a: {}
     //print(a)
     
@@ -22,7 +24,7 @@ test.case("Unshaped table assignments", fn {
     //print(a[key])
 })
 
-test.case("Anonymous table shapes", fn {
+case("Anonymous table shapes", fn {
     let x = {
         a: 10,
         b: "hello",
@@ -38,7 +40,7 @@ test.case("Anonymous table shapes", fn {
     test.expect(typeof(x.e) == type([number]), "Field 'e' has incorrect type deduction")
 })
 
-test.case("Map types", fn {
+case("Map types", fn {
     let c: { ..number: string } = {
         1: "one",
         2: "two"
@@ -52,7 +54,7 @@ test.case("Map types", fn {
     test.expect(c[3]! == "three", "Index produces incorrect result")
 })
 
-test.case("Enum maps", fn {
+case("Enum maps", fn {
     type Direction = enum { Up Down Left Right }
 
     let dir_to_ascii: { ..Direction: string } = {
@@ -68,7 +70,7 @@ test.case("Enum maps", fn {
     test.expect(dir_to_ascii[Direction.Right]! == ">", "Subscript 3 working")
 })
 
-test.case("Non-identifier table literals", fn {
+case("Non-identifier table literals", fn {
     let d = {
         1: true,
         "helo": 10,

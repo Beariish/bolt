@@ -5,8 +5,6 @@
 #include "bt_debug.h"
 #include "bt_userdata.h"
 
-#include "uperf/uperf.h"
-
 #include <assert.h>
 #include <memory.h>
 
@@ -19,7 +17,6 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
-    UPERF_EVENT("Open parser");
     bt_Parser result;
     result.context = tkn->context;
     result.tokenizer = tkn;
@@ -27,7 +24,6 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
     result.scope = NULL;
     result.current_pool = NULL;
 
-    UPERF_POP();
     return result;
 }
 
@@ -48,7 +44,6 @@ void bt_close_parser(bt_Parser* parse)
 
 static void push_scope(bt_Parser* parser, bt_bool is_fn_boundary)
 {
-    UPERF_EVENT("push_scope");
     bt_ParseScope* new_scope = parser->context->alloc(sizeof(bt_ParseScope));
     new_scope->last = parser->scope;
     new_scope->is_fn_boundary = is_fn_boundary;
@@ -56,26 +51,19 @@ static void push_scope(bt_Parser* parser, bt_bool is_fn_boundary)
     parser->scope = new_scope;
 
     bt_buffer_empty(&new_scope->bindings);
-
-    UPERF_POP();
 }
 
 static void pop_scope(bt_Parser* parser)
 {
-    UPERF_EVENT("pop_scope");
-
     bt_ParseScope* old_scope = parser->scope;
     parser->scope = old_scope->last;
 
     bt_buffer_destroy(parser->context, &old_scope->bindings);
     parser->context->free(old_scope);
-    UPERF_POP();
 }
 
 static void push_local(bt_Parser* parse, bt_AstNode* node) 
 {
-    UPERF_EVENT("push_local");
-
     bt_ParseBinding new_binding;
     new_binding.source = node;
 
@@ -112,12 +100,9 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     }
 
     bt_buffer_push(parse->context, &topmost->bindings, new_binding);
-    UPERF_POP();
 }
 
 static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
-    UPERF_EVENT("push_arg");
-
     bt_ParseBinding new_binding;
     new_binding.is_const = BT_TRUE;
     new_binding.name = arg->name;
@@ -133,7 +118,6 @@ static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
     }
 
     bt_buffer_push(parse->context, &topmost->bindings, new_binding);
-    UPERF_POP();
 }
 
 static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
@@ -246,12 +230,10 @@ static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifi
 
 static void next_pool(bt_Parser* parse)
 {
-    UPERF_BLOCK("Allocate new ast nodes") {
-        bt_AstNodePool* prev = parse->current_pool;
-        parse->current_pool = parse->context->alloc(sizeof(bt_AstNodePool));
-        parse->current_pool->prev = prev;
-        parse->current_pool->count = 0;
-    }
+    bt_AstNodePool* prev = parse->current_pool;
+    parse->current_pool = parse->context->alloc(sizeof(bt_AstNodePool));
+    parse->current_pool->prev = prev;
+    parse->current_pool->count = 0;
 }
 
 static bt_AstNode* make_node(bt_Parser* parse, bt_AstNodeType type)
@@ -348,8 +330,6 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
 }
 
 static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type) {
-    UPERF_EVENT("parse_table");
-
     bt_Token* token = source;
     bt_Context* ctx = parse->context;
 
@@ -412,7 +392,6 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         assert(0 && "Missing fields in typed table literal!");
     }
 
-    UPERF_POP();
     return result;
 }
 
@@ -597,8 +576,6 @@ return (InfixBindingPower) { 4, 3 };
 
 static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
 {
-    UPERF_EVENT("resolve_type_identifier");
-
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
         assert(0 && "Expected identifier to be valid!");
     }
@@ -630,14 +607,11 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
         result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
     }
 
-    UPERF_POP();
     return result;
 }
 
 static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 {
-    UPERF_EVENT("find_type_or_shadow");
-
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
         assert(0 && "Expected identifier to be valid!");
     }
@@ -667,14 +641,11 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
         result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
     }
 
-    UPERF_POP();
     return result;
 }
 
 static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 {
-    UPERF_EVENT("parse_type");
-
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_emit(tok);
     bt_Context* ctx = tok->context;
@@ -683,7 +654,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
     switch (token->type) {
     case BT_TOKEN_NULL_LITERAL: {
-        UPERF_POP();
         return parse->context->types.null;
     }
     case BT_TOKEN_IDENTIFIER: {
@@ -744,7 +714,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             result = selector;
         }
 
-        UPERF_POP();
         return result;
     } break;
     case BT_TOKEN_FN: {
@@ -772,7 +741,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             return_type = parse_type(parse, BT_TRUE);
         }
 
-        UPERF_POP();
         return bt_make_signature(ctx, return_type, args, arg_top);
     } break;
     case BT_TOKEN_FINAL: 
@@ -790,7 +758,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_RIGHTBRACE) {
             bt_tokenizer_emit(tok);
-            UPERF_POP();
             return ctx->types.table;
         }
 
@@ -803,7 +770,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
-            UPERF_POP();
             return bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
         }
 
@@ -846,20 +812,17 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         }
 
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-        UPERF_POP();
         return result;
     } break;
     case BT_TOKEN_LEFTBRACKET: {
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_RIGHTBRACKET) {
             bt_tokenizer_emit(tok);
-            UPERF_POP();
             return ctx->types.array;
         }
 
         bt_Type* inner = parse_type(parse, BT_TRUE);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
-        UPERF_POP();
         return bt_make_array_type(parse->context, inner);
     } break;
     case BT_TOKEN_ENUM: {
@@ -881,7 +844,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
-        UPERF_POP();
         return result;
     } break;
     case BT_TOKEN_TYPEOF: {
@@ -890,7 +852,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
         if (!result) assert(0 && "Expression did not evaluate to type!");
 
-        UPERF_POP();
         return bt_type_dealias(result);
     } break;
     default: assert(0);
@@ -901,7 +862,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
 static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_Type* expected)
 {
-    UPERF_EVENT("infer_return");
     for (uint32_t i = 0; i < body->length; ++i) {
         bt_AstNode* expr = body->elements[i];
         if (!expr) continue;
@@ -935,13 +895,11 @@ static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_T
         }
     }
 
-    UPERF_POP();
     return expected;
 }
 
 static bt_AstNode* parse_function_literal(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_function_literal");
     bt_Tokenizer* tok = parse->tokenizer;
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_FUNCTION);
@@ -1037,13 +995,11 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
 
     parse->current_fn = parse->current_fn->as.fn.outer;
 
-    UPERF_POP();
     return result;
 }
 
 static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse)
 {
-    UPERF_EVENT("parse_block");
     push_scope(parse, BT_FALSE);
 
     bt_Token* next = bt_tokenizer_peek(parse->tokenizer);
@@ -1056,7 +1012,6 @@ static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse)
     }
 
     pop_scope(parse);
-    UPERF_POP();
 }
 
 static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
@@ -1360,9 +1315,7 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
 
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 {
-    UPERF_EVENT("type_check");
     if (node->resulting_type) {
-        UPERF_POP();
         return node;
     }
 
@@ -1379,7 +1332,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
     case BT_AST_NODE_LITERAL:
         if (node->resulting_type == NULL) {
             assert(0);
-            UPERF_POP();
             return NULL;
         }
         break;
@@ -1388,7 +1340,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_QUESTION:
             if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 assert(0 && "Unary operator ? can only be applied to nullable types.");
-                UPERF_POP();
                 return NULL;
             }
             node->resulting_type = parse->context->types.boolean;
@@ -1396,7 +1347,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_BANG:
             if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 assert(0 && "Unary operator ! can only be applied to nullable types.");
-                UPERF_POP();
                 return NULL;
             }
             node->resulting_type = bt_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
@@ -1414,7 +1364,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             if (!bt_is_optional(lhs)) {
                 assert(0 && "Lhs is non-optional, cannot coalesce!");
-                UPERF_POP();
                 return NULL;
             }
 
@@ -1422,7 +1371,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             if(!lhs->satisfier(node->resulting_type, lhs)) {
                 assert(0 && "Unable to coalesce rhs into lhs");
-                UPERF_POP();
                 return NULL;
             }
         } break;
@@ -1440,7 +1388,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     node->as.binary_op.accelerated = BT_TRUE;
                 }
 
-                UPERF_POP();
                 return node;
             }
         }
@@ -1456,7 +1403,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
             if (lhs == parse->context->types.table) {
                 node->resulting_type = parse->context->types.any;
-                UPERF_POP();
                 return node;
             }
 
@@ -1476,7 +1422,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         node->as.binary_op.key = rhs_key;
                     }
 
-                    UPERF_POP();
                     return node;
                 }
             }
@@ -1488,7 +1433,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     }
 
                     node->resulting_type = lhs->as.table_shape.value_type;
-                    UPERF_POP();
                     return node;
                 }
 
@@ -1506,7 +1450,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         }
                     }
 
-                    UPERF_POP();
                     return node;
                 }
 
@@ -1515,7 +1458,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
 
                 node->resulting_type = parse->context->types.any;
-                UPERF_POP();
                 return node;
             }
             else if (lhs->category == BT_TYPE_CATEGORY_USERDATA) {
@@ -1525,7 +1467,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     bt_UserdataField* field = fields->elements + i;
                     if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), rhs_key)) {
                         node->resulting_type = field->bolt_type;
-                        UPERF_POP();
                         return node;
                     }
                 }
@@ -1536,7 +1477,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     bt_UserdataMethod* method = methods->elements + i;
                     if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), rhs_key)) {
                         node->resulting_type = method->fn->type;
-                        UPERF_POP();
                         return node;
                     }
                 }
@@ -1550,7 +1490,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 node->type = BT_AST_NODE_ENUM_LITERAL;
                 node->as.enum_literal.value = result;
                 node->resulting_type = lhs;
-                UPERF_POP();
                 return node;
             }
             else {
@@ -1741,7 +1680,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
                 assert(0);
-                UPERF_POP();
                 return NULL;
             }
 
@@ -1752,14 +1690,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         break;
     }
 
-    UPERF_POP();
     return node;
 }
 
 static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
 {
-    UPERF_EVENT("generate_initializer");
-    
     bt_AstNode* result = 0;
 
     switch (type->category) {
@@ -1794,7 +1729,7 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
     } break;
     case BT_TYPE_CATEGORY_TABLESHAPE: {
         result = make_node(parse, BT_AST_NODE_TABLE);
-        result->as.table.typed = true;
+        result->as.table.typed = BT_TRUE;
         result->resulting_type = type;
         bt_buffer_empty(&result->as.table.fields);
 
@@ -1828,13 +1763,11 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
     } break;
     }
 
-    UPERF_POP();
     return result;
 }
 
 static bt_AstNode* parse_let(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_let");
     bt_Tokenizer* tok = parse->tokenizer;
     bt_AstNode* node = make_node(parse, BT_AST_NODE_LET);
     node->source = bt_tokenizer_peek(tok);
@@ -1892,13 +1825,11 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     }
 
     push_local(parse, node);
-    UPERF_POP();
     return node;
 }
 
 static bt_AstNode* parse_var(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_var");
     bt_Tokenizer* tok = parse->tokenizer;
     bt_AstNode* node = make_node(parse, BT_AST_NODE_LET);
     node->as.let.is_const = BT_FALSE;
@@ -1926,18 +1857,16 @@ static bt_AstNode* parse_var(bt_Parser* parse)
     node->resulting_type = tok->context->types.any;
 
     push_local(parse, node);
-    UPERF_POP();
     return node;
 }
 
 static bt_AstNode* parse_return(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_return");
     bt_AstNode* node = make_node(parse, BT_AST_NODE_RETURN);
     node->source = bt_tokenizer_peek(parse->tokenizer);
     node->as.ret.expr = pratt_parse(parse, 0);
     node->resulting_type = type_check(parse, node->as.ret.expr)->resulting_type;
-    UPERF_POP();
+    
     return node;
 }
 
@@ -1974,7 +1903,6 @@ static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
 
 static bt_AstNode* parse_import(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_import");
     bt_Tokenizer* tok = parse->tokenizer;
 
     bt_Token* name_or_first_item = bt_tokenizer_peek(tok);
@@ -2013,7 +1941,6 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
-        UPERF_POP();
         return NULL;
     }
 
@@ -2080,7 +2007,6 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         }
 
         bt_buffer_destroy(parse->context, &items);
-        UPERF_POP();
         return NULL;
     }
 
@@ -2109,13 +2035,11 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
     bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
 
-    UPERF_POP();
     return NULL;
 }
 
 static bt_AstNode* parse_export(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_export");
     bt_Tokenizer* tok = parse->tokenizer;
     bt_AstNode* to_export = parse_statement(parse);
     
@@ -2142,13 +2066,11 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     
     if (export->resulting_type == 0) assert(0 && "Export statement didn't resolve to known type!");
 
-    UPERF_POP();
     return export;
 }
 
 static bt_AstNode* parse_function_statement(bt_Parser* parser)
 {
-    UPERF_EVENT("parse_function_statement");
     bt_Tokenizer* tok = parser->tokenizer;
     bt_Token* ident = bt_tokenizer_emit(tok);
 
@@ -2179,7 +2101,6 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
 
         bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
         bt_type_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(fn), fn->resulting_type);
-        UPERF_POP();
         return NULL;
     }
 
@@ -2195,13 +2116,11 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
 
     push_local(parser, result);
 
-    UPERF_POP();
     return result;
 }
 
 static bt_AstNode* parse_if(bt_Parser* parser)
 {
-    UPERF_EVENT("parse_if");
     bt_Tokenizer* tok = parser->tokenizer;
 
     bt_Token* next = bt_tokenizer_peek(tok);
@@ -2298,13 +2217,11 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         }
     }
 
-    UPERF_POP();
     return result;
 }
 
 static bt_AstNode* parse_for(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_for");
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_peek(tok);
 
@@ -2334,7 +2251,6 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         pop_scope(parse);
 
         result->as.loop_while.body = body;
-        UPERF_POP();
         return result;
     }
 
@@ -2401,7 +2317,6 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
         result->as.loop_numeric.body = body;
 
-        UPERF_POP();
         return result;
     }
     else if (generator_type->category != BT_TYPE_CATEGORY_SIGNATURE) assert(0 && "Expected iterator to be function!");
@@ -2436,13 +2351,11 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     result->as.loop_iterator.identifier = identifier;
     result->as.loop_iterator.iterator = iterator;
 
-    UPERF_POP();
     return result;
 }
 
 static bt_AstNode* parse_alias(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_alias");
     bt_AstNode* result = make_node(parse, BT_AST_NODE_ALIAS);
 
     bt_Token* name = bt_tokenizer_emit(parse->tokenizer);
@@ -2462,13 +2375,11 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
 
     push_local(parse, result);
 
-    UPERF_POP();
     return result;
 }
 
 static bt_AstNode* parse_method(bt_Parser* parse)
 {
-    UPERF_EVENT("parse_method");
     bt_Tokenizer* tok = parse->tokenizer;
 
     bt_Token* type_name = bt_tokenizer_emit(tok);
@@ -2584,7 +2495,6 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
     bt_type_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_OBJECT(result), result->resulting_type);
 
-    UPERF_POP();
     return NULL;
 }
 
