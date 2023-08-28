@@ -19,24 +19,6 @@ extern "C" {
 #include <Windows.h>
 #include <math.h>
 
-static size_t bytes_allocated = 0;
-static void* malloc_tracked(size_t size) {
-	if (size == 0) __debugbreak();
-	bytes_allocated += size;
-	return malloc(size);
-}
-
-static void* realloc_tracket(void* ptr, size_t size) {
-	bytes_allocated -= _msize(ptr);
-	bytes_allocated += size;
-	return realloc(ptr, size);
-}
-
-static void free_tracked(void* mem) {
-	bytes_allocated -= _msize(mem);
-	free(mem);
-}
-
 static LARGE_INTEGER time_freq, time_start;
 static void init_time()
 {
@@ -78,39 +60,10 @@ static void bt_print(bt_Context* ctx, bt_Thread* thread)
 	printf("%s\n", buffer);
 }
 
-static void bt_max(bt_Context* ctx, bt_Thread* thread)
-{
-	uint8_t argc = bt_argc(thread);
-	bt_number max = BT_AS_NUMBER(bt_arg(thread, 0));
-	for (uint8_t i = 1; i < argc; ++i) {
-		bt_number arg = BT_AS_NUMBER(bt_arg(thread, i));
-		max = max > arg ? max : arg;
-	}
-
-	bt_return(thread, BT_VALUE_NUMBER(max));
-}
-
-static void bt_sqrt(bt_Context* ctx, bt_Thread* thread)
-{
-	bt_number tosqrt = BT_AS_NUMBER(bt_arg(thread, 0));
-	bt_return(thread, BT_VALUE_NUMBER(sqrt(tosqrt)));
-}
-
-static void bt_abs(bt_Context* ctx, bt_Thread* thread)
-{
-	bt_number toabs = BT_AS_NUMBER(bt_arg(thread, 0));
-	bt_return(thread, BT_VALUE_NUMBER(fabs(toabs)));
-}
-
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
 	bt_return(thread, BT_VALUE_OBJECT(bt_to_string(ctx, arg)));
-}
-
-static void bt_gc(bt_Context* ctx, bt_Thread* thread)
-{
-	bt_collect(&ctx->gc, 6184);
 }
 
 static void bt_str_length(bt_Context* ctx, bt_Thread* thread)
@@ -205,40 +158,6 @@ static bt_Type* bt_arr_each_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	return sig;
 }
 
-typedef struct BoltAccessableStruct {
-	double x, y;
-	float width, height;
-
-	uint32_t count;
-	int32_t offset;
-} BoltAccessableStruct;
-
-static bt_Type* struct_type;
-
-static void bt_get_struct(bt_Context* ctx, bt_Thread* thread)
-{
-	BoltAccessableStruct result;
-	result.x = 420.0;
-	result.y = 69.0;
-	result.width = 1280.f;
-	result.height = 720.f;
-	result.count = 12345;
-	result.offset = -100;
-
-	bt_return(thread, BT_VALUE_OBJECT(bt_make_userdata(ctx, struct_type, &result, sizeof(BoltAccessableStruct))));
-}
-
-static void bt_struct_moveto(bt_Context* ctx, bt_Thread* thread)
-{
-	BoltAccessableStruct* self = (BoltAccessableStruct*)((bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0)))->data;
-
-	double dx = bt_get_number(bt_arg(thread, 1));
-	double dy = bt_get_number(bt_arg(thread, 2));
-
-	self->x += dx;
-	self->y += dy;
-}
-
 static void bt_error(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col) {
 	switch (type)
 	{
@@ -297,49 +216,6 @@ int main(int argc, char** argv) {
 		time_sig,
 		BT_VALUE_CSTRING(&context, "time"),
 		BT_VALUE_OBJECT(bt_make_native(&context, time_sig, bt_time)));
-
-	bt_Type* max_args[] = { context.types.number };
-	bt_Type* max_sig = bt_make_vararg(&context, bt_make_signature(&context, context.types.number, max_args, 1), context.types.number);
-	bt_module_export(&context, core_module,
-		max_sig,
-		BT_VALUE_CSTRING(&context, "max"),
-		BT_VALUE_OBJECT(bt_make_native(&context, max_sig, bt_max)));
-
-	bt_Type* sqrt_args[] = { context.types.number };
-	bt_Type* sqrt_sig = bt_make_signature(&context, context.types.number, sqrt_args, 1);
-	bt_module_export(&context, core_module,
-		sqrt_sig,
-		BT_VALUE_CSTRING(&context, "sqrt"),
-		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_sqrt)));
-
-	bt_module_export(&context, core_module,
-		sqrt_sig,
-		BT_VALUE_CSTRING(&context, "abs"),
-		BT_VALUE_OBJECT(bt_make_native(&context, sqrt_sig, bt_abs)));
-
-	bt_Type* gc_sig = bt_make_signature(&context, NULL, NULL, 0);
-	bt_module_export(&context, core_module,
-		gc_sig,
-		BT_VALUE_CSTRING(&context, "gc"),
-		BT_VALUE_OBJECT(bt_make_native(&context, gc_sig, bt_gc)));
-
-	struct_type = bt_make_userdata_type(&context, "BoltAccessableStruct");
-	bt_userdata_type_field_double(&context, struct_type, "x", offsetof(BoltAccessableStruct, x));
-	bt_userdata_type_field_double(&context, struct_type, "y", offsetof(BoltAccessableStruct, y));
-	bt_userdata_type_field_float(&context, struct_type, "width", offsetof(BoltAccessableStruct, width));
-	bt_userdata_type_field_float(&context, struct_type, "height", offsetof(BoltAccessableStruct, height));
-	bt_userdata_type_field_uint32(&context, struct_type, "count", offsetof(BoltAccessableStruct, count));
-	bt_userdata_type_field_int32(&context, struct_type, "offset", offsetof(BoltAccessableStruct, offset));
-
-	bt_Type* moveto_args[] = { struct_type, context.types.number, context.types.number };
-	bt_userdata_type_method(&context, struct_type, "move_by", bt_struct_moveto, NULL,
-		moveto_args, 3);
-
-	bt_module_export(&context, core_module, context.types.type, BT_VALUE_CSTRING(&context, "BoltAccessableStruct"), BT_VALUE_OBJECT(struct_type));
-
-	bt_Type* get_struct_sig = bt_make_signature(&context, struct_type, NULL, 0);
-	bt_module_export(&context, core_module, get_struct_sig, BT_VALUE_CSTRING(&context, "get_struct"),
-		BT_VALUE_OBJECT(bt_make_native(&context, get_struct_sig, bt_get_struct)));
 
 	bt_Type* string = context.types.string;
 	bt_Type* length_args[] = { context.types.string };
