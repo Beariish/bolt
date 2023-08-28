@@ -73,6 +73,7 @@ typedef struct {
 	bt_Buffer(bt_Literal) literals;
 	int32_t last_consumed;
 
+	const char* source_name;
 	const char* source;
 	char* current;
 
@@ -90,6 +91,7 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context);
 void bt_close_tokenizer(bt_Tokenizer* tok);
 
 void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source);
+void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name);
 bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
 
 bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok);

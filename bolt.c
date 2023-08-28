@@ -99,12 +99,12 @@ void bt_close(bt_Context* context)
 
 bt_bool bt_run(bt_Context* context, const char* source)
 {
-	bt_Module* mod = bt_compile_module(context, source);
+	bt_Module* mod = bt_compile_module(context, source, "<interp>");
 	if (!mod) return BT_FALSE;
 	return bt_execute(context, mod);
 }
 
-bt_Module* bt_compile_module(bt_Context* context, const char* source)
+bt_Module* bt_compile_module(bt_Context* context, const char* source, const char* mod_name)
 {
 #ifdef BOLT_PRINT_DEBUG
 	printf("%s\n", source);
@@ -114,6 +114,7 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source)
 	bt_Tokenizer* tok = context->alloc(sizeof(bt_Tokenizer));
 	*tok = bt_open_tokenizer(context);
 	bt_tokenizer_set_source(tok, source);
+	bt_tokenizer_set_source_name(tok, mod_name);
 
 	bt_Parser* parser = context->alloc(sizeof(bt_Parser));
 	*parser = bt_open_parser(tok);
@@ -372,12 +373,12 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		fclose(source);
 		code[len] = 0;
 
-		bt_Module* new_mod = bt_compile_module(context, code);
-		new_mod->name = BT_AS_OBJECT(name);
-		new_mod->path = bt_make_string_len(context, path_buf, path_len);
+		bt_Module* new_mod = bt_compile_module(context, code, path_buf);
 		context->free(code);
 
 		if (new_mod) {
+			new_mod->name = BT_AS_OBJECT(name);
+			new_mod->path = bt_make_string_len(context, path_buf, path_len);
 			if (bt_execute(context, new_mod)) {
 				bt_register_module(context, name, new_mod);
 

@@ -7,6 +7,8 @@
 
 #include <assert.h>
 #include <memory.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
@@ -23,8 +25,32 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
     result.root = NULL;
     result.scope = NULL;
     result.current_pool = NULL;
+    result.has_errored = BT_FALSE;
 
     return result;
+}
+
+static void parse_error(bt_Parser* parse, const char* message, uint16_t line, uint16_t col)
+{
+    parse->context->on_error(BT_ERROR_PARSE, parse->tokenizer->source_name, message, line, col);
+    parse->has_errored = BT_TRUE;
+}
+
+static void parse_error_fmt(bt_Parser* parse, const char* format, uint16_t line, uint16_t col, ...)
+{
+    va_list va;
+    va_start(va, col);
+
+    char message[4096];
+    message[vsprintf_s(message, sizeof(message), format, va)] = 0;
+    va_end(va);
+
+    parse_error(parse, message, line, col);
+}
+
+static void parse_error_token(bt_Parser* parse, const char* format, bt_Token* source)
+{
+    parse_error_fmt(parse, format, source->line, source->col, source->source.length, source->source.source);
 }
 
 void bt_close_parser(bt_Parser* parse)
@@ -95,7 +121,8 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
         bt_ParseBinding* binding = topmost->bindings.elements + i;
         if (bt_strslice_compare(binding->name, new_binding.name)) {
-            assert(0); // Binding redifinition
+            parse_error_token(parse, "Attempted to redefine binding '%.*s'", new_binding.source->source);
+            return;
         }
     }
 
@@ -1913,14 +1940,18 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         
         // glob import
         bt_Token* next = bt_tokenizer_emit(tok);
-        if (next->type != BT_TOKEN_FROM) assert(0 && "Expected 'from' statement!");
+        if (next->type != BT_TOKEN_FROM) {
+            parse_error_token(parse, "Unexpected token '%.*s' in import statement, expected 'from'", next);
+            return NULL;
+        }
         
         bt_String* module_name_str = parse_module_name(parse, NULL);
         bt_Value module_name = BT_VALUE_OBJECT(module_name_str);
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
         if (!mod_to_import) {
-            assert(0 && "Failed to import module!");
+            parse_error_fmt(parse, "Failed to import module '%.*s'", next->line, next->col, module_name_str->len, module_name_str->str);
+            return NULL;
         }
 
         bt_Type* export_types = mod_to_import->type;
@@ -1930,8 +1961,6 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         for (uint32_t i = 0; i < values->pairs.length; ++i) {
             bt_TablePair* item = values->pairs.elements + i;
             bt_Value type_val = bt_table_get(types, item->key);
-
-            if (type_val == BT_VALUE_NULL) assert(0 && "Couldn't find import in module type!");
 
             bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
             import->name = BT_AS_OBJECT(item->key);
@@ -1945,7 +1974,8 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     }
 
     if (name_or_first_item->type != BT_TOKEN_IDENTIFIER) {
-        assert(0 && "Invalid import statement!");
+        parse_error_token(parse, "Unexpected token '%.*s' in import statement, expected identifier", name_or_first_item);
+        return NULL;
     }
 
     bt_tokenizer_emit(tok);
@@ -1967,17 +1997,20 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         }
 
         if (peek->type != BT_TOKEN_FROM) {
-            assert(0 && "Expected 'from' statement!");
+            parse_error_token(parse, "Unexpected token '%.*s' in import statement, expected 'from'", peek);
+            return NULL;
         }
 
-        bt_tokenizer_emit(tok);
+        bt_Token* name_begin = bt_tokenizer_emit(tok);
 
         bt_Value module_name = BT_VALUE_OBJECT(parse_module_name(parse, NULL));
 
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
         if (!mod_to_import) {
-            assert(0 && "Failed to import module!");
+            bt_String* name_str = BT_AS_OBJECT(module_name);
+            parse_error_fmt(parse, "Failed to import module '%.*s'", name_begin->line, name_begin->col, name_str->len, name_str->str);
+            return NULL;
         }
 
         bt_Type* export_types = mod_to_import->type;
@@ -1994,10 +2027,12 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             bt_Value value = bt_table_get(values, BT_VALUE_OBJECT(import->name));
 
             bt_Type* type = BT_AS_OBJECT(type_val);
-            bt_Type* valt = BT_AS_OBJECT(value);
 
             if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
-                assert(0 && "Failed to hoist import from module!");
+                bt_String* mod_name_str = BT_AS_OBJECT(module_name);
+                parse_error_fmt(parse, "Failed to import item '%.*s' from module '%.*s'", name_begin->col, name_begin->line, 
+                    item->length, item->source, mod_name_str->len, mod_name_str->str);
+                return NULL;
             }
 
             import->type = BT_AS_OBJECT(type_val);
@@ -2018,14 +2053,17 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         output_name = bt_tokenizer_emit(tok);
 
         if (output_name->type != BT_TOKEN_IDENTIFIER) {
-            assert(0 && "Invalid import statement!");
+            parse_error_token(parse, "Unexpected token '%.*s' in import statement", output_name);
+            return NULL;
         }
     }
     
     bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
     if (!mod_to_import) {
-        assert(0 && "Failed to import module!");
+        bt_String* name_str = BT_AS_OBJECT(module_name);
+        parse_error_fmt(parse, "Failed to import module '%.*s'", name_or_first_item->line, name_or_first_item->col, name_str->len, name_str->str);
+        return NULL;
     }
 
     bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
@@ -2055,7 +2093,8 @@ static bt_AstNode* parse_export(bt_Parser* parse)
         name = to_export->source->source;
     }
     else {
-        assert(0 && "Unexportable expression following 'export'!");
+        parse_error_token(parse, "Unexportable expression '%.*s' following 'export'!", to_export->source);
+        return NULL;
     }
 
     bt_AstNode* export = make_node(parse, BT_AST_NODE_EXPORT);
@@ -2064,7 +2103,10 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     export->as.exp.value = to_export;
     export->resulting_type = type_check(parse, to_export)->resulting_type;
     
-    if (export->resulting_type == 0) assert(0 && "Export statement didn't resolve to known type!");
+    if (export->resulting_type == 0) {
+        parse_error_token(parse, "Failed to resolve type of export", export->source);
+        return NULL;
+    }
 
     return export;
 }
@@ -2074,14 +2116,17 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
     bt_Tokenizer* tok = parser->tokenizer;
     bt_Token* ident = bt_tokenizer_emit(tok);
 
-    if (ident->type != BT_TOKEN_IDENTIFIER) assert(0 && "Cannot assign to non-identifier!");
+    if (ident->type != BT_TOKEN_IDENTIFIER) {
+        parse_error_token(parser, "Function name '%.*s' must be valid identifer", ident);
+        return NULL;
+    }
 
     bt_Type* type = find_type_or_shadow(parser, ident);
 
     if (type) {
         // We are defining a member function
         if (!bt_tokenizer_expect(tok, BT_TOKEN_PERIOD)) {
-            assert(0 && "Expected subscript after type in function name!");
+            return NULL;
         }
 
         ident = bt_tokenizer_emit(tok);
@@ -2571,7 +2616,7 @@ bt_bool bt_parse(bt_Parser* parser)
 
     push_scope(parser, BT_FALSE);
 
-    while (bt_tokenizer_peek(parser->tokenizer)->type != BT_TOKEN_EOS)
+    while (bt_tokenizer_peek(parser->tokenizer)->type != BT_TOKEN_EOS && !parser->has_errored)
     {
         bt_AstNode* expression = parse_statement(parser);
         if (expression) {
@@ -2585,5 +2630,5 @@ bt_bool bt_parse(bt_Parser* parser)
     bt_debug_print_parse_tree(parser);
 #endif
 
-    return BT_TRUE;
+    return !parser->has_errored;
 }

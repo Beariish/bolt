@@ -15,4 +15,4 @@
 
 // Enables more debug printing throughout bolt execution, dumping things like token stream, ast state, and 
 // compiled bytecode to the console.
-#define BOLT_PRINT_DEBUG
+//#define BOLT_PRINT_DEBUG

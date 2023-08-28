@@ -187,6 +187,8 @@ typedef struct {
 	bt_AstNodePool* current_pool;
 
 	bt_ParseScope* scope;
+
+	bt_bool has_errored;
 } bt_Parser;
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn);
