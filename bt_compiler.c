@@ -709,23 +709,28 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             } else emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_EQUALS:
-            emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_EQF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_NOTEQ:
-            emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_NEQF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_LT:
             if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTF, result_loc, lhs_loc, rhs_loc);
             else emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_LTE:
-            emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTEF, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc);
             break;
         case BT_TOKEN_GT:
-            emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTF, result_loc, rhs_loc, lhs_loc);
+            else emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc);
             break;
         case BT_TOKEN_GTE:
-            emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc);
+            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTEF, result_loc, rhs_loc, lhs_loc);
+            else emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc);
             break;
         case BT_TOKEN_ASSIGN:
             emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc);

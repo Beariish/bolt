@@ -1,4 +1,5 @@
 import * from core
+import * from math
 
 fn norm2(re: number, im: number) {
     return re * re - im * (-im)

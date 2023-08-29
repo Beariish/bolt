@@ -185,10 +185,13 @@ static void print_code(bt_InstructionBuffer* code)
 		case BT_OP_DIV:         printf("[%.3d]: DIV    %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_DIVF:        printf("[%.3d]: DIVF   %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_EQ:          printf("[%.3d]: EQ     %d, %d, %d\n", i, a, b, c); break;
+		case BT_OP_EQF:         printf("[%.3d]: EQF    %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_NEQ:         printf("[%.3d]: NEQ    %d, %d, %d\n", i, a, b, c); break;
+		case BT_OP_NEQF:        printf("[%.3d]: NEQF   %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_LT:          printf("[%.3d]: LT     %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_LTF:         printf("[%.3d]: LTF    %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_LTE:         printf("[%.3d]: LTE    %d, %d, %d\n", i, a, b, c); break;
+		case BT_OP_LTEF:        printf("[%.3d]: LTEF   %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_AND:         printf("[%.3d]: AND    %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_OR:          printf("[%.3d]: OR     %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_NOT:         printf("[%.3d]: NOT    %d, %d\n", i, a, b); break;
