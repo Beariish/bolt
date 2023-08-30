@@ -102,9 +102,9 @@ typedef uint32_t bt_Op;
 #define BT_GET_OPCODE(op) (op & 0xff)
 #define BT_GET_A(op) ((op >> 8) & 0xff)
 #define BT_GET_B(op) ((op >> 16) & 0xff)
-#define BT_GET_C(op) ((op >> 24) & 0xff)
-#define BT_GET_IBC(op) (int16_t)((op >> 16) & 0xffff)
-#define BT_GET_UBC(op) ((op >> 16) & 0xffff)
+#define BT_GET_C(op) (op >> 24)
+#define BT_GET_IBC(op) (int16_t)(op >> 16)
+#define BT_GET_UBC(op) (op >> 16)
 
 #define BT_SET_IBC(op, ibc) (op) = (((op) & (~(bt_Op)0xFFFF0000)) | (((uint32_t)((uint16_t)ibc)) << 16))
 #else
