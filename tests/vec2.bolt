@@ -1,4 +1,5 @@
 import * from core
+import * from math
 import meta
 
 import nested.test

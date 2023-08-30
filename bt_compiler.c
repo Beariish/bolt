@@ -578,7 +578,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_ab(ctx, BT_OP_EXPECT, result_loc, operand_loc);
             break;
         case BT_TOKEN_MINUS:
-            emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc);
+            if (expr->as.unary_op.accelerated) emit_ab(ctx, BT_OP_NEGF, result_loc, operand_loc);
+            else emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc);
             break;
         case BT_TOKEN_NOT: 
             emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc);

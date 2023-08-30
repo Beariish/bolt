@@ -1,0 +1,22 @@
+import * from core
+
+fn bench(name: string, iter: number, body: fn) {
+    let total_time = 0
+
+    for it in iter {
+        let start = time()
+
+        body()
+
+        let duration_ms = (time() - start) / 1000
+        total_time += duration_ms
+
+        write("Running \"" + name + "\" [" + to_string(it + 1) + "/" + to_string(iter) + "] | Average:",
+            to_string(total_time / (it + 1)) + "ms")
+        sameline()
+    }
+
+    print()
+}
+
+export bench

@@ -1,5 +1,6 @@
 import * from core
 import * from math
+import * from bench
 
 fn norm2(re: number, im: number) {
     return re * re - im * (-im)
@@ -30,9 +31,7 @@ fn level(x: number, y: number) {
     return 255
 }
 
-for outer in 15 {
-    let start = time()
-
+bench("Mandelbrot", 15, fn {
     let xmin = -2
     let xmax = 2
     let ymin = -2
@@ -50,7 +49,4 @@ for outer in 15 {
             result += level(x, y)
         }
     }
-
-    let duration_ms = time() - start
-    print("Finished in", duration_ms / 1000, "ms", "|", result)
-}
+})

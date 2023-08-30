@@ -15,4 +15,11 @@
 
 // Enables more debug printing throughout bolt execution, dumping things like token stream, ast state, and 
 // compiled bytecode to the console.
-//#define BOLT_PRINT_DEBUG
+#define BOLT_PRINT_DEBUG
+
+
+// Inline threading allows for bolt to make indirect jumps from each instruction to each next instruction
+// In theory, this increases performance due to branch prediction, but costs more code size.
+// Will increase perf in most scenarios, but not all.
+// Also takes significantly longer to compile.
+#define BOLT_USE_INLINE_THREADING

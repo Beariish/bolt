@@ -1080,6 +1080,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
         lhs_node->source = lhs;
+        lhs_node->as.unary_op.accelerated = BT_FALSE;
         lhs_node->as.unary_op.operand = pratt_parse(parse, prefix_binding_power(lhs));
     }
     else {
@@ -1377,6 +1378,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return NULL;
             }
             node->resulting_type = bt_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
+            break;
+        case BT_TOKEN_MINUS:
+            if (type_check(parse, node->as.unary_op.operand)->resulting_type == parse->context->types.number) {
+                node->as.unary_op.accelerated = BT_TRUE;
+            }
+            node->resulting_type = node->as.unary_op.operand->resulting_type;
             break;
         default:
             node->resulting_type = type_check(parse, node->as.unary_op.operand)->resulting_type;

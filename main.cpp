@@ -43,6 +43,11 @@ static void bt_time(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_NUMBER(get_time()));
 }
 
+static void bt_sameline(bt_Context* ctx, bt_Thread* thread)
+{
+	printf("\r");
+}
+
 static void bt_print(bt_Context* ctx, bt_Thread* thread)
 {
 	static char buffer[4096];
@@ -58,6 +63,23 @@ static void bt_print(bt_Context* ctx, bt_Thread* thread)
 
 	buffer[pos] = 0;
 	printf("%s\n", buffer);
+}
+
+static void bt_write(bt_Context* ctx, bt_Thread* thread)
+{
+	static char buffer[4096];
+	int32_t pos = 0;
+
+	uint8_t argc = bt_argc(thread);
+	for (uint8_t i = 0; i < argc; ++i) {
+		bt_Value arg = bt_arg(thread, i);
+		pos += bt_to_string_inplace(ctx, buffer + pos, 4096 - pos, arg);
+
+		if (i < argc - 1) buffer[pos++] = ' ';
+	}
+
+	buffer[pos] = 0;
+	printf("%s", buffer);
 }
 
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
@@ -196,6 +218,18 @@ int main(int argc, char** argv) {
 		print_sig,
 		BT_VALUE_CSTRING(&context, "print"),
 		BT_VALUE_OBJECT(bt_make_native(&context, print_sig, bt_print)));
+
+	bt_Type* write_sig = bt_make_vararg(&context, bt_make_signature(&context, NULL, NULL, 0), context.types.any);
+	bt_module_export(&context, core_module,
+		write_sig,
+		BT_VALUE_CSTRING(&context, "write"),
+		BT_VALUE_OBJECT(bt_make_native(&context, write_sig, bt_write)));
+
+	bt_Type* sameline_sig = bt_make_signature(&context, NULL, NULL, 0);
+	bt_module_export(&context, core_module,
+		sameline_sig,
+		BT_VALUE_CSTRING(&context, "sameline"),
+		BT_VALUE_OBJECT(bt_make_native(&context, sameline_sig, bt_sameline)));
 
 	bt_Type* error_args[] = { context.types.string };
 	bt_Type* error_sig = bt_make_signature(&context, NULL, error_args, 1);

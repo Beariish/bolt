@@ -74,6 +74,7 @@ typedef struct bt_AstNode {
 
 		struct {
 			bt_AstNode* operand;
+			bt_bool accelerated;
 		} unary_op;
 
 		struct {

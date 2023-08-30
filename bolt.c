@@ -785,13 +785,29 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 	BT_ASSUME(obj);
 	BT_ASSUME(obj2);
 
+#ifndef BOLT_USE_INLINE_THREADING
 #define NEXT break;
 #define RETURN return;
 #define CASE(x) case BT_OP_##x
-
-	for (;;) {
-		op = *ip++;
-		switch (BT_GET_OPCODE(op)) {
+#define DISPATCH \
+	op = *ip++; \
+	switch(BT_GET_OPCODE(op))
+#else
+#define RETURN return;
+#define CASE(x) lbl_##x
+#define X(op) case BT_OP_##op: goto lbl_##op;
+#define NEXT                                            \
+	op = *ip++;											\
+	switch (BT_GET_OPCODE(op)) {						\
+		BT_OPS_X                                        \
+	}
+#define DISPATCH NEXT
+#endif
+#ifndef BOLT_USE_INLINE_THREADING
+	for (;;) 
+#endif 
+	{
+		DISPATCH {
 		CASE(LOAD):        stack[BT_GET_A(op)] = constants[BT_GET_B(op)];                       NEXT;
 		CASE(LOAD_SMALL):  stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_GET_IBC(op));               NEXT;
 		CASE(LOAD_NULL):   stack[BT_GET_A(op)] = BT_VALUE_NULL;                                 NEXT;
@@ -945,7 +961,8 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			thread->top -= BT_GET_A(op) + 2;
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		NEXT;
-
+		
+		CASE(NEGF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(-BT_AS_NUMBER(stack[BT_GET_B(op)])); NEXT;
 		CASE(ADDF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) + BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(SUBF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) - BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(MULF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) * BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
@@ -960,10 +977,12 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(STORE_SUB_F): bt_array_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
+#ifndef BOLT_USE_INLINE_THREADING
 #ifdef BT_DEBUG
 		default: assert(0 && "Unimplemented opcode!");
 #else
 		default: BT_ASSUME(0);
+#endif
 #endif
 		}
 	}

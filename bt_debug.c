@@ -211,6 +211,7 @@ static void print_code(bt_InstructionBuffer* code)
 		case BT_OP_TALIAS:      printf("[%.3d]: TALIAS %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_COMPOSE:     printf("[%.3d]: TCMP   %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_NEG:         printf("[%.3d]: NEG    %d, %d\n", i, a, b);	        break;
+		case BT_OP_NEGF:        printf("[%.3d]: NEGF   %d, %d\n", i, a, b);	        break;
 		case BT_OP_JMP:         printf("[%.3d]: JMP    %d\n", i, ibc);                   break;
 		case BT_OP_JMPF:        printf("[%.3d]: JMPF   %d, %d\n", i, a, ibc);         break;
 		case BT_OP_END:         printf("[%.3d]: END\n", i);	                                break;
