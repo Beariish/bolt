@@ -52,6 +52,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 	case BT_OBJECT_TYPE_TYPE: {
 		bt_Type* as_type = obj;
 
+		grey(gc, as_type->prototype);
 		grey(gc, as_type->prototype_types);
 		grey(gc, as_type->prototype_values);
 
@@ -127,9 +128,9 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		grey(gc, fn->module);
 		grey(gc, fn->signature);
 		for (uint32_t i = 0; i < fn->constants.length; ++i) {
-			bt_Constant* constant = fn->constants.elements + i;
-			if (BT_IS_OBJECT(constant->value)) {
-				grey(gc, BT_AS_OBJECT(constant->value));
+			bt_Value constant = fn->constants.elements[i];
+			if (BT_IS_OBJECT(constant)) {
+				grey(gc, BT_AS_OBJECT(constant));
 			}
 		};
 	} break;
@@ -202,7 +203,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 			top = top > ltop ? top : ltop;
 		}
 
-		for (uint32_t i = 0; i < top; ++i) {
+		for (uint32_t i = 0; i < top + 10; ++i) {
 			bt_Value val = thr->stack[i];
 			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
 		}

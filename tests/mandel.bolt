@@ -11,17 +11,15 @@ fn abs(re: number, im: number) {
 }
 
 fn level(x: number, y: number) {
-    let cre = x
-    let cim = y
-    let zre = cre
-    let zim = cim
+    let zre = x
+    let zim = y
 
     for l in 255 {
         let tre = zre * zre - zim * zim
         let tim = zre * zim + zim * zre
 
-        zre = tre + cre
-        zim = tim + cim
+        zre = tre + x
+        zim = tim + y
 
         if abs(zre, zim) > 2 {
             return l
@@ -30,7 +28,7 @@ fn level(x: number, y: number) {
 
     return 255
 }
-
+/*
 bench("Mandelbrot", 15, fn {
     let xmin = -2
     let xmax = 2
@@ -49,4 +47,82 @@ bench("Mandelbrot", 15, fn {
             result += level(x, y)
         }
     }
+})
+
+bench("Mandelbrot Inlined", 15, fn {
+    let xmin = -2
+    let xmax = 2
+    let ymin = -2
+    let ymax = 2
+    let n = 256
+
+    let dx = 4 / n
+    let dy = 4 / n
+
+    let result = 0
+    for i in n {
+        let x = xmin + i * dx
+        for j in n {
+            let y = ymin + j * dy
+            
+            let zre = x
+            let zim = y
+        
+            let iter = 0
+            for iter < 255 {
+                let tre = zre * zre - zim * zim
+                let tim = zre * zim + zim * zre
+        
+                zre = tre + x
+                zim = tim + y
+        
+                if sqrt(zre * zre - zim * (-zim)) > 2 {
+                    break
+                }
+
+                iter += 1
+            }
+        
+            result += iter
+        }
+    }
+})
+
+bench("10m numeric for", 20, fn {
+    for i in 10000000 { }
+})
+
+fn range(end: number) {
+    let current = -1
+    return fn: number? {
+        current += 1
+        if current < end { return current }
+        return null
+    }
+}
+
+
+bench("10m closure for", 20, fn {
+    for glarg in range(10000000) { }
+})*/
+
+fn range(end: number) {
+    let current = -1
+    return fn: number? {
+        current += 1
+        if current < end { return current }
+        return null
+    }
+}
+
+bench("1000 closure for", 10000, fn {
+    for glarg in range(1000) { }
+})
+
+
+let arr: [number]
+for i in 1000 { arr.push(i) }
+
+bench("1000 array.each()", 10000, fn {
+    for item in arr.each() { }
 })

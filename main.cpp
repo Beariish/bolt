@@ -281,6 +281,7 @@ int main(int argc, char** argv) {
 	arr_each_sig->as.fn.is_method = BT_TRUE;
 	fn_ref = bt_make_native(&context, arr_each_sig, bt_arr_each);
 	bt_type_add_field(&context, array, BT_VALUE_CSTRING(&context, "each"), BT_VALUE_OBJECT(fn_ref), arr_each_sig);
+	bt_type_add_field(&context, array, BT_VALUE_CSTRING(&context, "_each_iter"), bt_arr_each_iter_fn, arr_each_sig);
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 

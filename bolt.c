@@ -42,6 +42,8 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 
 	context->types.any = make_primitive_type(context, "any", bt_type_satisfier_any);
 	context->types.null = make_primitive_type(context, "null", bt_type_satisfier_null);
+	
+	context->types.array = 0;
 	context->types.array = bt_make_array_type(context, context->types.any);
 
 	context->types.type = bt_make_fundamental(context);
@@ -779,13 +781,13 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 	register bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
 	register bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
-	register bt_Op op;
-
 	register bt_Object* obj, *obj2;
+
 	BT_ASSUME(obj);
 	BT_ASSUME(obj2);
 
 #ifndef BOLT_USE_INLINE_THREADING
+	register bt_Op op;
 #define NEXT break;
 #define RETURN return;
 #define CASE(x) case BT_OP_##x
@@ -796,12 +798,15 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 #define RETURN return;
 #define CASE(x) lbl_##x
 #define X(op) case BT_OP_##op: goto lbl_##op;
-#define NEXT                                            \
-	op = *ip++;											\
-	switch (BT_GET_OPCODE(op)) {						\
-		BT_OPS_X                                        \
+#define op (*ip)
+#define NEXT                          \
+	switch (BT_GET_OPCODE(*(++ip))) { \
+		BT_OPS_X                      \
 	}
-#define DISPATCH NEXT
+#define DISPATCH                      \
+	switch (BT_GET_OPCODE(op)) {	  \
+		BT_OPS_X                      \
+	}
 #endif
 #ifndef BOLT_USE_INLINE_THREADING
 	for (;;) 
@@ -951,7 +956,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			thread->depth++;
 
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
-				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - thread->top);
+				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, -2);
 			}
 			else {
 				((bt_NativeFn*)((bt_Closure*)obj)->fn)->fn(context, thread);

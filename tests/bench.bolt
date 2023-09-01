@@ -3,6 +3,13 @@ import * from core
 fn bench(name: string, iter: number, body: fn) {
     let total_time = 0
 
+    write("Prewarming \"" + name + "\" [" + to_string(0) + "/" + to_string(iter) + "]")
+    sameline()
+
+    for it in iter / 2 {
+        body()
+    }
+
     for it in iter {
         let start = time()
 
@@ -12,7 +19,7 @@ fn bench(name: string, iter: number, body: fn) {
         total_time += duration_ms
 
         write("Running \"" + name + "\" [" + to_string(it + 1) + "/" + to_string(iter) + "] | Average:",
-            to_string(total_time / (it + 1)) + "ms")
+            to_string(total_time / (it + 1)) + "ms                  ")
         sameline()
     }
 
