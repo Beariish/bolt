@@ -28,8 +28,8 @@ fn level(x: number, y: number) {
 
     return 255
 }
-/*
-bench("Mandelbrot", 15, fn {
+
+bench("Mandelbrot", 25, fn {
     let xmin = -2
     let xmax = 2
     let ymin = -2
@@ -49,7 +49,7 @@ bench("Mandelbrot", 15, fn {
     }
 })
 
-bench("Mandelbrot Inlined", 15, fn {
+bench("Mandelbrot Inlined", 25, fn {
     let xmin = -2
     let xmax = 2
     let ymin = -2
@@ -88,41 +88,40 @@ bench("Mandelbrot Inlined", 15, fn {
     }
 })
 
-bench("10m numeric for", 20, fn {
-    for i in 10000000 { }
+fn range(end: number) {
+    let current = -1
+    return fn {
+        current += 1
+        if current < end { return current }
+        return null
+    }
+}
+
+bench("10m closure for", 10, fn {
+    for glarg in range(10000000) { }
 })
 
-fn range(end: number) {
-    let current = -1
-    return fn: number? {
-        current += 1
-        if current < end { return current }
-        return null
-    }
-}
-
-
-bench("10m closure for", 20, fn {
-    for glarg in range(10000000) { }
-})*/
-
-fn range(end: number) {
-    let current = -1
-    return fn: number? {
-        current += 1
-        if current < end { return current }
-        return null
-    }
-}
-
-bench("1000 closure for", 10000, fn {
-    for glarg in range(1000) { }
+bench("10m native closure for", 10, fn {
+    for glarg in range_native(10000000) { }
 })
 
 
 let arr: [number]
-for i in 1000 { arr.push(i) }
+for i in 10000000 { arr.push(i) }
 
-bench("1000 array.each()", 10000, fn {
+bench("10m array.each()", 10, fn {
     for item in arr.each() { }
+})
+
+bench("10m numeric for", 20, fn {
+    for i in 10000000 {}
+})
+
+bench("10m numeric for with index", 10, fn {
+    for i in array.length(arr) { 
+        let item = arr[i]
+    }
+})
+
+bench("function call overhead", 10000, fn {
 })

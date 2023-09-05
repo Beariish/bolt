@@ -15,7 +15,6 @@
 	X(LOAD_BOOL)   /*  R(a) = b ? BT_TRUE : BT_FALSE                 */             \
 	X(LOAD_IMPORT) /*  R(a) = imports[ubc]                           */             \
 	X(TABLE)       /*  R(a) = new tablesize(ibc)                     */             \
-	X(TTABLE)      /*  R(a) = new tablesize(b) with proto(R(c))      */             \
 	X(ARRAY)       /*  R(a) = new array[b]                           */             \
 	X(MOVE)        /*  R(a) = R(b)                                   */             \
 	X(EXPORT)      /*  exports[R(a)]: R(c) = R(b)                    */             \
@@ -44,7 +43,6 @@
 	X(TCHECK)      /*  R(a) = R(b) is Type(c)                        */             \
 	X(TSATIS)      /*  R(a) = R(b) satisfies Type(c)                 */             \
 	X(TCAST)       /*  R(a) = R(b) as Type(c)                        */             \
-	X(TALIAS)      /*  R(a) = (Type(c))R(b)                          */             \
 	X(COMPOSE)     /*  R(a) = fieldsof(b) + fieldsof(c)              */             \
 	X(CALL)        /*  R(a) = R(b)(R(b + 1) .. R(b + c))             */             \
 	X(JMP)         /*  pc += ibc                                     */             \
@@ -61,15 +59,6 @@
                                                                                     \
 	/*  Fast arithmetic, do the same thing as their non-fast counterparts, but  */  \
 	/*  do no typechecking. bolt values are numbers by default */				    \
-	X(NEGF)                                                                         \
-	X(ADDF)                                                                         \
-	X(SUBF)                                                                         \
-	X(MULF)                                                                         \
-	X(DIVF)                                                                         \
-	X(EQF)                                                                          \
-	X(NEQF)                                                                         \
-	X(LTF)                                                                          \
-	X(LTEF)                                                                         \
                                                                                     \
 	/*  Fast table indexing. Used for known tableshapes, as the pair offset */	    \
 	/*  is known by the parser */												    \
@@ -90,6 +79,8 @@ typedef enum {
 #ifdef BOLT_BITMASK_OP
 typedef uint32_t bt_Op;
 
+#define BT_OP_ACCELERATE_BIT (0b01000000)
+
 #define BT_MAKE_OP_ABC(op, a, b, c) \
 	((((bt_Op)op)) | (((bt_Op)a) << 8) | (((bt_Op)b) << 16) | ((bt_Op)c) << 24)
 
@@ -99,7 +90,10 @@ typedef uint32_t bt_Op;
 #define BT_MAKE_OP_AUBC(op, a, ubc) \
 	((((bt_Op)op)) | (((bt_Op)a) << 8) | (((bt_Op)ubc) << 16))
 
-#define BT_GET_OPCODE(op) (op & 0xff)
+#define BT_ACCELERATE_OP(op) (op | BT_OP_ACCELERATE_BIT)
+
+#define BT_GET_OPCODE(op) (op & 0b00111111)
+#define BT_IS_ACCELERATED(op) (op & BT_OP_ACCELERATE_BIT)
 #define BT_GET_A(op) ((op >> 8) & 0xff)
 #define BT_GET_B(op) ((op >> 16) & 0xff)
 #define BT_GET_C(op) (op >> 24)

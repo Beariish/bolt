@@ -6,7 +6,7 @@
 // Use explicit butmasking in order to utilize otherwise-zero'd bits inside the GC next pointer
 // This reduces the size of ALL BOLT OBJECTS by 8 bytes, but does make debugging more challenging
 // as it's impossible to really inspect the GC state
-//#define BOLT_USE_MASKED_GC_HEADER
+#define BOLT_USE_MASKED_GC_HEADER
 
 // This replaces the union struct normally used to represent bolt operations with bitmasked integers instead
 // On MSVC specifically, this gives measurable speedup. Other platforms may vary.

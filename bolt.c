@@ -819,11 +819,13 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(LOAD_BOOL):   stack[BT_GET_A(op)] = BT_GET_B(op) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(LOAD_IMPORT): stack[BT_GET_A(op)] = module->imports.elements[BT_GET_B(op)]->value; NEXT;
 
-		CASE(TABLE): stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); NEXT;
-		CASE(TTABLE):
-			obj = bt_make_table(context, BT_GET_B(op));
-			((bt_Table*)obj)->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
-			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
+		CASE(TABLE): 
+			if (BT_IS_ACCELERATED(op)) {
+				obj = bt_make_table(context, BT_GET_B(op));
+				((bt_Table*)obj)->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
+				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
+			}
+			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
 		NEXT;
 
 		CASE(ARRAY):
@@ -851,16 +853,50 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(LOADUP): BT_ASSUME(upv); stack[BT_GET_A(op)] = upv[BT_GET_B(op)];  NEXT;
 		CASE(STOREUP): BT_ASSUME(upv); upv[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
-		CASE(NEG): bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
-		CASE(ADD): bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
-		CASE(SUB): bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
-		CASE(MUL): bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
-		CASE(DIV): bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		CASE(NEG):
+			if(BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(-BT_AS_NUMBER(stack[BT_GET_B(op)]));
+			else bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      
+		NEXT;
+		
+		CASE(ADD): 
+			if(BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) + BT_AS_NUMBER(stack[BT_GET_C(op)]));
+			else bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+		NEXT;
+		
+		CASE(SUB): 
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) - BT_AS_NUMBER(stack[BT_GET_C(op)]));
+			else bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+		NEXT;
 
-		CASE(EQ):  bt_eq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
-		CASE(NEQ): bt_neq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
-		CASE(LT):  bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
-		CASE(LTE): bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		CASE(MUL): 
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) * BT_AS_NUMBER(stack[BT_GET_C(op)])); 
+			else bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+		NEXT;
+
+		CASE(DIV): 
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) / BT_AS_NUMBER(stack[BT_GET_C(op)])); 
+			else bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+		NEXT;
+
+		CASE(EQ):
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) == BT_AS_NUMBER(stack[BT_GET_C(op)]));
+			else bt_eq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  
+		NEXT;
+
+		CASE(NEQ): 
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) != BT_AS_NUMBER(stack[BT_GET_C(op)]));
+			else bt_neq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+		NEXT;
+		
+		CASE(LT): 
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) < BT_AS_NUMBER(stack[BT_GET_C(op)]));
+			else bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+		NEXT;
+
+		CASE(LTE):
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) <= BT_AS_NUMBER(stack[BT_GET_C(op)]));
+			else bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+		NEXT;
 
 		CASE(AND): bt_and(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
 		CASE(OR):  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
@@ -878,12 +914,13 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TSATIS): stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
-		CASE(TCAST): stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])); NEXT;
-
-		CASE(TALIAS):
-			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
-			((bt_Table*)obj)->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
-			stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
+		CASE(TCAST): 
+			if (BT_IS_ACCELERATED(op)) {
+				obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+				((bt_Table*)obj)->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
+				stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
+			}
+			else stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])); 
 		NEXT;
 
 		CASE(COMPOSE):
@@ -966,16 +1003,6 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			thread->top -= BT_GET_A(op) + 2;
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		NEXT;
-		
-		CASE(NEGF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(-BT_AS_NUMBER(stack[BT_GET_B(op)])); NEXT;
-		CASE(ADDF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) + BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(SUBF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) - BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(MULF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) * BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(DIVF): stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) / BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(EQF):  stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) == BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(NEQF): stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) != BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(LTF):  stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) <  BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(LTEF): stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) <= BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 
 		CASE(LOAD_IDX_F): stack[BT_GET_A(op)] = ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value; NEXT;
 		CASE(STORE_IDX_F): ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value = stack[BT_GET_C(op)]; NEXT;

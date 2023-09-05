@@ -165,6 +165,31 @@ static void bt_arr_each_iter(bt_Context* ctx, bt_Thread* thread)
 	}
 }
 
+static bt_Value bt_range_iter_fn;
+
+static void bt_range(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_push(thread, bt_range_iter_fn);
+	bt_push(thread, bt_arg(thread, 0));
+	bt_push(thread, BT_VALUE_NUMBER(0));
+
+	bt_return(thread, bt_make_closure(thread, 2));
+}
+
+static void bt_range_iter(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_number end = BT_AS_NUMBER(bt_getup(thread, 0));
+	bt_number idx = BT_AS_NUMBER(bt_getup(thread, 1));
+
+	if (idx >= end) {
+		bt_return(thread, BT_VALUE_NULL);
+	}
+	else {
+		bt_return(thread, BT_VALUE_NUMBER(idx++));
+		bt_setup(thread, 1, BT_VALUE_NUMBER(idx));
+	}
+}
+
 static bt_Type* bt_arr_each_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 {
 	if (argc != 1) return NULL;
@@ -282,6 +307,14 @@ int main(int argc, char** argv) {
 	fn_ref = bt_make_native(&context, arr_each_sig, bt_arr_each);
 	bt_type_add_field(&context, array, BT_VALUE_CSTRING(&context, "each"), BT_VALUE_OBJECT(fn_ref), arr_each_sig);
 	bt_type_add_field(&context, array, BT_VALUE_CSTRING(&context, "_each_iter"), bt_arr_each_iter_fn, arr_each_sig);
+
+	bt_Type* optional_number = bt_make_nullable(&context, context.types.number);
+	bt_Type* iter_sig = bt_make_signature(&context, optional_number, NULL, 0);
+	bt_range_iter_fn = BT_VALUE_OBJECT(bt_make_native(&context, iter_sig, bt_range_iter));
+	bt_Type* range_sig = bt_make_signature(&context, iter_sig, &context.types.number, 1);
+	fn_ref = bt_make_native(&context, range_sig, bt_range);
+	bt_module_export(&context, core_module, range_sig, BT_VALUE_CSTRING(&context, "range_native"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(&context, core_module, iter_sig, BT_VALUE_CSTRING(&context, "_range_native_iter"), BT_VALUE_OBJECT(bt_range_iter_fn));
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 

@@ -53,7 +53,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             } break;
             case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, size, "%s", ((bt_Type*)obj)->name); break;
             case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
-            case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type->name); break;
+            case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type ? ((bt_NativeFn*)obj)->type->name : "???"); break;
             case BT_OBJECT_TYPE_ARRAY: {
                 bt_Array* arr = obj;
                 len = sprintf_s(buffer, size, "<0x%llx: array[%d]>", value, arr->items.length);

@@ -81,9 +81,11 @@ static uint8_t internal_ffsll(uint64_t mask)
     return bit;
 }
 
-static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c)
+static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c, bt_bool is_accelerated)
 {
     bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
+    if (is_accelerated) op = BT_ACCELERATE_OP(op);
+
     bt_buffer_push(ctx->context, &ctx->output, op);
 
     if (ctx->compiler->options.generate_debug_info) {
@@ -110,56 +112,56 @@ static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16
     return ctx->output.length - 1;
 }
 
-static uint32_t emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b)
+static uint32_t emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, bt_bool is_accelerated)
 {
-    return emit_abc(ctx, code, a, b, 0);
+    return emit_abc(ctx, code, a, b, 0, is_accelerated);
 }
 
 static uint32_t emit_a(FunctionContext* ctx, bt_OpCode code, uint8_t a)
 {
-    return emit_abc(ctx, code, a, 0, 0);
+    return emit_abc(ctx, code, a, 0, 0, BT_FALSE);
 }
 
 static uint32_t emit(FunctionContext* ctx, bt_OpCode code)
 {
-    return emit_abc(ctx, code, 0, 0, 0);
+    return emit_abc(ctx, code, 0, 0, 0, BT_FALSE);
 }
 
 static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t result_loc) {
     uint8_t idx = push(ctx, BT_VALUE_OBJECT(fn));
 
     if (expr->as.fn.upvals.length == 0) {
-        emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+        emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
     }
     else {
         uint8_t start = get_registers(ctx, expr->as.fn.upvals.length + 1);
 
-        emit_ab(ctx, BT_OP_LOAD, start, idx);
+        emit_ab(ctx, BT_OP_LOAD, start, idx, BT_FALSE);
 
         for (uint8_t i = 0; i < expr->as.fn.upvals.length; ++i) {
             bt_ParseBinding* binding = expr->as.fn.upvals.elements + i;
             uint8_t loc = find_binding(ctx, binding->name);
             if (loc != INVALID_BINDING) {
-                emit_ab(ctx, BT_OP_MOVE, start + i + 1, loc);
+                emit_ab(ctx, BT_OP_MOVE, start + i + 1, loc, BT_FALSE);
                 continue;
             }
 
             loc = find_upval(ctx, binding->name);
             if (loc != INVALID_BINDING) {
-                emit_ab(ctx, BT_OP_LOADUP, start + i + 1, loc);
+                emit_ab(ctx, BT_OP_LOADUP, start + i + 1, loc, BT_FALSE);
                 continue;
             }
 
             loc = find_named(ctx, binding->name);
             if (loc != INVALID_BINDING) {
-                emit_ab(ctx, BT_OP_LOAD, start + i + 1, loc);
+                emit_ab(ctx, BT_OP_LOAD, start + i + 1, loc, BT_FALSE);
                 continue;
             }
 
             assert(0 && "Cannot find identifier!");
         }
 
-        emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length);
+        emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length, BT_FALSE);
     }
 }
 
@@ -398,7 +400,7 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
         loc = find_named(ctx, expr->source->source);
         if (loc != INVALID_BINDING) {
             uint8_t rloc = get_register(ctx);
-            emit_ab(ctx, BT_OP_LOAD, rloc, loc);
+            emit_ab(ctx, BT_OP_LOAD, rloc, loc, BT_FALSE);
             return rloc;
         }
 
@@ -484,10 +486,10 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         bt_Token* inner = expr->source;
         switch (inner->type) {
         case BT_TOKEN_TRUE_LITERAL:
-            emit_ab(ctx, BT_OP_LOAD_BOOL, result_loc, 1);
+            emit_ab(ctx, BT_OP_LOAD_BOOL, result_loc, 1, BT_FALSE);
             break;
         case BT_TOKEN_FALSE_LITERAL:
-            emit_ab(ctx, BT_OP_LOAD_BOOL, result_loc, 0);
+            emit_ab(ctx, BT_OP_LOAD_BOOL, result_loc, 0, BT_FALSE);
             break;
         case BT_TOKEN_NULL_LITERAL:
             emit_a(ctx, BT_OP_LOAD_NULL, result_loc);
@@ -501,42 +503,42 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
             else {
                 uint8_t idx = push(ctx, BT_VALUE_NUMBER(lit->as_num));
-                emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+                emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
             }
         } break;
         case BT_TOKEN_STRING_LITERAL: {
             bt_Literal* lit = ctx->compiler->input->tokenizer->literals.elements + inner->idx;
             uint8_t idx = push(ctx,
                 BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(ctx->context, lit->as_str.source, lit->as_str.length)));
-            emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+            emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
         } break;
         case BT_TOKEN_IDENTIFER_LITERAL: {
             uint8_t idx = push(ctx,
                 BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, expr->source->source.source, expr->source->source.length)));
-            emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+            emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
         } break;
         }
     } break;
     case BT_AST_NODE_ENUM_LITERAL: {
         uint8_t idx = push(ctx, expr->as.enum_literal.value);
-        emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+        emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
     } break;
     case BT_AST_NODE_IDENTIFIER: { // simple copy
         uint8_t loc = find_binding(ctx, expr->source->source);
         if (loc != INVALID_BINDING) {
-            emit_ab(ctx, BT_OP_MOVE, result_loc, loc); 
+            emit_ab(ctx, BT_OP_MOVE, result_loc, loc, BT_FALSE);
             break;
         }
 
         loc = find_upval(ctx, expr->source->source);
         if (loc != INVALID_BINDING) {
-            emit_ab(ctx, BT_OP_LOADUP, result_loc, loc);
+            emit_ab(ctx, BT_OP_LOADUP, result_loc, loc, BT_FALSE);
             break;
         }
          
         loc = find_named(ctx, expr->source->source);
         if (loc != INVALID_BINDING) {
-            emit_ab(ctx, BT_OP_LOAD, result_loc, loc);
+            emit_ab(ctx, BT_OP_LOAD, result_loc, loc, BT_FALSE);
             break;
         }
 
@@ -545,7 +547,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     case BT_AST_NODE_IMPORT_REFERENCE: {
         uint16_t loc = find_import(ctx, expr->source->source);
         if (loc == INVALID_BINDING) assert(0);
-        emit_ab(ctx, BT_OP_LOAD_IMPORT, result_loc, loc);
+        emit_ab(ctx, BT_OP_LOAD_IMPORT, result_loc, loc, BT_FALSE);
     } break;
     case BT_AST_NODE_CALL: {
         bt_AstNode* lhs = expr->as.call.fn;
@@ -560,7 +562,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             compile_expression(ctx, args->elements[i], start_loc + i + 1);
         }
 
-        emit_abc(ctx, BT_OP_CALL, result_loc, start_loc, args->length);
+        emit_abc(ctx, BT_OP_CALL, result_loc, start_loc, args->length, BT_FALSE);
 
         restore_registers(ctx);
     } break;
@@ -572,17 +574,16 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         switch (expr->source->type) {
         case BT_TOKEN_QUESTION:
-            emit_ab(ctx, BT_OP_EXISTS, result_loc, operand_loc);
+            emit_ab(ctx, BT_OP_EXISTS, result_loc, operand_loc, BT_FALSE);
             break;
         case BT_TOKEN_BANG:
-            emit_ab(ctx, BT_OP_EXPECT, result_loc, operand_loc);
+            emit_ab(ctx, BT_OP_EXPECT, result_loc, operand_loc, BT_FALSE);
             break;
         case BT_TOKEN_MINUS:
-            if (expr->as.unary_op.accelerated) emit_ab(ctx, BT_OP_NEGF, result_loc, operand_loc);
-            else emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc);
+            emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc, expr->as.unary_op.accelerated);
             break;
         case BT_TOKEN_NOT: 
-            emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc);
+            emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc, BT_FALSE);
             break;
         default: assert(0 && "Unimplemented unary operator!");
         }
@@ -614,19 +615,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 compile_type(ctx->compiler, ctx, name, expr->as.binary_op.from);
                 bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);
                 uint8_t idx = push(ctx, hoisted);
-                emit_ab(ctx, BT_OP_LOAD, result_loc, idx);
+                emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
                 goto try_store;
             }
             else if (expr->as.binary_op.accelerated) {
                 if (expr->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
-                    emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx);
+                    emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx, BT_FALSE);
                     goto try_store;
                 }
             }
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
-                emit_abc(ctx, BT_OP_LOAD_IDX_K, result_loc, lhs_loc, idx);
+                emit_abc(ctx, BT_OP_LOAD_IDX_K, result_loc, lhs_loc, idx, BT_FALSE);
                 goto try_store;
             }
         }
@@ -634,7 +635,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
 #define HOISTABLE_OP \
-        else if (expr->as.binary_op.hoistable) {                                                                 \
+        if (expr->as.binary_op.hoistable) {                                                                 \
             bt_StrSlice name = { expr->as.binary_op.from->name, strlen(expr->as.binary_op.from->name) };         \
             compile_type(ctx->compiler, ctx, name, expr->as.binary_op.from);                                     \
             bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);  \
@@ -644,97 +645,86 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 push_registers(ctx);                                                                             \
                                                                                                                  \
                 uint8_t fn_loc = get_registers(ctx, 3);                                                          \
-                emit_ab(ctx, BT_OP_LOAD, fn_loc, idx);                                                           \
-                emit_ab(ctx, BT_OP_MOVE, fn_loc + 1, lhs_loc);                                                   \
-                emit_ab(ctx, BT_OP_MOVE, fn_loc + 2, rhs_loc);                                                   \
-                emit_abc(ctx, BT_OP_CALL, result_loc, fn_loc, 2);                                                \
+                emit_ab(ctx, BT_OP_LOAD, fn_loc, idx, BT_FALSE);                                                 \
+                emit_ab(ctx, BT_OP_MOVE, fn_loc + 1, lhs_loc, BT_FALSE);                                         \
+                emit_ab(ctx, BT_OP_MOVE, fn_loc + 2, rhs_loc, BT_FALSE);                                         \
+                emit_abc(ctx, BT_OP_CALL, result_loc, fn_loc, 2, BT_FALSE);                                      \
                                                                                                                  \
                 restore_registers(ctx);                                                                          \
             }                                                                                                    \
             else {                                                                                               \
-                emit_ab(ctx, BT_OP_LOAD, result_loc, idx);                                                       \
-                emit_abc(ctx, BT_OP_CALL, result_loc, result_loc, 2);                                            \
+                emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);                                             \
+                emit_abc(ctx, BT_OP_CALL, result_loc, result_loc, 2, BT_FALSE);                                  \
             }                                                                                                    \
         }                                                                                                        
 
         switch (expr->source->type) {
         case BT_TOKEN_PLUS:
         case BT_TOKEN_PLUSEQ:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_ADDF, result_loc, lhs_loc, rhs_loc);
             HOISTABLE_OP
-            else emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_MINUS:
         case BT_TOKEN_MINUSEQ:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_SUBF, result_loc, lhs_loc, rhs_loc);
             HOISTABLE_OP
-            else emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_MUL:
         case BT_TOKEN_MULEQ:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_MULF, result_loc, lhs_loc, rhs_loc);
             HOISTABLE_OP
-            else emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_DIV:
         case BT_TOKEN_DIVEQ:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_DIVF, result_loc, lhs_loc, rhs_loc);
             HOISTABLE_OP
-            else emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc);
+            else emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_AND:
-            emit_abc(ctx, BT_OP_AND, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_AND, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_OR:
-            emit_abc(ctx, BT_OP_OR, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_OR, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_NULLCOALESCE:
-            emit_abc(ctx, BT_OP_COALESCE, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_COALESCE, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_IS:
-            emit_abc(ctx, BT_OP_TCHECK, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_TCHECK, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_SATISFIES:
-            emit_abc(ctx, BT_OP_TSATIS, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_TSATIS, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_AS:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_TALIAS, result_loc, lhs_loc, rhs_loc);
-            else emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_COMPOSE:
-            emit_abc(ctx, BT_OP_COMPOSE, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_COMPOSE, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_PERIOD:
             if (expr->as.binary_op.accelerated && expr->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY) {
-                emit_abc(ctx, BT_OP_LOAD_SUB_F, result_loc, lhs_loc, rhs_loc);
-            } else emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc);
+                emit_abc(ctx, BT_OP_LOAD_SUB_F, result_loc, lhs_loc, rhs_loc, BT_FALSE);
+            } else emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_EQUALS:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_EQF, result_loc, lhs_loc, rhs_loc);
-            else emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_NOTEQ:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_NEQF, result_loc, lhs_loc, rhs_loc);
-            else emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_LT:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTF, result_loc, lhs_loc, rhs_loc);
-            else emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_LTE:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTEF, result_loc, lhs_loc, rhs_loc);
-            else emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc);
+            emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_GT:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTF, result_loc, rhs_loc, lhs_loc);
-            else emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc);
+            emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_GTE:
-            if (expr->as.binary_op.accelerated) emit_abc(ctx, BT_OP_LTEF, result_loc, rhs_loc, lhs_loc);
-            else emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc);
+            emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated);
             break;
         case BT_TOKEN_ASSIGN:
-            emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc);
+            emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc, BT_FALSE);
             break;
         default: assert(0 && "Unimplemented binary operator!");
         }
@@ -742,14 +732,14 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     try_store:
         if (storage == STORAGE_UPVAL) {
             uint8_t upval_idx = find_upval(ctx, lhs->source->source);
-            emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc);
+            emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc, BT_FALSE);
         }
         else if (storage == STORAGE_INDEX) {
             push_registers(ctx);
             uint8_t tbl_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.left);
 
             if (expr->as.binary_op.accelerated) {
-                emit_abc(ctx, BT_OP_STORE_IDX_F, tbl_loc, expr->as.binary_op.idx, result_loc);
+                emit_abc(ctx, BT_OP_STORE_IDX_F, tbl_loc, expr->as.binary_op.idx, result_loc, BT_FALSE);
                 goto stored_fast;
             }
             else if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
@@ -757,12 +747,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 bt_Token* source = lhs->as.binary_op.right->source;
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, source->source.source, source->source.length)));
-                emit_abc(ctx, BT_OP_STORE_IDX_K, tbl_loc, idx, result_loc);
+                emit_abc(ctx, BT_OP_STORE_IDX_K, tbl_loc, idx, result_loc, BT_FALSE);
                 goto stored_fast;
             }
 
             uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
-            emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, idx_loc, result_loc);
+            emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, idx_loc, result_loc, BT_FALSE);
         stored_fast:
             restore_registers(ctx);
         }
@@ -784,8 +774,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
             push_registers(ctx);
             uint8_t t_loc = get_register(ctx);
-            emit_ab(ctx, BT_OP_LOAD, t_loc, t_idx);
-            emit_abc(ctx, BT_OP_TTABLE, result_loc, fields->length, t_loc);
+            emit_ab(ctx, BT_OP_LOAD, t_loc, t_idx, BT_FALSE);
+            emit_abc(ctx, BT_OP_TABLE, result_loc, fields->length, t_loc, BT_TRUE);
             restore_registers(ctx);
         }
         else {
@@ -800,7 +790,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
             compile_expression(ctx, entry->as.table_field.value_expr, val_loc);
 
-            emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, key_idx, val_loc);
+            emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, key_idx, val_loc, BT_FALSE);
         }
 
         restore_registers(ctx);
@@ -826,17 +816,17 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 emit_aibc(ctx, BT_OP_LOAD_SMALL, idx_loc, i);
             }
             else {
-                emit_abc(ctx, BT_OP_ADDF, idx_loc, idx_loc, one_loc);
+                emit_abc(ctx, BT_OP_ADD, idx_loc, idx_loc, one_loc, BT_TRUE);
             }
             compile_expression(ctx, entry, val_loc);
 
-            emit_abc(ctx, BT_OP_STORE_IDX, result_loc, idx_loc, val_loc);
+            emit_abc(ctx, BT_OP_STORE_IDX, result_loc, idx_loc, val_loc, BT_FALSE);
         }
         restore_registers(ctx);
     } break;
     case BT_AST_NODE_TYPE: {
         uint8_t type_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
-        emit_ab(ctx, BT_OP_LOAD, result_loc, type_idx);
+        emit_ab(ctx, BT_OP_LOAD, result_loc, type_idx, BT_FALSE);
     } break;
     default: assert(0);
     }
@@ -929,10 +919,10 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
                 stmt->as.exp.name.length)));
 
         uint8_t type_loc = get_register(ctx);
-        emit_ab(ctx, BT_OP_LOAD, type_loc, type_lit);
+        emit_ab(ctx, BT_OP_LOAD, type_loc, type_lit, BT_FALSE);
 
         uint8_t name_loc = get_register(ctx);
-        emit_ab(ctx, BT_OP_LOAD, name_loc, name_lit);
+        emit_ab(ctx, BT_OP_LOAD, name_loc, name_lit, BT_FALSE);
 
         if (stmt->as.exp.value->type != BT_AST_NODE_IDENTIFIER) {
             compile_statement(ctx, stmt->as.exp.value);
@@ -945,8 +935,8 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
             }
 
             uint8_t export_loc = get_register(ctx);
-            emit_ab(ctx, BT_OP_LOAD, export_loc, alias_loc);
-            emit_abc(ctx, BT_OP_EXPORT, name_loc, export_loc, type_loc);
+            emit_ab(ctx, BT_OP_LOAD, export_loc, alias_loc, BT_FALSE);
+            emit_abc(ctx, BT_OP_EXPORT, name_loc, export_loc, type_loc, BT_FALSE);
         }
         else {
             uint8_t binding_loc = find_binding(ctx, stmt->as.exp.name);
@@ -957,11 +947,11 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
                 }
 
                 binding_loc = get_register(ctx);
-                emit_ab(ctx, BT_OP_LOAD, binding_loc, alias_loc);
+                emit_ab(ctx, BT_OP_LOAD, binding_loc, alias_loc, BT_FALSE);
             }
 
 
-            emit_abc(ctx, BT_OP_EXPORT, name_loc, binding_loc, type_loc);
+            emit_abc(ctx, BT_OP_EXPORT, name_loc, binding_loc, type_loc, BT_FALSE);
         }
 
         restore_registers(ctx);
@@ -983,7 +973,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
                 compile_expression(ctx, current->as.branch.condition, bind_loc);
                 uint8_t test_loc = get_register(ctx);
 
-                emit_ab(ctx, BT_OP_EXISTS, test_loc, bind_loc);
+                emit_ab(ctx, BT_OP_EXISTS, test_loc, bind_loc, BT_FALSE);
                 jump_loc = emit_a(ctx, BT_OP_JMPF, test_loc);
             }
             else if (current->as.branch.condition) {
