@@ -1,33 +1,5 @@
-import * from core
-import * from math
-import meta
-
-import nested.test
-
-import export_test as test
-
-import SOME_CONSTANT from library
-
-print("SOME_CONSTANT:", SOME_CONSTANT)
-
-type Shape = enum { Circle Triangle Square }
-
-fn print_shape(shape: Shape) {
-    print("Value of the shape enum is:", shape)
-    print("Name of the shape enum is:", meta.get_enum_name(Shape, shape))
-
-    if shape == Shape.Circle {
-        print("We are circle!")
-    }
-
-    print("") // just for the newline
-}
-
-print_shape(Shape.Circle)
-print_shape(Shape.Triangle)
-print_shape(Shape.Square)
-
-print("Name of Shape.Circle is", meta.get_enum_name(Shape, Shape.Circle))
+import sqrt from math
+import bench from bench
 
 type Vec2 = final {
     x: number,
@@ -60,129 +32,31 @@ method Vec2.distance(other: Vec2) {
     return sqrt(sx * sx + sy * sy)
 }
 
-print(test.y, test.renamed)
-print(test.add(10, 10))
-
-fn make_any: any { return 10 }
-
-let as_num = make_any() as number
-
-fn number_printer(x: number) {
-    print(x)
-}
-
-number_printer(as_num!)
-print(as_num, typeof(as_num))
-
-fn takes_callback(cb: fn: number, param: number) {
-    print("Param is", param)
-    print("callback is", cb())
-}
-
-takes_callback(fn {
-    print("I'm callback!!")
-    return 20
-}, 10)
-
-let a = Vec2.new(1, 10)
-let b = { y: 1, x: 10 } as Vec2!
-let c = a + b
-print(c.x, c.y)
-
-if { y: 1, x: 10 } satisfies Vec2 {
-    print("satisfies!")
-} else {
-    print("does not satisfy!")
-}
-
-if { x: 10 } satisfies Vec2 {
-    print("satisfies!")
-} else {
-    print("does not satisfy!")
-}
-
-print("+++ CONTINUE/BREAK")
-fn inspector(x) {
-	print("The type of", x, "is", typeof(x))
-}
-
-inspector(10) // The type of 10 is number
-inspector(true) // The type of true is boolean
-print("--- CONTINUE/BREAK")
-
-print("\n\n")
-print("this message should have \n a newline in it!")
-print("\n\n")
-
-print("this string is \"quoted\"")
-
-for outer in 15 {
-    let start_time = time()
-    
+bench("10m numeric for", 35, fn {
     for i in 10000000 {
     }
+})
 
-    let end_time = time()
-    
-    let duration_ms = end_time - start_time
-    print("10m numeric for operators took", duration_ms / 1000, "ms")
-}
-
-
-for outer in 15 {
-    let start_time = time()
-    
+bench("100k vec2 create, create, add", 35, fn {
     for i in 100000 {
         let a = Vec2.new(5, 5)
         let b = Vec2.new(10, 10)   
         let c = a + b
     }
+})
 
-    let end_time = time()
-    
-    let duration_ms = end_time - start_time
-    print("100k vec2 iterations took", duration_ms / 1000, "ms")
-}
-
-for outer in 15 {
-    let start_time = time()
-    
+bench("100k vec2 add", 35, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 100000 {
         let c = a + b
     }
+})    
 
-    let end_time = time()
-    
-    let duration_ms = end_time - start_time
-    print("100k vec2 operators took", duration_ms / 1000, "ms")
-}
-
-
-for outer in 15 {
-    let start_time = time()
-    
+bench("1m vec2 method", 35, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 1000000 {
         let c = a.distance(b)
     }
-
-    let end_time = time()
-    
-    let duration_ms = end_time - start_time
-    print("1m vec2 methods took", duration_ms / 1000, "ms")
-}
-
-let a123 = Vec2.new(10, 10)
-let a234: typeof(a123)
-
-print("Default typeof'd is", a234.x, a234.y)
-
-fn serialize(value: any, t: Type) {
-    print("serialzing", value, "of type", t)
-}
-
-serialize(a123, Vec2)
-serialize(a234, typeof(a234))
+})

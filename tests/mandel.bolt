@@ -125,3 +125,6 @@ bench("10m numeric for with index", 10, fn {
 
 bench("function call overhead", 10000, fn {
 })
+
+let arr2 = [1, 2, 3]
+arr2[2] = 10

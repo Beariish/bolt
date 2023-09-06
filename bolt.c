@@ -902,8 +902,15 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(OR):  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
 		CASE(NOT): bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
 
-		CASE(LOAD_IDX): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
-		CASE(STORE_IDX): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		CASE(LOAD_IDX): 
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value;
+			else stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); 
+		NEXT;
+
+		CASE(STORE_IDX): 
+			if (BT_IS_ACCELERATED(op)) ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value = stack[BT_GET_C(op)]; 
+			else bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
+		NEXT;
 
 		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
 		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
@@ -1003,9 +1010,6 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			thread->top -= BT_GET_A(op) + 2;
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		NEXT;
-
-		CASE(LOAD_IDX_F): stack[BT_GET_A(op)] = ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value; NEXT;
-		CASE(STORE_IDX_F): ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value = stack[BT_GET_C(op)]; NEXT;
 
 		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(STORE_SUB_F): bt_array_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;

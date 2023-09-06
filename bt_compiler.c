@@ -620,7 +620,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
             else if (expr->as.binary_op.accelerated) {
                 if (expr->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
-                    emit_abc(ctx, BT_OP_LOAD_IDX_F, result_loc, lhs_loc, expr->as.binary_op.idx, BT_FALSE);
+                    emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, expr->as.binary_op.idx, BT_TRUE);
                     goto try_store;
                 }
             }
@@ -739,7 +739,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             uint8_t tbl_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.left);
 
             if (expr->as.binary_op.accelerated) {
-                emit_abc(ctx, BT_OP_STORE_IDX_F, tbl_loc, expr->as.binary_op.idx, result_loc, BT_FALSE);
+                if (lhs->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY) {
+                    uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
+                    emit_abc(ctx, BT_OP_STORE_SUB_F, tbl_loc, idx_loc, result_loc, BT_FALSE);
+                }
+                else emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, expr->as.binary_op.idx, result_loc, BT_TRUE);
                 goto stored_fast;
             }
             else if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&

@@ -57,14 +57,6 @@
 	X(NUMFOR)                                                                       \
 	X(ITERFOR)                                                                      \
                                                                                     \
-	/*  Fast arithmetic, do the same thing as their non-fast counterparts, but  */  \
-	/*  do no typechecking. bolt values are numbers by default */				    \
-                                                                                    \
-	/*  Fast table indexing. Used for known tableshapes, as the pair offset */	    \
-	/*  is known by the parser */												    \
-	X(LOAD_IDX_F)                                                                   \
-	X(STORE_IDX_F)                                                                  \
-                                                                                    \
 	/*  Fast array indexing. Used when the indexed type is known to be an array, */	\
 	/*  and the index known to be a number */										\
 	X(LOAD_SUB_F)                                                                   \

@@ -228,6 +228,57 @@ static void bt_throw_error(bt_Context* ctx, bt_Thread* thread)
 	bt_runtime_error(thread, message->str, NULL);
 }
 
+static double norm2(double re, double im)
+{
+	return re * re - im * (-im);
+}
+
+static double mabs(double re, double im)
+{
+	return sqrt(norm2(re, im));
+}
+
+static double level(double x, double y)
+{
+	double zre = x;
+	double zim = y;
+
+	for (double i = 0; i < 255; i++)
+	{
+		double tre = zre * zre - zim * zim;
+		double tim = zre * zim + zim * zre;
+
+		zre = tre + x;
+		zim = tim + y;
+
+		if (mabs(zre, zim) > 2) return i;
+	}
+
+	return 255;
+}
+
+static double mandelbrot()
+{
+	double xmin = -2, xmax = 2, ymin = -2, ymax = 2;
+	double n = 256;
+
+	double dx = 4 / n;
+	double dy = 4 / n;
+
+	double result = 0;
+	for (double i = 0; i < n; ++i)
+	{
+		double x = xmin + i * dx;
+		for (double j = 0; j < n; ++j)
+		{
+			double y = ymin + j * dy;
+			result += level(x, y);
+		}
+	}
+
+	return result;
+}
+
 int main(int argc, char** argv) {
 	init_time();
 
@@ -318,7 +369,18 @@ int main(int argc, char** argv) {
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "mandel"));
+	for (uint32_t i = 0; i < 10; ++i)
+	{
+		double start = (double)get_time() / 1000.0;
+		
+		double result = mandelbrot();
+			
+		double end = (double)get_time() / 1000.0;
+	
+		printf("Finished mandelbrot (C++) in %.2fms (%f)\n", end - start, result);
+	}
+
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
 	bt_Module* mod = bt_find_module(&context, module_name);
 
 	if(mod != NULL) {
