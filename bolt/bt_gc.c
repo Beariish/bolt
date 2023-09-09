@@ -149,8 +149,8 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 	case BT_OBJECT_TYPE_TABLE: {
 		bt_Table* tbl = obj;
 		grey(gc, tbl->prototype);
-		for (uint32_t i = 0; i < tbl->pairs.length; i++) {
-			bt_TablePair* pair = tbl->pairs.elements + i;
+		for (uint32_t i = 0; i < tbl->length; i++) {
+			bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
 			if (BT_IS_OBJECT(pair->key))   grey(gc, BT_AS_OBJECT(pair->key));
 			if (BT_IS_OBJECT(pair->value)) grey(gc, BT_AS_OBJECT(pair->value));
 		}
@@ -164,6 +164,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 
 uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 {
+	return 0;
 	bt_Context* ctx = gc->ctx;
 
 	grey(gc, ctx->types.any);
@@ -239,7 +240,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 				
 			current = BT_OBJECT_NEXT(current);
 			BT_OBJECT_SET_NEXT(prev, current);
-			bt_free(ctx, to_free);
+			//bt_free(ctx, to_free);
 
 			n_collected++;
 			//if (n_collected >= max_collect) return n_collected;

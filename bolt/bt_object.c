@@ -169,32 +169,38 @@ bt_StrSlice bt_as_strslice(bt_String* str)
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 {
-    bt_Table* table = BT_ALLOCATE(ctx, TABLE, bt_Table);
-    bt_buffer_with_capacity(&table->pairs, ctx, initial_size);
+    bt_Table* table = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, sizeof(bt_TablePair) * initial_size);
+    table->length = 0;
+    table->capacity = initial_size;
     table->prototype = NULL;
 
     return table;
 }
 
-bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
+bt_bool bt_table_set(bt_Context* ctx, bt_Table** tbl, bt_Value key, bt_Value value)
 {
-    for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = tbl->pairs.elements + i;
+    for (uint32_t i = 0; i < (*tbl)->length; ++i) {
+        bt_TablePair* pair = BT_TABLE_PAIRS(*tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
             pair->value = value;
             return BT_TRUE;
         }
     }
 
-    bt_TablePair newpair;
-    newpair.key = key;
-    newpair.value = value;
-    bt_buffer_push(ctx, &tbl->pairs, newpair);
+    if ((*tbl)->capacity <= (*tbl)->length) {
+        (*tbl)->capacity *= 2;
+        if ((*tbl)->capacity == 0) (*tbl)->capacity = 4;
+        *tbl = ctx->realloc(*tbl, sizeof(bt_Table) + sizeof(bt_TablePair) * (*tbl)->capacity);
+    }
+
+    (BT_TABLE_PAIRS(*tbl) + (*tbl)->length)->key = key;
+    (BT_TABLE_PAIRS(*tbl) + (*tbl)->length)->value = value;
+    (*tbl)->length++;
 
     return BT_FALSE;
 }
 
-bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value)
+bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table** tbl, const char* key, bt_Value value)
 {
     bt_Value str = BT_VALUE_OBJECT(bt_make_string_hashed(ctx, key));
     return bt_table_set(ctx, tbl, str, value);
@@ -202,8 +208,8 @@ bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Va
 
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
-    for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = tbl->pairs.elements + i;
+    for (uint32_t i = 0; i < tbl->length; ++i) {
+        bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
             return pair->value;
         }
@@ -224,8 +230,8 @@ bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
 
 int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
 {
-    for (uint32_t i = 0; i < tbl->pairs.length; ++i) {
-        bt_TablePair* pair = tbl->pairs.elements + i;
+    for (uint32_t i = 0; i < tbl->length; ++i) {
+        bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
             return i;
         }
@@ -351,7 +357,7 @@ bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
 {
     bt_tableshape_add_layout(ctx, module->type, ctx->types.string, key, BT_AS_OBJECT(type));
-    bt_table_set(ctx, module->exports, key, value);
+    bt_table_set(ctx, &module->exports, key, value);
 }
 
 bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
@@ -405,21 +411,21 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
     return BT_VALUE_NULL;
 }
 
-void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
+void bt_set(bt_Context* ctx, bt_Object** obj, bt_Value key, bt_Value value)
 {
-    switch (BT_OBJECT_GET_TYPE(obj)) {
+    switch (BT_OBJECT_GET_TYPE(*obj)) {
     case BT_OBJECT_TYPE_TABLE:
         bt_table_set(ctx, obj, key, value);
         break;
     case BT_OBJECT_TYPE_ARRAY: {
         if (!BT_IS_NUMBER(key)) bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!", NULL);
-        bt_array_set(ctx, obj, BT_AS_NUMBER(key), value);
+        bt_array_set(ctx, *obj, BT_AS_NUMBER(key), value);
     } break;
     case BT_OBJECT_TYPE_TYPE:
-        bt_type_set_field(ctx, obj, key, value);
+        bt_type_set_field(ctx, *obj, key, value);
         break;
     case BT_OBJECT_TYPE_USERDATA: {
-        bt_Userdata* userdata = obj;
+        bt_Userdata* userdata = *obj;
         bt_Type* type = userdata->type;
 
         bt_FieldBuffer* fields = &type->as.userdata.fields;

@@ -384,11 +384,11 @@ int main(int argc, char** argv) {
 	bt_Module* mod = bt_find_module(&context, module_name);
 
 	if(mod != NULL) {
-		bt_TablePairBuffer* pairs = &mod->exports->pairs;
+		bt_Table* pairs = mod->exports;
 		if (pairs->length > 0) {
 			printf("Module exported %d items:\n", pairs->length);
 			for (uint32_t i = 0; i < pairs->length; ++i) {
-				bt_TablePair* pair = pairs->elements + i;
+				bt_TablePair* pair = BT_TABLE_PAIRS(pairs) + i;
 
 				bt_String* key = bt_to_string(&context, pair->key);
 				bt_String* value = bt_to_string(&context, pair->value);

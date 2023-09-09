@@ -216,8 +216,8 @@ static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
 
     // Import not found, _should_ we import from prelude?
     bt_Table* prelude = parser->context->prelude;
-    for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT(prelude->pairs.elements[i].value);
+    for (uint32_t i = 0; i < prelude->length; ++i) {
+        bt_ModuleImport* entry = BT_AS_OBJECT((BT_TABLE_PAIRS(prelude) + i)->value);
 
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier->source->source)) {
             bt_buffer_push(parser->context, imports, entry);
@@ -242,8 +242,8 @@ static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifi
 
     // Import not found, _should_ we import from prelude?
     bt_Table* prelude = parser->context->prelude;
-    for (uint32_t i = 0; i < prelude->pairs.length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT(prelude->pairs.elements[i].value);
+    for (uint32_t i = 0; i < prelude->length; ++i) {
+        bt_ModuleImport* entry = BT_AS_OBJECT((BT_TABLE_PAIRS(prelude) + i)->value);
 
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier)) {
             bt_buffer_push(parser->context, imports, entry);
@@ -415,7 +415,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_RIGHTBRACE);
 
-    if (type && n_satisfied != type->as.table_shape.layout->pairs.length) {
+    if (type && n_satisfied != type->as.table_shape.layout->length) {
         assert(0 && "Missing fields in typed table literal!");
     }
 
@@ -702,20 +702,20 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             bt_Type* lhs = result;
             result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
 
-            bt_TablePairBuffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
-            bt_TablePairBuffer* lhs_field_types = &lhs->as.table_shape.key_layout->pairs;
-            bt_TablePairBuffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
-            bt_TablePairBuffer* rhs_field_types = &rhs->as.table_shape.key_layout->pairs;
+            bt_Table* lhs_fields = lhs->as.table_shape.layout;
+            bt_Table* lhs_field_types = lhs->as.table_shape.key_layout;
+            bt_Table* rhs_fields = rhs->as.table_shape.layout;
+            bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
 
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
-                bt_TablePair* field = lhs_fields->elements + i;
-                bt_TablePair* type = lhs_field_types->elements + i;
+                bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
+                bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
                 bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
-                bt_TablePair* field = rhs_fields->elements + i;
-                bt_TablePair* type = rhs_field_types->elements + i;
+                bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
+                bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
                 if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     assert(0 && "Both lhs and rhs have a feild with name %s!");
@@ -1555,21 +1555,21 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Type* to = type->as.type.boxed;
 
             if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && to->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                if (to->as.table_shape.sealed && from->as.table_shape.layout->pairs.length != to->as.table_shape.layout->pairs.length) {
+                if (to->as.table_shape.sealed && from->as.table_shape.layout->length != to->as.table_shape.layout->length) {
                     assert(0 && "Lhs has too many fields to conform to rhs.");
                 }
 
                 node->as.binary_op.accelerated = 1;
 
-                bt_TablePairBuffer* lhs = &from->as.table_shape.layout->pairs;
-                bt_TablePairBuffer* rhs = &to->as.table_shape.layout->pairs;
+                bt_Table* lhs = from->as.table_shape.layout;
+                bt_Table* rhs = to->as.table_shape.layout;
                 
                 for (uint32_t i = 0; i < lhs->length; ++i) {
-                    bt_TablePair* current = lhs->elements + i;
+                    bt_TablePair* current = BT_TABLE_PAIRS(lhs) + i;
                     bt_bool found = BT_FALSE;
 
                     for (uint32_t j = 0; j < rhs->length; j++) {
-                        bt_TablePair* inner = rhs->elements + j;
+                        bt_TablePair* inner = BT_TABLE_PAIRS(rhs) + j;
                         if (bt_value_is_equal(inner->key, current->key)) {
                             found = BT_TRUE;
                             bt_Type* left = BT_AS_OBJECT(current->value);
@@ -1602,22 +1602,22 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 assert(0 && "Operator compose '&' requires operands to be sealed types.");
             }
 
-            bt_TablePairBuffer* lhs_fields = &lhs->as.table_shape.layout->pairs;
-            bt_TablePairBuffer* lhs_field_types = &lhs->as.table_shape.key_layout->pairs;
-            bt_TablePairBuffer* rhs_fields = &rhs->as.table_shape.layout->pairs;
-            bt_TablePairBuffer* rhs_field_types = &rhs->as.table_shape.key_layout->pairs;
+            bt_Table* lhs_fields = lhs->as.table_shape.layout;
+            bt_Table* lhs_field_types = lhs->as.table_shape.key_layout;
+            bt_Table* rhs_fields = rhs->as.table_shape.layout;
+            bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
 
             bt_Type* resulting_type = bt_make_tableshape(parse->context, "", BT_TRUE);
 
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
-                bt_TablePair* field = lhs_fields->elements + i;
-                bt_TablePair* type = lhs_field_types->elements + i;
+                bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
+                bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
                 bt_tableshape_add_layout(parse->context, resulting_type, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
-                bt_TablePair* field = rhs_fields->elements + i;
-                bt_TablePair* type = rhs_field_types->elements + i;
+                bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
+                bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
                 if (bt_table_get(resulting_type->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     assert(0 && "Both lhs and rhs have a feild with name %s!");
@@ -1768,9 +1768,9 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
         bt_buffer_empty(&result->as.table.fields);
 
         if (type->as.table_shape.layout) {
-            bt_TablePairBuffer* items = &type->as.table_shape.layout->pairs;
+            bt_Table* items = type->as.table_shape.layout;
             for (uint32_t idx = 0; idx < items->length; idx++) {
-                bt_TablePair* pair = items->elements + idx;
+                bt_TablePair* pair = BT_TABLE_PAIRS(items) + idx;
                 
                 bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
                 entry->as.table_field.value_type = BT_AS_OBJECT(pair->value);
@@ -1789,11 +1789,11 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
         result = make_node(parse, BT_AST_NODE_ENUM_LITERAL);
         result->resulting_type = type;
         bt_Table* options = type->as.enum_.options;
-        if (options->pairs.length == 0) {
+        if (options->length == 0) {
             assert(0 && "Cannot generate initializer for enum with 0 variants!");
         }
 
-        result->as.enum_literal.value = options->pairs.elements[0].value;
+        result->as.enum_literal.value = BT_TABLE_PAIRS(options)->value;
     } break;
     }
 
@@ -1965,8 +1965,8 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         bt_Table* types = export_types->as.table_shape.layout;
         bt_Table* values = mod_to_import->exports;
 
-        for (uint32_t i = 0; i < values->pairs.length; ++i) {
-            bt_TablePair* item = values->pairs.elements + i;
+        for (uint32_t i = 0; i < values->length; ++i) {
+            bt_TablePair* item = BT_TABLE_PAIRS(values) + i;
             bt_Value type_val = bt_table_get(types, item->key);
 
             bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);

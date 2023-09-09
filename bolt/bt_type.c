@@ -88,7 +88,7 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 		}
 	}
 
-	if (left->as.table_shape.sealed && right->as.table_shape.layout->pairs.length != left->as.table_shape.layout->pairs.length) return BT_FALSE;
+	if (left->as.table_shape.sealed && right->as.table_shape.layout->length != left->as.table_shape.layout->length) return BT_FALSE;
 
 	if (left->prototype_values &&
 		left->prototype_values != right->prototype_values) {
@@ -97,15 +97,15 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 
 	// Make sure that empty unsealed "{}" table binds to everything
 	if (left->as.table_shape.layout) {
-		bt_TablePairBuffer* lpairs = &left->as.table_shape.layout->pairs;
-		bt_TablePairBuffer* rpairs = &right->as.table_shape.layout->pairs;
+		bt_Table* lpairs = left->as.table_shape.layout;
+		bt_Table* rpairs = right->as.table_shape.layout;
 	
 		for (uint32_t i = 0; i < lpairs->length; ++i) {
-			bt_TablePair* lentry = lpairs->elements + i;
+			bt_TablePair* lentry = BT_TABLE_PAIRS(lpairs) + i;
 
 			bt_bool found = BT_FALSE;
 			for (uint32_t j = 0; j < rpairs->length; ++j) {
-				bt_TablePair* rentry = rpairs->elements + j;
+				bt_TablePair* rentry = BT_TABLE_PAIRS(rpairs) + j;
 
 				bt_Type* ltype = BT_AS_OBJECT(lentry->value);
 				bt_Type* rtype = BT_AS_OBJECT(rentry->value);
@@ -132,12 +132,12 @@ static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 	bt_Type* l_val = left->as.table_shape.value_type;
 	
 	if (left->as.table_shape.map != right->as.table_shape.map) {
-		bt_TablePairBuffer* keys = &right->as.table_shape.key_layout->pairs;
-		bt_TablePairBuffer* vals = &right->as.table_shape.layout->pairs;
+		bt_Table* keys = right->as.table_shape.key_layout;
+		bt_Table* vals = right->as.table_shape.layout;
 
 		for (uint32_t i = 0; i < keys->length; ++i) {
-			bt_Type* key_type = BT_AS_OBJECT(keys->elements[i].value);
-			bt_Type* val_type = BT_AS_OBJECT(vals->elements[i].value);
+			bt_Type* key_type = BT_AS_OBJECT((BT_TABLE_PAIRS(keys) + i)->value);
+			bt_Type* val_type = BT_AS_OBJECT((BT_TABLE_PAIRS(vals) + i)->value);
 		
 			if (l_key->satisfier(l_key, key_type) == BT_FALSE) return BT_FALSE;
 			if (l_val->satisfier(l_val, val_type) == BT_FALSE) return BT_FALSE;
@@ -421,8 +421,8 @@ void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_t
 		tshp->as.table_shape.key_layout = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, tshp->as.table_shape.layout, key, BT_VALUE_OBJECT(type));
-	bt_table_set(context, tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
+	bt_table_set(context, &tshp->as.table_shape.layout, key, BT_VALUE_OBJECT(type));
+	bt_table_set(context, &tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
 }
 
 void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
@@ -432,8 +432,8 @@ void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 		tshp->prototype_types = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, tshp->prototype_types, name, BT_VALUE_OBJECT(type));
-	bt_table_set(context, tshp->prototype_values, name, value);
+	bt_table_set(context, &tshp->prototype_types, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, &tshp->prototype_values, name, value);
 }
 
 void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value)
@@ -521,15 +521,15 @@ void bt_enum_push_option(bt_Context* context, bt_Type* enum_, bt_StrSlice name, 
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
 
-	bt_table_set(context, enum_->as.enum_.options, BT_VALUE_OBJECT(owned_name), value);
+	bt_table_set(context, &enum_->as.enum_.options, BT_VALUE_OBJECT(owned_name), value);
 }
 
 bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value value)
 {
-	bt_TablePairBuffer* pairs = &enum_->as.enum_.options->pairs;
+	bt_Table* pairs = enum_->as.enum_.options;
 	for (uint32_t i = 0; i < pairs->length; i++) {
-		if (bt_value_is_equal(pairs->elements[i].value, value)) {
-			return pairs->elements[i].key;
+		if (bt_value_is_equal((BT_TABLE_PAIRS(pairs) + i)->value, value)) {
+			return (BT_TABLE_PAIRS(pairs) + i)->key;
 		}
 	}
 
@@ -584,9 +584,9 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		bt_Table* as_tbl = as_obj;
 
 		while (type) {
-			bt_TablePairBuffer* layout = &type->as.table_shape.layout->pairs;
+			bt_Table* layout = type->as.table_shape.layout;
 			for (uint32_t i = 0; i < layout->length; i++) {
-				bt_TablePair* pair = layout->elements + i;
+				bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
 
 				bt_Value val = bt_table_get(as_tbl, pair->key);
 				if (val == BT_VALUE_NULL) return BT_FALSE;
@@ -613,10 +613,10 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 		}
 
 		bt_Table* src = obj;
-		bt_TablePairBuffer* layout = &type->as.table_shape.layout->pairs;
+		bt_Table* layout = type->as.table_shape.layout;
 
 		for (uint32_t i = 0; i < layout->length; ++i) {
-			bt_TablePair* pair = layout->elements + i;
+			bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
 
 			bt_Value val = bt_table_get(src, pair->key);
 
@@ -646,12 +646,12 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 		}
 
 		bt_Table* src = obj;
-		bt_TablePairBuffer* layout = &type->as.table_shape.layout->pairs;
+		bt_Table* layout = type->as.table_shape.layout;
 		
 		bt_Table* dst = bt_make_table(type->ctx, layout->length);
 
 		for (uint32_t i = 0; i < layout->length; ++i) {
-			bt_TablePair* pair = layout->elements + i;
+			bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
 
 			bt_Value val = bt_table_get(src, pair->key);
 
@@ -659,7 +659,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
 			}
 
-			bt_table_set(type->ctx, dst, pair->key, val);
+			bt_table_set(type->ctx, &dst, pair->key, val);
 		}
 
 		dst->prototype = bt_type_get_proto(type->ctx, type);

@@ -251,10 +251,6 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		bt_Closure* cl = obj;
 		bt_buffer_destroy(context, &cl->upvals);
 	} break;
-	case BT_OBJECT_TYPE_TABLE: {
-		bt_Table* table = obj;
-		bt_buffer_destroy(context, &table->pairs);
-	} break;
 	case BT_OBJECT_TYPE_ARRAY: {
 		bt_Array* arr = obj;
 		bt_buffer_destroy(context, &arr->items);
@@ -296,7 +292,7 @@ void bt_free(bt_Context* context, bt_Object* obj)
 
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
 {
-	bt_table_set(context, context->type_registry, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, &context->type_registry, name, BT_VALUE_OBJECT(type));
 	bt_register_prelude(context, name, bt_make_alias(context, 0, type), BT_VALUE_OBJECT(type));
 }
 
@@ -312,12 +308,12 @@ void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_V
 	new_import->type = type;
 	new_import->value = value;
 
-	bt_table_set(context, context->prelude, name, BT_VALUE_OBJECT(new_import));
+	bt_table_set(context, &context->prelude, name, BT_VALUE_OBJECT(new_import));
 }
 
 void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module)
 {
-	bt_table_set(context, context->loaded_modules, name, BT_VALUE_OBJECT(module));
+	bt_table_set(context, &context->loaded_modules, name, BT_VALUE_OBJECT(module));
 }
 
 void bt_append_module_path(bt_Context* context, const char* spec)
@@ -781,7 +777,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 	register bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
 	register bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
-	register bt_Object* obj, *obj2;
+	bt_Object* obj, *obj2;
 
 	BT_ASSUME(obj);
 	BT_ASSUME(obj2);
@@ -903,17 +899,25 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(NOT): bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
 
 		CASE(LOAD_IDX): 
-			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value;
+			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = (BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_B(op)])) + BT_GET_C(op))->value;
 			else stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); 
 		NEXT;
 
 		CASE(STORE_IDX): 
-			if (BT_IS_ACCELERATED(op)) ((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->pairs.elements[BT_GET_C(op)].value = stack[BT_GET_C(op)]; 
-			else bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
+			if (BT_IS_ACCELERATED(op)) (BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + BT_GET_B(op))->value = stack[BT_GET_C(op)]; 
+			else {
+				obj = BT_AS_OBJECT(stack[BT_GET_A(op)]);
+				bt_set(context, &obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
+				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
+			}
 		NEXT;
 
 		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
-		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		CASE(STORE_IDX_K) :
+			obj = BT_AS_OBJECT(stack[BT_GET_A(op)]);
+			bt_set(context, &obj, constants[BT_GET_B(op)], stack[BT_GET_C(op)]);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
+		NEXT;
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
 		CASE(EXISTS):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
@@ -933,9 +937,9 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(COMPOSE):
 			obj  = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 			obj2 = BT_AS_OBJECT(stack[BT_GET_C(op)]);
-			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, ((bt_Table*)obj)->pairs.length + ((bt_Table*)obj2)->pairs.length));
-			bt_buffer_append(context, &((bt_Table*)BT_AS_OBJECT(stack[BT_GET_A(op)]))->pairs, &((bt_Table*)obj)->pairs);
-			bt_buffer_append(context, &((bt_Table*)BT_AS_OBJECT(stack[BT_GET_A(op)]))->pairs, &((bt_Table*)obj2)->pairs);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, ((bt_Table*)obj)->length + ((bt_Table*)obj2)->length));
+			for (uint32_t i = 0; i < ((bt_Table*)obj)->length; ++i) *(BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + i) = *(BT_TABLE_PAIRS(obj) + i);
+			for (uint32_t i = 0; i < ((bt_Table*)obj2)->length; ++i) *(BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + i + ((bt_Table*)obj)->length) = *(BT_TABLE_PAIRS(obj2) + i);
 		NEXT;
 
 		CASE(CALL):

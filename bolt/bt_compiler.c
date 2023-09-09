@@ -1226,12 +1226,12 @@ static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrS
     type->is_compiled = BT_TRUE;
 
     if (type->prototype_values) {
-        bt_TablePairBuffer* to_compile = &type->prototype_values->pairs;
+        bt_Table* to_compile = type->prototype_values;
 
         push_registers(parent);
 
         for (uint32_t i = 0; i < to_compile->length; ++i) {
-            bt_TablePair* pair = to_compile->elements + i;
+            bt_TablePair* pair = BT_TABLE_PAIRS(to_compile) + i;
 
             bt_String* name = BT_AS_OBJECT(pair->key);
             bt_AstNode* fn = BT_AS_OBJECT(pair->value);

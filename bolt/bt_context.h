@@ -112,6 +112,9 @@ void bt_free(bt_Context* context, bt_Object* obj);
 #define BT_ALLOCATE(ctx, e_type, c_type) \
 	((c_type*)bt_allocate(ctx, sizeof(c_type), (BT_OBJECT_TYPE_##e_type)))
 
+#define BT_ALLOCATE_INLINE_STORAGE(ctx, e_type, c_type, storage) \
+	((c_type*)bt_allocate(ctx, sizeof(c_type) + storage, (BT_OBJECT_TYPE_##e_type)))
+
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type);
 bt_Type* bt_find_type(bt_Context* context, bt_Value name);
 
