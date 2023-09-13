@@ -510,7 +510,7 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name)
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
-	bt_Type* result = bt_make_type(context, owned_name->str, bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM, BT_FALSE);
+	bt_Type* result = bt_make_type(context, BT_STRING_STR(owned_name), bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM, BT_FALSE);
 	result->as.enum_.name = owned_name;
 	result->as.enum_.options = bt_make_table(context, 0);
 

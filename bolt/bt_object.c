@@ -49,7 +49,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             case BT_OBJECT_TYPE_STRING: {
                 bt_String* str = BT_AS_OBJECT(value);
                 len = str->len;
-                memcpy(buffer, str->str, len);
+                memcpy(buffer, BT_STRING_STR(str), len);
             } break;
             case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, size, "%s", ((bt_Type*)obj)->name); break;
             case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
@@ -67,7 +67,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
                     bt_push(ctx->current_thread, value);
                     bt_call(ctx->current_thread, 1);
                     bt_String* result = BT_AS_OBJECT(bt_pop(ctx->current_thread));
-                    memcpy(buffer, result->str, result->len);
+                    memcpy(buffer, BT_STRING_STR(result), result->len);
                     len = result->len;
                 }
                 else {
@@ -95,10 +95,9 @@ bt_String* bt_make_string(bt_Context* ctx, const char* str)
 
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
 {
-    bt_String* result = BT_ALLOCATE(ctx, STRING, bt_String);
-    result->str = ctx->alloc(len + 1);
-    memcpy(result->str, str, len);
-    result->str[len] = 0;
+    bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
+    memcpy(BT_STRING_STR(result), str, len);
+    BT_STRING_STR(result)[len] = 0;
     result->len = len;
     result->hash = 0;
     return result;
@@ -117,7 +116,8 @@ bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t 
 
 bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, uint32_t len)
 {
-    char* strbuf = ctx->alloc(len + 1);
+    bt_String* result = bt_make_string_empty(ctx, len);
+    char* strbuf = BT_STRING_STR(result);
 
     uint32_t idx = 0;
     bt_bool in_escape = BT_FALSE;
@@ -137,14 +137,14 @@ bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, ui
     }
 
     strbuf[idx] = 0;
+    result->len = idx;
 
-    return bt_make_string_moved(ctx, strbuf, idx);
+    return result;
 }
 
-bt_String* bt_make_string_moved(bt_Context* ctx, const char* str, uint32_t len)
+bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len)
 {
-    bt_String* result = BT_ALLOCATE(ctx, STRING, bt_String);
-    result->str = str;
+    bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
     result->len = len;
     result->hash = 0;
     return result;
@@ -153,7 +153,7 @@ bt_String* bt_make_string_moved(bt_Context* ctx, const char* str, uint32_t len)
 bt_String* bt_hash_string(bt_String* str)
 {
     if (str->hash == 0) {
-        str->hash = MurmurOAAT64(str->str, str->len);
+        str->hash = MurmurOAAT64(BT_STRING_STR(str), str->len);
     }
 
     return str;
@@ -162,7 +162,7 @@ bt_String* bt_hash_string(bt_String* str)
 bt_StrSlice bt_as_strslice(bt_String* str)
 {
     bt_StrSlice result;
-    result.source = str->str;
+    result.source = BT_STRING_STR(str);
     result.length = str->len;
     return result;
 }

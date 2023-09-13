@@ -216,10 +216,6 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 			context->free(type->name);
 		}
 	} break;
-	case BT_OBJECT_TYPE_STRING: {
-		bt_String* string = obj;
-		context->free(string->str);
-	} break;
 	case BT_OBJECT_TYPE_MODULE: {
 		bt_Module* mod = obj;
 		bt_buffer_destroy(context, &mod->constants);
@@ -273,7 +269,7 @@ static uint32_t get_object_size(bt_Object* obj)
 	switch (BT_OBJECT_GET_TYPE(obj)) {
 	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
 	case BT_OBJECT_TYPE_TYPE: return sizeof(bt_Type);
-	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String);
+	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->len;
 	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
 	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
 	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
@@ -350,7 +346,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		bt_Path* pathspec = context->module_paths;
 		while (pathspec && !source) {
-			path_len = sprintf_s(path_buf, 256, pathspec->spec, to_load->str);
+			path_len = sprintf_s(path_buf, 256, pathspec->spec, BT_STRING_STR(to_load));
 
 			if (path_len >= 256) {
 				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
@@ -458,7 +454,7 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 		bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
 		bt_Module* module = get_module(callable);
 
-		thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? module->path->str : "", message, source_token->line - 1, source_token->col);
+		thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, source_token->line - 1, source_token->col);
 	}
 	else {
 		thread->context->on_error(BT_ERROR_RUNTIME, "<native>", message, 0, 0);
@@ -652,12 +648,13 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 		if (BT_OBJECT_GET_TYPE(lhs_str) == BT_OBJECT_TYPE_STRING && BT_OBJECT_GET_TYPE(rhs_str) == BT_OBJECT_TYPE_STRING) {
 			uint32_t length = lhs_str->len + rhs_str->len;
 
-			char* added = thread->context->alloc(length + 1);
-			memcpy(added, lhs_str->str, lhs_str->len);
-			memcpy(added + lhs_str->len, rhs_str->str, rhs_str->len);
+			bt_String* str_result = bt_make_string_empty(thread->context, length);
+			char* added = BT_STRING_STR(str_result);
+			memcpy(added, BT_STRING_STR(lhs_str), lhs_str->len);
+			memcpy(added + lhs_str->len, BT_STRING_STR(rhs_str), rhs_str->len);
 			added[length] = 0;
 
-			*result = BT_VALUE_OBJECT(bt_make_string_moved(thread->context, added, length));
+			*result = BT_VALUE_OBJECT(str_result);
 			return;
 		}
 	}

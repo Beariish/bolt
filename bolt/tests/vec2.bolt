@@ -1,4 +1,4 @@
-import sqrt, sqrt_any from math
+import sqrt from math
 import bench from bench
 
 fn assert(expr: bool) {

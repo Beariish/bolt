@@ -48,7 +48,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 				bt_String* a_str = obja;
 				bt_String* b_str = objb;
 				if (a_str->hash && b_str->hash) return a_str->hash == b_str->hash;
-				return strncmp(a_str->str, b_str->str, (size_t)fmax(a_str->len, b_str->len)) == 0;
+				return strncmp(BT_STRING_STR(a_str), BT_STRING_STR(b_str), (size_t)fmax(a_str->len, b_str->len)) == 0;
 			}
 		}
 	}

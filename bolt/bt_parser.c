@@ -1957,7 +1957,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
         if (!mod_to_import) {
-            parse_error_fmt(parse, "Failed to import module '%.*s'", next->line, next->col, module_name_str->len, module_name_str->str);
+            parse_error_fmt(parse, "Failed to import module '%.*s'", next->line, next->col, module_name_str->len, BT_STRING_STR(module_name_str));
             return NULL;
         }
 
@@ -2016,7 +2016,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
         if (!mod_to_import) {
             bt_String* name_str = BT_AS_OBJECT(module_name);
-            parse_error_fmt(parse, "Failed to import module '%.*s'", name_begin->line, name_begin->col, name_str->len, name_str->str);
+            parse_error_fmt(parse, "Failed to import module '%.*s'", name_begin->line, name_begin->col, name_str->len, BT_STRING_STR(name_str));
             return NULL;
         }
 
@@ -2038,7 +2038,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
                 bt_String* mod_name_str = BT_AS_OBJECT(module_name);
                 parse_error_fmt(parse, "Failed to import item '%.*s' from module '%.*s'", name_begin->col, name_begin->line, 
-                    item->length, item->source, mod_name_str->len, mod_name_str->str);
+                    item->length, item->source, mod_name_str->len, BT_STRING_STR(mod_name_str));
                 return NULL;
             }
 
@@ -2069,7 +2069,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
     if (!mod_to_import) {
         bt_String* name_str = BT_AS_OBJECT(module_name);
-        parse_error_fmt(parse, "Failed to import module '%.*s'", name_or_first_item->line, name_or_first_item->col, name_str->len, name_str->str);
+        parse_error_fmt(parse, "Failed to import module '%.*s'", name_or_first_item->line, name_or_first_item->col, name_str->len, BT_STRING_STR(name_str));
         return NULL;
     }
 

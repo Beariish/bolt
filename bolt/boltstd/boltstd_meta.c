@@ -106,7 +106,7 @@ static void btstd_add_module_path(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_String* pathspec = BT_AS_OBJECT(bt_arg(thread, 0));
 
-	bt_append_module_path(ctx, pathspec->str);
+	bt_append_module_path(ctx, BT_STRING_STR(pathspec));
 }
 
 static void btstd_get_union_size(bt_Context* ctx, bt_Thread* thread)

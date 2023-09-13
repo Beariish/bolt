@@ -83,10 +83,11 @@ typedef struct bt_Array {
 
 typedef struct bt_String {
 	bt_Object obj;
-	char* str;
 	uint64_t hash;
 	uint32_t len;
 } bt_String;
+
+#define BT_STRING_STR(s) (((char*)s) + sizeof(bt_String))
 
 typedef struct bt_ModuleImport {
 	bt_Object obj;
@@ -167,7 +168,7 @@ bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
 bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len);
 bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, uint32_t len);
-bt_String* bt_make_string_moved(bt_Context* ctx, const char* str, uint32_t len);
+bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len);
 bt_String* bt_hash_string(bt_String* str);
 bt_StrSlice bt_as_strslice(bt_String* str);
 

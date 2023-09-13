@@ -149,7 +149,7 @@ static void print_constants(bt_Context* ctx, bt_ValueBuffer* constants)
 	{
 		bt_Value val = constants->elements[i];
 		bt_String* as_str = bt_to_string(ctx, val);
-		printf("[%d]: %s\n", i, as_str->str);
+		printf("[%d]: %s\n", i, BT_STRING_STR(as_str));
 	}
 }
 
@@ -226,7 +226,7 @@ static void print_imports(bt_Context* ctx, bt_ImportBuffer* imports)
 		bt_ModuleImport* import = imports->elements[i];
 		bt_String* as_str = bt_to_string(ctx, import->value);
 
-		printf("[%d]: %s: %s = %s\n", i, import->name->str, import->type->name, as_str->str);
+		printf("[%d]: %s: %s = %s\n", i, BT_STRING_STR(import->name), import->type->name, BT_STRING_STR(as_str));
 	}
 }
 
