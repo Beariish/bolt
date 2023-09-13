@@ -138,8 +138,8 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Closure* cl = obj;
 		grey(gc, cl->fn);
-		for (uint32_t i = 0; i < cl->upvals.length; ++i) {
-			bt_Value upval = cl->upvals.elements[i];
+		for (uint32_t i = 0; i < cl->num_upv; ++i) {
+			bt_Value upval = BT_CLOSURE_UPVALS(cl)[i];
 			if (BT_IS_OBJECT(upval)) grey(gc, BT_AS_OBJECT(upval));
 		};
 	} break;

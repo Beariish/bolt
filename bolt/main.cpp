@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
 
 	bt_register_module(&context, BT_VALUE_CSTRING(&context, "core"), core_module);
 
-	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "vec2"));
+	bt_Value module_name = BT_VALUE_OBJECT(bt_make_string(&context, "mandel"));
 	bt_Module* mod = bt_find_module(&context, module_name);
 
 	if(mod != NULL) {

@@ -32,7 +32,6 @@ typedef void (*bt_ErrorFunc)(bt_ErrorType type, const char* module, const char* 
 
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
-	bt_Value* upvals;
 	uint8_t size, argc, user_top;
 	int8_t return_loc;
 } bt_StackFrame;

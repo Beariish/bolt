@@ -132,9 +132,11 @@ typedef struct bt_Fn {
 
 typedef struct bt_Closure {
 	bt_Object obj;
-	bt_ValueBuffer upvals;
 	bt_Fn* fn;
+	uint32_t num_upv;
 } bt_Closure;
+
+#define BT_CLOSURE_UPVALS(c) ((bt_Value*)(((char*)c) + sizeof(bt_Closure)))
 
 typedef void (*bt_NativeProc)(bt_Context* ctx, bt_Thread* thread);
 

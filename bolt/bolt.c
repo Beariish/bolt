@@ -249,10 +249,6 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 			context->free(tbl->outline);
 		}
 	} break;
-	case BT_OBJECT_TYPE_CLOSURE: {
-		bt_Closure* cl = obj;
-		bt_buffer_destroy(context, &cl->upvals);
-	} break;
 	case BT_OBJECT_TYPE_ARRAY: {
 		bt_Array* arr = obj;
 		bt_buffer_destroy(context, &arr->items);
@@ -274,7 +270,7 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
 	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
-	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure);
+	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
 	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
@@ -481,16 +477,15 @@ bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
 	bt_StackFrame* frame = thread->callstack + thread->depth - 1;
 	bt_Value* true_top = thread->stack + thread->top + frame->size + frame->user_top;
 
-	bt_ValueBuffer upvals;
-	bt_buffer_with_capacity(&upvals, thread->context, num_upvals);
+	bt_Closure* cl = BT_ALLOCATE_INLINE_STORAGE(thread->context, CLOSURE, bt_Closure, sizeof(bt_Value) * num_upvals);
+	cl->num_upv = num_upvals;
+	bt_Value* upv = BT_CLOSURE_UPVALS(cl);
 	for (bt_Value* top = true_top - (num_upvals - 1); top <= true_top; top++) {
-		bt_buffer_push(thread->context, &upvals, *top);
+		*upv = *top;
+		upv++;
 	}
 
-	bt_Closure* cl = BT_ALLOCATE(thread->context, CLOSURE, bt_Closure);
 	cl->fn = BT_AS_OBJECT(*(true_top - num_upvals));
-	cl->upvals = upvals;
-
 	frame->user_top -= num_upvals + 1;
 
 	return BT_VALUE_OBJECT(cl);
@@ -773,13 +768,11 @@ static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value 
 	bt_runtime_error(thread, "Cannot 'or' non-bool value!", ip);
 }
 
-static bt_ValueBuffer upvals;
-
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	register bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
-	register bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
+	register bt_Value* upv = BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable);
 	register bt_Object* obj, *obj2;
 
 	BT_ASSUME(obj);
@@ -838,14 +831,13 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(EXPORT): bt_module_export(context, module, BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
 
 		CASE(CLOSE):
-			bt_buffer_with_capacity(&upvals, context, BT_GET_C(op));
+			obj2 = BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * BT_GET_C(op));
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
-				bt_buffer_push(context, &upvals, stack[BT_GET_B(op) + 1 + i]);
+				BT_CLOSURE_UPVALS(obj2)[i] = stack[BT_GET_B(op) + 1 + i];
 			}
-			obj2 = BT_ALLOCATE(context, CLOSURE, bt_Closure);
 			((bt_Closure*)obj2)->fn = obj;
-			((bt_Closure*)obj2)->upvals = upvals;
+			((bt_Closure*)obj2)->num_upv = BT_GET_C(op);
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 		NEXT;
 
@@ -954,8 +946,6 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 				call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
 			break;
 			case BT_OBJECT_TYPE_CLOSURE:
-				thread->callstack[thread->depth - 1].upvals = ((bt_Closure*)obj)->upvals.elements;
-
 				switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
 				case BT_OBJECT_TYPE_FN:
 					thread->callstack[thread->depth - 1].size = ((bt_Closure*)obj)->fn->stack_size;
@@ -995,7 +985,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(ITERFOR):
 			obj = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			thread->top += BT_GET_A(op) + 2;
-			thread->callstack[thread->depth].upvals = ((bt_Closure*)obj)->upvals.elements;
+			thread->callstack[thread->depth].callable = obj;
 			thread->depth++;
 
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
