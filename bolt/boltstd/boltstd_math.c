@@ -85,10 +85,6 @@ COMPLEX_OP(atan2, atan2);
 
 void boltstd_open_math(bt_Context* context)
 {
-	static bt_bool IS_OPEN = BT_FALSE;
-	if (IS_OPEN) return;
-	IS_OPEN = BT_TRUE;
-
 	bt_Module* module = bt_make_user_module(context);
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "pi"), BT_VALUE_NUMBER(M_PI));
@@ -108,15 +104,14 @@ void boltstd_open_math(bt_Context* context)
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "epsilon"), BT_VALUE_NUMBER(BT_EPSILON));
 
-	bt_Type* single_num_arg[] = { context->types.number };
 	bt_Type* double_num_arg[] = { context->types.number, context->types.number };
 
-	bt_Type* min_max_sig = bt_make_vararg(context, bt_make_signature(context, context->types.number, single_num_arg, 1), context->types.number);
+	bt_Type* min_max_sig = bt_make_vararg(context, bt_make_signature(context, context->types.number, &context->types.number, 1), context->types.number);
 
 	bt_module_export(context, module, min_max_sig, BT_VALUE_CSTRING(context, "min"), BT_VALUE_OBJECT(bt_make_native(context, min_max_sig, bt_min)));
 	bt_module_export(context, module, min_max_sig, BT_VALUE_CSTRING(context, "max"), BT_VALUE_OBJECT(bt_make_native(context, min_max_sig, bt_max)));
 
-	bt_Type* num_to_num_sig = bt_make_signature(context, context->types.number, single_num_arg, 1);
+	bt_Type* num_to_num_sig = bt_make_signature(context, context->types.number, &context->types.number, 1);
 	bt_Type* two_num_to_num_sig = bt_make_signature(context, context->types.number, double_num_arg, 2);
 
 #define IMPL_SIMPLE_OP(name) \

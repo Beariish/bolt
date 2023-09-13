@@ -104,6 +104,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_Module* mod = obj;
 		grey(gc, mod->type);
 		grey(gc, mod->exports);
+		grey(gc, mod->path);
 
 		for (uint32_t i = 0; i < mod->imports.length; ++i) {
 			bt_Object* import = mod->imports.elements[i];
@@ -164,7 +165,6 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 
 uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 {
-	return 0;
 	bt_Context* ctx = gc->ctx;
 
 	grey(gc, ctx->types.any);
@@ -240,7 +240,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 				
 			current = BT_OBJECT_NEXT(current);
 			BT_OBJECT_SET_NEXT(prev, current);
-			//bt_free(ctx, to_free);
+			bt_free(ctx, to_free);
 
 			n_collected++;
 			//if (n_collected >= max_collect) return n_collected;

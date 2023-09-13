@@ -1,5 +1,12 @@
-import sqrt from math
+import sqrt, sqrt_any from math
 import bench from bench
+
+fn assert(expr: bool) {
+    if not expr {
+        // no runtime error from in-languag yet
+        true as number!
+    }
+}
 
 type Vec2 = final {
     x: number,

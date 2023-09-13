@@ -421,8 +421,8 @@ void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_t
 		tshp->as.table_shape.key_layout = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, &tshp->as.table_shape.layout, key, BT_VALUE_OBJECT(type));
-	bt_table_set(context, &tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
+	bt_table_set(context, tshp->as.table_shape.layout, key, BT_VALUE_OBJECT(type));
+	bt_table_set(context, tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
 }
 
 void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
@@ -432,8 +432,8 @@ void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 		tshp->prototype_types = bt_make_table(context, 4);
 	}
 
-	bt_table_set(context, &tshp->prototype_types, name, BT_VALUE_OBJECT(type));
-	bt_table_set(context, &tshp->prototype_values, name, value);
+	bt_table_set(context, tshp->prototype_types, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, tshp->prototype_values, name, value);
 }
 
 void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value)
@@ -521,7 +521,7 @@ void bt_enum_push_option(bt_Context* context, bt_Type* enum_, bt_StrSlice name, 
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
 
-	bt_table_set(context, &enum_->as.enum_.options, BT_VALUE_OBJECT(owned_name), value);
+	bt_table_set(context, enum_->as.enum_.options, BT_VALUE_OBJECT(owned_name), value);
 }
 
 bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value value)
@@ -659,7 +659,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
 			}
 
-			bt_table_set(type->ctx, &dst, pair->key, val);
+			bt_table_set(type->ctx, dst, pair->key, val);
 		}
 
 		dst->prototype = bt_type_get_proto(type->ctx, type);

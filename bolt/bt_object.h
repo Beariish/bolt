@@ -70,10 +70,11 @@ typedef bt_Buffer(bt_TablePair) bt_TablePairBuffer;
 typedef struct bt_Table {
 	bt_Object obj;
 	struct bt_Table* prototype;
-	uint32_t length, capacity;
+	uint16_t is_inline, length, capacity, inline_capacity;
+	bt_TablePair* outline;
 } bt_Table;
 
-#define BT_TABLE_PAIRS(t) ((bt_TablePair*)((char*)(t) + sizeof(bt_Table)))
+#define BT_TABLE_PAIRS(t) (((bt_Table*)t)->is_inline ? ((bt_TablePair*)((char*)(t) + sizeof(bt_Table))) : ((bt_Table*)t)->outline)
 
 typedef struct bt_Array {
 	bt_Object obj;
@@ -171,8 +172,8 @@ bt_String* bt_hash_string(bt_String* str);
 bt_StrSlice bt_as_strslice(bt_String* str);
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
-bt_bool bt_table_set(bt_Context* ctx, bt_Table** tbl, bt_Value key, bt_Value value);
-bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table** tbl, const char* key, bt_Value value);
+bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
+bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value);
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
 bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
 int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key);
@@ -196,4 +197,4 @@ bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
 
 bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key); 
-void bt_set(bt_Context* ctx, bt_Object** obj, bt_Value key, bt_Value value);
+void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);

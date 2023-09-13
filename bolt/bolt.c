@@ -247,6 +247,12 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 			context->free(fn->debug);
 		}
 	} break;
+	case BT_OBJECT_TYPE_TABLE: {
+		bt_Table* tbl = obj;
+		if (!tbl->is_inline) {
+			context->free(tbl->outline);
+		}
+	} break;
 	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Closure* cl = obj;
 		bt_buffer_destroy(context, &cl->upvals);
@@ -275,7 +281,7 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure);
 	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
-	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table);
+	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
 	}
 
@@ -292,7 +298,7 @@ void bt_free(bt_Context* context, bt_Object* obj)
 
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
 {
-	bt_table_set(context, &context->type_registry, name, BT_VALUE_OBJECT(type));
+	bt_table_set(context, context->type_registry, name, BT_VALUE_OBJECT(type));
 	bt_register_prelude(context, name, bt_make_alias(context, 0, type), BT_VALUE_OBJECT(type));
 }
 
@@ -308,12 +314,12 @@ void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_V
 	new_import->type = type;
 	new_import->value = value;
 
-	bt_table_set(context, &context->prelude, name, BT_VALUE_OBJECT(new_import));
+	bt_table_set(context, context->prelude, name, BT_VALUE_OBJECT(new_import));
 }
 
 void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module)
 {
-	bt_table_set(context, &context->loaded_modules, name, BT_VALUE_OBJECT(module));
+	bt_table_set(context, context->loaded_modules, name, BT_VALUE_OBJECT(module));
 }
 
 void bt_append_module_path(bt_Context* context, const char* spec)
@@ -777,7 +783,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 	register bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch(stack, 1);
 	register bt_Value* upv = thread->callstack[thread->depth - 1].upvals;
-	bt_Object* obj, *obj2;
+	register bt_Object* obj, *obj2;
 
 	BT_ASSUME(obj);
 	BT_ASSUME(obj2);
@@ -905,19 +911,11 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(STORE_IDX): 
 			if (BT_IS_ACCELERATED(op)) (BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + BT_GET_B(op))->value = stack[BT_GET_C(op)]; 
-			else {
-				obj = BT_AS_OBJECT(stack[BT_GET_A(op)]);
-				bt_set(context, &obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
-				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
-			}
+			else bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
 		NEXT;
 
 		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
-		CASE(STORE_IDX_K) :
-			obj = BT_AS_OBJECT(stack[BT_GET_A(op)]);
-			bt_set(context, &obj, constants[BT_GET_B(op)], stack[BT_GET_C(op)]);
-			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
-		NEXT;
+		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
 		CASE(EXISTS):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
