@@ -407,6 +407,7 @@ bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySi
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
+	result->prototype = context->types.table;
 	result->as.table_shape.sealed = sealed;
 	result->as.table_shape.layout = 0;
 	result->as.table_shape.parent = 0;

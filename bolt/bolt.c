@@ -42,6 +42,7 @@ void bt_open(bt_Context* context, bt_Handlers* handlers)
 	context->types.number = make_primitive_type(context, "number", bt_type_satisfier_same);
 	context->types.boolean = make_primitive_type(context, "bool", bt_type_satisfier_same);
 	context->types.string = make_primitive_type(context, "string", bt_type_satisfier_same);
+	context->types.table = 0;
 	context->types.table = bt_make_tableshape(context, "table", BT_FALSE);
 
 	context->types.any = make_primitive_type(context, "any", bt_type_satisfier_any);
