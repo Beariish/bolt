@@ -108,13 +108,15 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);;
     } break;
     case BT_AST_NODE_IF: {
-        assert(node->as.branch.is_let);
+        if (!node->as.branch.is_let) {
+            parse_error_token(parse, "Expected local at '%.*s' to be within if-let statement", node->as.branch.identifier);
+        }
 
         new_binding.is_const = BT_FALSE;
         new_binding.name = node->as.branch.identifier->source;
         new_binding.type = node->as.branch.bound_type;
     } break;
-    default: assert(0);
+    default: parse_error_token(parse, "Internal parser error: Unexpected local at '%.*s'", node->source);
     }
 
     bt_ParseScope* topmost = parse->scope;
@@ -129,7 +131,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     bt_buffer_push(parse->context, &topmost->bindings, new_binding);
 }
 
-static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
+static void push_arg(bt_Parser* parse, bt_FnArg* arg, bt_Token* source) {
     bt_ParseBinding new_binding;
     new_binding.is_const = BT_TRUE;
     new_binding.name = arg->name;
@@ -140,7 +142,7 @@ static void push_arg(bt_Parser* parse, bt_FnArg* arg) {
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
         bt_ParseBinding* binding = topmost->bindings.elements + i;
         if (bt_strslice_compare(binding->name, new_binding.name)) {
-            assert(0); // Binding redifinition
+            parse_error_fmt(parse, "Binding rededinition in function argument '%.*s'", source->line, source->col, arg->name.length, arg->name.source);
         }
     }
 
@@ -323,7 +325,7 @@ static void destroy_subobj(bt_Context* ctx, bt_AstNode* node)
 
 static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
 {
-    bt_Value result;
+    bt_Value result = BT_VALUE_NULL;
 
     switch (node->type) {
     case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: {
@@ -342,7 +344,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_TRUE_LITERAL: result = BT_VALUE_TRUE; break;
         case BT_TOKEN_FALSE_LITERAL: result = BT_VALUE_FALSE; break;
         case BT_TOKEN_NULL_LITERAL: result = BT_VALUE_NULL; break;
-        default: assert(0 && "Unhandled token literal type!");
+        default: parse_error_token(parse, "Internal parser error: Unhandled token literal type '%.*s'", node->source);
         }
     } break;
 
@@ -350,7 +352,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
         result = node->as.enum_literal.value;
     } break;
 
-    default: assert(0 && "Unhandled ast node type!");
+    default: parse_error_token(parse, "Failed to make table key from '%.*s'", node->source);
     }
 
     return result;
@@ -380,7 +382,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
         token = bt_tokenizer_emit(parse->tokenizer);
         if (token->type != BT_TOKEN_COLON) {
-            assert(0 && "Expected colon after table field name!");
+            parse_error_token(parse, "Expected colon after table field name, got '%.*s'", token);
         }
 
         bt_AstNode* value_expr = pratt_parse(parse, 0);
@@ -390,11 +392,12 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         if (type) {
             bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key));
             if (!expected && type->as.table_shape.sealed) {
-                assert(0 && "Unexpected field identifier!");
+                parse_error_token(parse, "Unexpected field '%.*s' in sealed table literal", key_expr->source);
             }
 
             if (expected && !expected->satisfier(field->as.table_field.value_type, expected)) {
-                assert(0 && "Invalid type for field!");
+                parse_error_fmt(parse, "Invalid type for field '%.*s': wanted '%s', got '%s'", key_expr->source->line, key_expr->source->col,
+                    key_expr->source->source.length, key_expr->source->source.source, expected->name, field->as.table_field.value_type->name);
             }
 
             n_satisfied++;
@@ -416,7 +419,9 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_RIGHTBRACE);
 
     if (type && n_satisfied != type->as.table_shape.layout->length) {
-        assert(0 && "Missing fields in typed table literal!");
+        // TODO: actually list missing fields
+        parse_error_fmt(parse, "Missing %d fields in typed table literal", result->source->line, result->source->col, 
+            type->as.table_shape.layout->length - n_satisfied);
     }
 
     return result;
@@ -994,7 +999,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         push_scope(parse, BT_TRUE);
 
         for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
-            push_arg(parse, result->as.fn.args.elements + i);
+            push_arg(parse, result->as.fn.args.elements + i, result->source);
         }
 
         parse_block(&result->as.fn.body, parse);
@@ -1354,7 +1359,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = type;
         }
         else {
-            assert(0 && "Failed to find identifier!");
+            node->resulting_type = NULL;
         }
     } break;
     case BT_AST_NODE_LITERAL:
@@ -2281,11 +2286,12 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     if (token->type == BT_TOKEN_LEFTBRACE) identifier = token_to_node(parse, tok->literal_true);
     else identifier = pratt_parse(parse, 0);
 
-    if (identifier->type != BT_AST_NODE_IDENTIFIER)
+    if (identifier->type != BT_AST_NODE_IDENTIFIER || type_check(parse, identifier)->resulting_type == parse->context->types.boolean)
     {
         // "while"-style loop
         if (type_check(parse, identifier)->resulting_type != parse->context->types.boolean) {
-            assert(0 && "'while'-style loop condition must be boolean expression!");
+            parse_error_token(parse, "'while'-style loop condition must be boolean expression: '%.*s'", identifier->source);
+            return NULL;
         }
 
         bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_WHILE);
@@ -2306,10 +2312,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         return result;
     }
 
-    token = bt_tokenizer_peek(tok);
-
-    if (token->type != BT_TOKEN_IN) assert(0 && "Expected keyword 'in'!");
-    bt_tokenizer_emit(tok);
+    if (!bt_tokenizer_expect(tok, BT_TOKEN_IN)) return NULL;
 
     bt_AstNode* iterator = pratt_parse(parse, 0);
 
@@ -2371,10 +2374,18 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
         return result;
     }
-    else if (generator_type->category != BT_TYPE_CATEGORY_SIGNATURE) assert(0 && "Expected iterator to be function!");
+    else if (generator_type->category != BT_TYPE_CATEGORY_SIGNATURE) {
+        parse_error_fmt(parse, "Expected iterator to be function, got %s", iterator->source->line, iterator->source->col,
+            generator_type->name);
+        return NULL;
+    }
 
     bt_Type* generated_type = generator_type->as.fn.return_type;
-    if (!bt_is_optional(generated_type)) assert(0 && "Iterator return type must be optional!");
+    if (!bt_is_optional(generated_type)) {
+        parse_error_fmt(parse, "Iterator return type must be optional, got %s", iterator->source->line, iterator->source->col, 
+            generated_type->name);
+        return NULL;
+    }
 
     bt_Type* it_type = bt_remove_nullable(parse->context, generated_type);
     identifier->resulting_type = it_type;
@@ -2413,7 +2424,8 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
     bt_Token* name = bt_tokenizer_emit(parse->tokenizer);
 
     if (name->type != BT_TOKEN_IDENTIFIER) {
-        assert(0 && "Invalid type alias name!");
+        parse_error_token(parse, "Expected identifier, got '%.*s'", name);
+        return NULL;
     }
 
     result->source = name;
@@ -2438,12 +2450,13 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     bt_Type* type = resolve_type_identifier(parse, type_name);
 
     if (!bt_tokenizer_expect(tok, BT_TOKEN_PERIOD)) {
-        assert(0 && "Expected type subscript for method name!");
+        return NULL;
     }
 
     bt_Token* method_name = bt_tokenizer_emit(tok);
     if (method_name->type != BT_TOKEN_IDENTIFIER) {
-        assert(0 && "Invalid method name!");
+        parse_error_token(parse, "Expected identifier for method name, got '%.*s'", method_name);
+        return NULL;
     }
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_METHOD);
@@ -2481,7 +2494,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
                 break;
             }
             else {
-                assert(0 && "Malformed parameter list!");
+                parse_error_token(parse, "Unexpected token '%.*s' in parameter list", next);
             }
 
             if (next->type == BT_TOKEN_COLON) {
@@ -2500,7 +2513,8 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     }
 
     if (has_param_list && next && next->type != BT_TOKEN_RIGHTPAREN) {
-        assert(0 && "Cannot find end of parameter list!");
+        parse_error_token(parse, "Expected end of parameter list, got '%.*s'", next);
+        return NULL;
     }
 
     next = bt_tokenizer_peek(tok);
@@ -2516,7 +2530,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         push_scope(parse, BT_TRUE);
 
         for (uint8_t i = 0; i < result->as.method.args.length; i++) {
-            push_arg(parse, result->as.method.args.elements + i);
+            push_arg(parse, result->as.method.args.elements + i, result->source);
         }
 
         parse_block(&result->as.method.body, parse);
@@ -2524,14 +2538,16 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         pop_scope(parse);
     }
     else {
-        assert(0 && "Found function without body!");
+        parse_error_token(parse, "Expected function body, got '%.*s'", next);
+        return NULL;
     }
 
     result->as.method.ret_type = infer_return(parse->context, &result->as.method.body, result->as.method.ret_type);
 
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {
-        assert(0 && "Expected end of function!");
+        parse_error_token(parse, "Expected end of function, got '%.*s'", next);
+        return NULL;
     }
 
     bt_Type* args[16];

@@ -412,7 +412,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
     case BT_OBJECT_TYPE_STRING:
         return bt_table_get(ctx->types.string->prototype_values, key);
     default: {
-        __debugbreak();
+        bt_runtime_error(ctx->current_thread, "Attempted to get field from fieldless type", NULL);
     } break;
     }
 
@@ -447,6 +447,6 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
 
         assert(0 && "This should never be reached due to typechecking!");
     } break;
-    default: __debugbreak();
+    default: bt_runtime_error(ctx->current_thread, "Attempted to set field on fieldless type", NULL);
     }
 }
