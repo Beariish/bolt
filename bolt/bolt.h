@@ -4,7 +4,8 @@
 #include "bt_tokenizer.h"
 #include "bt_context.h"
 
-void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Free free, bt_ErrorFunc error);
+void bt_open(bt_Context* context, bt_Handlers* handlers);
+bt_Handlers bt_default_handlers();
 void bt_close(bt_Context* context);
 
 bt_bool bt_run(bt_Context* context, const char* source);

@@ -4,9 +4,6 @@
 #include "bt_compiler.h"
 #include "bt_userdata.h"
 
-#include <stdio.h>
-#include <assert.h>
-
 bt_GC bt_make_gc(bt_Context* ctx)
 {
 	bt_GC result;
@@ -249,8 +246,6 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 
 	gc->next_cycle = (gc->byets_allocated * 175) / 100;
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
-
-	//printf("------ GC performed, new heap size: %lld, next at: %lld\n", gc->byets_allocated, gc->next_cycle);
 
 	ctx->current_thread = old_thr;
 

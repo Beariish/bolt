@@ -205,23 +205,6 @@ static bt_Type* bt_arr_each_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	return sig;
 }
 
-static void bt_error(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col) {
-	switch (type)
-	{
-	case BT_ERROR_PARSE: {
-		printf("PARSING ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
-	} break;
-
-	case BT_ERROR_COMPILE: {
-		printf("COMPILATION ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
-	} break;
-
-	case BT_ERROR_RUNTIME: {
-		printf("RUNTIME ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
-	} break;
-	}
-}
-
 static void bt_throw_error(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_String* message = bt_to_string(ctx, bt_arg(thread, 0));
@@ -232,7 +215,8 @@ int main(int argc, char** argv) {
 	init_time();
 
 	bt_Context context;
-	bt_open(&context, malloc, realloc, free, bt_error);
+	bt_Handlers handlers = bt_default_handlers();
+	bt_open(&context, &handlers);
 
 	boltstd_open_all(&context);
 

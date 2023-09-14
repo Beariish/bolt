@@ -18,12 +18,16 @@ static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSa
 	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE, BT_FALSE);
 }
 
-void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Free free, bt_ErrorFunc error)
+void bt_open(bt_Context* context, bt_Handlers* handlers)
 {
-	context->alloc = allocator;
-	context->free = free;
-	context->realloc = realloc;
-	context->on_error = error;
+	context->alloc = handlers->alloc;
+	context->free = handlers->free;
+	context->realloc = handlers->realloc;
+	context->on_error = handlers->on_error;
+
+	context->read_file = handlers->read_file;
+	context->close_file = handlers->close_file;
+	context->free_source = handlers->free_source;
 
 	context->gc = bt_make_gc(context);
 
@@ -76,6 +80,83 @@ void bt_open(bt_Context* context, bt_Alloc allocator, bt_Realloc realloc, bt_Fre
 	bt_append_module_path(context, "%s/module.bolt");
 
 	context->is_valid = BT_TRUE;
+}
+
+#ifdef BOLT_ALLOW_PRINTF
+static void bt_error(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col) {
+	switch (type)
+	{
+	case BT_ERROR_PARSE: {
+		printf("PARSING ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+	} break;
+
+	case BT_ERROR_COMPILE: {
+		printf("COMPILATION ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+	} break;
+
+	case BT_ERROR_RUNTIME: {
+		printf("RUNTIME ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+	} break;
+	}
+}
+#endif
+
+#ifdef BOLT_ALLOW_MALLOC
+#include <malloc.h>
+#endif
+
+#ifdef BOLT_ALLOW_FOPEN
+#include <stdio.h>
+
+static char* bt_read_file(bt_Context* ctx, const char* path, void** handle)
+{
+	fopen_s(handle, path, "rb");
+
+	if (*handle == 0) return NULL;
+
+	fseek(*handle, 0, SEEK_END);
+	uint32_t len = ftell(*handle);
+	fseek(*handle, 0, SEEK_SET);
+
+	char* code = ctx->alloc(len + 1);
+	fread(code, 1, len, *handle);
+	code[len] = 0;
+
+	return code;
+}
+
+static void bt_close_file(bt_Context* ctx, const char* path, void* handle)
+{
+	fclose(handle);
+}
+
+static void bt_free_source(bt_Context* ctx, char* source)
+{
+	ctx->free(source);
+}
+#endif
+
+bt_Handlers bt_default_handlers()
+{
+	bt_Handlers result = { 0 };
+
+#ifdef BOLT_ALLOW_MALLOC
+	result.alloc = malloc;
+	result.realloc = realloc;
+	result.free = free;
+#endif
+
+#ifdef BOLT_ALLOW_FOPEN
+	result.read_file = bt_read_file;
+	result.close_file = bt_close_file;
+	result.free_source = bt_free_source;
+#endif
+
+#ifdef BOLT_ALLOW_PRINTF
+	result.on_error = bt_error;
+#endif
+
+	return result;
 }
 
 void bt_close(bt_Context* context)
@@ -338,10 +419,11 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		char path_buf[256];
 		uint32_t path_len = 0;
-		FILE* source = NULL;
+		void* handle = NULL;
+		char* code = NULL;
 
 		bt_Path* pathspec = context->module_paths;
-		while (pathspec && !source) {
+		while (pathspec && !code) {
 			path_len = sprintf_s(path_buf, 256, pathspec->spec, BT_STRING_STR(to_load));
 
 			if (path_len >= 256) {
@@ -350,27 +432,20 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 			}
 
 			path_buf[path_len] = 0;
-			fopen_s(&source, path_buf, "rb");
+			code = context->read_file(context, path_buf, &handle);
 
 			pathspec = pathspec->next;
 		}
 
-		if (source == 0) {
-			assert(0 && "Cannot find module file!");
+		if (code == 0) {
+			bt_runtime_error(context->current_thread, "Cannot find module file", NULL);
 			return NULL;
 		}
 
-		fseek(source, 0, SEEK_END);
-		uint32_t len = ftell(source);
-		fseek(source, 0, SEEK_SET);
-
-		char* code = context->alloc(len + 1);
-		fread(code, 1, len, source);
-		fclose(source);
-		code[len] = 0;
+		context->close_file(context, path_buf, handle);
 
 		bt_Module* new_mod = bt_compile_module(context, code, path_buf);
-		context->free(code);
+		context->free_source(context, code);
 
 		if (new_mod) {
 			new_mod->name = BT_AS_OBJECT(name);
@@ -431,7 +506,7 @@ static bt_Module* get_module(bt_Callable* cb)
 	case BT_OBJECT_TYPE_CLOSURE: return cb->cl.fn->module;
 	case BT_OBJECT_TYPE_MODULE: return &cb->module;
 	case BT_OBJECT_TYPE_NATIVE_FN: return NULL;
-	default: assert(0); return NULL;
+	default: bt_runtime_error(NULL, "Failed to get module from callable", NULL);
 	}
 }
 

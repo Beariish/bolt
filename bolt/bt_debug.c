@@ -3,7 +3,6 @@
 #include "bt_value.h"
 
 #include <stdio.h>
-#include <assert.h>
 
 static const char* ast_node_type_to_string(bt_AstNode* node)
 {

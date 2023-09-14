@@ -17,9 +17,17 @@
 // compiled bytecode to the console.
 #define BOLT_PRINT_DEBUG
 
-
 // Inline threading allows for bolt to make indirect jumps from each instruction to each next instruction
 // In theory, this increases performance due to branch prediction, but costs more code size.
 // Will increase perf in most scenarios, but not all.
 // Also takes significantly longer to compile.
 #define BOLT_USE_INLINE_THREADING
+
+// Allows for the use of the cstdlib to set up some reasonable default handlers for memory allocation
+#define BOLT_ALLOW_MALLOC
+
+// Allows for the use of the cstdlib to set up a default error handler
+#define BOLT_ALLOW_PRINTF
+
+// Allows for the use of the cstdlib to set up default module loaders
+#define BOLT_ALLOW_FOPEN
