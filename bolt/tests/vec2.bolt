@@ -1,5 +1,6 @@
 import sqrt from math
 import bench from bench
+import print from core
 
 fn assert(expr: bool) {
     if not expr {
@@ -7,6 +8,8 @@ fn assert(expr: bool) {
         true as number!
     }
 }
+
+let times_called = { inner: 0 }
 
 type Vec2 = final {
     x: number,
@@ -36,6 +39,7 @@ method Vec2.@div(other: Vec2) {
 method Vec2.distance(other: Vec2) {
     let sx = this.x + other.x
     let sy = this.y + other.y
+    times_called.inner += 1
     return sqrt(sx * sx + sy * sy)
 }
 
@@ -67,3 +71,5 @@ bench("1m vec2 method", 35, fn {
         let c = a.distance(b)
     }
 })
+
+print("Times called:", times_called.inner)

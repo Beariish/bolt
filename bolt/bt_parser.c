@@ -133,7 +133,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
 
 static void push_arg(bt_Parser* parse, bt_FnArg* arg, bt_Token* source) {
     bt_ParseBinding new_binding;
-    new_binding.is_const = BT_TRUE;
+    new_binding.is_const = BT_FALSE;
     new_binding.name = arg->name;
     new_binding.type = arg->type;
     new_binding.source = 0;
