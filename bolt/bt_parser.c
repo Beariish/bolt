@@ -427,6 +427,258 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     return result;
 }
 
+static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
+{
+    if (identifier->type != BT_TOKEN_IDENTIFIER) {
+        assert(0 && "Expected identifier to be valid!");
+    }
+
+    bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
+
+    bt_Type* result = 0;
+    if (binding) {
+        if (binding->source->resulting_type != parse->context->types.type) {
+            assert(0 && "Type identifier didn't resolve to type!");
+        }
+
+        result = binding->source->as.alias.type;
+    }
+
+    if (!result) {
+        bt_ModuleImport * import = find_import_fast(parse, identifier->source);
+        if (import) {
+            if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
+                assert(0 && "Type identifier didn't resolve to type!");
+            }
+
+            result = BT_AS_OBJECT(import->value);
+        }
+    }
+
+    if (!result) {
+        bt_String* name = bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length);
+        result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
+    }
+
+    return result;
+}
+
+static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+    bt_Token* token = bt_tokenizer_emit(tok);
+    bt_Context* ctx = tok->context;
+    bt_bool is_sealed = BT_TRUE;
+    bt_bool is_final = BT_FALSE;
+
+    switch (token->type) {
+    case BT_TOKEN_NULL_LITERAL: {
+        return parse->context->types.null;
+    }
+    case BT_TOKEN_IDENTIFIER: {
+        bt_Type* result = resolve_type_identifier(parse, token);
+
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_QUESTION) {
+            bt_tokenizer_emit(tok);
+            result = bt_make_nullable(ctx, result);
+        }
+        else if (token->type == BT_TOKEN_PLUS) {
+            bt_tokenizer_emit(tok);
+            bt_Type* rhs = parse_type(parse, BT_FALSE);
+
+            if (result->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
+                assert(0 && "Type composition must be done between table types!");
+            }
+
+            bt_Type* lhs = result;
+            result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
+
+            bt_Table* lhs_fields = lhs->as.table_shape.layout;
+            bt_Table* lhs_field_types = lhs->as.table_shape.key_layout;
+            bt_Table* rhs_fields = rhs->as.table_shape.layout;
+            bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
+
+            for (uint32_t i = 0; i < lhs_fields->length; ++i) {
+                bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
+                bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
+                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
+            }
+
+            for (uint32_t i = 0; i < rhs_fields->length; ++i) {
+                bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
+                bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
+
+                if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
+                    assert(0 && "Both lhs and rhs have a feild with name %s!");
+                    break;
+                }
+
+                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
+            }
+
+            bt_tableshape_set_parent(parse->context, result, lhs);
+        }
+        else if (token->type == BT_TOKEN_UNION && recurse) {
+            bt_Type* selector = bt_make_union(ctx);
+            bt_push_union_variant(ctx, selector, result);
+
+            while (token->type == BT_TOKEN_UNION) {
+                bt_tokenizer_emit(tok);
+                bt_push_union_variant(ctx, selector, parse_type(parse, BT_FALSE));
+
+                token = bt_tokenizer_peek(tok);
+            }
+
+            result = selector;
+        }
+
+        return result;
+    } break;
+    case BT_TOKEN_FN: {
+        bt_Type* args[16];
+        uint8_t arg_top = 0;
+
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_LEFTPAREN) {
+            bt_tokenizer_emit(tok);
+            token = bt_tokenizer_peek(tok);
+            while (token->type != BT_TOKEN_RIGHTPAREN) {
+                args[arg_top++] = parse_type(parse, BT_TRUE);
+                token = bt_tokenizer_emit(tok);
+                if (token->type != BT_TOKEN_COMMA && token->type != BT_TOKEN_RIGHTPAREN) {
+                    assert(0 && "Invalid token in function type signature!");
+                }
+            }
+        }
+
+        bt_Type* return_type = 0;
+        token = bt_tokenizer_peek(tok);
+
+        if (token->type == BT_TOKEN_COLON) {
+            bt_tokenizer_emit(tok);
+            return_type = parse_type(parse, BT_TRUE);
+        }
+
+        return bt_make_signature(ctx, return_type, args, arg_top);
+    } break;
+    case BT_TOKEN_FINAL:
+        is_final = BT_TRUE;
+        if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
+            assert(0 && "Expected opening brace to follow keyword 'final'");
+        }
+        goto parse_table;
+    case BT_TOKEN_UNSEALED:
+        is_sealed = BT_FALSE;
+        if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
+            assert(0 && "Expected opening brace to follow keyword 'unsealed'");
+        }
+    case BT_TOKEN_LEFTBRACE: parse_table: {
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_RIGHTBRACE) {
+            bt_tokenizer_emit(tok);
+            return ctx->types.table;
+        }
+
+        if (token->type == BT_TOKEN_VARARG) {
+            bt_tokenizer_emit(tok);
+
+            bt_Type* key_type = parse_type(parse, BT_FALSE);
+            bt_tokenizer_expect(tok, BT_TOKEN_COLON);
+            bt_Type* value_type = parse_type(parse, BT_FALSE);
+
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+            return bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
+        }
+
+        bt_Type* result = bt_make_tableshape(ctx, "<tableshape>", is_sealed);
+        result->as.table_shape.final = is_final;
+        while (token && token->type != BT_TOKEN_RIGHTBRACE) {
+            token = bt_tokenizer_emit(tok);
+            if (token->type != BT_TOKEN_IDENTIFIER) {
+                assert(0 && "Expected identifier name for tableshape field!");
+            }
+
+            bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
+            bt_Type* type = 0;
+
+            token = bt_tokenizer_peek(tok);
+            if (token->type == BT_TOKEN_COLON) {
+                bt_tokenizer_emit(tok);
+                type = parse_type(parse, BT_TRUE);
+                token = bt_tokenizer_peek(tok);
+            }
+
+            if (token->type == BT_TOKEN_ASSIGN) {
+                bt_tokenizer_emit(tok);
+                bt_AstNode* expr = pratt_parse(parse, 0);
+                if (type && !type_check(parse, expr)->resulting_type->satisfier(expr->resulting_type, type)) {
+                    assert(0 && "Table value initializer doesn't match annotated type!");
+                }
+
+                type = expr->resulting_type;
+                bt_type_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
+            }
+
+            bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
+
+            token = bt_tokenizer_peek(tok);
+            if (token->type == BT_TOKEN_COMMA) {
+                bt_tokenizer_emit(tok);
+                token = bt_tokenizer_peek(tok);
+            }
+        }
+
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+        return result;
+    } break;
+    case BT_TOKEN_LEFTBRACKET: {
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_RIGHTBRACKET) {
+            bt_tokenizer_emit(tok);
+            return ctx->types.array;
+        }
+
+        bt_Type* inner = parse_type(parse, BT_TRUE);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
+        return bt_make_array_type(parse->context, inner);
+    } break;
+    case BT_TOKEN_ENUM: {
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+
+        bt_Type* result = bt_make_enum(parse->context, (bt_StrSlice) { "<enum>", 6 });
+
+        uint32_t option_idx = 0;
+        while (bt_tokenizer_peek(tok)->type == BT_TOKEN_IDENTIFIER) {
+            bt_Token* name = bt_tokenizer_emit(tok);
+
+            bt_enum_push_option(parse->context, result, name->source, BT_VALUE_ENUM(option_idx));
+            option_idx++;
+
+            if (bt_tokenizer_peek(tok)->type == BT_TOKEN_COMMA) {
+                bt_tokenizer_emit(tok);
+            }
+        }
+
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+
+        return result;
+    } break;
+    case BT_TOKEN_TYPEOF: {
+        bt_AstNode* inner = pratt_parse(parse, 0);
+        bt_Type* result = type_check(parse, inner)->resulting_type;
+
+        if (!result) assert(0 && "Expression did not evaluate to type!");
+
+        return bt_type_dealias(result);
+    } break;
+    default: assert(0);
+    }
+
+    return NULL;
+}
+
 static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
 {
     bt_AstNode* result = make_node(parse, BT_AST_NODE_ARRAY);
@@ -435,41 +687,62 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
     result->source = source;
 
     bt_Tokenizer* tok = parse->tokenizer;
+    bt_Type* explicit_type = NULL;
 
     bt_Token* next = bt_tokenizer_peek(tok);
     while (next && next->type != BT_TOKEN_RIGHTBRACKET) {
+        if (next->type == BT_TOKEN_COMMA) next = bt_tokenizer_emit(tok);
+        else if (next->type == BT_TOKEN_COLON) {
+            bt_tokenizer_emit(tok);
+            explicit_type = parse_type(parse, BT_FALSE);
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
+            break;
+        }
+
         bt_AstNode* expr = pratt_parse(parse, 0);
         bt_buffer_push(parse->context, &result->as.arr.items, expr);
 
-        bt_Type* item_type = type_check(parse, expr)->resulting_type;
-        if (result->as.arr.inner_type) {
-            if (!result->as.arr.inner_type->satisfier(result->as.arr.inner_type, item_type)) {
-                if (result->as.arr.inner_type->category != BT_TYPE_CATEGORY_UNION) {
-                    bt_Type* old = result->as.arr.inner_type;
-                    result->as.arr.inner_type = bt_make_union(parse->context);
-                    bt_push_union_variant(parse->context, result->as.arr.inner_type, old);
-                }
+        next = bt_tokenizer_emit(tok);
+    }
 
-                bt_push_union_variant(parse->context, result->as.arr.inner_type, item_type);
+    if (explicit_type) {
+        result->as.arr.inner_type = explicit_type;
+    
+        for (uint32_t i = 0; i < result->as.arr.items.length; i++) {
+            bt_AstNode* item = result->as.arr.items.elements[i];
+            if (!explicit_type->satisfier(explicit_type, type_check(parse, item)->resulting_type)) {
+                parse_error_token(parse, "Item in array literal doesn't match explicit type: '%.*s'", item->source);
+                return NULL;
             }
         }
-        else {
-            result->as.arr.inner_type = item_type;
-        }
+    }
+    else {
+        for (uint32_t i = 0; i < result->as.arr.items.length; i++) {
+            bt_AstNode* item = result->as.arr.items.elements[i];
 
-        next = bt_tokenizer_peek(tok);
-        if (!next || !(next->type == BT_TOKEN_COMMA || next->type == BT_TOKEN_RIGHTBRACKET)) {
-            assert(0 && "Malformed array literal!");
-        }
+            bt_Type* item_type = type_check(parse, item)->resulting_type;
+            if (result->as.arr.inner_type) {
+                if (!result->as.arr.inner_type->satisfier(result->as.arr.inner_type, item_type)) {
+                    if (result->as.arr.inner_type->category != BT_TYPE_CATEGORY_UNION) {
+                        bt_Type* old = result->as.arr.inner_type;
+                        result->as.arr.inner_type = bt_make_union(parse->context);
+                        bt_push_union_variant(parse->context, result->as.arr.inner_type, old);
+                    }
 
-        next = bt_tokenizer_emit(tok);
+                    bt_push_union_variant(parse->context, result->as.arr.inner_type, item_type);
+                }
+            }
+            else {
+                result->as.arr.inner_type = item_type;
+            }
+        }
     }
 
     // empty array literal
     // I would really like this to infer the type from the binding on the lhs, but I 
     // don't think we really have the capability to do that yet
     if (result->as.arr.inner_type == 0) {
-
+        result->as.arr.inner_type = parse->context->types.any;
     }
 
     result->resulting_type = bt_make_array_type(parse->context, result->as.arr.inner_type);
@@ -606,42 +879,6 @@ return (InfixBindingPower) { 4, 3 };
     }
 }
 
-static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
-{
-    if (identifier->type != BT_TOKEN_IDENTIFIER) {
-        assert(0 && "Expected identifier to be valid!");
-    }
-
-    bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
-
-    bt_Type* result = 0;
-    if (binding) {
-        if (binding->source->resulting_type != parse->context->types.type) {
-            assert(0 && "Type identifier didn't resolve to type!");
-        }
-
-        result = binding->source->as.alias.type;
-    }
-
-    if (!result) {
-        bt_ModuleImport* import = find_import_fast(parse, identifier->source);
-        if (import) {
-            if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
-                assert(0 && "Type identifier didn't resolve to type!");
-            }
-
-            result = BT_AS_OBJECT(import->value);
-        }
-    }
-
-    if (!result) {
-        bt_String* name = bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length);
-        result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
-    }
-
-    return result;
-}
-
 static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 {
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
@@ -676,221 +913,6 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
     return result;
 }
 
-static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
-{
-    bt_Tokenizer* tok = parse->tokenizer;
-    bt_Token* token = bt_tokenizer_emit(tok);
-    bt_Context* ctx = tok->context;
-    bt_bool is_sealed = BT_TRUE;
-    bt_bool is_final = BT_FALSE;
-
-    switch (token->type) {
-    case BT_TOKEN_NULL_LITERAL: {
-        return parse->context->types.null;
-    }
-    case BT_TOKEN_IDENTIFIER: {
-        bt_Type* result = resolve_type_identifier(parse, token);
-
-        token = bt_tokenizer_peek(tok);
-        if (token->type == BT_TOKEN_QUESTION) {
-            bt_tokenizer_emit(tok);
-            result = bt_make_nullable(ctx, result);
-        }
-        else if (token->type == BT_TOKEN_PLUS) {
-            bt_tokenizer_emit(tok);
-            bt_Type* rhs = parse_type(parse, BT_FALSE);
-
-            if (result->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
-                assert(0 && "Type composition must be done between table types!");
-            }
-
-            bt_Type* lhs = result;
-            result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
-
-            bt_Table* lhs_fields = lhs->as.table_shape.layout;
-            bt_Table* lhs_field_types = lhs->as.table_shape.key_layout;
-            bt_Table* rhs_fields = rhs->as.table_shape.layout;
-            bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
-
-            for (uint32_t i = 0; i < lhs_fields->length; ++i) {
-                bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
-                bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
-                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
-            }
-
-            for (uint32_t i = 0; i < rhs_fields->length; ++i) {
-                bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
-                bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
-
-                if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
-                    assert(0 && "Both lhs and rhs have a feild with name %s!");
-                    break;
-                }
-
-                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
-            }
-
-            bt_tableshape_set_parent(parse->context, result, lhs);
-        }
-        else if (token->type == BT_TOKEN_UNION && recurse) {
-            bt_Type* selector = bt_make_union(ctx);
-            bt_push_union_variant(ctx, selector, result);
-            
-            while (token->type == BT_TOKEN_UNION) {
-                bt_tokenizer_emit(tok);
-                bt_push_union_variant(ctx, selector, parse_type(parse, BT_FALSE));
-                
-                token = bt_tokenizer_peek(tok);
-            }
-
-            result = selector;
-        }
-
-        return result;
-    } break;
-    case BT_TOKEN_FN: {
-        bt_Type* args[16];
-        uint8_t arg_top = 0;
-
-        token = bt_tokenizer_peek(tok);
-        if (token->type == BT_TOKEN_LEFTPAREN) {
-            bt_tokenizer_emit(tok);
-            token = bt_tokenizer_peek(tok);
-            while (token->type != BT_TOKEN_RIGHTPAREN) {
-                args[arg_top++] = parse_type(parse, BT_TRUE);
-                token = bt_tokenizer_emit(tok);
-                if (token->type != BT_TOKEN_COMMA && token->type != BT_TOKEN_RIGHTPAREN) {
-                    assert(0 && "Invalid token in function type signature!");
-                }
-            }
-        }
-
-        bt_Type* return_type = 0;
-        token = bt_tokenizer_peek(tok);
-
-        if (token->type == BT_TOKEN_COLON) {
-            bt_tokenizer_emit(tok);
-            return_type = parse_type(parse, BT_TRUE);
-        }
-
-        return bt_make_signature(ctx, return_type, args, arg_top);
-    } break;
-    case BT_TOKEN_FINAL: 
-        is_final = BT_TRUE;
-        if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
-            assert(0 && "Expected opening brace to follow keyword 'final'");
-        }
-        goto parse_table;
-    case BT_TOKEN_UNSEALED:
-        is_sealed = BT_FALSE;
-        if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
-            assert(0 && "Expected opening brace to follow keyword 'unsealed'");
-        }
-    case BT_TOKEN_LEFTBRACE: parse_table: {
-        token = bt_tokenizer_peek(tok);
-        if (token->type == BT_TOKEN_RIGHTBRACE) {
-            bt_tokenizer_emit(tok);
-            return ctx->types.table;
-        }
-
-        if (token->type == BT_TOKEN_VARARG) {
-            bt_tokenizer_emit(tok);
-
-            bt_Type* key_type = parse_type(parse, BT_FALSE);
-            bt_tokenizer_expect(tok, BT_TOKEN_COLON);
-            bt_Type* value_type = parse_type(parse, BT_FALSE);
-
-            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-
-            return bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
-        }
-
-        bt_Type* result = bt_make_tableshape(ctx, "<tableshape>", is_sealed);
-        result->as.table_shape.final = is_final;
-        while (token && token->type != BT_TOKEN_RIGHTBRACE) {
-            token = bt_tokenizer_emit(tok);
-            if (token->type != BT_TOKEN_IDENTIFIER) {
-                assert(0 && "Expected identifier name for tableshape field!");
-            }
-    
-            bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
-            bt_Type* type = 0;
-
-            token = bt_tokenizer_peek(tok);
-            if (token->type == BT_TOKEN_COLON) {
-                bt_tokenizer_emit(tok);
-                type = parse_type(parse, BT_TRUE);
-                token = bt_tokenizer_peek(tok);
-            }
-
-            if (token->type == BT_TOKEN_ASSIGN) {
-                bt_tokenizer_emit(tok);
-                bt_AstNode* expr = pratt_parse(parse, 0);
-                if(type && !type_check(parse, expr)->resulting_type->satisfier(expr->resulting_type, type)) {
-                    assert(0 && "Table value initializer doesn't match annotated type!");
-                }
-
-                type = expr->resulting_type;
-                bt_type_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
-            }
-
-            bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
-
-            token = bt_tokenizer_peek(tok);
-            if (token->type == BT_TOKEN_COMMA) {
-                bt_tokenizer_emit(tok);
-                token = bt_tokenizer_peek(tok);
-            }
-        }
-
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-        return result;
-    } break;
-    case BT_TOKEN_LEFTBRACKET: {
-        token = bt_tokenizer_peek(tok);
-        if (token->type == BT_TOKEN_RIGHTBRACKET) {
-            bt_tokenizer_emit(tok);
-            return ctx->types.array;
-        }
-
-        bt_Type* inner = parse_type(parse, BT_TRUE);
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
-        return bt_make_array_type(parse->context, inner);
-    } break;
-    case BT_TOKEN_ENUM: {
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-
-        bt_Type* result = bt_make_enum(parse->context, (bt_StrSlice) { "<enum>", 6 });
-        
-        uint32_t option_idx = 0;
-        while (bt_tokenizer_peek(tok)->type == BT_TOKEN_IDENTIFIER) {
-            bt_Token* name = bt_tokenizer_emit(tok);
-            
-            bt_enum_push_option(parse->context, result, name->source, BT_VALUE_ENUM(option_idx));
-            option_idx++;
-
-            if (bt_tokenizer_peek(tok)->type == BT_TOKEN_COMMA) {
-                bt_tokenizer_emit(tok);
-            }
-        }
-
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-
-        return result;
-    } break;
-    case BT_TOKEN_TYPEOF: {
-        bt_AstNode* inner = pratt_parse(parse, 0);
-        bt_Type* result = type_check(parse, inner)->resulting_type;
-
-        if (!result) assert(0 && "Expression did not evaluate to type!");
-
-        return bt_type_dealias(result);
-    } break;
-    default: assert(0);
-    }
-
-    return NULL;
-}
 
 static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_Type* expected)
 {

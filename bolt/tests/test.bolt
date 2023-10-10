@@ -10,12 +10,10 @@ type TestCase = {
 let all_tests: [TestCase]
 
 fn case(name: string, body: fn) {
-    let failures: [string]
-    
     all_tests.push(TestCase => {
         name: name,
         result: true,
-        failures: failures,
+        failures: [:string],
         body: body
     })
 }
