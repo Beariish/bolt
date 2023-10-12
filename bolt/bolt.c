@@ -1053,6 +1053,8 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(RETURN): stack[return_loc] = stack[BT_GET_A(op)]; RETURN;
 		CASE(END): RETURN;
 
+		CASE(TSET): NEXT;
+
 		CASE(NUMFOR):
 			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_A(op)]) + BT_AS_NUMBER(stack[BT_GET_A(op) + 1]));
 			if (BT_AS_NUMBER(stack[BT_GET_A(op)]) >= BT_AS_NUMBER(stack[BT_GET_A(op) + 2])) ip += BT_GET_IBC(op);

@@ -702,8 +702,10 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         bt_AstNode* expr = pratt_parse(parse, 0);
         bt_buffer_push(parse->context, &result->as.arr.items, expr);
 
-        next = bt_tokenizer_emit(tok);
+        next = bt_tokenizer_peek(tok);
     }
+
+    bt_tokenizer_emit(tok);
 
     if (explicit_type) {
         result->as.arr.inner_type = explicit_type;
