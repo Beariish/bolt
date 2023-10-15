@@ -65,6 +65,7 @@ static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t push(FunctionContext* ctx, bt_Value value);
+static uint8_t push_load(FunctionContext* ctx, bt_Value value);
 
 // ffsll intrinsic isn't on all platforms. some complicated platform defines could speed this up
 // but it's good enough for now
@@ -288,6 +289,14 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
 
     bt_buffer_push(ctx->context, &ctx->constants, con);
     return ctx->constants.length - 1;
+}
+
+static uint8_t push_load(FunctionContext* ctx, bt_Value value)
+{
+    uint8_t constant_idx = push(ctx, value);
+    uint8_t destination = get_register(ctx);
+    emit_aibc(ctx, BT_OP_LOAD, destination, constant_idx);
+    return destination;
 }
 
 static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value)
@@ -763,10 +772,18 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         restore_registers(ctx);
     } break;
-    case BT_AST_NODE_FUNCTION: 
-    case BT_AST_NODE_METHOD: {
+    case BT_AST_NODE_FUNCTION: {
         bt_Fn* fn = compile_fn(ctx->compiler, ctx, expr);
         load_fn(ctx, expr, fn, result_loc);
+    } break;
+    case BT_AST_NODE_METHOD: {
+        push_registers(ctx);
+        bt_Fn* fn = compile_fn(ctx->compiler, ctx, expr->as.method.fn);
+        uint8_t type_idx = push_load(ctx, BT_VALUE_OBJECT(expr->as.method.containing_type));
+        uint8_t name_idx = push_load(ctx, BT_VALUE_OBJECT(expr->as.method.name));
+        load_fn(ctx, expr->as.method.fn, fn, result_loc);
+        emit_abc(ctx, BT_OP_TSET, type_idx, name_idx, result_loc, BT_FALSE);
+        restore_registers(ctx);
     } break;
     case BT_AST_NODE_TABLE: {
         push_registers(ctx);
@@ -1222,6 +1239,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
 
 static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrSlice name, bt_Type* type)
 {
+    return;
     if (type->is_compiled) return;
     type->is_compiled = BT_TRUE;
 

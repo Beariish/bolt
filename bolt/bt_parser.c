@@ -294,8 +294,7 @@ static void destroy_subobj(bt_Context* ctx, bt_AstNode* node)
         bt_buffer_destroy(ctx, &node->as.table.fields);
     } break;
 
-    case BT_AST_NODE_FUNCTION: 
-    case BT_AST_NODE_METHOD: {
+    case BT_AST_NODE_FUNCTION: {
         bt_buffer_destroy(ctx, &node->as.fn.args);
         bt_buffer_destroy(ctx, &node->as.fn.upvals);
         bt_buffer_destroy(ctx, &node->as.fn.body);
@@ -2181,8 +2180,14 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         }
 
         bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
-        bt_type_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(fn), fn->resulting_type);
-        return NULL;
+        bt_type_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_NULL, fn->resulting_type);
+
+        bt_AstNode* result = make_node(parser, BT_AST_NODE_METHOD);
+        result->as.method.containing_type = type;
+        result->as.method.fn = fn;
+        result->as.method.name = name;
+
+        return result;
     }
 
     bt_AstNode* fn = parse_function_literal(parser);
@@ -2483,20 +2488,20 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         return NULL;
     }
 
-    bt_AstNode* result = make_node(parse, BT_AST_NODE_METHOD);
+    bt_AstNode* result = make_node(parse, BT_AST_NODE_FUNCTION);
     
-    bt_buffer_empty(&result->as.method.args);
-    bt_buffer_with_capacity(&result->as.method.body, parse->context, 8);
-    result->as.method.ret_type = NULL;
-    result->as.method.outer = parse->current_fn;
-    bt_buffer_empty(&result->as.method.upvals);
+    bt_buffer_empty(&result->as.fn.args);
+    bt_buffer_with_capacity(&result->as.fn.body, parse->context, 8);
+    result->as.fn.ret_type = NULL;
+    result->as.fn.outer = parse->current_fn;
+    bt_buffer_empty(&result->as.fn.upvals);
 
     parse->current_fn = result;
 
     bt_FnArg this_arg;
     this_arg.name = (bt_StrSlice) { "this", 4 };
     this_arg.type = type;
-    bt_buffer_push(parse->context, &result->as.method.args, this_arg);
+    bt_buffer_push(parse->context, &result->as.fn.args, this_arg);
 
     bt_Token* next = bt_tokenizer_peek(tok);
 
@@ -2530,7 +2535,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
             }
 
 
-            bt_buffer_push(parse->context, &result->as.method.args, this_arg);
+            bt_buffer_push(parse->context, &result->as.fn.args, this_arg);
 
             next = bt_tokenizer_emit(tok);
         } while (next && next->type == BT_TOKEN_COMMA);
@@ -2545,7 +2550,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
 
     if (next->type == BT_TOKEN_COLON) {
         next = bt_tokenizer_emit(tok);
-        result->as.method.ret_type = parse_type(parse, BT_TRUE);
+        result->as.fn.ret_type = parse_type(parse, BT_TRUE);
     }
 
     next = bt_tokenizer_emit(tok);
@@ -2553,11 +2558,11 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     if (next->type == BT_TOKEN_LEFTBRACE) {
         push_scope(parse, BT_TRUE);
 
-        for (uint8_t i = 0; i < result->as.method.args.length; i++) {
-            push_arg(parse, result->as.method.args.elements + i, result->source);
+        for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
+            push_arg(parse, result->as.fn.args.elements + i, result->source);
         }
 
-        parse_block(&result->as.method.body, parse);
+        parse_block(&result->as.fn.body, parse);
 
         pop_scope(parse);
     }
@@ -2566,7 +2571,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         return NULL;
     }
 
-    result->as.method.ret_type = infer_return(parse->context, &result->as.method.body, result->as.method.ret_type);
+    result->as.fn.ret_type = infer_return(parse->context, &result->as.fn.body, result->as.fn.ret_type);
 
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {
@@ -2576,18 +2581,23 @@ static bt_AstNode* parse_method(bt_Parser* parse)
 
     bt_Type* args[16];
 
-    for (uint8_t i = 0; i < result->as.method.args.length; ++i) {
-        args[i] = result->as.method.args.elements[i].type;
+    for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
+        args[i] = result->as.fn.args.elements[i].type;
     }
 
-    result->resulting_type = bt_make_method(parse->context, result->as.method.ret_type, args, result->as.method.args.length);
+    result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
 
-    parse->current_fn = parse->current_fn->as.method.outer;
+    parse->current_fn = parse->current_fn->as.fn.outer;
 
     bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
-    bt_type_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_OBJECT(result), result->resulting_type);
+    bt_type_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL, result->resulting_type);
 
-    return NULL;
+    bt_AstNode* method = make_node(parse, BT_AST_NODE_METHOD);
+    method->as.method.containing_type = type;
+    method->as.method.fn = result;
+    method->as.method.name = name_str;
+
+    return method;
 }
 
 static bt_AstNode* parse_statement(bt_Parser* parse)

@@ -182,6 +182,7 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
+    bt_String* as_str = BT_VALUE_OBJECT(key);
     for (uint32_t i = 0; i < tbl->length; ++i) {
         bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {

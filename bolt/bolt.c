@@ -979,7 +979,9 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			else bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
 		NEXT;
 
-		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
+		CASE(LOAD_IDX_K): 
+			stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); 
+		NEXT;
 		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
@@ -995,6 +997,10 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 				stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
 			}
 			else stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])); 
+		NEXT;
+
+		CASE(TSET):
+			bt_type_set_field(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
 		NEXT;
 
 		CASE(COMPOSE):
@@ -1052,8 +1058,6 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(RETURN): stack[return_loc] = stack[BT_GET_A(op)]; RETURN;
 		CASE(END): RETURN;
-
-		CASE(TSET): NEXT;
 
 		CASE(NUMFOR):
 			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_A(op)]) + BT_AS_NUMBER(stack[BT_GET_A(op) + 1]));

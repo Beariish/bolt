@@ -43,13 +43,13 @@
 	X(TCHECK)      /*  R(a) = R(b) is Type(c)                        */             \
 	X(TSATIS)      /*  R(a) = R(b) satisfies Type(c)                 */             \
 	X(TCAST)       /*  R(a) = R(b) as Type(c)                        */             \
+	X(TSET)        /*  (R(a) as Type)[R(b)]: R(c+1) = R(c)           */             \
 	X(COMPOSE)     /*  R(a) = fieldsof(b) + fieldsof(c)              */             \
 	X(CALL)        /*  R(a) = R(b)(R(b + 1) .. R(b + c))             */             \
 	X(JMP)         /*  pc += ibc                                     */             \
 	X(JMPF)        /*  if(R(a) == BT_FALSE) pc += ibc                */             \
 	X(RETURN)      /*  R(frame->ret_pos) = R(a)                      */             \
 	X(END)         /*  return without value                          */             \
-	X(TSET)        /*  (R(a) as Type)[R(b)]: R(c+1) = R(c)           */             \
 	                                                                                \
 	/*  Fast opcode extensions. */                                                  \
 	/*  These are emitted by the compiler whenever types are strongly known */	    \

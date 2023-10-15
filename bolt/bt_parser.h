@@ -97,7 +97,13 @@ typedef struct bt_AstNode {
 			bt_Buffer(bt_ParseBinding) upvals;
 			bt_Type* ret_type;
 			bt_AstNode* outer;
-		} fn, method;
+		} fn;
+
+		struct {
+			bt_Type* containing_type;
+			bt_String* name;
+			bt_AstNode* fn;
+		} method;
 
 		struct {
 			bt_AstBuffer args;
