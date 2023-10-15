@@ -737,7 +737,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             push_registers(ctx);
             uint8_t tbl_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.left);
 
-            if (expr->as.binary_op.accelerated) {
+            if (lhs->as.binary_op.accelerated) {
                 if (lhs->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY) {
                     uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
                     emit_abc(ctx, BT_OP_STORE_SUB_F, tbl_loc, idx_loc, result_loc, BT_FALSE);
