@@ -742,7 +742,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                     uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
                     emit_abc(ctx, BT_OP_STORE_SUB_F, tbl_loc, idx_loc, result_loc, BT_FALSE);
                 }
-                else emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, expr->as.binary_op.idx, result_loc, BT_TRUE);
+                else emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, lhs->as.binary_op.idx, result_loc, BT_TRUE);
                 goto stored_fast;
             }
             else if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
