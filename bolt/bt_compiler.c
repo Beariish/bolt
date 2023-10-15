@@ -60,7 +60,6 @@ typedef struct FunctionContext {
 static uint8_t get_register(FunctionContext* ctx);
 static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
 static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
-static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrSlice name, bt_Type* type);
 static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
@@ -314,13 +313,6 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
 
     bt_buffer_push(ctx->context, &ctx->constants, con);
     uint32_t ret = ctx->constants.length - 1;
-
-    if (BT_IS_OBJECT(value)) {
-        bt_Type* as_type = BT_AS_OBJECT(value);
-        if (as_type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-            compile_type(ctx->compiler, ctx, name, as_type);
-        }
-    }
 
     return ret;
 }
@@ -621,7 +613,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         if (expr->source->type == BT_TOKEN_PERIOD) {
             if (expr->as.binary_op.hoistable) {
                 bt_StrSlice name = { expr->as.binary_op.from->name, strlen(expr->as.binary_op.from->name) };
-                compile_type(ctx->compiler, ctx, name, expr->as.binary_op.from);
                 bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);
                 uint8_t idx = push(ctx, hoisted);
                 emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
@@ -646,7 +637,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 #define HOISTABLE_OP \
         if (expr->as.binary_op.hoistable) {                                                                 \
             bt_StrSlice name = { expr->as.binary_op.from->name, strlen(expr->as.binary_op.from->name) };         \
-            compile_type(ctx->compiler, ctx, name, expr->as.binary_op.from);                                     \
             bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);  \
             uint8_t idx = push(ctx, hoisted);                                                                    \
                                                                                                                  \
@@ -1235,29 +1225,4 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     bt_buffer_destroy(compiler->context, &ctx.output);
 
     return result;
-}
-
-static void compile_type(bt_Compiler* compiler, FunctionContext* parent, bt_StrSlice name, bt_Type* type)
-{
-    return;
-    if (type->is_compiled) return;
-    type->is_compiled = BT_TRUE;
-
-    if (type->prototype_values) {
-        bt_Table* to_compile = type->prototype_values;
-
-        push_registers(parent);
-
-        for (uint32_t i = 0; i < to_compile->length; ++i) {
-            bt_TablePair* pair = BT_TABLE_PAIRS(to_compile) + i;
-
-            bt_String* name = BT_AS_OBJECT(pair->key);
-            bt_AstNode* fn = BT_AS_OBJECT(pair->value);
-            bt_Fn* as_fn = compile_fn(compiler, parent, fn);
-            
-            pair->value = BT_VALUE_OBJECT(as_fn);
-        }
-
-        restore_registers(parent);
-    }
 }
