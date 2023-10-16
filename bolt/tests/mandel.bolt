@@ -101,11 +101,6 @@ bench("10m closure for", 10, fn {
     for glarg in range(10000000) { }
 })
 
-bench("10m native closure for", 10, fn {
-    for glarg in range_native(10000000) { }
-})
-
-
 let arr: [number]
 for i in 10000000 { arr.push(i) }
 
@@ -125,6 +120,3 @@ bench("10m numeric for with index", 10, fn {
 
 bench("function call overhead", 10000, fn {
 })
-
-let arr2 = [1, 2, 3]
-arr2[2] = 10

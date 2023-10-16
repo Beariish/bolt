@@ -2,15 +2,6 @@ import sqrt from math
 import bench from bench
 import print from core
 
-fn assert(expr: bool) {
-    if not expr {
-        // no runtime error from in-languag yet
-        true as number!
-    }
-}
-
-let times_called = { inner: 0 }
-
 type Vec2 = final {
     x: number,
     y: number
@@ -39,9 +30,10 @@ method Vec2.@div(other: Vec2) {
 method Vec2.distance(other: Vec2) {
     let sx = this.x + other.x
     let sy = this.y + other.y
-    times_called.inner += 1
     return sqrt(sx * sx + sy * sy)
 }
+
+print("---- PRE HOIST ----")
 
 bench("10m numeric for", 35, fn {
     for i in 10000000 {
@@ -72,4 +64,4 @@ bench("1m vec2 method", 35, fn {
     }
 })
 
-print("Times called:", times_called.inner)
+export Vec2
