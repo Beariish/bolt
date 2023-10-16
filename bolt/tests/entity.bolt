@@ -1,5 +1,4 @@
 import print from core
-import arrays
 
 type Component = { _owner: any }
 type Entity = { components: [Component] }
@@ -13,7 +12,7 @@ fn Entity.new {
 }
 
 method Entity.update(dt: number) {
-    for component in arrays.each(this.components) {
+    for component in this.components.each() {
         component.update(dt)
     }
 }

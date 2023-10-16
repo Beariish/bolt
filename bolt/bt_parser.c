@@ -1570,11 +1570,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_AS: {
             bt_Type* from = type_check(parse, node->as.binary_op.left)->resulting_type;
             
-            /*
-            if (from != parse->context->types.any && from->category != BT_TYPE_CATEGORY_TABLESHAPE) {
-                assert(0 && "Invalid source type for casting!");
-            }*/
-            
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
                 assert(0 && "Expected right hand of 'as' to be Type!");
             bt_Type* type = find_binding(parse, node->as.binary_op.right);

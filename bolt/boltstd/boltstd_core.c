@@ -69,6 +69,20 @@ static void bt_throw(bt_Context* ctx, bt_Thread* thread)
 	bt_runtime_error(thread, BT_STRING_STR(message), NULL);
 }
 
+static bt_Type* bt_error_type;
+static bt_Value bt_error_what_key;
+
+static void bt_error(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value what = bt_arg(thread, 0);
+	bt_Table* result = bt_make_table(ctx, 1);
+	result->prototype = bt_type_get_proto(ctx, bt_error_type);
+
+	bt_table_set(ctx, result, bt_error_what_key, what);
+
+	bt_return(thread, BT_VALUE_OBJECT(result));
+}
+
 void boltstd_open_core(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -88,10 +102,10 @@ void boltstd_open_core(bt_Context* context)
 		BT_VALUE_CSTRING(context, "sameline"),
 		BT_VALUE_OBJECT(bt_make_native(context, noargs_sig, bt_sameline)));
 
-	bt_Type* error_sig = bt_make_signature(context, NULL, &context->types.string, 1);
-	bt_module_export(context, module, error_sig,
-		BT_VALUE_CSTRING(context, "error"),
-		BT_VALUE_OBJECT(bt_make_native(context, error_sig, bt_throw)));
+	bt_Type* throw_sig = bt_make_signature(context, NULL, &context->types.string, 1);
+	bt_module_export(context, module, throw_sig,
+		BT_VALUE_CSTRING(context, "throw"),
+		BT_VALUE_OBJECT(bt_make_native(context, throw_sig, bt_throw)));
 
 	bt_Type* tostring_sig = bt_make_signature(context, context->types.string, &context->types.any, 1);
 	bt_module_export(context, module, tostring_sig,
@@ -102,6 +116,16 @@ void boltstd_open_core(bt_Context* context)
 	bt_module_export(&context, module, time_sig,
 		BT_VALUE_CSTRING(context, "time"),
 		BT_VALUE_OBJECT(bt_make_native(context, time_sig, bt_time)));
+
+	bt_error_type = bt_make_tableshape(context, "Error", BT_FALSE);
+	bt_error_what_key = BT_VALUE_CSTRING(context, "what");
+	bt_tableshape_add_layout(context, bt_error_type, context->types.string, bt_error_what_key, context->types.string);
+	bt_module_export(context, module, bt_make_alias(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
+
+	bt_Type* error_sig = bt_make_signature(context, bt_error_type, &context->types.string, 1);
+	bt_module_export(context, module, error_sig,
+		BT_VALUE_CSTRING(context, "error"),
+		BT_VALUE_OBJECT(bt_make_native(context, error_sig, bt_error)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "core"), module);
 }
