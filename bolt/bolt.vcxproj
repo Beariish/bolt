@@ -287,8 +287,11 @@
   <ItemGroup>
     <ClCompile Include="bolt.c" />
     <ClCompile Include="boltstd\boltstd.c" />
+    <ClCompile Include="boltstd\boltstd_arrays.c" />
+    <ClCompile Include="boltstd\boltstd_core.c" />
     <ClCompile Include="boltstd\boltstd_math.c" />
     <ClCompile Include="boltstd\boltstd_meta.c" />
+    <ClCompile Include="boltstd\boltstd_strings.c" />
     <ClCompile Include="bt_buffer.c" />
     <ClCompile Include="bt_compiler.c" />
     <ClCompile Include="bt_debug.c" />
@@ -305,8 +308,11 @@
   <ItemGroup>
     <ClInclude Include="bolt.h" />
     <ClInclude Include="boltstd\boltstd.h" />
+    <ClInclude Include="boltstd\boltstd_arrays.h" />
+    <ClInclude Include="boltstd\boltstd_core.h" />
     <ClInclude Include="boltstd\boltstd_math.h" />
     <ClInclude Include="boltstd\boltstd_meta.h" />
+    <ClInclude Include="boltstd\boltstd_strings.h" />
     <ClInclude Include="bt_buffer.h" />
     <ClInclude Include="bt_compiler.h" />
     <ClInclude Include="bt_config.h" />

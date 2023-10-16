@@ -53,3 +53,5 @@ dkms.conf
 
 x64/
 .vs/
+*.filters
+*.user

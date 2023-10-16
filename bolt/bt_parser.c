@@ -617,7 +617,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 }
 
                 type = expr->resulting_type;
-                bt_type_add_field(ctx, result, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr), type);
+                bt_type_add_field(ctx, result, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr));
             }
 
             bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
@@ -2179,7 +2179,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         }
 
         bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
-        bt_type_add_field(parser->context, type, BT_VALUE_OBJECT(name), BT_VALUE_NULL, fn->resulting_type);
+        bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
 
         bt_AstNode* result = make_node(parser, BT_AST_NODE_METHOD);
         result->as.method.containing_type = type;
@@ -2589,7 +2589,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
     parse->current_fn = parse->current_fn->as.fn.outer;
 
     bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
-    bt_type_add_field(parse->context, type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL, result->resulting_type);
+    bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
 
     bt_AstNode* method = make_node(parse, BT_AST_NODE_METHOD);
     method->as.method.containing_type = type;

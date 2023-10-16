@@ -343,7 +343,7 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 }
 
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
-{	
+{
 	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
 	result->as.fn.return_type = ret;
 	bt_buffer_with_capacity(&result->as.fn.args, context, arg_count);
@@ -404,6 +404,13 @@ bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySi
 	return result;
 }
 
+bt_Type* bt_make_poly_method(bt_Context* context, const char* name, bt_PolySignature applicator)
+{
+	bt_Type* result = bt_make_poly_signature(context, name, applicator);
+	result->as.fn.is_method = BT_TRUE;
+	return result;
+}
+
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
@@ -426,7 +433,7 @@ void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_t
 	bt_table_set(context, tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
 }
 
-void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type)
+void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Type* type, bt_Value name, bt_Value value)
 {
 	if (tshp->prototype_values == 0) {
 		tshp->prototype_values = bt_make_table(context, 4);

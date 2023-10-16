@@ -107,6 +107,7 @@ bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed);
 bt_Type* bt_make_fundamental(bt_Context* context);
 bt_Type* bt_make_userdata_type(bt_Context* context, const char* name);
 bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySignature applicator);
+bt_Type* bt_make_poly_method(bt_Context* context, const char* name, bt_PolySignature applicator);
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_type, bt_Value key, bt_Type* type);
@@ -115,7 +116,7 @@ void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* paren
 bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value);
 
 bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp);
-void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value, bt_Type* type);
+void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Type* type, bt_Value name, bt_Value value);
 void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
 
 bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
