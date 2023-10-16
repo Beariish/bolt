@@ -259,7 +259,6 @@ eat_whitespace:
 		);													      
 
 		     BT_TEST_KEYWORD("let", token, BT_TOKEN_LET)
-		else BT_TEST_KEYWORD("var", token, BT_TOKEN_VAR)
 		else BT_TEST_KEYWORD("const", token, BT_TOKEN_CONST)
 		else BT_TEST_KEYWORD("fn", token, BT_TOKEN_FN)
 		else BT_TEST_KEYWORD("return", token, BT_TOKEN_RETURN)
@@ -421,7 +420,6 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_DIV: return "/";
 	case BT_TOKEN_DIVEQ: return "/=";
 	case BT_TOKEN_LET: return "let";
-	case BT_TOKEN_VAR: return "var"; 
 	case BT_TOKEN_CONST: return "const";
 	case BT_TOKEN_FN: return "fn";
 	case BT_TOKEN_RETURN: return "return";

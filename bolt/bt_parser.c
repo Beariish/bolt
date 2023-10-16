@@ -1884,38 +1884,6 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     return node;
 }
 
-static bt_AstNode* parse_var(bt_Parser* parse)
-{
-    bt_Tokenizer* tok = parse->tokenizer;
-    bt_AstNode* node = make_node(parse, BT_AST_NODE_LET);
-    node->as.let.is_const = BT_FALSE;
-
-    bt_Token* name_or_const = bt_tokenizer_emit(tok);
-
-    if (name_or_const->type == BT_TOKEN_CONST) {
-        node->as.let.is_const = BT_TRUE;
-        name_or_const = bt_tokenizer_emit(tok);
-    }
-
-    if (name_or_const->type != BT_TOKEN_IDENTIFIER) {
-        assert(0);
-    }
-    node->as.let.name = name_or_const->source;
-
-    bt_Token* expr = bt_tokenizer_peek(tok);
-
-    if (expr->type == BT_TOKEN_ASSIGN) {
-        bt_tokenizer_emit(tok); // eat assignment operator
-        bt_AstNode* rhs = pratt_parse(parse, 0);
-        node->as.let.initializer = rhs;
-    }
-
-    node->resulting_type = tok->context->types.any;
-
-    push_local(parse, node);
-    return node;
-}
-
 static bt_AstNode* parse_return(bt_Parser* parse)
 {
     bt_AstNode* node = make_node(parse, BT_AST_NODE_RETURN);
@@ -2610,10 +2578,6 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_LET: {
         bt_tokenizer_emit(tok);
         return parse_let(parse);
-    } break;
-    case BT_TOKEN_VAR: {
-        bt_tokenizer_emit(tok);
-        return parse_var(parse);
     } break;
     case BT_TOKEN_RETURN: {
         bt_tokenizer_emit(tok);
