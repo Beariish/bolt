@@ -694,7 +694,6 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         else if (next->type == BT_TOKEN_COLON) {
             bt_tokenizer_emit(tok);
             explicit_type = parse_type(parse, BT_FALSE);
-            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
             break;
         }
 
@@ -704,7 +703,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         next = bt_tokenizer_peek(tok);
     }
 
-    bt_tokenizer_emit(tok);
+    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
 
     if (explicit_type) {
         result->as.arr.inner_type = explicit_type;
