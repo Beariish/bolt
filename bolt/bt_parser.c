@@ -429,7 +429,8 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
 {
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
-        assert(0 && "Expected identifier to be valid!");
+        parse_error_token(parse, "Invalid identifier: '%.*s'", identifier);
+        return NULL;
     }
 
     bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
@@ -437,17 +438,19 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
     bt_Type* result = 0;
     if (binding) {
         if (binding->source->resulting_type != parse->context->types.type) {
-            assert(0 && "Type identifier didn't resolve to type!");
+            parse_error_token(parse, "Identifier '%.*s' didn't resolve to type", identifier);
+            return NULL;
         }
 
         result = binding->source->as.alias.type;
     }
 
     if (!result) {
-        bt_ModuleImport * import = find_import_fast(parse, identifier->source);
+        bt_ModuleImport* import = find_import_fast(parse, identifier->source);
         if (import) {
             if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
-                assert(0 && "Type identifier didn't resolve to type!");
+                parse_error_token(parse, "Import '%.*s' didn't resolve to type", identifier);
+                return NULL;
             }
 
             result = BT_AS_OBJECT(import->value);
@@ -487,7 +490,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             bt_Type* rhs = parse_type(parse, BT_FALSE);
 
             if (result->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
-                assert(0 && "Type composition must be done between table types!");
+                parse_error(parse, "Type composition must be done between table types", token->line, token->col);
+                return NULL;
             }
 
             bt_Type* lhs = result;
@@ -509,8 +513,9 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
                 if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
-                    assert(0 && "Both lhs and rhs have a feild with name %s!");
-                    break;
+                    bt_String* as_str = BT_AS_OBJECT(field->key);
+                    parse_error_fmt(parse, "Both lhs and rhs have a feild with name '%.*s'", token->line, token->col, as_str->len, BT_STRING_STR(as_str));
+                    return NULL;
                 }
 
                 bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
@@ -546,7 +551,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 args[arg_top++] = parse_type(parse, BT_TRUE);
                 token = bt_tokenizer_emit(tok);
                 if (token->type != BT_TOKEN_COMMA && token->type != BT_TOKEN_RIGHTPAREN) {
-                    assert(0 && "Invalid token in function type signature!");
+                    parse_error_token(parse, "Invalid token in function type signature: '%.*s'", token);
+                    return NULL;
                 }
             }
         }
@@ -564,13 +570,13 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
     case BT_TOKEN_FINAL:
         is_final = BT_TRUE;
         if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
-            assert(0 && "Expected opening brace to follow keyword 'final'");
+            return NULL;
         }
         goto parse_table;
     case BT_TOKEN_UNSEALED:
         is_sealed = BT_FALSE;
         if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
-            assert(0 && "Expected opening brace to follow keyword 'unsealed'");
+            return NULL;
         }
     case BT_TOKEN_LEFTBRACE: parse_table: {
         token = bt_tokenizer_peek(tok);
@@ -596,7 +602,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         while (token && token->type != BT_TOKEN_RIGHTBRACE) {
             token = bt_tokenizer_emit(tok);
             if (token->type != BT_TOKEN_IDENTIFIER) {
-                assert(0 && "Expected identifier name for tableshape field!");
+                parse_error_token(parse, "Expected identifier name for tableshape field, got '%.*s'", token);
+                return NULL;
             }
 
             bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
@@ -613,7 +620,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 bt_tokenizer_emit(tok);
                 bt_AstNode* expr = pratt_parse(parse, 0);
                 if (type && !type_check(parse, expr)->resulting_type->satisfier(expr->resulting_type, type)) {
-                    assert(0 && "Table value initializer doesn't match annotated type!");
+                    parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
+                    return NULL;
                 }
 
                 type = expr->resulting_type;
@@ -668,11 +676,14 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         bt_AstNode* inner = pratt_parse(parse, 0);
         bt_Type* result = type_check(parse, inner)->resulting_type;
 
-        if (!result) assert(0 && "Expression did not evaluate to type!");
+        if (!result) {
+            parse_error(parse, "Expression did not evaluate to type", inner->source->line, inner->source->col);
+            return NULL;
+        }
 
         return bt_type_dealias(result);
     } break;
-    default: assert(0);
+    default: parse_error_token(parse, "Illegal token in type definition, got '%.*s'", token);
     }
 
     return NULL;
@@ -795,7 +806,7 @@ static bt_AstNode* token_to_node(bt_Parser* parse, bt_Token* token)
         return parse_array(parse, token);
     } break;
     default:
-        assert(0);
+        parse_error_token(parse, "Internal parser error: Attempted to convert token '%.*s'", token);
     }
 
     return NULL;
@@ -882,7 +893,8 @@ return (InfixBindingPower) { 4, 3 };
 static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 {
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
-        assert(0 && "Expected identifier to be valid!");
+        parse_error_token(parse, "Expected identifier, got '%.*s'", identifier);
+        return NULL;
     }
 
     bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
@@ -890,7 +902,8 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
     bt_Type* result = 0;
     if (binding) {
         if (binding->source->resulting_type != parse->context->types.type) {
-            assert(0 && "Type identifier didn't resolve to type!");
+            parse_error(parse, "Type identifier didn't resolve to type", identifier->line, identifier->col);
+            return NULL;
         }
 
         result = binding->source->as.alias.type;
@@ -914,7 +927,7 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 }
 
 
-static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_Type* expected)
+static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_Type* expected)
 {
     for (uint32_t i = 0; i < body->length; ++i) {
         bt_AstNode* expr = body->elements[i];
@@ -922,7 +935,8 @@ static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_T
 
         if (expr->type == BT_AST_NODE_RETURN) {
             if (expected && expr->resulting_type == NULL) {
-                assert(0 && "Expected block to return value!");
+                parse_error(parse, "Expected block to return value", expr->source->line, expr->source->col);
+                return NULL;
             }
 
             if (!expected && expr) {
@@ -940,10 +954,10 @@ static bt_Type* infer_return(bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_T
             }
         }
         else if (expr->type == BT_AST_NODE_IF) {
-            expected = infer_return(ctx, &expr->as.branch.body, expected);
+            expected = infer_return(parse, ctx, &expr->as.branch.body, expected);
             bt_AstNode* elif = expr->as.branch.next;
             while (elif) {
-                expected = infer_return(ctx, &elif->as.branch.body, expected);
+                expected = infer_return(parse, ctx, &elif->as.branch.body, expected);
                 elif = elif->as.branch.next;
             }
         }
@@ -986,7 +1000,8 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
                 break;
             }
             else {
-                assert(0 && "Malformed parameter list!");
+                parse_error_token(parse, "Unexpected token '%.*s' in parameter list", next);
+                return NULL;
             }
 
             if (next->type == BT_TOKEN_COLON) {
@@ -1005,7 +1020,8 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     }
 
     if (has_param_list && (!next || next->type != BT_TOKEN_RIGHTPAREN)) {
-        assert(0 && "Cannot find end of parameter list!");
+        parse_error_token(parse, "Expected end of parameter list, got '%.*s'", next);
+        return NULL;
     }
 
     next = bt_tokenizer_peek(tok);
@@ -1029,15 +1045,13 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         pop_scope(parse);
     }
     else {
-        assert(0 && "Found function without body!");
+        parse_error_token(parse, "Expected function body, got '%.*s'", next);
+        return NULL;
     }
 
-    result->as.fn.ret_type = infer_return(parse->context, &result->as.fn.body, result->as.fn.ret_type);
+    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, result->as.fn.ret_type);
     
-    next = bt_tokenizer_emit(tok);
-    if (next->type != BT_TOKEN_RIGHTBRACE) {
-        assert(0 && "Expected end of function!");
-    }
+    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
     bt_Type* args[16];
 
@@ -1089,7 +1103,10 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
         bt_Type* result = type_check(parse, inner)->resulting_type;
 
-        if (!result) assert(0 && "Expression did not evaluate to type!");
+        if (!result) {
+            parse_error(parse, "Expression did not evaluate to type", inner->source->line, inner->source->col);
+            return NULL;
+        }
 
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
         lhs_node->source = inner->source;
@@ -1141,7 +1158,8 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 bt_Type* to_call = type_check(parse, lhs_node)->resulting_type;
                 
                 if (!to_call || (to_call->category != BT_TYPE_CATEGORY_SIGNATURE && to_call != parse->context->types.any)) {
-                    assert(0 && "Trying to call non-callable type!");
+                    parse_error(parse, "Trying to call non-callable type", lhs_node->source->line, lhs_node->source->col);
+                    return NULL;
                 }
 
                 bt_AstNode* args[16];
@@ -1173,14 +1191,16 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     next = bt_tokenizer_emit(tok);
 
                     if (!next || (next->type != BT_TOKEN_COMMA && next->type != BT_TOKEN_RIGHTPAREN)) {
-                        assert(0 && "Invalid token in parameter list!");
+                        parse_error_token(parse, "Invalid token in parameter list: '%.*s'", next);
+                        return NULL;
                     }
                 }
 
                 if (max_arg == 0 || (self_arg && max_arg == 1)) bt_tokenizer_emit(tok);
 
                 if (!next || next->type != BT_TOKEN_RIGHTPAREN) {
-                    assert(0 && "Couldn't find end of function call!");
+                    parse_error_token(parse, "Expected end of function call, got '%.*s'", next);
+                    return NULL;
                 }
 
                 if (to_call->is_polymorphic) {
@@ -1203,17 +1223,20 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                             to_call = old_to_call->as.poly_fn.applicator(parse->context, arg_types, max_arg);
 
                             if (!to_call) {
-                                assert(0 && "Found no polymorhic mode for function!");
+                                parse_error(parse, "Found no polymorhic mode for function", next->line, next->col);
+                                return NULL;
                             }
                         }
                         else {
-                            assert(0 && "Found no polymorhic mode for function!");
+                            parse_error(parse, "Found no polymorhic mode for function", next->line, next->col);
+                            return NULL;
                         }
                     }
                 }
 
                 if (max_arg != to_call->as.fn.args.length && to_call->as.fn.is_vararg == BT_FALSE) {
-                    assert(0 && "Incorrect number of arguments!");
+                    parse_error(parse, "Incorrect number of arguments", next->line, next->col);
+                    return NULL;
                 }
 
                 bt_AstNode* call = make_node(parse, BT_AST_NODE_CALL);
@@ -1227,7 +1250,8 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     if (i < to_call->as.fn.args.length) {
                         bt_Type* fn_type = to_call->as.fn.args.elements[i];
                         if (!fn_type->satisfier(fn_type, arg_type)) {
-                            assert(0 && "Invalid argument type!");
+                            parse_error_token(parse, "Invalid argument type: '%.*s'", args[i]->source);
+                            return NULL;
                         }
                         else {
                             bt_buffer_push(parse->context, &call->as.call.args, args[i]);
@@ -1235,7 +1259,8 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     }
                     else {
                         if (!to_call->as.fn.varargs_type->satisfier(to_call->as.fn.varargs_type, arg_type)) {
-                            assert(0 && "Arg doesn't match typed vararg");
+                            parse_error_token(parse, "Invalid argument type: '%.*s'", args[i]->source);
+                            return NULL;
                         }
                         else {
                             bt_buffer_push(parse->context, &call->as.call.args, args[i]);
@@ -1248,18 +1273,22 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             }
             else if (op->type == BT_TOKEN_FATARROW) {
                 if (lhs_node->type != BT_AST_NODE_IDENTIFIER) {
-                    assert(0 && "Expected identifier before typed table literal!");
+                    parse_error_token(parse, "Expected identifier, got '%.*s'", lhs_node->source);
+                    return NULL;
                 }
 
                 bt_Type* type = find_binding(parse, lhs_node);
-                if (type->category == BT_TYPE_CATEGORY_TYPE) type = type->as.type.boxed;
-
-                if (!type) assert(0 && "Failed to find type for table literal!");
-
-                bt_Token* next = bt_tokenizer_emit(tok);
-                if (next->type != BT_TOKEN_LEFTBRACE) {
-                    assert(0 && "Expected table literal to follow!");
+                
+                if (!type) {
+                    parse_error_token(parse, "Failed to find type for table literal: '%.*s'", lhs_node->source);
+                    return NULL;
                 }
+
+                type = bt_type_dealias(type);
+
+
+                bt_Token* next = bt_tokenizer_peek(tok);
+                if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) return NULL;
 
                 lhs_node = parse_table(parse, next, type);
             }
@@ -2533,7 +2562,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         return NULL;
     }
 
-    result->as.fn.ret_type = infer_return(parse->context, &result->as.fn.body, result->as.fn.ret_type);
+    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, result->as.fn.ret_type);
 
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {

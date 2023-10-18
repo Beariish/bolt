@@ -16,6 +16,8 @@ int main(int argc, char** argv) {
 	bt_open(&context, &handlers);
 	boltstd_open_all(&context);
 
+	bt_append_module_path(&context, "%s");
+
 	bt_Module* mod = bt_find_module(&context, BT_VALUE_CSTRING(&context, argv[1]));
 
 	bt_close(&context);
