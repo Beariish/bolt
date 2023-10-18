@@ -1,12 +1,14 @@
 #include "bolt.h"
 
-#include "bt_object.h"
+#ifdef BT_DEBUG
 #include <assert.h>
-#include <stdio.h>
+#endif 
+
 #include <memory.h>
 #include <immintrin.h>
 #include <string.h>
 
+#include "bt_object.h"
 #include "bt_tokenizer.h"
 #include "bt_parser.h"
 #include "bt_compiler.h"
@@ -84,6 +86,8 @@ void bt_open(bt_Context* context, bt_Handlers* handlers)
 }
 
 #ifdef BOLT_ALLOW_PRINTF
+#include <stdio.h>
+
 static void bt_error(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col) {
 	switch (type)
 	{
@@ -359,7 +363,9 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
 	}
 
-	assert(0);
+#ifdef BT_DEBUG
+	assert(0 && "Attempted to get size of unrecognized type!");
+#endif
 	return 0;
 }
 

@@ -42,7 +42,7 @@ static void parse_error_fmt(bt_Parser* parse, const char* format, uint16_t line,
     va_start(va, col);
 
     char message[4096];
-    message[vsprintf_s(message, sizeof(message), format, va)] = 0;
+    message[vsprintf_s(message, sizeof(message) - 1, format, va)] = 0;
     va_end(va);
 
     parse_error(parse, message, line, col);
@@ -1415,23 +1415,20 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
     } break;
     case BT_AST_NODE_LITERAL:
         if (node->resulting_type == NULL) {
-            assert(0);
-            return NULL;
+            parse_error_token(parse, "Failed to determine type of literal '%.*s'", node->source);
         }
         break;
     case BT_AST_NODE_UNARY_OP: {
         switch (node->source->type) {
         case BT_TOKEN_QUESTION:
             if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
-                assert(0 && "Unary operator ? can only be applied to nullable types.");
-                return NULL;
+                parse_error(parse, "Unary operator ? can only be applied to nullable types", node->source->line, node->source->col);
             }
             node->resulting_type = parse->context->types.boolean;
             break;
         case BT_TOKEN_BANG:
             if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
-                assert(0 && "Unary operator ! can only be applied to nullable types.");
-                return NULL;
+                parse_error(parse, "Unary operator ! can only be applied to nullable types", node->source->line, node->source->col);
             }
             node->resulting_type = bt_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
             break;
@@ -1453,15 +1450,13 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
 
             if (!bt_is_optional(lhs)) {
-                assert(0 && "Lhs is non-optional, cannot coalesce!");
-                return NULL;
+                parse_error(parse, "Lhs is non-optional, cannot coalesce", node->source->line, node->source->col);
             }
 
             lhs = bt_remove_nullable(parse->context, lhs);
 
             if(!lhs->satisfier(node->resulting_type, lhs)) {
-                assert(0 && "Unable to coalesce rhs into lhs");
-                return NULL;
+                parse_error(parse, "Unable to coalesce rhs into lhs", node->source->line, node->source->col);
             }
         } break;
         case BT_TOKEN_LEFTBRACKET: {
@@ -1470,7 +1465,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             if (lhs->category == BT_TYPE_CATEGORY_ARRAY) {
                 bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
                 if (!(rhs == parse->context->types.number || rhs == parse->context->types.any)) {
-                    assert(0 && "Invalid index type!");
+                    parse_error(parse, "Expected numeric index for array subscript", node->source->line, node->source->col);
+                    return NULL;
                 }
 
                 node->resulting_type = lhs->as.array.inner;
@@ -1519,7 +1515,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 if (lhs->as.table_shape.map) {
                     if (!lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
-                        assert(0 && "Key type mismatch!");
+                        parse_error(parse, "Invalid key type", node->source->line, node->source->col);
                     }
 
                     node->resulting_type = lhs->as.table_shape.value_type;
@@ -1544,7 +1540,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
 
                 if (lhs->as.table_shape.sealed) {
-                    assert(0 && "Couldn't find item in table shape.");
+                    bt_String* key = bt_to_string(parse->context, rhs_key);
+                    parse_error_fmt(parse, "No key '%.*s' in tableshape", node->source->line, node->source->col, key->len, BT_STRING_STR(key));
                 }
 
                 node->resulting_type = parse->context->types.any;
@@ -1571,19 +1568,24 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     }
                 }
 
-                assert(0 && "Field not found in userdata type!");
+                bt_String* as_str = bt_to_string(parse->context, rhs_key);
+                parse_error_fmt(parse, "Failed to find key '%.*s' in userdata type", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
             }
             else if (lhs->category == BT_TYPE_CATEGORY_ENUM) {
                 bt_String* as_str = BT_AS_OBJECT(rhs_key);
                 bt_Value result = bt_enum_get(parse->context, lhs, as_str);
-                if (result == BT_VALUE_NULL) assert(0 && "Invalid enum option!");
+                
+                if (result == BT_VALUE_NULL) {
+                    parse_error_fmt(parse, "Invalid enum option '%.*s'", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
+                }
+
                 node->type = BT_AST_NODE_ENUM_LITERAL;
                 node->as.enum_literal.value = result;
                 node->resulting_type = lhs;
                 return node;
             }
             else {
-                assert(0 && "lhs is unindexable type");
+                parse_error_token(parse, "Unindexable type: '%.*s'", node->source);
             }
         } break;
         case BT_TOKEN_IS: {
