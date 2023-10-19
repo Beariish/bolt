@@ -17,6 +17,8 @@ typedef struct bt_Compiler {
 
 	bt_Context* context;
 	bt_Parser* input;
+
+	bt_bool has_errored;
 } bt_Compiler;
 
 typedef struct bt_Constant {

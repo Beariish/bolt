@@ -1,9 +1,13 @@
 #include "bt_compiler.h"
 #include "bt_value.h"
 
-#include <stdio.h>
+#ifdef BT_DEBUG
 #include <assert.h>
+#endif
+
+#include <stdio.h>
 #include <math.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "bt_context.h"
@@ -95,7 +99,9 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
                 bt_buffer_push(ctx->context, &ctx->debug, node->source->idx);
             }
             else {
+#ifdef BT_DEBUG
                 //assert(0 && "AST node is missing source!");
+#endif
                 bt_buffer_push(ctx->context, &ctx->debug, 0);
             }
         }
@@ -125,6 +131,29 @@ static uint32_t emit_a(FunctionContext* ctx, bt_OpCode code, uint8_t a)
 static uint32_t emit(FunctionContext* ctx, bt_OpCode code)
 {
     return emit_abc(ctx, code, 0, 0, 0, BT_FALSE);
+}
+
+static void compile_error(bt_Compiler* compiler, const char* message, uint16_t line, uint16_t col)
+{
+    compiler->context->on_error(BT_ERROR_COMPILE, compiler->input->tokenizer->source_name, message, line, col);
+    compiler->has_errored = BT_TRUE;
+}
+
+static void compile_error_fmt(bt_Compiler* compiler, const char* format, uint16_t line, uint16_t col, ...)
+{
+    va_list va;
+    va_start(va, col);
+
+    char message[4096];
+    message[vsprintf_s(message, sizeof(message) - 1, format, va)] = 0;
+    va_end(va);
+
+    compile_error(compiler, message, line, col);
+}
+
+static void compile_error_token(bt_Compiler* compiler, const char* format, bt_Token* source)
+{
+    compile_error_fmt(compiler, format, source->line, source->col, source->source.length, source->source.source);
 }
 
 static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t result_loc) {
@@ -158,7 +187,7 @@ static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t r
                 continue;
             }
 
-            assert(0 && "Cannot find identifier!");
+            compile_error_token(ctx->compiler, "Failed to find identifier '%.*s'", expr->source);
         }
 
         emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length, BT_FALSE);
@@ -172,7 +201,7 @@ static bt_Module* find_module(FunctionContext* ctx)
         ctx = ctx->outer;
     }
 
-    assert(0 && "Internal compiler error - function has no module context!");
+    compile_error(ctx->compiler, "Internal compiler error - function has no module context", 0, 0);
     return NULL;
 }
 
@@ -190,7 +219,9 @@ static uint8_t make_binding_at_loc(FunctionContext* ctx, bt_StrSlice name, uint8
 {
     for (uint32_t i = ctx->binding_tops[ctx->scope_depth - 1]; i < ctx->binding_top; ++i) {
         CompilerBinding* binding = ctx->bindnings + i;
-        if (bt_strslice_compare(binding->name, name)) assert(0);
+        if (bt_strslice_compare(binding->name, name)) {
+            compile_error(ctx->compiler, "Binding '%.*s' already exists in this scope", 0, 0);
+        }
     }
 
     CompilerBinding new_binding;
@@ -257,6 +288,7 @@ bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions options)
     result.input = parser;
     result.options = options;
     result.debug_top = 0;
+    result.has_errored = BT_FALSE;
     memset(result.debug_stack, 0, sizeof(bt_AstNode*) * 128);
 
     return result;
@@ -409,17 +441,17 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
         
         if (loc == INVALID_BINDING) {
             loc = get_register(ctx);
-            if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");
+            if (!compile_expression(ctx, expr, loc)) compile_error_token(ctx->compiler, "Failed to compile operand", expr->source);
         }
     }
 
     if (loc == INVALID_BINDING) {
         loc = get_register(ctx);
-        if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");
+        if (!compile_expression(ctx, expr, loc)) compile_error_token(ctx->compiler, "Failed to compile operand", expr->source);
     }
 
     if (loc == INVALID_BINDING) {
-        assert(0 && "Compiler error: Can't find identifier!");
+        compile_error_token(ctx->compiler, "Cannot find binding '%.*s'", expr->source);
     }
 
     return loc;
@@ -453,11 +485,11 @@ static uint8_t find_binding_or_compile_loc(FunctionContext* ctx, bt_AstNode* exp
 
     if (loc == INVALID_BINDING) {
         loc = backup_loc;
-        if (!compile_expression(ctx, expr, loc)) assert(0 && "Compiler error: Failed to compile operand.");
+        if (!compile_expression(ctx, expr, loc)) compile_error_token(ctx->compiler, "Failed to compile operand", expr->source);
     }
 
     if (loc == INVALID_BINDING) {
-        assert(0 && "Compiler error: Can't find identifier!");
+        compile_error_token(ctx->compiler, "Cannot find binding '%.*s'", expr->source);
     }
 
     return loc;
@@ -543,11 +575,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             break;
         }
 
-        assert(0 && "Cannot find identifier!");
+        compile_error_token(ctx->compiler, "Cannot find binding '%.*s'", expr->source);
     } break;
     case BT_AST_NODE_IMPORT_REFERENCE: {
         uint16_t loc = find_import(ctx, expr->source->source);
-        if (loc == INVALID_BINDING) assert(0);
+        if (loc == INVALID_BINDING) compile_error_token(ctx->compiler, "Cannot find import '%.*s'", expr->source);
         emit_ab(ctx, BT_OP_LOAD_IMPORT, result_loc, loc, BT_FALSE);
     } break;
     case BT_AST_NODE_CALL: {
@@ -586,7 +618,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_NOT: 
             emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc, BT_FALSE);
             break;
+#ifdef BT_DEBUG
         default: assert(0 && "Unimplemented unary operator!");
+#endif
         }
 
         restore_registers(ctx);
@@ -603,7 +637,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         if (is_assigning(expr->source->type)) {
             storage = get_storage(ctx, lhs);
             if (storage == STORAGE_INVALID) {
-                assert(0 && "Unassignable lhs!");
+                compile_error_token(ctx->compiler, "Lhs is not an assignable binding: '%.*s'", lhs->source);
             }
             else if (storage == STORAGE_REGISTER || storage == STORAGE_INDEX) {
                 result_loc = lhs_loc;
@@ -731,7 +765,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_ASSIGN:
             emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc, BT_FALSE);
             break;
+#ifdef BT_DEBUG
         default: assert(0 && "Unimplemented binary operator!");
+#endif
         }
 
     try_store:
@@ -845,7 +881,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t type_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
         emit_ab(ctx, BT_OP_LOAD, result_loc, type_idx, BT_FALSE);
     } break;
+#ifdef BT_DEBUG
     default: assert(0);
+#endif
     }
 
     if (ctx->compiler->options.generate_debug_info) {
@@ -865,7 +903,10 @@ static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body)
         if (!stmt) continue;
 
         if (stmt->type == BT_AST_NODE_CONTINUE) {
-            assert(ctx->loop_depth > 0);
+            if (ctx->loop_depth <= 0) {
+                compile_error_token(ctx->compiler, "Cannot compile 'continue' - not inside loop", stmt->source);
+            }
+
             emit_aibc(ctx, BT_OP_JMP, 0, ctx->loop_starts[ctx->loop_depth - 1] - ctx->output.length - 1);
         } else if (stmt->type == BT_AST_NODE_BREAK) {
             uint16_t break_loc = emit(ctx, BT_OP_JMP);
@@ -904,7 +945,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
     switch (stmt->type) {
     case BT_AST_NODE_LET: {
         uint8_t new_loc = make_binding(ctx, stmt->as.let.name);
-        if (new_loc == INVALID_BINDING) assert(0);
+        if (new_loc == INVALID_BINDING) compile_error_token(ctx->compiler, "Failed to make binding for '%.*s'", stmt->source);
         if (stmt->as.let.initializer) {
             if (ctx->compiler->options.generate_debug_info) {
                 --ctx->compiler->debug_top;
@@ -948,7 +989,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         if (stmt->as.exp.value->type == BT_AST_NODE_ALIAS) {
             uint8_t alias_loc = find_named(ctx, stmt->as.exp.name);
             if (alias_loc == INVALID_BINDING) {
-                assert(0 && "Failed to find identifer for export!");
+                compile_error_token(ctx->compiler, "Failed to find identifer '%.*s' for export", stmt->source);
             }
 
             uint8_t export_loc = get_register(ctx);
@@ -960,7 +1001,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
             if (binding_loc == INVALID_BINDING) {
                 uint8_t alias_loc = find_named(ctx, stmt->as.exp.name);
                 if (alias_loc == INVALID_BINDING) {
-                    assert(0 && "Failed to find identifer for export!");
+                    compile_error_token(ctx->compiler, "Failed to find identifer '%.*s' for export", stmt->source);
                 }
 
                 binding_loc = get_register(ctx);
