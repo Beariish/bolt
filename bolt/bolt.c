@@ -73,6 +73,10 @@ void bt_open(bt_Context* context, bt_Handlers* handlers)
 	context->meta_names.sub = bt_make_string_hashed_len(context, "@sub", 4);
 	context->meta_names.mul = bt_make_string_hashed_len(context, "@mul", 4);
 	context->meta_names.div = bt_make_string_hashed_len(context, "@div", 4);
+	context->meta_names.lt = bt_make_string_hashed_len(context, "@lt", 3);
+	context->meta_names.lte = bt_make_string_hashed_len(context, "@lte", 4);
+	context->meta_names.eq = bt_make_string_hashed_len(context, "@eq", 3);
+	context->meta_names.neq = bt_make_string_hashed_len(context, "@neq", 4);
 	context->meta_names.format = bt_make_string_hashed_len(context, "@format", 7);
 	context->meta_names.collect = bt_make_string_hashed_len(context, "@collect", 8);
 

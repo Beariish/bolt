@@ -96,6 +96,10 @@ struct bt_Context {
 		bt_String* sub;
 		bt_String* mul;
 		bt_String* div;
+		bt_String* lt;
+		bt_String* lte;
+		bt_String* eq;
+		bt_String* neq;
 		bt_String* format;
 		bt_String* collect;
 	} meta_names;
