@@ -5,7 +5,6 @@
 #include "bt_debug.h"
 #include "bt_userdata.h"
 
-#include <assert.h>
 #include <memory.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1873,8 +1872,9 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     }
 
     if (name_or_const->type != BT_TOKEN_IDENTIFIER) {
-        assert(0);
+        parse_error_token(parse, "Expected identifier, got '%.*s'", name_or_const);
     }
+
     node->as.let.name = name_or_const->source;
 
     bt_Token* type_or_expr = bt_tokenizer_peek(tok);
@@ -1883,7 +1883,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         bt_tokenizer_emit(tok);
 
         bt_Type* type = parse_type(parse, BT_TRUE);
-        if (!type) assert(0);
+        if (!type) parse_error_token(parse, "Failed to parse explicit type for binding '%.*s'", name_or_const);
 
         node->resulting_type = type;
         type_or_expr = bt_tokenizer_peek(tok);
@@ -1896,12 +1896,12 @@ static bt_AstNode* parse_let(bt_Parser* parse)
 
         if (node->resulting_type) {
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, rhs)->resulting_type)) {
-                assert(0); // assignment doesnt match explicit binding type
+                parse_error_token(parse, "Assignment doesn't match explicit binding type", node->source);
             }
         }
         else {
             node->resulting_type = type_check(parse, rhs)->resulting_type;
-            if (!node->resulting_type) assert(0 && "Right hand side did not evaluate to type!");
+            if (!node->resulting_type) parse_error_token(parse, "Assignemnt failed to evaluate to type", node->source);
         }
     }
     else {
@@ -1911,7 +1911,9 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         if (!node->resulting_type) node->resulting_type = parse->context->types.any;
         
         bt_AstNode* initializer = generate_initializer(parse, node->resulting_type, node->source);
-        assert(initializer && "Failed to generate default initializer for {}!"); // no explicit type or expression to infer from!
+        if (!initializer) {
+            parse_error_token(parse, "Failed to generate default initializer", node->source);
+        }
         
         node->as.let.initializer = initializer;
     }
@@ -2163,10 +2165,10 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         }
 
         ident = bt_tokenizer_emit(tok);
-        if (ident->type != BT_TOKEN_IDENTIFIER) assert(0 && "Cannot assign to non-identifier!");
+        if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
 
         bt_AstNode* fn = parse_function_literal(parser);
-        if (fn->type != BT_AST_NODE_FUNCTION) assert(0 && "Expected function literal!");
+        if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
     
         bt_StrSlice this_str = { "this", 4 };
         if (fn->as.fn.args.length) {
@@ -2189,7 +2191,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
     }
 
     bt_AstNode* fn = parse_function_literal(parser);
-    if (fn->type != BT_AST_NODE_FUNCTION) assert(0 && "Expected function literal!");
+    if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_LET);
     result->source = ident;
@@ -2218,18 +2220,18 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         bt_Token* ident = bt_tokenizer_emit(tok);
 
         if (ident->type != BT_TOKEN_IDENTIFIER) {
-            assert(0 && "Expected identifier!");
+            parse_error_token(parser, "Expected identifier, got '%.*s'", ident);
         }
 
         bt_Token* assign = bt_tokenizer_emit(tok);
         if (assign->type != BT_TOKEN_ASSIGN) {
-            assert(0 && "Expected assignment!");
+            parse_error_token(parser, "Expected assignment, got '%.*s'", assign);
         }
 
         bt_AstNode* expr = pratt_parse(parser, 0);
         bt_Type* result_type = type_check(parser, expr)->resulting_type;
         if (!bt_is_optional(result_type)) {
-            assert(0 && "Type must be optional!");
+            parse_error_token(parser, "Type must be optional", expr->source);
         }
 
         bt_Type* binding_type = bt_remove_nullable(parser->context, result_type);
@@ -2256,7 +2258,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     else {
         bt_AstNode* condition = pratt_parse(parser, 0);
         if (type_check(parser, condition)->resulting_type != parser->context->types.boolean) {
-            assert(0 && "If expression must evaluate to boolean!");
+            parse_error_token(parser, "'if' expression must evaluate to boolean", condition->source);
         }
 
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
