@@ -1590,26 +1590,27 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         } break;
         case BT_TOKEN_IS: {
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
-                assert(0 && "Expected right hand of 'is' to be Type!");
+                parse_error(parse, "Expected right hand of 'is' to be Type", node->source->line, node->source->col);
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_SATISFIES: {
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
-                assert(0 && "Expected right hand of 'satisfies' to be Type!");
+                parse_error(parse, "Expected right hand of 'satisfies' to be Type", node->source->line, node->source->col);
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_AS: {
             bt_Type* from = type_check(parse, node->as.binary_op.left)->resulting_type;
             
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
-                assert(0 && "Expected right hand of 'as' to be Type!");
+                parse_error(parse, "Expected right hand of 'as' to be Type", node->source->line, node->source->col);
+
             bt_Type* type = find_binding(parse, node->as.binary_op.right);
 
             bt_Type* to = type->as.type.boxed;
 
             if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && to->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 if (to->as.table_shape.sealed && from->as.table_shape.layout->length != to->as.table_shape.layout->length) {
-                    assert(0 && "Lhs has too many fields to conform to rhs.");
+                    parse_error(parse, "Lhs has too many fields to conform to rhs", node->source->line, node->source->col);
                 }
 
                 node->as.binary_op.accelerated = 1;
@@ -1627,8 +1628,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                             found = BT_TRUE;
                             bt_Type* left = BT_AS_OBJECT(current->value);
                             bt_Type* right = BT_AS_OBJECT(inner->value);
+
                             if (!right->satisfier(right, left)) {
-                                assert(0 && "Type of field failed to satisfy!");
+                                bt_String* as_str = bt_to_string(parse->context, current->key);
+                                parse_error_fmt(parse, "Field '%.*s' has mismatched types", node->source->line, node->source->col,
+                                    as_str->len, BT_STRING_STR(as_str));
+                                break;
                             }
 
                             if (i != j) node->as.binary_op.accelerated = 0;
@@ -1636,7 +1641,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     }
 
                     if (!found && from->as.table_shape.sealed) {
-                        assert(0 && "Failed to find field in tablehape!");
+                        bt_String* as_str = bt_to_string(parse->context, current->key);
+                        parse_error_fmt(parse, "Field '%.*s' missing from rhs", node->source->line, node->source->col,
+                            as_str->len, BT_STRING_STR(as_str));
+                        break;
                     }
                 }
             }
@@ -1648,11 +1656,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
 
             if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
-                assert(0 && "Operator compose '&' takes two known tableshapes.");
+                parse_error(parse, "Operator compose '&' takes two known tableshapes", node->source->line, node->source->col);
             }
 
             if (!lhs->as.table_shape.sealed || !rhs->as.table_shape.sealed) {
-                assert(0 && "Operator compose '&' requires operands to be sealed types.");
+               parse_error(parse, "Operator compose '&' requires operands to be sealed types", node->source->line, node->source->col);
             }
 
             bt_Table* lhs_fields = lhs->as.table_shape.layout;
@@ -1673,7 +1681,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
                 if (bt_table_get(resulting_type->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
-                    assert(0 && "Both lhs and rhs have a feild with name %s!");
+                    bt_String* as_str = bt_to_string(parse->context, field->key);
+                    parse_error_fmt(parse, "Both lhs and rhs have field '%.*s'", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));;
                     break;
                 }
 
@@ -1705,13 +1714,15 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 bt_AstNode* left = node->as.binary_op.left;                                                                        \
                 while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;                                        \
                 bt_ParseBinding* binding = find_local(parse, left);                                                                \
-                if (binding && binding->is_const) assert(0 && "Cannot mutate const binding!");                                                \
+                if (binding && binding->is_const) {                                                                                \
+                    parse_error(parse, "Cannot mutate const binding", node->source->line, node->source->col);                      \
+                }                                                                                                                  \
             }                                                                                                                      \
                                                                                                                                    \
             if (lhs == parse->context->types.number || lhs == parse->context->types.any || (lhs == parse->context->types.string && \
                 ((tok1) == BT_TOKEN_PLUS && (tok2) == BT_TOKEN_PLUSEQ))) {                                                         \
                 if (!lhs->satisfier(lhs, rhs)) {                                                                                   \
-                    assert(0 && "Cannot " XSTR(metaname) " rhs to lhs!");                                                          \
+                    parse_error(parse, "Cannot " XSTR(metaname) " rhs to lhs", node->source->line, node->source->col);             \
                 }                                                                                                                  \
                 node->resulting_type = lhs;                                                                                        \
             }                                                                                                                      \
@@ -1719,22 +1730,22 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
                     bt_Value mf_key = BT_VALUE_OBJECT(parse->context->meta_names.metaname);                                        \
                     bt_Value sub_mf = bt_table_get(lhs->prototype_types, mf_key);                                                  \
-                    if (sub_mf == BT_VALUE_NULL) assert(0 && "Failed to find @" XSTR(metaname) " metamethod in tableshape!");      \
+                    if (sub_mf == BT_VALUE_NULL) parse_error(parse, "Failed to find @" XSTR(metaname) " metamethod in tableshape", node->source->line, node->source->col);      \
                     bt_Type* sub = BT_AS_OBJECT(sub_mf);                                                                           \
                                                                                                                                    \
                     if (sub->category != BT_TYPE_CATEGORY_SIGNATURE) {                                                             \
-                        assert(0 && "Expected metamethod to be function!");                                                        \
+                        parse_error(parse, "Expected metamethod @" XSTR(metaname) " to be function", node->source->line, node->source->col);                                                        \
                     }                                                                                                              \
                                                                                                                                    \
                     if (sub->as.fn.args.length != 2 || sub->as.fn.is_vararg) {                                                     \
-                        assert(0 && "Expected metamethod to take exactly 2 arguments!");                                           \
+                        parse_error(parse, "Expected metamethod @" XSTR(metaname) " to take exactly 2 arguments", node->source->line, node->source->col);                                           \
                     }                                                                                                              \
                                                                                                                                    \
                     bt_Type* arg_lhs = sub->as.fn.args.elements[0];                                                                \
                     bt_Type* arg_rhs = sub->as.fn.args.elements[1];                                                                \
                                                                                                                                    \
                     if (!arg_lhs->satisfier(arg_lhs, lhs) || !arg_rhs->satisfier(arg_rhs, rhs)) {                                  \
-                        assert(0 && "Invalid arguments for @" XSTR(metaname) "!");                                                 \
+                        parse_error(parse, "Invalid arguments for @" XSTR(metaname), node->source->line, node->source->col);                                                 \
                     }                                                                                                              \
                                                                                                                                    \
                     node->resulting_type = sub->as.fn.return_type;                                                                 \
@@ -1745,7 +1756,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     }                                                                                                              \
                 }                                                                                                                  \
                 else {                                                                                                             \
-                    assert(0 && "Lhs is not an " XSTR(metaname) "able type!");                                                     \
+                    parse_error(parse, "Lhs is not an " XSTR(metaname) "able type", node->source->line, node->source->col);                                                     \
                 }                                                                                                                  \
             }                                                                                                                      \
                                                                                                                                    \
@@ -1761,12 +1772,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             bt_AstNode* left = node->as.binary_op.left;
             while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;
             bt_ParseBinding* binding = find_local(parse, left);
-            if (binding && binding->is_const) assert(0 && "Cannot reassign to const binding!");
+            if (binding && binding->is_const) parse_error(parse, "Cannot reassign to const binding", node->source->line, node->source->col);
         }
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
-                assert(0);
+                parse_error(parse, "Mismatched types for binary operator", node->source->line, node->source->col);
                 return NULL;
             }
 
@@ -1780,7 +1791,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
     return node;
 }
 
-static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
+static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Token* source)
 {
     bt_AstNode* result = 0;
 
@@ -1828,10 +1839,11 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
                 bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
                 entry->as.table_field.value_type = BT_AS_OBJECT(pair->value);
                 entry->as.table_field.key = pair->key;
-                entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type);
+                entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type, source);
 
                 if (!entry->as.table_field.value_expr) {
-                    assert(0 && "Failed to generate intiailzier for table field x!");
+                    bt_String* as_str = bt_to_string(parse->context, pair->key);
+                    parse_error_fmt(parse, "Failed to generate intiailzier for table field '%.*s'", source->line, source->col, as_str->len, BT_STRING_STR(as_str));
                 }
 
                 bt_buffer_push(parse->context, &result->as.table.fields, entry);
@@ -1843,7 +1855,7 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type)
         result->resulting_type = type;
         bt_Table* options = type->as.enum_.options;
         if (options->length == 0) {
-            assert(0 && "Cannot generate initializer for enum with 0 variants!");
+            parse_error(parse, "Cannot generate initializer for enum with 0 variants", source->line, source->col);
         }
 
         result->as.enum_literal.value = BT_TABLE_PAIRS(options)->value;
@@ -1905,7 +1917,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         // If there's no type specified either, assume any
         if (!node->resulting_type) node->resulting_type = parse->context->types.any;
         
-        bt_AstNode* initializer = generate_initializer(parse, node->resulting_type);
+        bt_AstNode* initializer = generate_initializer(parse, node->resulting_type, node->source);
         assert(initializer && "Failed to generate default initializer for {}!"); // no explicit type or expression to infer from!
         
         node->as.let.initializer = initializer;
