@@ -1188,6 +1188,10 @@ bt_Module* bt_compile(bt_Compiler* compiler)
 
     emit(&fn, BT_OP_END);
     
+    if (compiler->has_errored) {
+        return NULL;
+    }
+
     if (compiler->options.generate_debug_info) {
         bt_module_set_debug_info(result, compiler->input->tokenizer);
         result->debug_locs = compiler->context->alloc(sizeof(bt_DebugLocBuffer));
