@@ -58,15 +58,6 @@ static void btstd_pop_root(bt_Context* ctx, bt_Thread* thread)
 	bt_pop_root(ctx);
 }
 
-static void btstd_register_prelude(bt_Context* ctx, bt_Thread* thread)
-{
-	bt_Value name = bt_arg(thread, 0);
-	bt_Type* type = BT_AS_OBJECT(bt_arg(thread, 1));
-	bt_Value value = bt_arg(thread, 2);
-
-	bt_register_prelude(ctx, name, type, value);
-}
-
 static void btstd_register_type(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value name = bt_arg(thread, 0);
@@ -188,9 +179,6 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_module_export(context, module, info_sig, BT_VALUE_CSTRING(context, "next_cycle"), BT_VALUE_OBJECT(
 		bt_make_native(context, info_sig, btstd_nextcycle)));
-
-	bt_module_export(context, module, prelude_sig, BT_VALUE_CSTRING(context, "register_prelude"), BT_VALUE_OBJECT(
-		bt_make_native(context, prelude_sig, btstd_register_prelude)));
 
 	bt_module_export(context, module, regtype_sig, BT_VALUE_CSTRING(context, "register_type"), BT_VALUE_OBJECT(
 		bt_make_native(context, regtype_sig, btstd_register_type)));

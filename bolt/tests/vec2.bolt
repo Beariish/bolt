@@ -35,6 +35,8 @@ method Vec2.distance(other: Vec2) {
 
 print("---- PRE HOIST ----")
 
+print("number is", number)
+
 bench("10m numeric for", 35, fn {
     for i in 10000000 {
     }
