@@ -48,7 +48,7 @@ typedef struct {
 	uint16_t length;
 } bt_StrSlice;
 
-bt_bool BOLT_API bt_strslice_compare(bt_StrSlice a, bt_StrSlice b);
+BOLT_API bt_bool bt_strslice_compare(bt_StrSlice a, bt_StrSlice b);
 
 typedef struct bt_Context bt_Context;
 typedef struct bt_Thread bt_Thread; 
