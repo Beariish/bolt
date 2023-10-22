@@ -26,21 +26,21 @@ typedef struct bt_UserdataMethod {
 typedef bt_Buffer(bt_UserdataField) bt_FieldBuffer;
 typedef bt_Buffer(bt_UserdataMethod) bt_MethodBuffer;
 
-void bt_userdata_type_field_double(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset); 
+BOLT_API void bt_userdata_type_field_double(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
 
-void bt_userdata_type_field_float(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset); 
+BOLT_API void bt_userdata_type_field_float(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
 
-void bt_userdata_type_field_int8(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
-void bt_userdata_type_field_int16(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
-void bt_userdata_type_field_int32(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
-void bt_userdata_type_field_int64(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_int8(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_int16(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_int32(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_int64(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
 
-void bt_userdata_type_field_uint8(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
-void bt_userdata_type_field_uint16(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
-void bt_userdata_type_field_uint32(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
-void bt_userdata_type_field_uint64(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_uint8(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_uint16(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_uint32(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
+BOLT_API void bt_userdata_type_field_uint64(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset);
 
-void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name, 
+BOLT_API void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
 	bt_NativeProc method, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 
 #define BT_ARG_AS(thread, idx, type) \

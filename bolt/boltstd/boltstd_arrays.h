@@ -2,4 +2,4 @@
 
 #include "../bolt.h"
 
-void boltstd_open_arrays(bt_Context* context);
+void BOLT_API boltstd_open_arrays(bt_Context* context);

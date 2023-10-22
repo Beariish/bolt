@@ -163,42 +163,42 @@ typedef struct bt_Userdata {
 
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string_hashed(ctx, str))
 
-bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
-int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value);
+BOLT_API bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
+BOLT_API int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value);
 
-bt_String* bt_make_string(bt_Context* ctx, const char* str);
-bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
-bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
-bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len);
-bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, uint32_t len);
-bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len);
-bt_String* bt_hash_string(bt_String* str);
-bt_StrSlice bt_as_strslice(bt_String* str);
+BOLT_API bt_String* bt_make_string(bt_Context* ctx, const char* str);
+BOLT_API bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
+BOLT_API bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
+BOLT_API bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len);
+BOLT_API bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, uint32_t len);
+BOLT_API bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len);
+BOLT_API bt_String* bt_hash_string(bt_String* str);
+BOLT_API bt_StrSlice bt_as_strslice(bt_String* str);
 
-bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
-bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
-bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value);
-bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
-bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
-int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key);
+BOLT_API bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
+BOLT_API bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
+BOLT_API bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value);
+BOLT_API bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
+BOLT_API bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
+BOLT_API int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key);
 
-bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity);
-uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value);
-bt_Value bt_array_pop(bt_Array* arr);
-uint64_t bt_array_length(bt_Array* arr);
-bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value);
-bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index);
+BOLT_API bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity);
+BOLT_API uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value);
+BOLT_API bt_Value bt_array_pop(bt_Array* arr);
+BOLT_API uint64_t bt_array_length(bt_Array* arr);
+BOLT_API bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value);
+BOLT_API bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index);
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
-bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports);
-bt_Module* bt_make_user_module(bt_Context* ctx);
-void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok);
+BOLT_API bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
+BOLT_API bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports);
+BOLT_API bt_Module* bt_make_user_module(bt_Context* ctx);
+BOLT_API void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok);
 
-bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);
+BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);
 
-bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
+BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
 
-void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
+BOLT_API void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
 
-bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key); 
-void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);
+BOLT_API bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key);
+BOLT_API void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);

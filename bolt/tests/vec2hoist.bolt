@@ -1,0 +1,34 @@
+import Vec2 from vec2 
+import print from core
+import bench from bench
+
+print("---- POST HOIST ----")
+
+bench("10m numeric for", 35, fn {
+    for i in 10000000 {
+    }
+})
+
+bench("100k vec2 create, create, add", 35, fn {
+    for i in 100000 {
+        let a = Vec2.new(5, 5)
+        let b = Vec2.new(10, 10)   
+        let c = a + b
+    }
+})
+
+bench("100k vec2 add", 35, fn {
+    let a = Vec2.new(5, 5)
+    let b = Vec2.new(10, 10)   
+    for i in 100000 {
+        let c = a + b
+    }
+})    
+
+bench("1m vec2 method", 35, fn {
+    let a = Vec2.new(5, 5)
+    let b = Vec2.new(10, 10)   
+    for i in 1000000 {
+        let c = a.distance(b)
+    }
+})

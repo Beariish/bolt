@@ -26,7 +26,7 @@ typedef struct bt_Constant {
 	bt_Value value;
 } bt_Constant;
 
-bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions options);
-void bt_close_compiler(bt_Compiler* compiler);
+BOLT_API bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions options);
+BOLT_API void bt_close_compiler(bt_Compiler* compiler);
 
-bt_Module* bt_compile(bt_Compiler* compiler);
+BOLT_API bt_Module* bt_compile(bt_Compiler* compiler);

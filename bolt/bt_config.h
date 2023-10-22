@@ -31,3 +31,7 @@
 
 // Allows for the use of the cstdlib to set up default module loaders
 #define BOLT_ALLOW_FOPEN
+
+// Builds bolt as a shared library as opposed to statically linking
+// Make sure BOLT_EXPORT_SHARED is defined when building the library
+//#define BOLT_SHARED_LIBRARY

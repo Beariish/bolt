@@ -22,6 +22,24 @@
 #define BT_ASSUME(x) do { if (!(x)) __builtin_unreachable(); } while (0)
 #endif
 
+#ifdef BOLT_SHARED_LIBRARY
+	#ifdef BOLT_EXPORT_SHARED
+		#ifdef _MSC_VER
+			#define BOLT_API __declspec(dllexport)
+		#else
+			#define BOLT_API __attribute__((dllexport))
+		#endif
+	#else
+		#ifdef _MSC_VER
+			#define BOLT_API __declspec(dllimport)
+		#else
+			#define BOLT_API __attribute__((dllimport))
+		#endif
+	#endif
+#else
+	#define BOLT_API
+#endif
+
 typedef uint8_t bt_bool;
 typedef double bt_number;
 
@@ -30,7 +48,7 @@ typedef struct {
 	uint16_t length;
 } bt_StrSlice;
 
-bt_bool bt_strslice_compare(bt_StrSlice a, bt_StrSlice b);
+bt_bool BOLT_API bt_strslice_compare(bt_StrSlice a, bt_StrSlice b);
 
 typedef struct bt_Context bt_Context;
 typedef struct bt_Thread bt_Thread; 

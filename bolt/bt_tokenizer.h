@@ -87,12 +87,12 @@ typedef struct {
 	uint16_t line, col;
 } bt_Tokenizer;
 
-bt_Tokenizer bt_open_tokenizer(bt_Context* context);
-void bt_close_tokenizer(bt_Tokenizer* tok);
+BOLT_API bt_Tokenizer bt_open_tokenizer(bt_Context* context);
+BOLT_API void bt_close_tokenizer(bt_Tokenizer* tok);
 
-void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source);
-void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name);
-bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
+BOLT_API void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source);
+BOLT_API void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name);
+BOLT_API bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
 
-bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok);
-bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type);
+BOLT_API bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok);
+BOLT_API bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type);

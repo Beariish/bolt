@@ -6,7 +6,7 @@ extern "C" {
 
 #include "../bolt.h"
 
-void boltstd_open_all(bt_Context* context);
+void BOLT_API boltstd_open_all(bt_Context* context);
 
 #if __cplusplus
 }

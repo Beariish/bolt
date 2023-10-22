@@ -19,8 +19,8 @@ typedef struct bt_GC {
 } bt_GC;
 
 
-void bt_grey_obj(bt_Context* ctx, bt_Object* obj);
-bt_GC bt_make_gc(bt_Context* ctx);
-void bt_destroy_gc(bt_Context* ctx, bt_GC* gc);
+BOLT_API void bt_grey_obj(bt_Context* ctx, bt_Object* obj);
+BOLT_API bt_GC bt_make_gc(bt_Context* ctx);
+BOLT_API void bt_destroy_gc(bt_Context* ctx, bt_GC* gc);
 
-uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);
+BOLT_API uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);

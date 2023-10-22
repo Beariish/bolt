@@ -198,6 +198,6 @@ typedef struct {
 	bt_bool has_errored;
 } bt_Parser;
 
-bt_Parser bt_open_parser(bt_Tokenizer* tkn);
-void bt_close_parser(bt_Parser* parse);
-bt_bool bt_parse(bt_Parser* parser);
+BOLT_API bt_Parser bt_open_parser(bt_Tokenizer* tkn);
+BOLT_API void bt_close_parser(bt_Parser* parse);
+BOLT_API bt_bool bt_parse(bt_Parser* parser);

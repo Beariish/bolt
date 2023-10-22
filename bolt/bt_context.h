@@ -113,8 +113,8 @@ struct bt_Context {
 	bt_bool is_valid;
 };
 
-void bt_push_root(bt_Context* ctx, bt_Object* root);
-void bt_pop_root(bt_Context* ctx);
+BOLT_API void bt_push_root(bt_Context* ctx, bt_Object* root);
+BOLT_API void bt_pop_root(bt_Context* ctx);
 
 typedef struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];
@@ -128,8 +128,8 @@ typedef struct bt_Thread {
 	bt_Context* context;
 } bt_Thread;
 
-bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
-void bt_free(bt_Context* context, bt_Object* obj);
+BOLT_API bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
+BOLT_API void bt_free(bt_Context* context, bt_Object* obj);
 
 #define BT_ALLOCATE(ctx, e_type, c_type) \
 	((c_type*)bt_allocate(ctx, sizeof(c_type), (BT_OBJECT_TYPE_##e_type)))
@@ -137,29 +137,29 @@ void bt_free(bt_Context* context, bt_Object* obj);
 #define BT_ALLOCATE_INLINE_STORAGE(ctx, e_type, c_type, storage) \
 	((c_type*)bt_allocate(ctx, sizeof(c_type) + storage, (BT_OBJECT_TYPE_##e_type)))
 
-void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type);
-bt_Type* bt_find_type(bt_Context* context, bt_Value name);
+BOLT_API void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type);
+BOLT_API bt_Type* bt_find_type(bt_Context* context, bt_Value name);
 
-void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_Value value);
-void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module);
+BOLT_API void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_Value value);
+BOLT_API void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module);
 
-bt_Module* bt_find_module(bt_Context* context, bt_Value name);
+BOLT_API bt_Module* bt_find_module(bt_Context* context, bt_Value name);
 
-bt_bool bt_execute(bt_Context* context, bt_Module* module);
+BOLT_API bt_bool bt_execute(bt_Context* context, bt_Module* module);
 
-void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip);
+BOLT_API void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip);
 
-void bt_push(bt_Thread* thread, bt_Value value); 
-bt_Value bt_pop(bt_Thread* thread);
+BOLT_API void bt_push(bt_Thread* thread, bt_Value value); 
+BOLT_API bt_Value bt_pop(bt_Thread* thread);
 
-bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals);
+BOLT_API bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals);
 
-void bt_call(bt_Thread* thread, uint8_t argc);
+BOLT_API void bt_call(bt_Thread* thread, uint8_t argc);
 
-void bt_append_module_path(bt_Context* context, const char* spec);
+BOLT_API void bt_append_module_path(bt_Context* context, const char* spec);
 
-const char* bt_get_debug_source(bt_Callable* callable);
-bt_TokenBuffer* bt_get_debug_tokens(bt_Callable* callable);
-bt_StrSlice bt_get_debug_line(const char* source, uint16_t line);
-bt_DebugLocBuffer* bt_get_debug_locs(bt_Callable* callable); 
-uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip);
+BOLT_API const char* bt_get_debug_source(bt_Callable* callable);
+BOLT_API bt_TokenBuffer* bt_get_debug_tokens(bt_Callable* callable);
+BOLT_API bt_StrSlice bt_get_debug_line(const char* source, uint16_t line);
+BOLT_API bt_DebugLocBuffer* bt_get_debug_locs(bt_Callable* callable); 
+BOLT_API uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip);
