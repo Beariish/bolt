@@ -17,7 +17,7 @@
 
 static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
 {
-	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE, BT_FALSE);
+	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE);
 }
 
 void bt_open(bt_Context* context, bt_Handlers* handlers)
@@ -119,7 +119,7 @@ static void bt_error(bt_ErrorType type, const char* module, const char* message,
 
 static char* bt_read_file(bt_Context* ctx, const char* path, void** handle)
 {
-	fopen_s(handle, path, "rb");
+	fopen_s((FILE**)handle, path, "rb");
 
 	if (*handle == 0) return NULL;
 
@@ -173,7 +173,7 @@ void bt_close(bt_Context* context)
 	bt_Object* obj = context->root;
 
 	while (obj) {
-		bt_Object* next = BT_OBJECT_NEXT(obj);
+		bt_Object* next = (bt_Object*)BT_OBJECT_NEXT(obj);
 		bt_free(context, obj);
 		obj = next;
 	}
@@ -289,7 +289,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 {
 	switch (BT_OBJECT_GET_TYPE(obj)) {
 	case BT_OBJECT_TYPE_TYPE: {
-		bt_Type* type = obj;
+		bt_Type* type = (bt_Type*)obj;
 		if (type->name) {
 			switch (type->category) {
 			case BT_TYPE_CATEGORY_SIGNATURE:
@@ -307,7 +307,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		}
 	} break;
 	case BT_OBJECT_TYPE_MODULE: {
-		bt_Module* mod = obj;
+		bt_Module* mod = (bt_Module*)obj;
 		bt_buffer_destroy(context, &mod->constants);
 		bt_buffer_destroy(context, &mod->instructions);
 		bt_buffer_destroy(context, &mod->imports);
@@ -325,7 +325,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		}
 	} break;
 	case BT_OBJECT_TYPE_FN: {
-		bt_Fn* fn = obj;
+		bt_Fn* fn = (bt_Fn*)obj;
 		bt_buffer_destroy(context, &fn->constants);
 		bt_buffer_destroy(context, &fn->instructions);
 		if (fn->debug) {
@@ -334,17 +334,17 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		}
 	} break;
 	case BT_OBJECT_TYPE_TABLE: {
-		bt_Table* tbl = obj;
+		bt_Table* tbl = (bt_Table*)obj;
 		if (!tbl->is_inline) {
 			context->free(tbl->outline);
 		}
 	} break;
 	case BT_OBJECT_TYPE_ARRAY: {
-		bt_Array* arr = obj;
+		bt_Array* arr = (bt_Array*)obj;
 		bt_buffer_destroy(context, &arr->items);
 	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
-		bt_Userdata* userdata = obj;
+		bt_Userdata* userdata = (bt_Userdata*)obj;
 		context->free(userdata->data);
 	} break;
 	}
@@ -394,7 +394,7 @@ bt_Type* bt_find_type(bt_Context* context, bt_Value name)
 void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* type, bt_Value value)
 {
 	bt_ModuleImport* new_import = BT_ALLOCATE(context, IMPORT, bt_ModuleImport);
-	new_import->name = BT_AS_OBJECT(name);
+	new_import->name = (bt_String*)BT_AS_OBJECT(name);
 	new_import->type = type;
 	new_import->value = value;
 
@@ -424,9 +424,9 @@ void bt_append_module_path(bt_Context* context, const char* spec)
 bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 {
 	// TODO: resolve module name with path
-	bt_Module* mod = BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
+	bt_Module* mod = (bt_Module*)BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
 	if (mod == 0) {
-		bt_String* to_load = BT_AS_OBJECT(name);
+		bt_String* to_load = (bt_String*)BT_AS_OBJECT(name);
 
 		char path_buf[256];
 		uint32_t path_len = 0;
@@ -459,7 +459,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		context->free_source(context, code);
 
 		if (new_mod) {
-			new_mod->name = BT_AS_OBJECT(name);
+			new_mod->name = (bt_String*)BT_AS_OBJECT(name);
 			new_mod->path = bt_make_string_len(context, path_buf, path_len);
 			if (bt_execute(context, new_mod)) {
 				bt_register_module(context, name, new_mod);
@@ -490,13 +490,13 @@ bt_bool bt_execute(bt_Context* context, bt_Module* module)
 	thread->callstack[thread->depth].return_loc = 0;
 	thread->callstack[thread->depth].argc = 0;
 	thread->callstack[thread->depth].size = module->stack_size;
-	thread->callstack[thread->depth].callable = module;
+	thread->callstack[thread->depth].callable = (bt_Callable*)module;
 	thread->callstack[thread->depth].user_top = 0;
 	thread->depth++;
 
 	context->current_thread = thread;
 
-	int32_t result = setjmp(&thread->error_loc);
+	int32_t result = setjmp(&thread->error_loc[0]);
 
 	if (result == 0) call(context, thread, module, module->instructions.elements, module->constants.elements, 0);
 	else {
@@ -533,7 +533,8 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 		bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
 
 		bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
-		bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
+		// TODO(bearish): use this for something, better formatted errors
+		//bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
 		bt_Module* module = get_module(callable);
 
 		thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, source_token->line - 1, source_token->col);
@@ -571,7 +572,7 @@ bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
 		upv++;
 	}
 
-	cl->fn = BT_AS_OBJECT(*(true_top - num_upvals));
+	cl->fn = (bt_Fn*)BT_AS_OBJECT(*(true_top - num_upvals));
 	frame->user_top -= num_upvals + 1;
 
 	return BT_VALUE_OBJECT(cl);
@@ -589,7 +590,7 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 
 	thread->callstack[thread->depth].return_loc = -1;
 	thread->callstack[thread->depth].argc = argc;
-	thread->callstack[thread->depth].callable = obj;
+	thread->callstack[thread->depth].callable = (bt_Callable*)obj;
 	thread->callstack[thread->depth].user_top = 0;
 	thread->depth++;
 
@@ -650,7 +651,7 @@ bt_StrSlice bt_get_debug_line(const char* source, uint16_t line)
 		if (cur_line == line) {
 			const char* line_start = source;
 			while (*source && *source != '\n') source++;
-			return (bt_StrSlice) { line_start, source - line_start };
+			return (bt_StrSlice) { line_start, (uint16_t)(source - line_start) };
 		}
 
 		if (*source == '\n') cur_line++;
@@ -690,7 +691,7 @@ uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip)
 	}
 
 	if (instructions) {
-		return ip - instructions->elements;
+		return (uint32_t)(ip - instructions->elements);
 	}
 
 	return 0;
@@ -700,8 +701,8 @@ uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip)
 #define ARITH_MF(name)                                                                               \
 if (BT_IS_OBJECT(lhs)) {																			 \
 	bt_Object* obj = BT_AS_OBJECT(lhs);																 \
-	if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_TABLE) {														 \
-		bt_Table* tbl = obj;																		 \
+	if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_TABLE) {											 \
+		bt_Table* tbl = (bt_Table*)obj;																 \
 		bt_Value add_fn = bt_table_get(tbl, BT_VALUE_OBJECT(thread->context->meta_names.name));		 \
 		if (add_fn == BT_VALUE_NULL) bt_runtime_error(thread, "Unable to find @" #name "metafunction!", ip);	 \
 																									 \
@@ -723,8 +724,8 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 	}
 
 	if (BT_IS_OBJECT(lhs) && BT_IS_OBJECT(rhs)) {
-		bt_String* lhs_str = BT_AS_OBJECT(lhs);
-		bt_String* rhs_str = BT_AS_OBJECT(rhs);
+		bt_String* lhs_str = (bt_String*)BT_AS_OBJECT(lhs);
+		bt_String* rhs_str = (bt_String*)BT_AS_OBJECT(rhs);
 
 		if (BT_OBJECT_GET_TYPE(lhs_str) == BT_OBJECT_TYPE_STRING && BT_OBJECT_GET_TYPE(rhs_str) == BT_OBJECT_TYPE_STRING) {
 			uint32_t length = lhs_str->len + rhs_str->len;
@@ -857,7 +858,7 @@ static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value 
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	register bt_Value* stack = thread->stack + thread->top;
-	_mm_prefetch(stack, 1);
+	_mm_prefetch((const char*)stack, 1);
 	register bt_Value* upv = BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable);
 	register bt_Object* obj, *obj2;
 
@@ -899,30 +900,30 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(TABLE): 
 			if (BT_IS_ACCELERATED(op)) {
-				obj = bt_make_table(context, BT_GET_B(op));
-				((bt_Table*)obj)->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
+				obj = (bt_Object*)bt_make_table(context, BT_GET_B(op));
+				((bt_Table*)obj)->prototype = bt_type_get_proto(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
 				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
 			}
 			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
 		NEXT;
 
 		CASE(ARRAY):
-			obj = bt_make_array(context, BT_GET_IBC(op));
+			obj = (bt_Object*)bt_make_array(context, BT_GET_IBC(op));
 			((bt_Array*)obj)->items.length = BT_GET_IBC(op);
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
 		NEXT;
 
 		CASE(MOVE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
-		CASE(EXPORT): bt_module_export(context, module, BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
+		CASE(EXPORT): bt_module_export(context, module, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
 
 		CASE(CLOSE):
-			obj2 = BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * BT_GET_C(op));
+			obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * BT_GET_C(op));
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
 				BT_CLOSURE_UPVALS(obj2)[i] = stack[BT_GET_B(op) + 1 + i];
 			}
-			((bt_Closure*)obj2)->fn = obj;
+			((bt_Closure*)obj2)->fn = (bt_Fn*)obj;
 			((bt_Closure*)obj2)->num_upv = BT_GET_C(op);
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 		NEXT;
@@ -998,19 +999,19 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(EXISTS):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
 		CASE(COALESCE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)];   NEXT;
 
-		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
-		CASE(TSATIS): stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
+		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
+		CASE(TSATIS): stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TCAST): 
 			if (BT_IS_ACCELERATED(op)) {
 				obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
-				((bt_Table*)obj)->prototype = bt_type_get_proto(context, BT_AS_OBJECT(stack[BT_GET_C(op)]));
+				((bt_Table*)obj)->prototype = bt_type_get_proto(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
 				stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
 			}
-			else stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], BT_AS_OBJECT(stack[BT_GET_C(op)])); 
+			else stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])); 
 		NEXT;
 
 		CASE(TSET):
-			bt_type_set_field(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
+			bt_type_set_field(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
 		NEXT;
 
 		CASE(COMPOSE):
@@ -1022,14 +1023,14 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		NEXT;
 
 		CASE(CALL):
-			obj2 = (bt_Object*)thread->top;
+			obj2 = (bt_Object*)(uint64_t)thread->top;
 
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 
 			thread->top += BT_GET_B(op) + 1;
 			thread->callstack[thread->depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
 			thread->callstack[thread->depth].argc = BT_GET_C(op);
-			thread->callstack[thread->depth].callable = obj;
+			thread->callstack[thread->depth].callable = (bt_Callable*)obj;
 			thread->depth++;
 
 			switch (BT_OBJECT_GET_TYPE(obj)) {
@@ -1060,7 +1061,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			}
 
 			thread->depth--;
-			thread->top = (uint32_t)obj2;
+			thread->top = (uint32_t)(uint64_t)obj2;
 		NEXT;
 
 		CASE(JMP): ip += BT_GET_IBC(op); NEXT;
@@ -1077,7 +1078,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(ITERFOR):
 			obj = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			thread->top += BT_GET_A(op) + 2;
-			thread->callstack[thread->depth].callable = obj;
+			thread->callstack[thread->depth].callable = (bt_Callable*)obj;
 			thread->depth++;
 
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
@@ -1092,8 +1093,8 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		NEXT;
 
-		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(STORE_SUB_F): bt_array_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
+		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
+		CASE(STORE_SUB_F): bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
 #ifndef BOLT_USE_INLINE_THREADING
 #ifdef BT_DEBUG
 		default: assert(0 && "Unimplemented opcode!");

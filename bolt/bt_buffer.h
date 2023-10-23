@@ -11,7 +11,7 @@
 	(char**)&(b)->elements, &(b)->length, &(b)->capacity, sizeof(*(b)->elements)
 
 #define bt_buffer_empty(b) \
-	{ (b)->elements = (b)->length = (b)->capacity = 0; }
+	{ (b)->elements = 0; (b)->length = (b)->capacity = 0; }
 
 #define bt_buffer_with_capacity(b, ctx, cap) \
 	{ bt_buffer_empty(b); bt_buffer_reserve(ctx, bt_buffer_unpack(b), cap); }

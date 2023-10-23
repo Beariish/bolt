@@ -41,7 +41,7 @@ typedef struct bt_StackFrame {
 } bt_StackFrame;
 
 typedef struct bt_Path {
-	const char const* spec;
+	char* spec;
 	struct bt_Path* next;
 } bt_Path;
 

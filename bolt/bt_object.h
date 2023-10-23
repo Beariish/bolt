@@ -107,7 +107,7 @@ typedef struct bt_Module {
 	bt_ImportBuffer imports;
 
 	bt_TokenBuffer debug_tokens;
-	const char* debug_source;
+	char* debug_source;
 	bt_DebugLocBuffer* debug_locs;
 
 	bt_String* path;

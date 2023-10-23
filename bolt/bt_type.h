@@ -117,7 +117,7 @@ BOLT_API bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value)
 
 BOLT_API bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp);
 BOLT_API void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Type* type, bt_Value name, bt_Value value);
-BOLT_API void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value valueBOLT_API);
+BOLT_API void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Value value);
 
 BOLT_API bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 

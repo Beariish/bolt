@@ -113,7 +113,7 @@ void boltstd_open_core(bt_Context* context)
 		BT_VALUE_OBJECT(bt_make_native(context, tostring_sig, bt_tostring)));
 
 	bt_Type* time_sig = bt_make_signature(context, context->types.number, NULL, 0);
-	bt_module_export(&context, module, time_sig,
+	bt_module_export(context, module, time_sig,
 		BT_VALUE_CSTRING(context, "time"),
 		BT_VALUE_OBJECT(bt_make_native(context, time_sig, bt_time)));
 

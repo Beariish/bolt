@@ -8,7 +8,7 @@ void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t*
 {
     if (*capacity >= new_cap) return;
     *data = ctx->realloc(*data, element_size * new_cap);
-    *capacity = new_cap;
+    *capacity = (uint32_t)new_cap;
 }
 
 void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t by)

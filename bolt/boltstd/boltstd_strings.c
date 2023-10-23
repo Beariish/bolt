@@ -11,7 +11,7 @@ static void bt_str_length(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_str_substring(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_String* str = BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_String* str = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 0));
 	uint32_t start = (uint32_t)BT_AS_NUMBER(bt_arg(thread, 1));
 	uint32_t length = (uint32_t)BT_AS_NUMBER(bt_arg(thread, 2));
 

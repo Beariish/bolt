@@ -61,7 +61,7 @@ static void btstd_pop_root(bt_Context* ctx, bt_Thread* thread)
 static void btstd_register_type(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value name = bt_arg(thread, 0);
-	bt_Type* type = BT_AS_OBJECT(bt_arg(thread, 1));
+	bt_Type* type = (bt_Type*)BT_AS_OBJECT(bt_arg(thread, 1));
 
 	bt_register_type(ctx, name, type);
 }
@@ -77,7 +77,7 @@ static void btstd_find_type(bt_Context* ctx, bt_Thread* thread)
 
 static void btstd_get_enum_name(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Type* enum_ = BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_Type* enum_ = (bt_Type*)BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_Value value = bt_arg(thread, 1);
 
 	if (enum_->category != BT_TYPE_CATEGORY_ENUM) {
@@ -95,14 +95,14 @@ static void btstd_get_enum_name(bt_Context* ctx, bt_Thread* thread)
 
 static void btstd_add_module_path(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_String* pathspec = BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_String* pathspec = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 0));
 
 	bt_append_module_path(ctx, BT_STRING_STR(pathspec));
 }
 
 static void btstd_get_union_size(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Type* u = bt_type_dealias(BT_AS_OBJECT(bt_arg(thread, 0)));
+	bt_Type* u = bt_type_dealias((bt_Type*)BT_AS_OBJECT(bt_arg(thread, 0)));
 	if (u->category != BT_TYPE_CATEGORY_UNION) bt_runtime_error(thread, "Non-union type passed to function!", NULL);
 
 	bt_return(thread, BT_VALUE_NUMBER(u->as.selector.types.length));
@@ -110,7 +110,7 @@ static void btstd_get_union_size(bt_Context* ctx, bt_Thread* thread)
 
 static void btstd_get_union_entry(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Type* u = bt_type_dealias(BT_AS_OBJECT(bt_arg(thread, 0)));
+	bt_Type* u = bt_type_dealias((bt_Type*)BT_AS_OBJECT(bt_arg(thread, 0)));
 	bt_number idx = BT_AS_NUMBER(bt_arg(thread, 1));
 	if (u->category != BT_TYPE_CATEGORY_UNION) bt_runtime_error(thread, "Non-union type passed to function!", NULL);
 	if (idx < 0 || idx >= u->as.selector.types.length) bt_runtime_error(thread, "Union index out of bounds!", NULL);
