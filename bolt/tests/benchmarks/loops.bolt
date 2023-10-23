@@ -1,0 +1,41 @@
+import * from core
+import * from math
+import * from bench
+
+fn range(end: number) {
+    let current = -1
+    return fn {
+        current += 1
+        if current < end { return current }
+        return null
+    }
+}
+
+bench("10m numeric for", 20, fn {
+    for i in 10000000 {}
+})
+
+bench("100m numeric for with step 10", 20, fn {
+    for i in 100000000 by 10 {}
+})
+
+bench("10m numeric for in range", 20, fn {
+    for i in 1000000 to 11000000 {}
+})
+
+bench("10m closure for", 10, fn {
+    for glarg in range(10000000) {}
+})
+
+let arr: [number]
+for i in 10000000 { arr.push(i) }
+
+bench("10m array.each()", 10, fn {
+    for item in arr.each() {}
+})
+
+bench("10m numeric for array index", 10, fn {
+    for i in array.length(arr) { 
+        let item = arr[i]
+    }
+})

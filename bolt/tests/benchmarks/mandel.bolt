@@ -87,36 +87,3 @@ bench("Mandelbrot Inlined", 25, fn {
         }
     }
 })
-
-fn range(end: number) {
-    let current = -1
-    return fn {
-        current += 1
-        if current < end { return current }
-        return null
-    }
-}
-
-bench("10m closure for", 10, fn {
-    for glarg in range(10000000) { }
-})
-
-let arr: [number]
-for i in 10000000 { arr.push(i) }
-
-bench("10m array.each()", 10, fn {
-    for item in arr.each() { }
-})
-
-bench("10m numeric for", 20, fn {
-    for i in 10000000 {}
-})
-
-bench("10m numeric for with index", 10, fn {
-    for i in array.length(arr) { 
-        let item = arr[i]
-    }
-})
-
-bench("function call overhead", 10000, fn {
-})

@@ -8,6 +8,7 @@
 #include <memory.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 static void parse_block(bt_AstBuffer* result, bt_Parser* parse);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
@@ -1691,7 +1692,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = resulting_type;
         } break;
 #define XSTR(x) #x
-#define TYPE_ARITH(tok1, tok2, metaname)                                                                                           \
+#define TYPE_ARITH(tok1, tok2, metaname, produces_bool)                                                                            \
         case tok1: case tok2: {                                                                                                    \
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;                                             \
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;                                            \
@@ -1710,7 +1711,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 if (!lhs->satisfier(lhs, rhs)) {                                                                                   \
                     parse_error(parse, "Cannot " XSTR(metaname) " rhs to lhs", node->source->line, node->source->col);             \
                 }                                                                                                                  \
-                node->resulting_type = lhs;                                                                                        \
+                node->resulting_type = produces_bool ? parse->context->types.boolean : lhs;                                        \
             }                                                                                                                      \
             else {                                                                                                                 \
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
@@ -1750,16 +1751,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 node->as.binary_op.accelerated = BT_TRUE;                                                                          \
             } break;                                                                                                               \
         } break;
-        TYPE_ARITH(BT_TOKEN_PLUS, BT_TOKEN_PLUSEQ, add);
-        TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub);
-        TYPE_ARITH(BT_TOKEN_MUL, BT_TOKEN_MULEQ, mul);
-        TYPE_ARITH(BT_TOKEN_DIV, BT_TOKEN_DIVEQ, div);
-        TYPE_ARITH(BT_TOKEN_LT, BT_TOKEN_MAX, lt);
-        TYPE_ARITH(BT_TOKEN_GT, BT_TOKEN_MAX+1, lt);
-        TYPE_ARITH(BT_TOKEN_LTE, BT_TOKEN_MAX+2, lte);
-        TYPE_ARITH(BT_TOKEN_GTE, BT_TOKEN_MAX+3, lte);
-        TYPE_ARITH(BT_TOKEN_EQUALS, BT_TOKEN_MAX+4, eq);
-        TYPE_ARITH(BT_TOKEN_NOTEQ, BT_TOKEN_MAX+5, neq);
+        TYPE_ARITH(BT_TOKEN_PLUS, BT_TOKEN_PLUSEQ, add, 0);
+        TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub, 0);
+        TYPE_ARITH(BT_TOKEN_MUL, BT_TOKEN_MULEQ, mul, 0);
+        TYPE_ARITH(BT_TOKEN_DIV, BT_TOKEN_DIVEQ, div, 0);
+        TYPE_ARITH(BT_TOKEN_LT, BT_TOKEN_MAX, lt, 1);
+        TYPE_ARITH(BT_TOKEN_GT, BT_TOKEN_MAX+1, lt, 1);
+        TYPE_ARITH(BT_TOKEN_LTE, BT_TOKEN_MAX+2, lte, 1);
+        TYPE_ARITH(BT_TOKEN_GTE, BT_TOKEN_MAX+3, lte, 1);
+        TYPE_ARITH(BT_TOKEN_EQUALS, BT_TOKEN_MAX+4, eq, 1);
+        TYPE_ARITH(BT_TOKEN_NOTEQ, BT_TOKEN_MAX+5, neq, 1);
         case BT_TOKEN_ASSIGN: {
             bt_AstNode* left = node->as.binary_op.left;
             while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;
@@ -1942,14 +1943,36 @@ static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
     if (first) tokens[token_top++] = first;
     else tokens[token_top++] = bt_tokenizer_emit(tok);
 
+    char path_buf[1024];
+    uint16_t path_len = 0;
+
+    if (tokens[0]->type == BT_TOKEN_STRING_LITERAL) {
+        // relative path
+        const char* relative_path = parse->tokenizer->source_name;
+        uint32_t relative_len = strlen(relative_path) - 1;
+
+        while (relative_path[relative_len] != '/' && relative_path[relative_len] != '\\' && relative_len > 0) relative_len--;
+
+        if (relative_len > 0) {
+            strncpy(path_buf, relative_path, relative_len);
+            path_len = relative_len;
+            path_buf[path_len++] = '/';
+        }
+
+        bt_Literal* literal = parse->tokenizer->literals.elements + tokens[0]->idx;
+        strncpy(path_buf + path_len, literal->as_str.source, literal->as_str.length);
+        path_len += literal->as_str.length;
+        path_buf[path_len] = 0;
+
+        return bt_make_string_hashed_len(parse->context, path_buf, path_len);
+    }
+
     while (bt_tokenizer_peek(tok)->type == BT_TOKEN_PERIOD) {
         bt_tokenizer_expect(tok, BT_TOKEN_PERIOD);
 
         tokens[token_top++] = bt_tokenizer_emit(tok);
     }
 
-    char path_buf[1024];
-    uint16_t path_len = 0;
 
     for (uint8_t i = 0; i < token_top; ++i) {
         memcpy(path_buf + path_len, tokens[i]->source.source, tokens[i]->source.length);
@@ -2008,8 +2031,8 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         return NULL;
     }
 
-    if (name_or_first_item->type != BT_TOKEN_IDENTIFIER) {
-        parse_error_token(parse, "Unexpected token '%.*s' in import statement, expected identifier", name_or_first_item);
+    if (name_or_first_item->type != BT_TOKEN_IDENTIFIER && name_or_first_item->type != BT_TOKEN_STRING_LITERAL) {
+        parse_error_token(parse, "Unexpected token '%.*s' in import statement, expected identifier or path", name_or_first_item);
         return NULL;
     }
 

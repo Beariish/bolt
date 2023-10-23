@@ -33,14 +33,7 @@ method Vec2.distance(other: Vec2) {
     return sqrt(sx * sx + sy * sy)
 }
 
-print("---- PRE HOIST ----")
-
-bench("10m numeric for", 35, fn {
-    for i in 10000000 {
-    }
-})
-
-bench("100k vec2 create, create, add", 35, fn {
+bench("unhoisted 100k vec2 create, create, add", 35, fn {
     for i in 100000 {
         let a = Vec2.new(5, 5)
         let b = Vec2.new(10, 10)   
@@ -48,7 +41,7 @@ bench("100k vec2 create, create, add", 35, fn {
     }
 })
 
-bench("100k vec2 add", 35, fn {
+bench("unhoisted 100k vec2 add", 35, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 100000 {
@@ -56,7 +49,7 @@ bench("100k vec2 add", 35, fn {
     }
 })    
 
-bench("1m vec2 method", 35, fn {
+bench("unhoisted 1m vec2 method", 35, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 1000000 {
