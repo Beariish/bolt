@@ -107,8 +107,8 @@ bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 			for (uint32_t j = 0; j < rpairs->length; ++j) {
 				bt_TablePair* rentry = BT_TABLE_PAIRS(rpairs) + j;
 
-				bt_Type* ltype = BT_AS_OBJECT(lentry->value);
-				bt_Type* rtype = BT_AS_OBJECT(rentry->value);
+				bt_Type* ltype = (bt_Type*)BT_AS_OBJECT(lentry->value);
+				bt_Type* rtype = (bt_Type*)BT_AS_OBJECT(rentry->value);
 
 				if (bt_value_is_equal(lentry->key, rentry->key) &&
 					ltype->satisfier(ltype, rtype)) {
@@ -136,8 +136,8 @@ static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 		bt_Table* vals = right->as.table_shape.layout;
 
 		for (uint32_t i = 0; i < keys->length; ++i) {
-			bt_Type* key_type = BT_AS_OBJECT((BT_TABLE_PAIRS(keys) + i)->value);
-			bt_Type* val_type = BT_AS_OBJECT((BT_TABLE_PAIRS(vals) + i)->value);
+			bt_Type* key_type = (bt_Type*)BT_AS_OBJECT((BT_TABLE_PAIRS(keys) + i)->value);
+			bt_Type* val_type = (bt_Type*)BT_AS_OBJECT((BT_TABLE_PAIRS(vals) + i)->value);
 		
 			if (l_key->satisfier(l_key, key_type) == BT_FALSE) return BT_FALSE;
 			if (l_val->satisfier(l_val, val_type) == BT_FALSE) return BT_FALSE;
@@ -344,7 +344,7 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 
 bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
 {
-	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
+	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE);
 	result->as.fn.return_type = ret;
 	bt_buffer_with_capacity(&result->as.fn.args, context, arg_count);
 	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args[i]);
@@ -376,7 +376,7 @@ bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs
 
 bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed)
 {
-	bt_Type* result = bt_make_type(context, name, type_satisfier_alias, BT_TYPE_CATEGORY_TYPE, BT_FALSE);
+	bt_Type* result = bt_make_type(context, name, type_satisfier_alias, BT_TYPE_CATEGORY_TYPE);
 	result->as.type.boxed = boxed;
 
 	return result;
@@ -384,12 +384,12 @@ bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed)
 
 bt_Type* bt_make_fundamental(bt_Context* context)
 {
-	return bt_make_type(context, "Type", type_satisfier_type, BT_TYPE_CATEGORY_TYPE, BT_FALSE);
+	return bt_make_type(context, "Type", type_satisfier_type, BT_TYPE_CATEGORY_TYPE);
 }
 
 bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 {
-	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA, BT_FALSE);
+	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA);
 	bt_buffer_empty(&result->as.userdata.fields);
 	bt_buffer_empty(&result->as.userdata.functions);
 	return result;
@@ -397,7 +397,7 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 
 bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySignature applicator)
 {
-	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE, BT_FALSE);
+	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE);
 	result->as.poly_fn.applicator = applicator;
 	result->is_polymorphic = BT_TRUE;
 
@@ -413,7 +413,7 @@ bt_Type* bt_make_poly_method(bt_Context* context, const char* name, bt_PolySigna
 
 bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)
 {
-	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
+	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE);
 	result->prototype = context->types.table;
 	result->as.table_shape.sealed = sealed;
 	result->as.table_shape.layout = 0;
@@ -456,7 +456,7 @@ void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 
 bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner)
 {
-	bt_Type* result = bt_make_type(context, "array", bt_type_satisfier_array, BT_TYPE_CATEGORY_ARRAY, BT_FALSE);
+	bt_Type* result = bt_make_type(context, "array", bt_type_satisfier_array, BT_TYPE_CATEGORY_ARRAY);
 	result->as.array.inner = inner;
 	result->prototype = context->types.array;
 	return result;
@@ -477,7 +477,7 @@ void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* paren
 
 bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value)
 {
-	bt_Type* result = bt_make_type(context, "map", bt_type_satisfier_map, BT_TYPE_CATEGORY_TABLESHAPE, BT_FALSE);
+	bt_Type* result = bt_make_type(context, "map", bt_type_satisfier_map, BT_TYPE_CATEGORY_TABLESHAPE);
 	result->as.table_shape.sealed = 0;
 	result->as.table_shape.layout = 0;
 	result->as.table_shape.parent = 0;
@@ -505,7 +505,7 @@ bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp)
 
 bt_Type* bt_make_union(bt_Context* context)
 {
-	bt_Type* result = bt_make_type(context, "<union>", bt_type_satisfier_union, BT_TYPE_CATEGORY_UNION, BT_FALSE);
+	bt_Type* result = bt_make_type(context, "<union>", bt_type_satisfier_union, BT_TYPE_CATEGORY_UNION);
 	bt_buffer_empty(&result->as.selector.types);
 	return result;
 }
@@ -518,7 +518,7 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name)
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
-	bt_Type* result = bt_make_type(context, BT_STRING_STR(owned_name), bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM, BT_FALSE);
+	bt_Type* result = bt_make_type(context, BT_STRING_STR(owned_name), bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM);
 	result->as.enum_.name = owned_name;
 	result->as.enum_.options = bt_make_table(context, 0);
 
@@ -578,18 +578,18 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		return BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_FN) {
-			bt_Fn* as_fn = as_obj;
+			bt_Fn* as_fn = (bt_Fn*)as_obj;
 			return type->satisfier(type, as_fn->signature);
 		}
 		else if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) {
-			bt_Closure* cl = as_obj;
+			bt_Closure* cl = (bt_Closure*)as_obj;
 			return type->satisfier(type, cl->fn->signature);
 		}
 		else {
 			return BT_FALSE;
 		}
 	case BT_TYPE_CATEGORY_TABLESHAPE: {
-		bt_Table* as_tbl = as_obj;
+		bt_Table* as_tbl = (bt_Table*)as_obj;
 
 		while (type) {
 			bt_Table* layout = type->as.table_shape.layout;
@@ -598,7 +598,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 				bt_Value val = bt_table_get(as_tbl, pair->key);
 				if (val == BT_VALUE_NULL) return BT_FALSE;
-				if (!bt_is_type(val, BT_AS_OBJECT(pair->value))) return BT_FALSE;
+				if (!bt_is_type(val, (bt_Type*)BT_AS_OBJECT(pair->value))) return BT_FALSE;
 			}
 
 			type = type->as.table_shape.parent;
@@ -620,7 +620,7 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 			return BT_FALSE;
 		}
 
-		bt_Table* src = obj;
+		bt_Table* src = (bt_Table*)obj;
 		bt_Table* layout = type->as.table_shape.layout;
 
 		for (uint32_t i = 0; i < layout->length; ++i) {
@@ -653,7 +653,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!", NULL);
 		}
 
-		bt_Table* src = obj;
+		bt_Table* src = (bt_Table*)obj;
 		bt_Table* layout = type->as.table_shape.layout;
 		
 		bt_Table* dst = bt_make_table(type->ctx, layout->length);

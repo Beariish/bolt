@@ -9,7 +9,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse);
+static void parse_block(bt_AstBuffer* result, bt_Parser* parse);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
@@ -218,7 +218,7 @@ static bt_ModuleImport* find_import(bt_Parser* parser, bt_AstNode* identifier)
     // Import not found, _should_ we import from prelude?
     bt_Table* prelude = parser->context->prelude;
     for (uint32_t i = 0; i < prelude->length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT((BT_TABLE_PAIRS(prelude) + i)->value);
+        bt_ModuleImport* entry = (bt_ModuleImport*)BT_AS_OBJECT((BT_TABLE_PAIRS(prelude) + i)->value);
 
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier->source->source)) {
             bt_buffer_push(parser->context, imports, entry);
@@ -244,7 +244,7 @@ static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifi
     // Import not found, _should_ we import from prelude?
     bt_Table* prelude = parser->context->prelude;
     for (uint32_t i = 0; i < prelude->length; ++i) {
-        bt_ModuleImport* entry = BT_AS_OBJECT((BT_TABLE_PAIRS(prelude) + i)->value);
+        bt_ModuleImport* entry = (bt_ModuleImport*)BT_AS_OBJECT((BT_TABLE_PAIRS(prelude) + i)->value);
 
         if (bt_strslice_compare(bt_as_strslice(entry->name), identifier)) {
             bt_buffer_push(parser->context, imports, entry);
@@ -388,7 +388,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         field->as.table_field.value_type = type_check(parse, value_expr)->resulting_type;
 
         if (type) {
-            bt_Type* expected = BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key));
+            bt_Type* expected = (bt_Type*)BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key));
             if (!expected && type->as.table_shape.sealed) {
                 parse_error_token(parse, "Unexpected field '%.*s' in sealed table literal", key_expr->source);
             }
@@ -402,7 +402,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
         else {
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
-            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, BT_VALUE_OBJECT(field->as.table_field.value_type));
+            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, field->as.table_field.value_type);
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -452,7 +452,7 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
                 return NULL;
             }
 
-            result = BT_AS_OBJECT(import->value);
+            result = (bt_Type*)BT_AS_OBJECT(import->value);
         }
     }
 
@@ -504,7 +504,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
                 bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
-                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
+                bt_tableshape_add_layout(parse->context, result, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
@@ -512,12 +512,12 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
                 if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
-                    bt_String* as_str = BT_AS_OBJECT(field->key);
+                    bt_String* as_str = (bt_String*)BT_AS_OBJECT(field->key);
                     parse_error_fmt(parse, "Both lhs and rhs have a feild with name '%.*s'", token->line, token->col, as_str->len, BT_STRING_STR(as_str));
                     return NULL;
                 }
 
-                bt_tableshape_add_layout(parse->context, result, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
+                bt_tableshape_add_layout(parse->context, result, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
             }
 
             bt_tableshape_set_parent(parse->context, result, lhs);
@@ -627,7 +627,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
                 bt_type_add_field(ctx, result, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr));
             }
 
-            bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), BT_AS_OBJECT(type));
+            bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), (bt_Type*)BT_AS_OBJECT(type));
 
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COMMA) {
@@ -912,7 +912,7 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
         bt_ModuleImport* import = find_import_fast(parse, identifier->source);
         if (import) {
             if (import->type->category == BT_TYPE_CATEGORY_TYPE) {
-                result = BT_AS_OBJECT(import->value);
+                result = (bt_Type*)BT_AS_OBJECT(import->value);
             }
         }
     }
@@ -926,7 +926,7 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 }
 
 
-static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_Buffer(bt_AstNode*)* body, bt_Type* expected)
+static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* body, bt_Type* expected)
 {
     for (uint32_t i = 0; i < body->length; ++i) {
         bt_AstNode* expr = body->elements[i];
@@ -1065,7 +1065,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     return result;
 }
 
-static void parse_block(bt_Buffer(bt_AstNode*)* result, bt_Parser* parse)
+static void parse_block(bt_AstBuffer* result, bt_Parser* parse)
 {
     push_scope(parse, BT_FALSE);
 
@@ -1498,7 +1498,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             if (proto) {
                 bt_Value proto_entry = bt_table_get(proto, rhs_key);
                 if (proto_entry != BT_VALUE_NULL) {
-                    bt_Type* entry = BT_AS_OBJECT(proto_entry);
+                    bt_Type* entry = (bt_Type*)BT_AS_OBJECT(proto_entry);
                     node->resulting_type = entry;
 
                     if (lhs->as.table_shape.final) {
@@ -1524,14 +1524,14 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 bt_Table* layout = lhs->as.table_shape.layout;
                 bt_Value table_entry = bt_table_get(layout, rhs_key);
                 if (table_entry != BT_VALUE_NULL) {
-                    bt_Type* type = BT_AS_OBJECT(table_entry);
+                    bt_Type* type = (bt_Type*)BT_AS_OBJECT(table_entry);
                     node->resulting_type = type;
 
                     if (lhs->as.table_shape.sealed) {
                         int16_t as_idx = bt_table_get_idx(layout, rhs_key);
                         if (as_idx != -1 && as_idx < UINT8_MAX) {
                             node->as.binary_op.accelerated = BT_TRUE;
-                            node->as.binary_op.idx = as_idx;
+                            node->as.binary_op.idx = (uint8_t)as_idx;
                         }
                     }
 
@@ -1571,7 +1571,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 parse_error_fmt(parse, "Failed to find key '%.*s' in userdata type", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
             }
             else if (lhs->category == BT_TYPE_CATEGORY_ENUM) {
-                bt_String* as_str = BT_AS_OBJECT(rhs_key);
+                bt_String* as_str = (bt_String*)BT_AS_OBJECT(rhs_key);
                 bt_Value result = bt_enum_get(parse->context, lhs, as_str);
                 
                 if (result == BT_VALUE_NULL) {
@@ -1625,8 +1625,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         bt_TablePair* inner = BT_TABLE_PAIRS(rhs) + j;
                         if (bt_value_is_equal(inner->key, current->key)) {
                             found = BT_TRUE;
-                            bt_Type* left = BT_AS_OBJECT(current->value);
-                            bt_Type* right = BT_AS_OBJECT(inner->value);
+                            bt_Type* left = (bt_Type*)BT_AS_OBJECT(current->value);
+                            bt_Type* right = (bt_Type*)BT_AS_OBJECT(inner->value);
 
                             if (!right->satisfier(right, left)) {
                                 bt_String* as_str = bt_to_string(parse->context, current->key);
@@ -1672,7 +1672,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             for (uint32_t i = 0; i < lhs_fields->length; ++i) {
                 bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
-                bt_tableshape_add_layout(parse->context, resulting_type, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
+                bt_tableshape_add_layout(parse->context, resulting_type, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
             }
 
             for (uint32_t i = 0; i < rhs_fields->length; ++i) {
@@ -1685,7 +1685,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     break;
                 }
 
-                bt_tableshape_add_layout(parse->context, resulting_type, BT_AS_OBJECT(type->value), field->key, BT_AS_OBJECT(field->value));
+                bt_tableshape_add_layout(parse->context, resulting_type, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
             }
 
             node->resulting_type = resulting_type;
@@ -1717,7 +1717,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     bt_Value mf_key = BT_VALUE_OBJECT(parse->context->meta_names.metaname);                                        \
                     bt_Value sub_mf = bt_table_get(lhs->prototype_types, mf_key);                                                  \
                     if (sub_mf == BT_VALUE_NULL) parse_error(parse, "Failed to find @" XSTR(metaname) " metamethod in tableshape", node->source->line, node->source->col);      \
-                    bt_Type* sub = BT_AS_OBJECT(sub_mf);                                                                           \
+                    bt_Type* sub = (bt_Type*)BT_AS_OBJECT(sub_mf);                                                                           \
                                                                                                                                    \
                     if (sub->category != BT_TYPE_CATEGORY_SIGNATURE) {                                                             \
                         parse_error(parse, "Expected metamethod @" XSTR(metaname) " to be function", node->source->line, node->source->col);                                                        \
@@ -1829,7 +1829,7 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
                 bt_TablePair* pair = BT_TABLE_PAIRS(items) + idx;
                 
                 bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
-                entry->as.table_field.value_type = BT_AS_OBJECT(pair->value);
+                entry->as.table_field.value_type = (bt_Type*)BT_AS_OBJECT(pair->value);
                 entry->as.table_field.key = pair->key;
                 entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type, source);
 
@@ -1998,8 +1998,8 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             bt_Value type_val = bt_table_get(types, item->key);
 
             bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
-            import->name = BT_AS_OBJECT(item->key);
-            import->type = BT_AS_OBJECT(type_val);
+            import->name = (bt_String*)BT_AS_OBJECT(item->key);
+            import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = item->value;
 
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
@@ -2043,7 +2043,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
         if (!mod_to_import) {
-            bt_String* name_str = BT_AS_OBJECT(module_name);
+            bt_String* name_str = (bt_String*)BT_AS_OBJECT(module_name);
             parse_error_fmt(parse, "Failed to import module '%.*s'", name_begin->line, name_begin->col, name_str->len, BT_STRING_STR(name_str));
             return NULL;
         }
@@ -2061,16 +2061,16 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             bt_Value type_val = bt_table_get(types, BT_VALUE_OBJECT(import->name));
             bt_Value value = bt_table_get(values, BT_VALUE_OBJECT(import->name));
 
-            bt_Type* type = BT_AS_OBJECT(type_val);
+            bt_Type* type = (bt_Type*)BT_AS_OBJECT(type_val);
 
             if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
-                bt_String* mod_name_str = BT_AS_OBJECT(module_name);
+                bt_String* mod_name_str = (bt_String*)BT_AS_OBJECT(module_name);
                 parse_error_fmt(parse, "Failed to import item '%.*s' from module '%.*s'", name_begin->col, name_begin->line, 
                     item->length, item->source, mod_name_str->len, BT_STRING_STR(mod_name_str));
                 return NULL;
             }
 
-            import->type = BT_AS_OBJECT(type_val);
+            import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = value;
 
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
@@ -2096,7 +2096,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
     if (!mod_to_import) {
-        bt_String* name_str = BT_AS_OBJECT(module_name);
+        bt_String* name_str = (bt_String*)BT_AS_OBJECT(module_name);
         parse_error_fmt(parse, "Failed to import module '%.*s'", name_or_first_item->line, name_or_first_item->col, name_str->len, BT_STRING_STR(name_str));
         return NULL;
     }

@@ -21,7 +21,7 @@ static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 
 bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
 {
-    if (BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING) return BT_AS_OBJECT(value);
+    if (BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING) return (bt_String*)BT_AS_OBJECT(value);
 
     char buffer[4096];
     int32_t len = bt_to_string_inplace(ctx, buffer, 4096, value);
@@ -47,7 +47,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (BT_OBJECT_GET_TYPE(obj)) {
             case BT_OBJECT_TYPE_STRING: {
-                bt_String* str = BT_AS_OBJECT(value);
+                bt_String* str = (bt_String*)BT_AS_OBJECT(value);
                 len = str->len;
                 memcpy(buffer, BT_STRING_STR(str), len);
             } break;
@@ -55,18 +55,18 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
             case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type ? ((bt_NativeFn*)obj)->type->name : "???"); break;
             case BT_OBJECT_TYPE_ARRAY: {
-                bt_Array* arr = obj;
+                bt_Array* arr = (bt_Array*)obj;
                 len = sprintf_s(buffer, size, "<0x%llx: array[%d]>", value, arr->items.length);
             } break;
             case BT_OBJECT_TYPE_TABLE: {
-                bt_Table* tbl = obj;
+                bt_Table* tbl = (bt_Table*)obj;
                 bt_Value format_fn = bt_table_get(tbl, BT_VALUE_OBJECT(ctx->meta_names.format));
 
                 if (format_fn != BT_VALUE_NULL && ctx->current_thread) {
                     bt_push(ctx->current_thread, format_fn);
                     bt_push(ctx->current_thread, value);
                     bt_call(ctx->current_thread, 1);
-                    bt_String* result = BT_AS_OBJECT(bt_pop(ctx->current_thread));
+                    bt_String* result = (bt_String*)BT_AS_OBJECT(bt_pop(ctx->current_thread));
                     memcpy(buffer, BT_STRING_STR(result), result->len);
                     len = result->len;
                 }
@@ -75,7 +75,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
                 }
             } break;
             case BT_OBJECT_TYPE_IMPORT: {
-                bt_ModuleImport* import = BT_AS_OBJECT(value);
+                bt_ModuleImport* import = (bt_ModuleImport*)BT_AS_OBJECT(value);
                 len = sprintf_s(buffer, size, "<0x%llx: Import(>", value);
                 len += bt_to_string_inplace(ctx, buffer + len, size - len, BT_VALUE_OBJECT(import->name));
             } break;
@@ -90,7 +90,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
 
 bt_String* bt_make_string(bt_Context* ctx, const char* str)
 {
-    return bt_make_string_len(ctx, str, strlen(str));
+    return bt_make_string_len(ctx, str, (uint32_t)strlen(str));
 }
 
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
@@ -105,7 +105,7 @@ bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
 
 bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str)
 {
-    return bt_make_string_hashed_len(ctx, str, strlen(str));
+    return bt_make_string_hashed_len(ctx, str, (uint32_t)strlen(str));
 }
 
 bt_String* bt_make_string_hashed_len(bt_Context* ctx, const char* str, uint32_t len)
@@ -182,7 +182,7 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
-    bt_String* as_str = BT_VALUE_OBJECT(key);
+    bt_String* as_str = (bt_String*)BT_VALUE_OBJECT(key);
     for (uint32_t i = 0; i < tbl->length; ++i) {
         bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
@@ -245,6 +245,8 @@ int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
             return i;
         }
     }
+
+    return -1;
 }
 
 bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity)
@@ -339,7 +341,7 @@ bt_Module* bt_make_user_module(bt_Context* ctx)
 void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok)
 {
     bt_buffer_move(&module->debug_tokens, &tok->tokens);
-    module->debug_source = tok->source;
+    module->debug_source = (char*)tok->source;
     tok->source = 0;
 }
 
@@ -365,7 +367,7 @@ bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32
 
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
 {
-    bt_tableshape_add_layout(ctx, module->type, ctx->types.string, key, BT_AS_OBJECT(type));
+    bt_tableshape_add_layout(ctx, module->type, ctx->types.string, key, (bt_Type*)BT_AS_OBJECT(type));
     bt_table_set(ctx, module->exports, key, value);
 }
 
@@ -373,9 +375,9 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
 {
     switch (BT_OBJECT_GET_TYPE(obj)) {
     case BT_OBJECT_TYPE_TABLE:
-        return bt_table_get(obj, key);
+        return bt_table_get((bt_Table*)obj, key);
     case BT_OBJECT_TYPE_TYPE: {
-        bt_Type* type = obj;
+        bt_Type* type = (bt_Type*)obj;
         return bt_table_get(type->prototype_values, key);
     } break;
     case BT_OBJECT_TYPE_ARRAY: {
@@ -386,10 +388,10 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
             bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!", NULL);
         }
 
-        return bt_array_get(ctx, obj, BT_AS_NUMBER(key));
+        return bt_array_get(ctx, (bt_Array*)obj, (uint64_t)BT_AS_NUMBER(key));
     } break;
     case BT_OBJECT_TYPE_USERDATA: {
-        bt_Userdata* userdata = obj;
+        bt_Userdata* userdata = (bt_Userdata*)obj;
         bt_Type* type = userdata->type;
         
         bt_FieldBuffer* fields = &type->as.userdata.fields;
@@ -425,17 +427,17 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
 {
     switch (BT_OBJECT_GET_TYPE(obj)) {
     case BT_OBJECT_TYPE_TABLE:
-        bt_table_set(ctx, obj, key, value);
+        bt_table_set(ctx, (bt_Table*)obj, key, value);
         break;
     case BT_OBJECT_TYPE_ARRAY: {
         if (!BT_IS_NUMBER(key)) bt_runtime_error(ctx->current_thread, "Attempted to index array with non-number!", NULL);
-        bt_array_set(ctx, obj, BT_AS_NUMBER(key), value);
+        bt_array_set(ctx, (bt_Array*)obj, (uint64_t)BT_AS_NUMBER(key), value);
     } break;
     case BT_OBJECT_TYPE_TYPE:
-        bt_type_set_field(ctx, obj, key, value);
+        bt_type_set_field(ctx, (bt_Type*)obj, key, value);
         break;
     case BT_OBJECT_TYPE_USERDATA: {
-        bt_Userdata* userdata = obj;
+        bt_Userdata* userdata = (bt_Userdata*)obj;
         bt_Type* type = userdata->type;
 
         bt_FieldBuffer* fields = &type->as.userdata.fields;

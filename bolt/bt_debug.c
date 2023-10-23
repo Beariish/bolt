@@ -90,7 +90,7 @@ static void recursive_print_ast_node(bt_AstNode* node, uint32_t depth)
 		recursive_print_ast_node(node->as.ret.expr, depth + 1);
 		break;
 	case BT_AST_NODE_FUNCTION:
-		printf("%*s<fn: 0x%llx>\n", depth * 4, "", node);
+		printf("%*s<fn: 0x%llx>\n", depth * 4, "", (uint64_t)node);
 		break;
 	case BT_AST_NODE_CALL:
 		printf("%*s%s\n", depth * 4, "", name);

@@ -7,7 +7,7 @@
 #define DEFINE_USERDATA_NUMBER_FIELD(fnname, dtype)                                                       \
 static bt_Value userdata_get_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset)                \
 {																										  \
-	return bt_make_number(*(dtype*)(userdata + offset));											      \
+	return bt_make_number((bt_number)(*(dtype*)(userdata + offset)));								      \
 }																										  \
 																										  \
 static void userdata_set_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)	  \

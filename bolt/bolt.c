@@ -517,7 +517,7 @@ static bt_Module* get_module(bt_Callable* cb)
 	case BT_OBJECT_TYPE_CLOSURE: return cb->cl.fn->module;
 	case BT_OBJECT_TYPE_MODULE: return &cb->module;
 	case BT_OBJECT_TYPE_NATIVE_FN: return NULL;
-	default: bt_runtime_error(NULL, "Failed to get module from callable", NULL);
+	default: bt_runtime_error(NULL, "Failed to get module from callable", NULL); return NULL;
 	}
 }
 
@@ -1093,7 +1093,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		NEXT;
 
-		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
+		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(STORE_SUB_F): bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
 #ifndef BOLT_USE_INLINE_THREADING
 #ifdef BT_DEBUG

@@ -36,8 +36,9 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 {
 	bt_Tokenizer tok;
 	tok.context = context;
-	tok.source = tok.current = tok.last_consumed = tok.source_name = 0;
-	tok.line = tok.col = 0;
+	tok.source = tok.current = 0;
+	tok.source_name = 0;
+	tok.last_consumed = tok.line = tok.col = 0;
 
 	bt_buffer_with_capacity(&tok.tokens, context, 32);
 	bt_buffer_with_capacity(&tok.literals, context, 4);
@@ -80,8 +81,8 @@ void bt_close_tokenizer(bt_Tokenizer* tok)
 
 	tok->context->free(tok->literal_zero);
 	tok->context->free(tok->literal_one);
-	tok->context->free(tok->source);
-	if(tok->source_name) tok->context->free(tok->source_name);
+	tok->context->free((char*)tok->source);
+	if(tok->source_name) tok->context->free((char*)tok->source_name);
 	tok->source = tok->current = 0;
 }
 
@@ -99,7 +100,7 @@ void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
 void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name)
 {
 	if (!source_name) {
-		if (tok->source_name) tok->context->free(tok->source_name);
+		if (tok->source_name) tok->context->free((char*)tok->source_name);
 		tok->source_name = NULL;
 		return;
 	}
@@ -114,7 +115,7 @@ void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name)
 
 bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok)
 {
-	if (tok->last_consumed < tok->tokens.length)
+	if (tok->last_consumed < (int32_t)tok->tokens.length)
 	{
 		return tok->tokens.elements[tok->last_consumed++];
 	}
@@ -249,7 +250,7 @@ eat_whitespace:
 
 		while (can_contain_identifier(*current)) current++;
 
-		uint8_t length = current - tok->current;
+		uint8_t length = (uint8_t)(current - tok->current);
 		
 		bt_Token* token = make_token(
 			tok->context, 
@@ -299,7 +300,7 @@ eat_whitespace:
 		char* end = NULL;
 		bt_number num = strtod(tok->current, &end);
 		if (end != tok->current) {
-			uint8_t length = end - tok->current;
+			uint8_t length = (uint8_t)(end - tok->current);
 
 			bt_Literal lit = {
 				BT_TOKEN_NUMBER_LITERAL
@@ -346,7 +347,7 @@ eat_whitespace:
 			tok->current++; tok->col++;
 		}
 
-		uint16_t length = tok->current - start - 1;
+		uint16_t length = (uint16_t)(tok->current - start - 1);
 
 		bt_Literal lit = { BT_TOKEN_STRING_LITERAL };
 		lit.as_str = (bt_StrSlice) { start, length };
