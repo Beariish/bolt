@@ -1,9 +1,0 @@
-type Struct = {
-    member: [number]
-}
-
-fn make_struct {
-    return Struct => { member: [:number] }
-}
-
-let a = make_struct()

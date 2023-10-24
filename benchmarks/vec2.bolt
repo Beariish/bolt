@@ -1,5 +1,5 @@
 import sqrt from math
-import bench from bench
+import bench from "bench"
 import print from core
 
 type Vec2 = final {

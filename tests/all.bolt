@@ -1,0 +1,4 @@
+import "tables"
+import run from "test"
+
+run()

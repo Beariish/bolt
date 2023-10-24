@@ -1,7 +1,0 @@
-import print, time from core
-
-fn add_untyped(a, b) {
-    return a + b
-}
-
-print("Adding together", add_untyped(10, 20), "at", time())

@@ -1,4 +1,0 @@
-import tables
-import test
-
-test.run()

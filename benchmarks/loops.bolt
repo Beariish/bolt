@@ -1,6 +1,6 @@
 import * from core
 import * from math
-import * from bench
+import * from "bench"
 
 fn range(end: number) {
     let current = -1
