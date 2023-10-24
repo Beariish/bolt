@@ -373,6 +373,11 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     while (token && token->type != BT_TOKEN_RIGHTBRACE) {
         bt_AstNode* key_expr = pratt_parse(parse, 0);
 
+        if (!key_expr) {
+            parse_error_token(parse, "Missing key expression for table literal", result->source);
+            return NULL;
+        }
+
         bt_AstNode* field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
 
         bt_Value key = node_to_key(parse, key_expr);
@@ -385,6 +390,12 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
 
         bt_AstNode* value_expr = pratt_parse(parse, 0);
+
+        if (!value_expr) {
+            parse_error_token(parse, "Missing value expression for key '%.*s'", key_expr->source);
+            return NULL;
+        }
+
         field->as.table_field.value_expr = value_expr;
         field->as.table_field.value_type = type_check(parse, value_expr)->resulting_type;
 
@@ -1071,12 +1082,18 @@ static void parse_block(bt_AstBuffer* result, bt_Parser* parse)
     push_scope(parse, BT_FALSE);
 
     bt_Token* next = bt_tokenizer_peek(parse->tokenizer);
+    bt_Token* start = next;
 
     while (next->type != BT_TOKEN_RIGHTBRACE)
     {
         bt_AstNode* expression = parse_statement(parse);
         bt_buffer_push(parse->context, result, expression);
         next = bt_tokenizer_peek(parse->tokenizer);
+
+        if (next->type == BT_TOKEN_EOS) {
+            parse_error_token(parse, "Unclosed block started at '%.*s'", start);
+            break;
+        }
     }
 
     pop_scope(parse);
@@ -1712,6 +1729,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     parse_error(parse, "Cannot " XSTR(metaname) " rhs to lhs", node->source->line, node->source->col);             \
                 }                                                                                                                  \
                 node->resulting_type = produces_bool ? parse->context->types.boolean : lhs;                                        \
+                if (lhs == parse->context->types.number && lhs == rhs) node->as.binary_op.accelerated = BT_TRUE;                   \
             }                                                                                                                      \
             else {                                                                                                                 \
                 if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
@@ -1949,7 +1967,7 @@ static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
     if (tokens[0]->type == BT_TOKEN_STRING_LITERAL) {
         // relative path
         const char* relative_path = parse->tokenizer->source_name;
-        uint32_t relative_len = strlen(relative_path) - 1;
+        uint32_t relative_len = (uint32_t)strlen(relative_path) - 1;
 
         while (relative_path[relative_len] != '/' && relative_path[relative_len] != '\\' && relative_len > 0) relative_len--;
 

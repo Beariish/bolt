@@ -96,15 +96,15 @@ static void bt_error(bt_ErrorType type, const char* module, const char* message,
 	switch (type)
 	{
 	case BT_ERROR_PARSE: {
-		printf("PARSING ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+		printf("parse error [%s (%d:%d)]: %s\n", module, line, col, message);
 	} break;
 
 	case BT_ERROR_COMPILE: {
-		printf("COMPILATION ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+		printf("compile error [%s (%d:%d)]: %s\n", module, line, col, message);
 	} break;
 
 	case BT_ERROR_RUNTIME: {
-		printf("RUNTIME ERROR [%s (%d:%d)]: %s\n", module, line, col, message);
+		printf("runtime error [%s (%d:%d)]: %s\n", module, line, col, message);
 	} break;
 	}
 }
@@ -449,7 +449,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		}
 
 		if (code == 0) {
-			bt_runtime_error(context->current_thread, "Cannot find module file", NULL);
+			if(context->current_thread) bt_runtime_error(context->current_thread, "Cannot find module file", NULL);
 			return NULL;
 		}
 

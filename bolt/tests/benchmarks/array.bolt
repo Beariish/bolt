@@ -6,3 +6,47 @@ bench("populating 1m array", 15, fn {
     let result: [number]
     for i in 1000000 { result.push(i) }
 })
+
+bench_with_pre_work("popping from 1m array", 15, fn {
+    let result: [number]
+    for i in 1000000 { result.push(i) }
+
+    return fn {
+        for i in result.length() { result.pop() }
+    }
+})
+
+let to_probe: [number]
+for i in 1000000 { to_probe.push(i) }
+
+bench("1m array.length() invocations", 20, fn {
+    for i in 1000000 { to_probe.length() }
+})
+
+bench("1m array index", 50, fn {
+    for i in to_probe.length() { 
+        let item = to_probe[i]
+    }
+})
+
+bench("1m untyped array index", 50, fn {
+    let idx = 1 as any!
+    for i in to_probe.length() { 
+        let item = to_probe[idx]
+    }
+})
+
+bench("1m array assignment", 50, fn {
+    let arr = [1, 2, 3]
+    for i in 1000000 {
+        arr[1] = i
+    }
+})
+
+bench("1m untyped array assignment", 50, fn {
+    let idx = 1 as any!
+    let arr = [1, 2, 3]
+    for i in 1000000 {
+        arr[idx] = i
+    }
+})

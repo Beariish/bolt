@@ -1,19 +1,21 @@
 import * from core
 
-fn bench(name: string, iter: number, body: fn) {
+fn bench_with_pre_work(name: string, iter: number, body: fn: fn) {
     let total_time = 0
 
     write("Prewarming \"" + name + "\" [" + to_string(0) + "/" + to_string(iter) + "]")
     sameline()
 
     for it in iter / 2 {
-        body()
+        body()()
     }
 
     for it in iter {
+        let inner = body()
+
         let start = time()
 
-        body()
+        inner()
 
         let duration_ms = (time() - start) / 1000
         total_time += duration_ms
@@ -26,4 +28,9 @@ fn bench(name: string, iter: number, body: fn) {
     print()
 }
 
+fn bench(name: string, iter: number, body: fn) {
+    bench_with_pre_work(name, iter, fn { return body })
+}
+
 export bench
+export bench_with_pre_work

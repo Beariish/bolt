@@ -30,12 +30,6 @@ bench("10m closure for", 10, fn {
 let arr: [number]
 for i in 10000000 { arr.push(i) }
 
-bench("10m array.each()", 10, fn {
+bench("10m native iterator", 10, fn {
     for item in arr.each() {}
-})
-
-bench("10m numeric for array index", 10, fn {
-    for i in array.length(arr) { 
-        let item = arr[i]
-    }
 })
