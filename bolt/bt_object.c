@@ -192,9 +192,11 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
     }
 
     if (tbl->capacity <= tbl->length) {
+        uint32_t old_cap = tbl->capacity;
         tbl->capacity *= 2;
         if (tbl->capacity == 0) tbl->capacity = 4;
         tbl->outline = ctx->realloc(tbl->outline, sizeof(bt_TablePair) * tbl->capacity);
+        ctx->gc.byets_allocated += (tbl->capacity - old_cap) * sizeof(bt_TablePair);
 
         if (tbl->is_inline) {
             memcpy(tbl->outline, BT_TABLE_PAIRS(tbl), sizeof(bt_TablePair) * tbl->length);
