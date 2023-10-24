@@ -24,7 +24,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 			if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_TYPE) {
 				bt_Type* ta = bt_type_dealias((bt_Type*)obja);
 				bt_Type* tb = bt_type_dealias((bt_Type*)objb);
-				return ta == tb;
+				return bt_type_is_equal(ta, tb);
 			} else if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_STRING) {
 				bt_String* a_str = (bt_String*)obja;
 				bt_String* b_str = (bt_String*)objb;

@@ -678,3 +678,57 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 
 	return BT_VALUE_NULL;
 }
+
+BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
+{
+	if (!a && !b) return BT_TRUE;
+	if (!a || !b) return BT_FALSE;
+
+	a = bt_type_dealias(a); b = bt_type_dealias(b);
+	if (a == b) return BT_TRUE;
+	if (a->category != b->category) return BT_FALSE;
+
+	switch (a->category) {
+	case BT_TYPE_CATEGORY_ARRAY: return bt_type_is_equal(a->as.array.inner, b->as.array.inner);
+	case BT_TYPE_CATEGORY_TABLESHAPE: 
+		if (a->prototype) return a->prototype == b->prototype;
+		else return BT_FALSE;
+	case BT_TYPE_CATEGORY_SIGNATURE:
+		if (a->is_polymorphic) {
+			if (!b->is_polymorphic) return BT_FALSE;
+			return a->as.poly_fn.applicator == b->as.poly_fn.applicator;
+		}
+
+		if (a->as.fn.is_method != b->as.fn.is_method || a->as.fn.is_vararg != b->as.fn.is_vararg) return BT_FALSE;
+		if (a->as.fn.is_vararg && !bt_type_is_equal(a->as.fn.varargs_type, b->as.fn.varargs_type)) return BT_FALSE;
+		if (!bt_type_is_equal(a->as.fn.return_type, b->as.fn.return_type)) return BT_FALSE;
+
+		if (a->as.fn.args.length != b->as.fn.args.length) return BT_FALSE;
+		for (uint32_t i = 0; i < a->as.fn.args.length; ++i) {
+			bt_Type* arg_a = a->as.fn.args.elements[i];
+			bt_Type* arg_b = b->as.fn.args.elements[i];
+			if (!bt_type_is_equal(arg_a, arg_b)) return BT_FALSE;
+		}
+
+		return BT_TRUE;
+	case BT_TYPE_CATEGORY_UNION:
+		if (a->as.selector.types.length != b->as.selector.types.length) return BT_FALSE;
+		for (uint32_t i = 0; i < a->as.selector.types.length; ++i) {
+			bt_Type* a_current = a->as.selector.types.elements[i];
+			bt_bool found = BT_FALSE;
+			for (uint32_t j = 0; j < b->as.selector.types.length; ++i) {
+				bt_Type* b_current = b->as.selector.types.elements[i];
+				if (bt_type_is_equal(a_current, b_current)) {
+					found = BT_TRUE;
+					break;
+				}
+			}
+
+			if (!found) return BT_FALSE;
+		}
+
+		return BT_TRUE;
+	}
+
+	return BT_FALSE;
+}

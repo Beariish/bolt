@@ -1709,7 +1709,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = resulting_type;
         } break;
 #define XSTR(x) #x
-#define TYPE_ARITH(tok1, tok2, metaname, produces_bool)                                                                            \
+#define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                            \
         case tok1: case tok2: {                                                                                                    \
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;                                             \
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;                                            \
@@ -1760,25 +1760,26 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                         node->as.binary_op.key = mf_key;                                                                           \
                     }                                                                                                              \
                 }                                                                                                                  \
-                else {                                                                                                             \
+                else if(!is_eq) {                                                                                                             \
                     parse_error(parse, "Lhs is not an " XSTR(metaname) "able type", node->source->line, node->source->col);                                                     \
                 }                                                                                                                  \
+                else node->resulting_type = parse->context->types.boolean;                                                         \
             }                                                                                                                      \
                                                                                                                                    \
             if (node->resulting_type == parse->context->types.number) {                                                            \
                 node->as.binary_op.accelerated = BT_TRUE;                                                                          \
             } break;                                                                                                               \
         } break;
-        TYPE_ARITH(BT_TOKEN_PLUS, BT_TOKEN_PLUSEQ, add, 0);
-        TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub, 0);
-        TYPE_ARITH(BT_TOKEN_MUL, BT_TOKEN_MULEQ, mul, 0);
-        TYPE_ARITH(BT_TOKEN_DIV, BT_TOKEN_DIVEQ, div, 0);
-        TYPE_ARITH(BT_TOKEN_LT, BT_TOKEN_MAX, lt, 1);
-        TYPE_ARITH(BT_TOKEN_GT, BT_TOKEN_MAX+1, lt, 1);
-        TYPE_ARITH(BT_TOKEN_LTE, BT_TOKEN_MAX+2, lte, 1);
-        TYPE_ARITH(BT_TOKEN_GTE, BT_TOKEN_MAX+3, lte, 1);
-        TYPE_ARITH(BT_TOKEN_EQUALS, BT_TOKEN_MAX+4, eq, 1);
-        TYPE_ARITH(BT_TOKEN_NOTEQ, BT_TOKEN_MAX+5, neq, 1);
+        TYPE_ARITH(BT_TOKEN_PLUS, BT_TOKEN_PLUSEQ, add, 0, 0);
+        TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub, 0, 0);
+        TYPE_ARITH(BT_TOKEN_MUL, BT_TOKEN_MULEQ, mul, 0, 0);
+        TYPE_ARITH(BT_TOKEN_DIV, BT_TOKEN_DIVEQ, div, 0, 0);
+        TYPE_ARITH(BT_TOKEN_LT, BT_TOKEN_MAX, lt, 1, 0);
+        TYPE_ARITH(BT_TOKEN_GT, BT_TOKEN_MAX+1, lt, 1, 0);
+        TYPE_ARITH(BT_TOKEN_LTE, BT_TOKEN_MAX+2, lte, 1, 0);
+        TYPE_ARITH(BT_TOKEN_GTE, BT_TOKEN_MAX+3, lte, 1, 0);
+        TYPE_ARITH(BT_TOKEN_EQUALS, BT_TOKEN_MAX+4, eq, 1, 1);
+        TYPE_ARITH(BT_TOKEN_NOTEQ, BT_TOKEN_MAX+5, neq, 1, 1);
         case BT_TOKEN_ASSIGN: {
             bt_AstNode* left = node->as.binary_op.left;
             while (left->type == BT_AST_NODE_BINARY_OP) left = left->as.binary_op.left;

@@ -5,23 +5,17 @@ let const case = test.prefix("tables")
 
 case("Unshaped table assignments", fn {
     let a: {}
-    //print(a)
     
     a["test"] = 10
-    //print(a["test"])
     
     a[10] = "hello"
-    //print(a[10])
     
     a[true] = false
-    //print(a[true])
     
     a[null] = "weird, but allowed!"
-    //print(a[null])
     
     let key = { x: 10 }
     a[key] = key
-    //print(a[key])
 })
 
 case("Anonymous table shapes", fn {
