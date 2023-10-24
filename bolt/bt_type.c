@@ -216,7 +216,6 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	result->satisfier = satisfier;
 	result->category = category;
 	result->is_polymorphic = BT_FALSE;
-	result->is_compiled = BT_FALSE;
 	result->prototype = 0;
 	result->prototype_types = 0;
 	result->prototype_values = 0;
@@ -241,14 +240,6 @@ bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
 	bt_Type* new_type = bt_make_union(context);
 	bt_push_union_variant(context, new_type, to_nullable);
 	bt_push_union_variant(context, new_type, context->types.null);
-
-	/*context->free(new_type->name);
-	size_t len = strlen(to_nullable->name);
-	new_type->name = context->alloc(len + 2);
-	strcpy(new_type->name, to_nullable->name);
-
-	new_type->name[len] = '?';
-	new_type->name[len + 1] = 0;*/
 
 	return new_type;
 }
