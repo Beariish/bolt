@@ -504,6 +504,33 @@ bt_Type* bt_make_union(bt_Context* context)
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
 	bt_buffer_push(context, &uni->as.selector.types, variant);
+
+	// todo(bearish): don't like this
+	uint32_t new_length = 0;
+	for (uint32_t i = 0; i < uni->as.selector.types.length; ++i) {
+		if (i != 0) new_length += 3; // " | "
+		char* name = uni->as.selector.types.elements[i]->name;
+		if (name) new_length += (uint32_t)strlen(name);
+		else new_length += 1; // "?";
+	}
+
+	uni->name = context->realloc(uni->name, new_length + 1);
+
+	uint32_t written_length = 0;
+
+	for (uint32_t i = 0; i < uni->as.selector.types.length; ++i) {
+		if (i != 0) { memcpy(uni->name + written_length, " | ", 3); written_length += 3; }
+
+		char* name = uni->as.selector.types.elements[i]->name;
+		if (name) {
+			uint32_t name_len = (uint32_t)strlen(name);
+			memcpy(uni->name + written_length, name, name_len);
+			written_length += name_len;
+		}
+		else uni->name[written_length++] = '?';
+	}
+
+	uni->name[written_length] = 0;
 }
 
 bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name)
