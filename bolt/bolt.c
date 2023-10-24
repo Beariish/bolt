@@ -929,7 +929,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 		NEXT;
 
-		CASE(LOADUP): BT_ASSUME(upv); stack[BT_GET_A(op)] = upv[BT_GET_B(op)];  NEXT;
+		CASE(LOADUP):  BT_ASSUME(upv); stack[BT_GET_A(op)] = upv[BT_GET_B(op)]; NEXT;
 		CASE(STOREUP): BT_ASSUME(upv); upv[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
 		CASE(NEG):
@@ -1068,7 +1068,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(JMP): ip += BT_GET_IBC(op); NEXT;
 		CASE(JMPF): if (stack[BT_GET_A(op)] == BT_VALUE_FALSE) ip += BT_GET_IBC(op); NEXT;
 
-		CASE(RETURN): stack[return_loc] = stack[BT_GET_A(op)]; RETURN;
+		CASE(RETURN): stack[return_loc] = stack[BT_GET_A(op)];
 		CASE(END): RETURN;
 
 		CASE(NUMFOR):

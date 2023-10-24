@@ -1,4 +1,4 @@
-import Vec2 from benchmarks.vec2 
+import Vec2 from "vec2" 
 import print from core
 import bench from bench
 
