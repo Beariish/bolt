@@ -506,26 +506,32 @@ void bt_destroy_thread(bt_Context* context, bt_Thread* thread)
 
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);
 
-bt_bool bt_execute(bt_Context* context, bt_Callable* module)
+bt_bool bt_execute(bt_Context* context, bt_Callable* callable)
 {
 	bt_Thread* thread = bt_make_thread(context);
+	bt_bool result = bt_execute_on_thread(context, thread, callable);
+	bt_destroy_thread(context, thread);
+	
+	return result;
+}
+
+bt_bool bt_execute_on_thread(bt_Context* context, bt_Thread* thread, bt_Callable* callable)
+{
 	bt_Thread* old_thread = context->current_thread;
 
 	context->current_thread = thread;
 
 	int32_t result = setjmp(&thread->error_loc[0]);
 
-	bt_push(thread, BT_VALUE_OBJECT(module));
+	bt_push(thread, BT_VALUE_OBJECT(callable));
 
 	if (result == 0) bt_call(thread, 0);
 	else {
 		context->current_thread = old_thread;
-		bt_destroy_thread(context, thread);
 		return BT_FALSE;
 	}
 
 	context->current_thread = old_thread;
-	bt_destroy_thread(context, thread);
 	return BT_TRUE;
 }
 

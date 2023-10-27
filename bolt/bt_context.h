@@ -148,6 +148,7 @@ BOLT_API bt_Thread* bt_make_thread(bt_Context* context);
 BOLT_API void bt_destroy_thread(bt_Context* context, bt_Thread* thread);
 
 BOLT_API bt_bool bt_execute(bt_Context* context, bt_Callable* callable);
+BOLT_API bt_bool bt_execute_on_thread(bt_Context* context, bt_Thread* thread, bt_Callable* callable);
 
 BOLT_API void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip);
 
