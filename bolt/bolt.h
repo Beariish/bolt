@@ -8,7 +8,7 @@ extern "C" {
 #include "bt_tokenizer.h"
 #include "bt_context.h"
 
-BOLT_API void bt_open(bt_Context* context, bt_Handlers* handlers);
+BOLT_API void bt_open(bt_Context** context, bt_Handlers* handlers);
 BOLT_API bt_Handlers bt_default_handlers();
 BOLT_API void bt_close(bt_Context* context);
 

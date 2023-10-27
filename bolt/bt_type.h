@@ -95,6 +95,17 @@ BOLT_API bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 BOLT_API bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
 BOLT_API bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right);
 
+/** Getters for primitive types stored inside the context */
+BOLT_API bt_Type* bt_type_any(bt_Context* context);
+BOLT_API bt_Type* bt_type_null(bt_Context* context);
+BOLT_API bt_Type* bt_type_number(bt_Context* context);
+BOLT_API bt_Type* bt_type_boolean(bt_Context* context);
+BOLT_API bt_Type* bt_type_string(bt_Context* context);
+BOLT_API bt_Type* bt_type_array(bt_Context* context);
+BOLT_API bt_Type* bt_type_table(bt_Context* context);
+BOLT_API bt_Type* bt_type_fn(bt_Context* context);
+BOLT_API bt_Type* bt_type_type(bt_Context* context);
+
 BOLT_API bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category);
 BOLT_API bt_Type* bt_derive_type(bt_Context* context, bt_Type* original);
 BOLT_API bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable);
@@ -110,6 +121,7 @@ BOLT_API bt_Type* bt_make_poly_method(bt_Context* context, const char* name, bt_
 
 BOLT_API bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed);
 BOLT_API void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_type, bt_Value key, bt_Type* type);
+BOLT_API bt_Type* bt_tableshape_get_layout(bt_Type* tshp, bt_Value key);
 BOLT_API void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent);
 
 BOLT_API bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value);

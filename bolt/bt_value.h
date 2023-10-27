@@ -47,42 +47,42 @@ typedef struct bt_Object bt_Object;
 
 BOLT_API bt_bool bt_value_is_equal(bt_Value a, bt_Value b);
 
-#ifndef BOLT_SHARED_LIBRARY
+#if BOLT_INLINE_HEADER
 static BT_FORCE_INLINE bt_Value bt_make_null() { return BT_VALUE_NULL; }
-static BT_FORCE_INLINE uint8_t bt_is_null(bt_Value val) { return val == BT_VALUE_NULL; }
+static BT_FORCE_INLINE bt_bool bt_is_null(bt_Value val) { return val == BT_VALUE_NULL; }
 
 static BT_FORCE_INLINE bt_Value bt_make_number(bt_number num) { return *((bt_Value*)(bt_number*)&num); }
-static BT_FORCE_INLINE uint8_t bt_is_number(bt_Value val) { return BT_IS_NUMBER(val); }
+static BT_FORCE_INLINE bt_bool bt_is_number(bt_Value val) { return BT_IS_NUMBER(val); }
 static BT_FORCE_INLINE bt_number bt_get_number(bt_Value val) { return *((bt_number*)(bt_Value*)&val); }
 
-static BT_FORCE_INLINE bt_Value bt_make_bool(uint8_t cond) { return BT_VALUE_BOOL(cond); }
-static BT_FORCE_INLINE uint8_t bt_is_bool(bt_Value val) { return BT_IS_BOOL(val); }
-static BT_FORCE_INLINE uint8_t bt_get_bool(bt_Value val) { return val == BT_VALUE_TRUE; }
+static BT_FORCE_INLINE bt_Value bt_make_bool(bt_bool cond) { return BT_VALUE_BOOL(cond); }
+static BT_FORCE_INLINE bt_bool bt_is_bool(bt_Value val) { return BT_IS_BOOL(val); }
+static BT_FORCE_INLINE bt_bool bt_get_bool(bt_Value val) { return val == BT_VALUE_TRUE; }
 
 static BT_FORCE_INLINE bt_Value bt_make_enum_val(uint32_t val) { return BT_VALUE_ENUM(val); }
-static BT_FORCE_INLINE uint8_t bt_is_enum_val(bt_Value val) { return BT_IS_ENUM(val); }
+static BT_FORCE_INLINE bt_bool bt_is_enum_val(bt_Value val) { return BT_IS_ENUM(val); }
 static BT_FORCE_INLINE uint32_t bt_get_enum_val(bt_Value val) { return BT_AS_ENUM(val); }
 
 static BT_FORCE_INLINE bt_Value bt_make_object(bt_Object* obj) { return BT_VALUE_OBJECT(obj); }
-static BT_FORCE_INLINE uint8_t bt_is_object(bt_Value val) { return BT_IS_OBJECT(val); }
+static BT_FORCE_INLINE bt_bool bt_is_object(bt_Value val) { return BT_IS_OBJECT(val); }
 static BT_FORCE_INLINE bt_Object* bt_get_object(bt_Value val) { return BT_AS_OBJECT(val); }
 #else
 BOLT_API bt_Value bt_make_null();
-BOLT_API uint8_t bt_is_null(bt_Value val);
+BOLT_API bt_bool bt_is_null(bt_Value val);
 
 BOLT_API bt_Value bt_make_number(bt_number num);
-BOLT_API uint8_t bt_is_number(bt_Value val);
+BOLT_API bt_bool bt_is_number(bt_Value val);
 BOLT_API bt_number bt_get_number(bt_Value val);
 
-BOLT_API bt_Value bt_make_bool(uint8_t cond);
-BOLT_API uint8_t bt_is_bool(bt_Value val);
-BOLT_API uint8_t bt_get_bool(bt_Value val);
+BOLT_API bt_Value bt_make_bool(bt_bool cond);
+BOLT_API bt_bool bt_is_bool(bt_Value val);
+BOLT_API bt_bool bt_get_bool(bt_Value val);
 
 BOLT_API bt_Value bt_make_enum_val(uint32_t val);
-BOLT_API uint8_t bt_is_enum_val(bt_Value val);
+BOLT_API bt_bool bt_is_enum_val(bt_Value val);
 BOLT_API uint32_t bt_get_enum_val(bt_Value val);
 
 BOLT_API bt_Value bt_make_object(bt_Object* obj);
-BOLT_API uint8_t bt_is_object(bt_Value val);
+BOLT_API bt_bool bt_is_object(bt_Value val);
 BOLT_API bt_Object* bt_get_object(bt_Value val);
 #endif

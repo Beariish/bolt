@@ -167,6 +167,11 @@ bt_StrSlice bt_as_strslice(bt_String* str)
     return result;
 }
 
+const char* const bt_get_string(bt_String* str)
+{
+    return BT_STRING_STR(str);
+}
+
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 {
     bt_Table* table = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, sizeof(bt_TablePair) * initial_size);
@@ -371,6 +376,16 @@ void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Valu
 {
     bt_tableshape_add_layout(ctx, module->type, ctx->types.string, key, (bt_Type*)BT_AS_OBJECT(type));
     bt_table_set(ctx, module->exports, key, value);
+}
+
+bt_Type* bt_module_get_export_type(bt_Module* module, bt_Value key)
+{
+    return bt_tableshape_get_layout(module->type, key);
+}
+
+bt_Value bt_module_get_export(bt_Module* module, bt_Value key)
+{
+    return bt_table_get(module->exports, key);
 }
 
 bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)

@@ -35,3 +35,7 @@
 // Builds bolt as a shared library as opposed to statically linking
 // Make sure BOLT_EXPORT_SHARED is defined when building the library
 //#define BOLT_SHARED_LIBRARY
+
+// Builds bolt as a static library, meaning inlined functions get their 
+// own translation units
+//#define BOLT_STATIC_LIBRARY

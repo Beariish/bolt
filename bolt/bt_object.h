@@ -174,6 +174,7 @@ BOLT_API bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char
 BOLT_API bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len);
 BOLT_API bt_String* bt_hash_string(bt_String* str);
 BOLT_API bt_StrSlice bt_as_strslice(bt_String* str);
+BOLT_API const char* const bt_get_string(bt_String* str);
 
 BOLT_API bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
 BOLT_API bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
@@ -199,6 +200,8 @@ BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_Nat
 BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
 
 BOLT_API void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
+BOLT_API bt_Type* bt_module_get_export_type(bt_Module* module, bt_Value key);
+BOLT_API bt_Value bt_module_get_export(bt_Module* module, bt_Value key);
 
 BOLT_API bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key);
 BOLT_API void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);

@@ -20,73 +20,76 @@ static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSa
 	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE);
 }
 
-void bt_open(bt_Context* context, bt_Handlers* handlers)
+void bt_open(bt_Context** context, bt_Handlers* handlers)
 {
-	context->alloc = handlers->alloc;
-	context->free = handlers->free;
-	context->realloc = handlers->realloc;
-	context->on_error = handlers->on_error;
+	*context = handlers->alloc(sizeof(bt_Context));
+	bt_Context* ctx = *context;
 
-	context->read_file = handlers->read_file;
-	context->close_file = handlers->close_file;
-	context->free_source = handlers->free_source;
+	ctx->alloc = handlers->alloc;
+	ctx->free = handlers->free;
+	ctx->realloc = handlers->realloc;
+	ctx->on_error = handlers->on_error;
 
-	context->gc = bt_make_gc(context);
+	ctx->read_file = handlers->read_file;
+	ctx->close_file = handlers->close_file;
+	ctx->free_source = handlers->free_source;
 
-	context->n_allocated = 0;
-	context->next = 0;
-	context->root = bt_allocate(context, sizeof(bt_Object), BT_OBJECT_TYPE_NONE);
-	context->next = context->root;
-	context->troot_top = 0;
+	ctx->gc = bt_make_gc(ctx);
 
-	context->current_thread = 0;
+	ctx->n_allocated = 0;
+	ctx->next = 0;
+	ctx->root = bt_allocate(ctx, sizeof(bt_Object), BT_OBJECT_TYPE_NONE);
+	ctx->next = ctx->root;
+	ctx->troot_top = 0;
 
-	context->types.number = make_primitive_type(context, "number", bt_type_satisfier_same);
-	context->types.boolean = make_primitive_type(context, "bool", bt_type_satisfier_same);
-	context->types.string = make_primitive_type(context, "string", bt_type_satisfier_same);
-	context->types.table = 0;
-	context->types.table = bt_make_tableshape(context, "table", BT_FALSE);
+	ctx->current_thread = 0;
 
-	context->types.any = make_primitive_type(context, "any", bt_type_satisfier_any);
-	context->types.null = make_primitive_type(context, "null", bt_type_satisfier_null);
+	ctx->types.number = make_primitive_type(ctx, "number", bt_type_satisfier_same);
+	ctx->types.boolean = make_primitive_type(ctx, "bool", bt_type_satisfier_same);
+	ctx->types.string = make_primitive_type(ctx, "string", bt_type_satisfier_same);
+	ctx->types.table = 0;
+	ctx->types.table = bt_make_tableshape(ctx, "table", BT_FALSE);
+
+	ctx->types.any = make_primitive_type(ctx, "any", bt_type_satisfier_any);
+	ctx->types.null = make_primitive_type(ctx, "null", bt_type_satisfier_null);
 	
-	context->types.array = 0;
-	context->types.array = bt_make_array_type(context, context->types.any);
+	ctx->types.array = 0;
+	ctx->types.array = bt_make_array_type(ctx, ctx->types.any);
 
-	context->types.type = bt_make_fundamental(context);
-	context->types.type->as.type.boxed = context->types.any;
+	ctx->types.type = bt_make_fundamental(ctx);
+	ctx->types.type->as.type.boxed = ctx->types.any;
 
-	context->loaded_modules = bt_make_table(context, 1);
-	context->prelude = bt_make_table(context, 16);
+	ctx->loaded_modules = bt_make_table(ctx, 1);
+	ctx->prelude = bt_make_table(ctx, 16);
 
-	context->type_registry = bt_make_table(context, 16);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "number")), context->types.number);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "bool")), context->types.boolean);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "string")), context->types.string);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "table")), context->types.table);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "any")), context->types.any);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "null")), context->types.null);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "array")), context->types.array);
-	bt_register_type(context, BT_VALUE_OBJECT(bt_make_string_hashed(context, "Type")), context->types.type);
+	ctx->type_registry = bt_make_table(ctx, 16);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "number")), ctx->types.number);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "bool")), ctx->types.boolean);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "string")), ctx->types.string);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "table")), ctx->types.table);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "any")), ctx->types.any);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "null")), ctx->types.null);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "array")), ctx->types.array);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "Type")), ctx->types.type);
 
-	context->meta_names.add = bt_make_string_hashed_len(context, "@add", 4);
-	context->meta_names.sub = bt_make_string_hashed_len(context, "@sub", 4);
-	context->meta_names.mul = bt_make_string_hashed_len(context, "@mul", 4);
-	context->meta_names.div = bt_make_string_hashed_len(context, "@div", 4);
-	context->meta_names.lt = bt_make_string_hashed_len(context, "@lt", 3);
-	context->meta_names.lte = bt_make_string_hashed_len(context, "@lte", 4);
-	context->meta_names.eq = bt_make_string_hashed_len(context, "@eq", 3);
-	context->meta_names.neq = bt_make_string_hashed_len(context, "@neq", 4);
-	context->meta_names.format = bt_make_string_hashed_len(context, "@format", 7);
-	context->meta_names.collect = bt_make_string_hashed_len(context, "@collect", 8);
+	ctx->meta_names.add = bt_make_string_hashed_len(ctx, "@add", 4);
+	ctx->meta_names.sub = bt_make_string_hashed_len(ctx, "@sub", 4);
+	ctx->meta_names.mul = bt_make_string_hashed_len(ctx, "@mul", 4);
+	ctx->meta_names.div = bt_make_string_hashed_len(ctx, "@div", 4);
+	ctx->meta_names.lt = bt_make_string_hashed_len(ctx, "@lt", 3);
+	ctx->meta_names.lte = bt_make_string_hashed_len(ctx, "@lte", 4);
+	ctx->meta_names.eq = bt_make_string_hashed_len(ctx, "@eq", 3);
+	ctx->meta_names.neq = bt_make_string_hashed_len(ctx, "@neq", 4);
+	ctx->meta_names.format = bt_make_string_hashed_len(ctx, "@format", 7);
+	ctx->meta_names.collect = bt_make_string_hashed_len(ctx, "@collect", 8);
 
-	context->compiler_options.generate_debug_info = BT_TRUE;
+	ctx->compiler_options.generate_debug_info = BT_TRUE;
 
-	context->module_paths = NULL;
-	bt_append_module_path(context, "%s.bolt");
-	bt_append_module_path(context, "%s/module.bolt");
+	ctx->module_paths = NULL;
+	bt_append_module_path(ctx, "%s.bolt");
+	bt_append_module_path(ctx, "%s/module.bolt");
 
-	context->is_valid = BT_TRUE;
+	ctx->is_valid = BT_TRUE;
 }
 
 #ifdef BOLT_ALLOW_PRINTF
@@ -193,7 +196,7 @@ bt_bool bt_run(bt_Context* context, const char* source)
 {
 	bt_Module* mod = bt_compile_module(context, source, "<interp>");
 	if (!mod) return BT_FALSE;
-	return bt_execute(context, mod);
+	return bt_execute(context, (bt_Callable*)mod);
 }
 
 bt_Module* bt_compile_module(bt_Context* context, const char* source, const char* mod_name)
@@ -462,7 +465,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		if (new_mod) {
 			new_mod->name = (bt_String*)BT_AS_OBJECT(name);
 			new_mod->path = bt_make_string_len(context, path_buf, path_len);
-			if (bt_execute(context, new_mod)) {
+			if (bt_execute(context, (bt_Callable*)new_mod)) {
 				bt_register_module(context, name, new_mod);
 
 				return new_mod;
@@ -479,35 +482,50 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 	return mod;
 }
 
+bt_Thread* bt_make_thread(bt_Context* context)
+{
+	bt_Thread* result = context->alloc(sizeof(bt_Thread));
+	result->depth = 0;
+	result->top = 0;
+	result->context = context;
+
+	result->callstack[result->depth].return_loc = 0;
+	result->callstack[result->depth].argc = 0;
+	result->callstack[result->depth].size = 0;
+	result->callstack[result->depth].callable = 0;
+	result->callstack[result->depth].user_top = 0;
+	result->depth++;
+
+	return result;
+}
+
+void bt_destroy_thread(bt_Context* context, bt_Thread* thread)
+{
+	context->free(thread);
+}
+
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);
 
-bt_bool bt_execute(bt_Context* context, bt_Module* module)
+bt_bool bt_execute(bt_Context* context, bt_Callable* module)
 {
-	bt_Thread* thread = context->alloc(sizeof(bt_Thread));
-	thread->depth = 0;
-	thread->top = 0;
-	thread->context = context;
-
-	thread->callstack[thread->depth].return_loc = 0;
-	thread->callstack[thread->depth].argc = 0;
-	thread->callstack[thread->depth].size = module->stack_size;
-	thread->callstack[thread->depth].callable = (bt_Callable*)module;
-	thread->callstack[thread->depth].user_top = 0;
-	thread->depth++;
+	bt_Thread* thread = bt_make_thread(context);
+	bt_Thread* old_thread = context->current_thread;
 
 	context->current_thread = thread;
 
 	int32_t result = setjmp(&thread->error_loc[0]);
 
-	if (result == 0) call(context, thread, module, module->instructions.elements, module->constants.elements, 0);
+	bt_push(thread, BT_VALUE_OBJECT(module));
+
+	if (result == 0) bt_call(thread, 0);
 	else {
-		context->free(thread);
+		context->current_thread = old_thread;
+		bt_destroy_thread(context, thread);
 		return BT_FALSE;
 	}
 
-	context->current_thread = 0;
-	context->free(thread);
-
+	context->current_thread = old_thread;
+	bt_destroy_thread(context, thread);
 	return BT_TRUE;
 }
 
@@ -595,22 +613,27 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	thread->callstack[thread->depth].user_top = 0;
 	thread->depth++;
 
-	if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_FN) {
+	switch (BT_OBJECT_GET_TYPE(obj)) {
+	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* callable = (bt_Fn*)obj;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
 		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
-	}
-	else if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_CLOSURE) {
+	} break;
+	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Fn* callable = ((bt_Closure*)obj)->fn;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
 		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
-	}
-	else if (BT_OBJECT_GET_TYPE(obj) == BT_OBJECT_TYPE_NATIVE_FN) {
+	} break;
+	case BT_OBJECT_TYPE_NATIVE_FN: {
 		bt_NativeFn* callable = (bt_NativeFn*)obj;
 		callable->fn(thread->context, thread);
-	}
-	else {
-		bt_runtime_error(thread, "Unsupported callable type.", NULL);
+	} break;
+	case BT_OBJECT_TYPE_MODULE: {
+		bt_Module* mod = (bt_Module*)obj;
+		thread->callstack[thread->depth - 1].size = mod->stack_size;
+		call(thread->context, thread, mod, mod->instructions.elements, mod->constants.elements, -1);
+	} break;
+	default: bt_runtime_error(thread, "Unsupported callable type.", NULL);
 	}
 
 	thread->depth--;

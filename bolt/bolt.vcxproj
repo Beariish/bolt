@@ -450,6 +450,7 @@
     <ClCompile Include="bt_buffer.c" />
     <ClCompile Include="bt_compiler.c" />
     <ClCompile Include="bt_debug.c" />
+    <ClCompile Include="bt_embedding.c" />
     <ClCompile Include="bt_gc.c" />
     <ClCompile Include="bt_object.c" />
     <ClCompile Include="bt_parser.c" />
@@ -483,6 +484,9 @@
     <ClInclude Include="bt_type.h" />
     <ClInclude Include="bt_userdata.h" />
     <ClInclude Include="bt_value.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

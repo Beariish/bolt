@@ -424,6 +424,16 @@ void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_t
 	bt_table_set(context, tshp->as.table_shape.key_layout, key, BT_VALUE_OBJECT(key_type));
 }
 
+bt_Type* bt_tableshape_get_layout(bt_Type* tshp, bt_Value key)
+{
+	if (tshp->as.table_shape.layout == 0) return NULL;
+
+	bt_Value result = bt_table_get(tshp->as.table_shape.layout, key);
+	if (result == BT_VALUE_NULL) return NULL;
+
+	return (bt_Type*)BT_AS_OBJECT(result);
+}
+
 void bt_type_add_field(bt_Context* context, bt_Type* tshp, bt_Type* type, bt_Value name, bt_Value value)
 {
 	if (tshp->prototype_values == 0) {
@@ -750,3 +760,13 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 
 	return BT_FALSE;
 }
+
+bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }
+bt_Type* bt_type_null(bt_Context* context) { return context->types.null; }
+bt_Type* bt_type_number(bt_Context* context) { return context->types.number; }
+bt_Type* bt_type_boolean(bt_Context* context) { return context->types.boolean; }
+bt_Type* bt_type_string(bt_Context* context) { return context->types.string; }
+bt_Type* bt_type_array(bt_Context* context) { return context->types.array; }
+bt_Type* bt_type_table(bt_Context* context) { return context->types.table; }
+bt_Type* bt_type_fn(bt_Context* context) { return context->types.fn; }
+bt_Type* bt_type_type(bt_Context* context) { return context->types.type; }

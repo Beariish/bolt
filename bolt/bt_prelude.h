@@ -40,6 +40,12 @@
 	#define BOLT_API
 #endif
 
+#if defined(BOLT_SHARED_LIBRARY) || defined(BOLT_STATIC_LIBRARY)
+#define BOLT_INLINE_HEADER 0
+#else
+#define BOLT_INLINE_HEADER 1
+#endif
+
 typedef uint8_t bt_bool;
 typedef double bt_number;
 
