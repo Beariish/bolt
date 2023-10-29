@@ -361,6 +361,20 @@ bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc p
     return result;
 }
 
+bt_Type* bt_get_return_type(bt_Callable* callable)
+{
+    switch (BT_OBJECT_GET_TYPE(callable)) {
+    case BT_OBJECT_TYPE_FN:
+        return ((bt_Fn*)callable)->signature->as.fn.return_type;
+    case BT_OBJECT_TYPE_CLOSURE:
+        return ((bt_Closure*)callable)->fn->signature->as.fn.return_type;
+    case BT_OBJECT_TYPE_NATIVE_FN:
+        return ((bt_NativeFn*)callable)->type->as.fn.return_type;
+    }
+    
+    return NULL;
+}
+
 bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size)
 {
     bt_Userdata* result = BT_ALLOCATE(ctx, USERDATA, bt_Userdata);

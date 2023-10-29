@@ -122,9 +122,12 @@ typedef struct bt_Thread {
 	bt_StackFrame callstack[BT_CALLSTACK_SIZE];
 	uint32_t depth;
 
+	bt_String* last_error;
 	jmp_buf error_loc;
 
 	bt_Context* context;
+	
+	bt_bool should_report;
 } bt_Thread;
 
 BOLT_API bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
@@ -149,6 +152,7 @@ BOLT_API void bt_destroy_thread(bt_Context* context, bt_Thread* thread);
 
 BOLT_API bt_bool bt_execute(bt_Context* context, bt_Callable* callable);
 BOLT_API bt_bool bt_execute_on_thread(bt_Context* context, bt_Thread* thread, bt_Callable* callable);
+BOLT_API bt_bool bt_execute_with_args(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Value* args, uint8_t argc);
 
 BOLT_API void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip);
 

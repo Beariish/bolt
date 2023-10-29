@@ -55,6 +55,7 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 
 bt_bool bt_is_optional(bt_Type* type)
 {
+	if (!type) return BT_FALSE;
 	if (type == type->ctx->types.null) return BT_TRUE;
 
 	if (type->category == BT_TYPE_CATEGORY_UNION) {
@@ -579,7 +580,7 @@ bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name)
 
 bt_Type* bt_type_dealias(bt_Type* type)
 {
-	if (type->category == BT_TYPE_CATEGORY_TYPE) return bt_type_dealias(type->as.type.boxed);
+	if (type && type->category == BT_TYPE_CATEGORY_TYPE) return bt_type_dealias(type->as.type.boxed);
 	return type;
 }
 

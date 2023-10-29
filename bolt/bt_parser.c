@@ -1504,6 +1504,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             // TODO(bearish): Make a smarter check than just comparing against literal table type
             bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
+            if (!lhs) {
+                parse_error(parse, "Lhs has no discernable type", node->source->line, node->source->col);
+                return node;
+            }
+
             if (lhs == parse->context->types.table) {
                 node->resulting_type = parse->context->types.any;
                 return node;
@@ -1618,8 +1623,15 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_AS: {
             bt_Type* from = type_check(parse, node->as.binary_op.left)->resulting_type;
             
-            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
+            if (!from) {
+                parse_error(parse, "Left hand of 'as' has no known type", node->source->line, node->source->col);
+                return node;
+            }
+
+            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE) {
                 parse_error(parse, "Expected right hand of 'as' to be Type", node->source->line, node->source->col);
+                return node;
+            }
 
             bt_Type* type = find_binding(parse, node->as.binary_op.right);
 
@@ -1628,6 +1640,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && to->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 if (to->as.table_shape.sealed && from->as.table_shape.layout->length != to->as.table_shape.layout->length) {
                     parse_error(parse, "Lhs has too many fields to conform to rhs", node->source->line, node->source->col);
+                    return node;
                 }
 
                 node->as.binary_op.accelerated = 1;
@@ -1713,6 +1726,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case tok1: case tok2: {                                                                                                    \
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;                                             \
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;                                            \
+            if(!lhs || !rhs) break;                                                                                                \
                                                                                                                                    \
             if(node->source->type == tok2) {                                                                                       \
                 bt_AstNode* left = node->as.binary_op.left;                                                                        \
@@ -1920,8 +1934,14 @@ static bt_AstNode* parse_let(bt_Parser* parse)
             }
         }
         else {
+            if (!rhs) {
+                parse_error_token(parse, "Assignemnt failed to evaluate to type", node->source); return NULL;
+            }
             node->resulting_type = type_check(parse, rhs)->resulting_type;
-            if (!node->resulting_type) parse_error_token(parse, "Assignemnt failed to evaluate to type", node->source);
+            
+            if (!node->resulting_type) {
+                parse_error_token(parse, "Assignemnt failed to evaluate to type", node->source); return NULL;
+            }
         }
     }
     else {
@@ -2263,17 +2283,20 @@ static bt_AstNode* parse_if(bt_Parser* parser)
 
         if (ident->type != BT_TOKEN_IDENTIFIER) {
             parse_error_token(parser, "Expected identifier, got '%.*s'", ident);
+            return NULL;
         }
 
         bt_Token* assign = bt_tokenizer_emit(tok);
         if (assign->type != BT_TOKEN_ASSIGN) {
             parse_error_token(parser, "Expected assignment, got '%.*s'", assign);
+            return NULL;
         }
 
         bt_AstNode* expr = pratt_parse(parser, 0);
         bt_Type* result_type = type_check(parser, expr)->resulting_type;
         if (!bt_is_optional(result_type)) {
             parse_error_token(parser, "Type must be optional", expr->source);
+            return NULL;
         }
 
         bt_Type* binding_type = bt_remove_nullable(parser->context, result_type);
@@ -2301,6 +2324,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         bt_AstNode* condition = pratt_parse(parser, 0);
         if (type_check(parser, condition)->resulting_type != parser->context->types.boolean) {
             parse_error_token(parser, "'if' expression must evaluate to boolean", condition->source);
+            return NULL;
         }
 
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);

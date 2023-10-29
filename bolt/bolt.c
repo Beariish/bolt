@@ -488,6 +488,8 @@ bt_Thread* bt_make_thread(bt_Context* context)
 	result->depth = 0;
 	result->top = 0;
 	result->context = context;
+	result->should_report = BT_TRUE;
+	result->last_error = 0;
 
 	result->callstack[result->depth].return_loc = 0;
 	result->callstack[result->depth].argc = 0;
@@ -517,6 +519,11 @@ bt_bool bt_execute(bt_Context* context, bt_Callable* callable)
 
 bt_bool bt_execute_on_thread(bt_Context* context, bt_Thread* thread, bt_Callable* callable)
 {
+	return bt_execute_with_args(context, thread, callable, NULL, 0);
+}
+
+bt_bool bt_execute_with_args(bt_Context* context, bt_Thread* thread, bt_Callable* callable, bt_Value* args, uint8_t argc)
+{
 	bt_Thread* old_thread = context->current_thread;
 
 	context->current_thread = thread;
@@ -525,7 +532,11 @@ bt_bool bt_execute_on_thread(bt_Context* context, bt_Thread* thread, bt_Callable
 
 	bt_push(thread, BT_VALUE_OBJECT(callable));
 
-	if (result == 0) bt_call(thread, 0);
+	for (uint8_t i = 0; i < argc; ++i) {
+		bt_push(thread, args[i]);
+	}
+
+	if (result == 0) bt_call(thread, argc);
 	else {
 		context->current_thread = old_thread;
 		return BT_FALSE;
@@ -548,24 +559,27 @@ static bt_Module* get_module(bt_Callable* cb)
 
 void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 {
-	if (ip != NULL) {
-		bt_Callable* callable = thread->callstack[thread->depth - 1].callable;
-		const char* source = bt_get_debug_source(callable);
+	thread->last_error = bt_make_string(thread->context, message);
+	if (thread->should_report) {
+		if (ip != NULL) {
+			bt_Callable* callable = thread->callstack[thread->depth - 1].callable;
+			const char* source = bt_get_debug_source(callable);
 
-		bt_DebugLocBuffer* loc_buffer = bt_get_debug_locs(callable);
-		uint32_t loc_index = bt_get_debug_index(callable, ip);
+			bt_DebugLocBuffer* loc_buffer = bt_get_debug_locs(callable);
+			uint32_t loc_index = bt_get_debug_index(callable, ip);
 
-		bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
+			bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
 
-		bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
-		// TODO(bearish): use this for something, better formatted errors
-		//bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
-		bt_Module* module = get_module(callable);
+			bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
+			// TODO(bearish): use this for something, better formatted errors
+			//bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
+			bt_Module* module = get_module(callable);
 
-		thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, source_token->line - 1, source_token->col);
-	}
-	else {
-		thread->context->on_error(BT_ERROR_RUNTIME, "<native>", message, 0, 0);
+			thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, source_token->line - 1, source_token->col);
+		}
+		else {
+			thread->context->on_error(BT_ERROR_RUNTIME, "<native>", message, 0, 0);
+		}
 	}
 
 	thread->context->current_thread = NULL;
@@ -608,7 +622,7 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	uint16_t old_top = thread->top;
 
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
-	frame->user_top -= argc;
+	frame->user_top -= argc + 1; // + 1 for the function itself
 
 	thread->top += frame->size + 2;
 	bt_Object* obj = BT_AS_OBJECT(thread->stack[thread->top - 1]);

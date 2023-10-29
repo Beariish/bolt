@@ -83,6 +83,59 @@ static void bt_error(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
 
+static bt_Type* bt_protect_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc < 1) return NULL;
+	bt_Type* arg = bt_type_dealias(args[0]);
+
+	if (arg->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
+
+	bt_Type* return_type = ctx->types.null;
+	if (arg->as.fn.return_type) return_type = arg->as.fn.return_type;
+
+	bt_Type* new_args[16];
+	new_args[0] = arg;
+
+	for (uint8_t i = 0; i < arg->as.fn.args.length; ++i) {
+		new_args[i + 1] = arg->as.fn.args.elements[i];
+	}
+
+	bt_Type* compound_return = bt_make_union(ctx);
+	bt_push_union_variant(ctx, compound_return, return_type);
+	bt_push_union_variant(ctx, compound_return, bt_error_type);
+
+	return bt_make_signature(ctx, compound_return, new_args, 1 + arg->as.fn.args.length);
+}
+
+static void bt_protect(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Callable* to_call = (bt_Callable*)BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_Type* return_type = bt_get_return_type(to_call);
+
+	bt_Thread* new_thread = bt_make_thread(ctx);
+	new_thread->should_report = BT_FALSE;
+
+	bt_bool success = bt_execute_with_args(ctx, new_thread, to_call, 
+		thread->stack + thread->top + 1, bt_argc(thread) - 1);
+	
+	if (!success) {
+		bt_Table* result = bt_make_table(ctx, 1);
+		result->prototype = bt_type_get_proto(ctx, bt_error_type);
+
+		bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(new_thread->last_error));
+
+		bt_return(thread, BT_VALUE_OBJECT(result));
+	}
+	else if (return_type) {
+		bt_return(thread, bt_get_returned(new_thread));
+	}
+	else {
+		bt_return(thread, BT_VALUE_NULL);
+	}
+	
+	bt_destroy_thread(ctx, new_thread);
+}
+
 void boltstd_open_core(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -126,6 +179,11 @@ void boltstd_open_core(bt_Context* context)
 	bt_module_export(context, module, error_sig,
 		BT_VALUE_CSTRING(context, "error"),
 		BT_VALUE_OBJECT(bt_make_native(context, error_sig, bt_error)));
+
+	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn: ?): ?", bt_protect_type);
+	bt_module_export(context, module, protect_sig, 
+		BT_VALUE_CSTRING(context, "protect"), 
+		BT_VALUE_OBJECT(bt_make_native(context, protect_sig, bt_protect)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "core"), module);
 }

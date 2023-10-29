@@ -206,6 +206,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
 		}
 
+		grey(gc, (bt_Object*)gc->ctx->current_thread->last_error);
 	}
 
 	while (gc->grey_count) {
