@@ -1,4 +1,4 @@
-import print, protect, throw, Error from core
+import print from core
 import prefix, expect from "test"
 
 let const case = prefix("tables")

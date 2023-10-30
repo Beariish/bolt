@@ -45,7 +45,14 @@ fn run {
     let success_count = 0
     for test in all_tests.each() {
         current_test.inner = test
-        test.body()
+
+        let result = protect(test.body)
+        
+        if let error = result as Error {
+            test.failures.push("Test failed with runtime error: " + to_string(error.what))
+            test.result = false
+        }
+
         if test.result {
             success_count += 1
         }

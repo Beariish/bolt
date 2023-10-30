@@ -180,7 +180,7 @@ void boltstd_open_core(bt_Context* context)
 		BT_VALUE_CSTRING(context, "error"),
 		BT_VALUE_OBJECT(bt_make_native(context, error_sig, bt_error)));
 
-	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn: ?): ?", bt_protect_type);
+	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn(..?): ?, ..?): ?", bt_protect_type);
 	bt_module_export(context, module, protect_sig, 
 		BT_VALUE_CSTRING(context, "protect"), 
 		BT_VALUE_OBJECT(bt_make_native(context, protect_sig, bt_protect)));

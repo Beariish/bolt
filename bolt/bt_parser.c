@@ -2377,6 +2377,14 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_peek(tok);
 
+    bt_bool needs_const = BT_FALSE;
+
+    if (token->type == BT_TOKEN_CONST) {
+        bt_tokenizer_emit(tok);
+        needs_const = BT_TRUE;
+        token = bt_tokenizer_peek(tok);
+    }
+
     bt_AstNode* identifier;
     if (token->type == BT_TOKEN_LEFTBRACE) identifier = token_to_node(parse, tok->literal_true);
     else identifier = pratt_parse(parse, 0);
@@ -2453,7 +2461,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
         bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
         ident_as_let->as.let.initializer = NULL;
-        ident_as_let->as.let.is_const = BT_TRUE;
+        ident_as_let->as.let.is_const = needs_const;
         ident_as_let->as.let.name = identifier->source->source;
         ident_as_let->resulting_type = identifier->resulting_type;
 
@@ -2492,7 +2500,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
     ident_as_let->as.let.initializer = NULL;
-    ident_as_let->as.let.is_const = BT_TRUE;
+    ident_as_let->as.let.is_const = needs_const;
     ident_as_let->as.let.name = identifier->source->source;
     ident_as_let->resulting_type = identifier->resulting_type;
 
