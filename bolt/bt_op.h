@@ -50,7 +50,7 @@
     X(JMPF)        /*  if(R(a) == BT_FALSE) pc += ibc                */             \
     X(RETURN)      /*  R(frame->ret_pos) = R(a)                      */             \
     X(END)         /*  return without value                          */             \
-	                                                                                \
+                                                                                    \
     /*  Fast opcode extensions. */                                                  \
     /*  These are emitted by the compiler whenever types are strongly known */      \
                                                                                     \
