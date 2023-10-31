@@ -42,36 +42,34 @@ fn run {
     
     let start_time = time()
 
-    let success_count = 0
+    let failures = [:TestCase]
     for test in all_tests.each() {
         current_test.inner = test
 
         let result = protect(test.body)
         
         if let error = result as Error {
-            test.failures.push("Test failed with runtime error: " + to_string(error.what))
-            test.result = false
+            expect(false, "Test failed with runtime error: " + to_string(error.what))
         }
 
-        if test.result {
-            success_count += 1
+        if not test.result {
+            failures.push(test)
         }
     }
 
     let end_time = time()
 
     print("Run complete in", to_string((end_time - start_time) / 1000) + "ms!")
-    print("[" + to_string(success_count) + "/" + to_string(all_tests.length()) + "] tests succeeded!")
+    print("[" + to_string(all_tests.length() - failures.length()) + "/" + to_string(all_tests.length()) + "] tests succeeded!")
 
-    if success_count < all_tests.length() {
+    if failures.length() > 0 {
         print("Failures:")
-        for test in all_tests.each() {
-            if not test.result {
-                print("-", test.name)
-                for reason in test.failures.each() {
-                    print("   \"" + reason + "\"")
-                }
-            }
+    }
+
+    for const test in failures.each() {
+        print("-", test.name)
+        for const reason in test.failures.each() {
+            print("   \"" + reason + "\"")
         }
     }
 }

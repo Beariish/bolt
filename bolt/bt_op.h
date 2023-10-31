@@ -52,14 +52,14 @@
 	X(END)         /*  return without value                          */             \
 	                                                                                \
 	/*  Fast opcode extensions. */                                                  \
-	/*  These are emitted by the compiler whenever types are strongly known */	    \
-																				    \
+	/*  These are emitted by the compiler whenever types are strongly known */      \
+                                                                                    \
 	/*  Looping macroops */                                                         \
 	X(NUMFOR)                                                                       \
 	X(ITERFOR)                                                                      \
                                                                                     \
 	/*  Fast array indexing. Used when the indexed type is known to be an array, */	\
-	/*  and the index known to be a number */										\
+	/*  and the index known to be a number */                                       \
 	X(LOAD_SUB_F)                                                                   \
 	X(STORE_SUB_F)
 
