@@ -19,7 +19,7 @@ BOLT_API void bt_return(bt_Thread* thread, bt_Value value)
 
 BOLT_API bt_Value bt_get_returned(bt_Thread* thread)
 {
-	return thread->stack[thread->top];
+	return bt_pop(thread);
 }
 
 BOLT_API bt_Value bt_getup(bt_Thread* thread, uint8_t idx)

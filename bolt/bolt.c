@@ -261,7 +261,7 @@ void bt_push_root(bt_Context* ctx, bt_Object* root)
 
 void bt_pop_root(bt_Context* ctx)
 {
-	ctx->troot_top--;
+	ctx->troots[--ctx->troot_top] = 0;
 }
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
@@ -427,6 +427,7 @@ void bt_append_module_path(bt_Context* context, const char* spec)
 
 bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 {
+	bt_push_root(context, BT_AS_OBJECT(name));
 	// TODO: resolve module name with path
 	bt_Module* mod = (bt_Module*)BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
 	if (mod == 0) {
@@ -443,6 +444,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 			if (path_len >= 256) {
 				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
+				bt_pop_root(context);
 				return NULL;
 			}
 
@@ -454,6 +456,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		if (code == 0) {
 			if(context->current_thread) bt_runtime_error(context->current_thread, "Cannot find module file", NULL);
+			bt_pop_root(context);
 			return NULL;
 		}
 
@@ -468,17 +471,21 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 			if (bt_execute(context, (bt_Callable*)new_mod)) {
 				bt_register_module(context, name, new_mod);
 
+				bt_pop_root(context);
 				return new_mod;
 			}
 			else {
+				bt_pop_root(context);
 				return NULL;
 			}
 		}
 		else {
+			bt_pop_root(context);
 			return NULL;
 		}
 	}
 
+	bt_pop_root(context);
 	return mod;
 }
 
@@ -622,7 +629,7 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	uint16_t old_top = thread->top;
 
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
-	frame->user_top -= argc + 1; // + 1 for the function itself
+	frame->user_top -= argc; // + 1 for the function itself
 
 	thread->top += frame->size + 2;
 	bt_Object* obj = BT_AS_OBJECT(thread->stack[thread->top - 1]);
@@ -637,12 +644,12 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* callable = (bt_Fn*)obj;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
-		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -2);
+		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Fn* callable = ((bt_Closure*)obj)->fn;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
-		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -2);
+		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_NATIVE_FN: {
 		bt_NativeFn* callable = (bt_NativeFn*)obj;
@@ -651,7 +658,7 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	case BT_OBJECT_TYPE_MODULE: {
 		bt_Module* mod = (bt_Module*)obj;
 		thread->callstack[thread->depth - 1].size = mod->stack_size;
-		call(thread->context, thread, mod, mod->instructions.elements, mod->constants.elements, -2);
+		call(thread->context, thread, mod, mod->instructions.elements, mod->constants.elements, -1);
 	} break;
 	default: bt_runtime_error(thread, "Unsupported callable type.", NULL);
 	}
@@ -754,13 +761,13 @@ if (BT_IS_OBJECT(lhs)) {																			 \
 		bt_push(thread, lhs);																		 \
 		bt_push(thread, rhs);																		 \
 		bt_call(thread, 2);																			 \
-		*result = bt_pop(thread);																	 \
+		*result = bt_pop(thread);   														 \
 																									 \
 		return;																						 \
 	}																								 \
 }
 
-static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) + BT_AS_NUMBER(rhs));
@@ -794,7 +801,7 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* result, bt_
 	bt_runtime_error(thread, "Unable to add values of type <TODO>!", ip);
 }
 
-static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* __restrict result, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(-BT_AS_NUMBER(rhs));
@@ -804,7 +811,7 @@ static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* result, bt_Value
 	bt_runtime_error(thread, "Cannot negate non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* result, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* __restrict result, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_FALSE(rhs));
@@ -814,7 +821,7 @@ static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* result, bt_Value
 	bt_runtime_error(thread, "Cannot 'not' non-bool value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) - BT_AS_NUMBER(rhs));
@@ -825,7 +832,7 @@ static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* result, bt_Value
 
 	bt_runtime_error(thread, "Cannot subtract non-number value!", ip);
 }
-static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) * BT_AS_NUMBER(rhs));
@@ -837,7 +844,7 @@ static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* result, bt_
 	bt_runtime_error(thread, "Cannot multiply non-number value!", ip);
 }
 
-static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) / BT_AS_NUMBER(rhs));
@@ -849,17 +856,17 @@ static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* result, bt_
 	bt_runtime_error(thread, "Cannot divide non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 }
 
-static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
 
-static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) < BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
@@ -869,7 +876,7 @@ static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* result, bt_V
 	bt_runtime_error(thread, "Cannot lt non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
@@ -879,7 +886,7 @@ static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* result, bt_Value
 	bt_runtime_error(thread, "Cannot lte non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) && BT_IS_TRUE(rhs));
@@ -889,7 +896,7 @@ static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* result, bt_Value
 	bt_runtime_error(thread, "Cannot 'and' non-bool value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
 		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) || BT_IS_TRUE(rhs));
@@ -899,12 +906,12 @@ static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* result, bt_Value 
 	bt_runtime_error(thread, "Cannot 'or' non-bool value!", ip);
 }
 
-static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
+static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, bt_Module* __restrict module, bt_Op* __restrict ip, bt_Value* __restrict constants, int8_t return_loc)
 {
-	register bt_Value* stack = thread->stack + thread->top;
+	register bt_Value* __restrict stack = thread->stack + thread->top;
 	_mm_prefetch((const char*)stack, 1);
-	register bt_Value* upv = BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable);
-	register bt_Object* obj, *obj2;
+	register bt_Value* __restrict upv = BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable);
+	register bt_Object* __restrict obj, * __restrict obj2;
 
 	BT_ASSUME(obj);
 	BT_ASSUME(obj2);
@@ -1075,6 +1082,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			thread->callstack[thread->depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
 			thread->callstack[thread->depth].argc = BT_GET_C(op);
 			thread->callstack[thread->depth].callable = (bt_Callable*)obj;
+			thread->callstack[thread->depth].user_top = 0;
 			thread->depth++;
 
 			switch (BT_OBJECT_GET_TYPE(obj)) {
