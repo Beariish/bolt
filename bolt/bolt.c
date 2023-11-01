@@ -774,6 +774,8 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* __restrict 
 		return;
 	}
 
+	ARITH_MF(add);
+
 	if (BT_IS_OBJECT(lhs) && BT_IS_OBJECT(rhs)) {
 		bt_String* lhs_str = (bt_String*)BT_AS_OBJECT(lhs);
 		bt_String* rhs_str = (bt_String*)BT_AS_OBJECT(rhs);
@@ -792,13 +794,7 @@ static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* __restrict 
 		}
 	}
 
-	ARITH_MF(add);
-
-	if (BT_TYPEOF(lhs) != BT_TYPEOF(rhs)) {
-		bt_runtime_error(thread, "Cannot add separate types!", ip);
-	}
-
-	bt_runtime_error(thread, "Unable to add values of type <TODO>!", ip);
+	bt_runtime_error(thread, "Unable to add values", ip);
 }
 
 static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* __restrict result, bt_Value rhs, bt_Op* ip)
