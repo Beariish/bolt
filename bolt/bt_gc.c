@@ -191,17 +191,17 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	
 	if (gc->ctx->current_thread) {
 		bt_Thread* thr = gc->ctx->current_thread;
-		uint32_t top = thr->top + thr->callstack[thr->depth - 1].size;
+		uint32_t top = thr->top + thr->callstack[thr->depth - 1].size + thr->callstack[thr->depth - 1].user_top;
 
 		for (uint32_t i = 0; i < thr->depth; ++i) {
 			bt_StackFrame* stck = &thr->callstack[i];
 			grey(gc, (bt_Object*)stck->callable);
 
-			uint32_t ltop = thr->top + stck->size;
+			uint32_t ltop = thr->top + stck->size + stck->user_top;
 			top = top > ltop ? top : ltop;
 		}
 
-		for (uint32_t i = 0; i < top + 10; ++i) {
+		for (uint32_t i = 0; i < top; ++i) {
 			bt_Value val = thr->stack[i];
 			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
 		}
