@@ -34,7 +34,7 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->close_file = handlers->close_file;
 	ctx->free_source = handlers->free_source;
 
-	ctx->gc = bt_make_gc(ctx);
+	bt_make_gc(ctx);
 
 	ctx->n_allocated = 0;
 	ctx->next = 0;

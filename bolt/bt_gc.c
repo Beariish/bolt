@@ -4,23 +4,62 @@
 #include "bt_compiler.h"
 #include "bt_userdata.h"
 
-bt_GC bt_make_gc(bt_Context* ctx)
+void bt_make_gc(bt_Context* ctx)
 {
-	bt_GC result;
+	bt_GC result = { 0 };
 	result.ctx = ctx;
-	result.grey_cap = 32;
-	result.grey_count = 0;
-	result.greys = ctx->alloc(sizeof(bt_Object*) * result.grey_cap);
-	result.next_cycle = 1024 * 1024 * 10;
-	result.min_size = result.next_cycle;
-	result.byets_allocated = 0;
+	ctx->gc = result;
 
-	return result;
+	bt_gc_set_grey_cap(ctx, 32);
+	bt_gc_set_next_cycle(ctx, 1024 * 1024 * 10); // 10mb
+	bt_gc_set_min_size(ctx, ctx->gc.next_cycle);
+	bt_gc_set_growth_pct(ctx, 175);
 }
 
 void bt_destroy_gc(bt_Context* ctx, bt_GC* gc)
 {
 	ctx->free(gc->greys);
+}
+
+size_t bt_gc_get_next_cycle(bt_Context* ctx)
+{
+	return ctx->gc.next_cycle;
+}
+
+void bt_gc_set_next_cycle(bt_Context* ctx, size_t next_cycle)
+{
+	ctx->gc.next_cycle = next_cycle;
+}
+
+size_t bt_gc_get_min_size(bt_Context* ctx)
+{
+	return ctx->gc.min_size;
+}
+
+void bt_gc_set_min_size(bt_Context* ctx, size_t min_size)
+{
+	ctx->gc.min_size = min_size;
+}
+
+uint32_t bt_gc_get_grey_cap(bt_Context* ctx)
+{
+	return ctx->gc.grey_cap;
+}
+
+void bt_gc_set_grey_cap(bt_Context* ctx, uint32_t grey_cap)
+{
+	ctx->gc.grey_cap = grey_cap;
+	ctx->gc.greys = ctx->realloc(ctx->gc.greys, ctx->gc.grey_cap * sizeof(bt_Object*));
+}
+
+size_t bt_gc_get_growth_pct(bt_Context* ctx)
+{
+	return ctx->gc.cycle_growth_pct;
+}
+
+void bt_gc_set_growth_pct(bt_Context* ctx, size_t growth_pct)
+{
+	ctx->gc.cycle_growth_pct = growth_pct;
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
@@ -30,8 +69,7 @@ static void grey(bt_GC* gc, bt_Object* obj) {
 	BT_OBJECT_MARK(obj);
 
 	if (gc->grey_count == gc->grey_cap) {
-		gc->grey_cap *= 2;
-		gc->greys = gc->ctx->realloc(gc->greys, gc->grey_cap * sizeof(bt_Object*));
+		bt_gc_set_grey_cap(gc->ctx, gc->grey_cap * 2);
 	}
 
 	gc->greys[gc->grey_count++] = obj;
@@ -241,11 +279,11 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 			bt_free(ctx, to_free);
 
 			n_collected++;
-			//if (n_collected >= max_collect) return n_collected;
+			if (max_collect != 0 && n_collected >= max_collect) return n_collected;
 		}
 	}
 
-	gc->next_cycle = (gc->byets_allocated * 175) / 100;
+	gc->next_cycle = (gc->byets_allocated * gc->cycle_growth_pct) / 100;
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
 
 	ctx->current_thread = old_thr;
