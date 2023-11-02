@@ -591,6 +591,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t start_loc = get_registers(ctx, args->length + 1);
 
         compile_expression(ctx, lhs, start_loc);
+
         for (uint8_t i = 0; i < args->length; i++) {
             compile_expression(ctx, args->elements[i], start_loc + i + 1);
         }

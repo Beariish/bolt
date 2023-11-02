@@ -84,6 +84,52 @@ static bt_Type* bt_arr_each_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	return sig;
 }
 
+static bt_Type* bt_arr_reverse_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 1) return NULL;
+	bt_Type* arg = bt_type_dealias(args[0]);
+
+	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+
+	return bt_make_method(ctx, NULL, &arg, 1);
+}
+
+static bt_Type* bt_arr_clone_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 1) return NULL;
+	bt_Type* arg = bt_type_dealias(args[0]);
+
+	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+
+	return bt_make_method(ctx, arg, &arg, 1);
+}
+
+static void bt_arr_reverse(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+
+	uint32_t i = arr->items.length - 1;
+	uint32_t j = 0;
+	while (i > j)
+	{
+		bt_Value temp = arr->items.elements[i];
+		arr->items.elements[i] = arr->items.elements[j];
+		arr->items.elements[j] = temp;
+		i--;
+		j++;
+	}
+}
+
+static void bt_arr_clone(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+
+	bt_Array* clone = bt_make_array(ctx, arr->items.length);
+	bt_buffer_append(ctx, &clone->items, &arr->items);
+
+	bt_return(thread, BT_VALUE_OBJECT(clone));
+}
+
 void boltstd_open_arrays(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -109,8 +155,17 @@ void boltstd_open_arrays(bt_Context* context)
 	fn_ref = bt_make_native(context, arr_each_sig, bt_arr_each);
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
-	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "_each_iter"), bt_arr_each_iter_fn);
+	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "$_each_iter"), bt_arr_each_iter_fn);
 
+	bt_Type* arr_clone_sig = bt_make_poly_method(context, "clone([T]): [T]", bt_arr_clone_type);
+	fn_ref = bt_make_native(context, arr_clone_sig, bt_arr_clone);
+	bt_type_add_field(context, array, arr_clone_sig, BT_VALUE_CSTRING(context, "clone"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_clone_sig, BT_VALUE_CSTRING(context, "clone"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* arr_reverse_sig = bt_make_poly_method(context, "reverse([T]): [T]", bt_arr_reverse_type);
+	fn_ref = bt_make_native(context, arr_reverse_sig, bt_arr_reverse);
+	bt_type_add_field(context, array, arr_reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "arrays"), module);
 }
