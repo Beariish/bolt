@@ -163,7 +163,7 @@ static void bt_arr_map(bt_Context* ctx, bt_Thread* thread)
 		bt_push(thread, arg->items.elements[i]);
 		bt_call(thread, 1);
 
-		bt_Value mapped = bt_get_returned(thread);
+		bt_Value mapped = bt_pop(thread);
 		bt_array_push(ctx, result, mapped);
 	}
 

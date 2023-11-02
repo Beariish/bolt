@@ -657,16 +657,15 @@ bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
 
 void bt_call(bt_Thread* thread, uint8_t argc)
 {
-	int32_t old_top = thread->top;
+	uint16_t old_top = thread->top;
 
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
-	frame->user_top -= argc + 1; // + 1 for the function itself
+	frame->user_top -= argc; // + 1 for the function itself
 
-	// +1 for the function reference, +1 for the alignment between user and bolt stack
 	thread->top += frame->size + 2;
 	bt_Object* obj = BT_AS_OBJECT(thread->stack[thread->top - 1]);
 
-	thread->callstack[thread->depth].return_loc = old_top - (int32_t)thread->top;
+	thread->callstack[thread->depth].return_loc = -2;
 	thread->callstack[thread->depth].argc = argc;
 	thread->callstack[thread->depth].callable = (bt_Callable*)obj;
 	thread->callstack[thread->depth].user_top = 0;
@@ -676,12 +675,12 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* callable = (bt_Fn*)obj;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
-		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, old_top - (int32_t)thread->top);
+		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Fn* callable = ((bt_Closure*)obj)->fn;
 		thread->callstack[thread->depth - 1].size = callable->stack_size;
-		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, old_top - (int32_t)thread->top);
+		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_NATIVE_FN: {
 		bt_NativeFn* callable = (bt_NativeFn*)obj;
@@ -690,7 +689,7 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	case BT_OBJECT_TYPE_MODULE: {
 		bt_Module* mod = (bt_Module*)obj;
 		thread->callstack[thread->depth - 1].size = mod->stack_size;
-		call(thread->context, thread, mod, mod->instructions.elements, mod->constants.elements, old_top - (int32_t)thread->top);
+		call(thread->context, thread, mod, mod->instructions.elements, mod->constants.elements, -1);
 	} break;
 	default: bt_runtime_error(thread, "Unsupported callable type.", NULL);
 	}

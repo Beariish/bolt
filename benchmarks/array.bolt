@@ -50,3 +50,21 @@ bench("1m untyped array assignment", 50, fn {
         arr[idx] = i
     }
 })
+
+fn doubler(x: number) { return x * 2 }
+
+bench("mapping 1m array", 20, fn {
+    let new_arr = to_probe.map(doubler)
+})
+
+bench("manual mapping 1m array", 20, fn {
+    let res = [:number]
+    for const n in to_probe.each() { res.push(n * 2) }
+})
+
+bench("clone and map 1m array", 20, fn {
+    let new_arr = to_probe.clone()
+    for i in new_arr.length() {
+        new_arr[i] = new_arr[i] * 2
+    }
+})
