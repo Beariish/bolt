@@ -1,3 +1,5 @@
+import print from core 
+
 import "tables"
 import run from "test"
 

@@ -938,8 +938,9 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 }
 
 
-static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* body, bt_Type* expected)
+static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* body, bt_Type* expected, bt_bool is_inferable, uint8_t level)
 {
+    bt_bool has_return = BT_FALSE;
     for (uint32_t i = 0; i < body->length; ++i) {
         bt_AstNode* expr = body->elements[i];
         if (!expr) continue;
@@ -955,23 +956,36 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
             }
 
             if (expected && !expected->satisfier(expected, expr->resulting_type)) {
-                if (expected->category != BT_TYPE_CATEGORY_UNION) {
-                    bt_Type* new_union = bt_make_union(ctx);
-                    bt_push_union_variant(ctx, new_union, expected);
-                    expected = new_union;
-                }
+                if (is_inferable) {
+                    if (expected->category != BT_TYPE_CATEGORY_UNION) {
+                        bt_Type* new_union = bt_make_union(ctx);
+                        bt_push_union_variant(ctx, new_union, expected);
+                        expected = new_union;
+                    }
 
-                bt_push_union_variant(ctx, expected, expr->resulting_type);
+                    bt_push_union_variant(ctx, expected, expr->resulting_type);
+                }
+                else {
+                    parse_error(parse, "Invalid return type for uninferable function type", expr->source->line, expr->source->col);
+                    return NULL;
+                }
             }
+
+            has_return = BT_TRUE;
         }
         else if (expr->type == BT_AST_NODE_IF) {
-            expected = infer_return(parse, ctx, &expr->as.branch.body, expected);
+            expected = infer_return(parse, ctx, &expr->as.branch.body, expected, is_inferable, level + 1);
             bt_AstNode* elif = expr->as.branch.next;
             while (elif) {
-                expected = infer_return(parse, ctx, &elif->as.branch.body, expected);
+                expected = infer_return(parse, ctx, &elif->as.branch.body, expected, is_inferable, level + 1);
                 elif = elif->as.branch.next;
             }
         }
+    }
+
+    if (level == 0 && !has_return && expected) {
+        parse_error(parse, "Not all control paths return value", body->elements[0]->source->line, body->elements[0]->source->col);
+        return NULL;
     }
 
     return expected;
@@ -1060,7 +1074,8 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
         return NULL;
     }
 
-    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, result->as.fn.ret_type);
+    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, 
+        result->as.fn.ret_type, result->as.fn.ret_type == NULL, 0);
     
     bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
@@ -2645,7 +2660,8 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         return NULL;
     }
 
-    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, result->as.fn.ret_type);
+    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, 
+        result->as.fn.ret_type, result->as.fn.ret_type == NULL, 0);
 
     next = bt_tokenizer_emit(tok);
     if (next->type != BT_TOKEN_RIGHTBRACE) {
