@@ -180,6 +180,42 @@ static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_NUMBER((double)-1));
 }
 
+static void bt_string_replace(bt_Context* ctx, bt_Thread* thread) {
+	bt_String* orig_str = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* rep_str = (bt_String*)bt_get_object(bt_arg(thread, 1));
+	bt_String* with_str = (bt_String*)bt_get_object(bt_arg(thread, 2));
+
+	const char* orig = BT_STRING_STR(orig_str);
+	const char* rep = BT_STRING_STR(rep_str);
+	const char* with = BT_STRING_STR(with_str);
+
+	size_t len_rep = strlen(rep);
+	if (len_rep == 0) bt_runtime_error(thread, "Replacement string cannot be empty!", NULL); // empty rep causes infinite loop during count
+	size_t len_with = strlen(with);
+
+	char* tmp;
+	char* ins = orig;
+	int count;
+	for (count = 0; tmp = strstr(ins, rep); ++count) {
+		ins = tmp + len_rep;
+	}
+
+	bt_String* result = bt_make_string_empty(ctx, strlen(orig) + (len_with - len_rep) * count + 1);
+	tmp = BT_STRING_STR(result);
+
+	int len_front;
+	while (count--) {
+		ins = strstr(orig, rep);
+		len_front = ins - orig;
+		tmp = strncpy(tmp, orig, len_front) + len_front;
+		tmp = strcpy(tmp, with) + len_with;
+		orig += len_front + len_rep;
+	}
+	strcpy(tmp, orig);
+
+	bt_return(thread, BT_VALUE_OBJECT(result));
+}
+
 void boltstd_open_strings(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -217,6 +253,13 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* replace_args[] = { string, string, string };
+	bt_Type* replace_sig = bt_make_method(context, string, replace_args, 3);
+	fn_ref = bt_make_native(context, replace_sig, bt_string_replace);
+
+	bt_type_add_field(context, string, replace_sig, BT_VALUE_CSTRING(context, "replace"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, replace_sig, BT_VALUE_CSTRING(context, "replace"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }
