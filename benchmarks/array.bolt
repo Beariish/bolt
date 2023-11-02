@@ -68,3 +68,5 @@ bench("clone and map 1m array", 20, fn {
         new_arr[i] = new_arr[i] * 2
     }
 })
+
+bench("reverse 1m array", 100, fn { to_probe.reverse() })
