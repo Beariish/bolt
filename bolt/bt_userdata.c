@@ -3,6 +3,7 @@
 #include "bt_context.h"
 
 #include <assert.h>
+#include <memory.h>
 
 #define DEFINE_USERDATA_NUMBER_FIELD(fnname, dtype)                                                       \
 static bt_Value userdata_get_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset)                \
@@ -45,7 +46,53 @@ DEFINE_USERDATA_NUMBER_FIELD(uint16, uint16_t);
 DEFINE_USERDATA_NUMBER_FIELD(uint32, uint32_t);
 DEFINE_USERDATA_NUMBER_FIELD(uint64, uint64_t);
 
-void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name, 
+static bt_Value userdata_get_string(bt_Context* ctx, uint8_t* userdata, uint32_t offset)
+{
+	char* data = *(char**)(userdata + offset);
+	uint32_t len = *(uint32_t*)(userdata + offset + sizeof(char*));
+
+	bt_String* as_bolt = bt_make_string_len(ctx, *data ? data : "", *data ? len : 0);
+
+	return BT_VALUE_OBJECT(as_bolt);
+}
+
+static void userdata_set_string(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)
+{
+	assert(BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING);
+
+	bt_String* as_str = (bt_String*)BT_AS_OBJECT(value);
+
+	char** data = (char**)(userdata + offset);
+	uint32_t* len = (uint32_t*)(userdata + offset + sizeof(char*));
+
+	if (*data) {
+		ctx->free(*data);
+	}
+
+	*data = ctx->alloc(as_str->len + 1);
+	memcpy(*data, BT_STRING_STR(as_str), as_str->len);
+	*data[as_str->len] = 0;
+
+	*len = as_str->len;
+}
+
+void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
+{
+	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  
+
+	bt_FieldBuffer* fields = &type->as.userdata.fields;
+
+	bt_UserdataField field;
+	field.bolt_type = ctx->types.string;
+	field.name = bt_make_string(ctx, name);
+	field.offset = offset;
+	field.getter = userdata_get_string;
+	field.setter = userdata_set_string;
+
+	bt_buffer_push(ctx, fields, field);
+}
+
+void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
 	bt_NativeProc method, bt_Type* ret, bt_Type** args, uint8_t arg_count)
 {
 	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  
