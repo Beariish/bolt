@@ -5,32 +5,38 @@
 #include <assert.h>
 #include <memory.h>
 
-#define DEFINE_USERDATA_NUMBER_FIELD(fnname, dtype)                                                       \
-static bt_Value userdata_get_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset)                \
-{																										  \
-	return bt_make_number((bt_number)(*(dtype*)(userdata + offset)));								      \
-}																										  \
-																										  \
-static void userdata_set_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)	  \
-{																										  \
-	assert(BT_IS_NUMBER(value));																		  \
-	*(dtype*)(userdata + offset) = (dtype)bt_get_number(value);											  \
-}																										  \
-																										  \
-void bt_userdata_type_field_##fnname(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)	  \
-{																										  \
-	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  \
-																										  \
-	bt_FieldBuffer* fields = &type->as.userdata.fields;													  \
-																										  \
-	bt_UserdataField field;                                                                               \
-	field.bolt_type = ctx->types.number;                                                                  \
-	field.name = bt_make_string(ctx, name);																  \
-	field.offset = offset;																                  \
-	field.getter = userdata_get_##fnname;																  \
-	field.setter = userdata_set_##fnname;																  \
-																										  \
-	bt_buffer_push(ctx, fields, field);																      \
+static void push_userdata_field(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset,
+	bt_Type* field_type, bt_UserdataFieldGetter getter, bt_UserdataFieldSetter setter)
+{
+	assert(type->category == BT_TYPE_CATEGORY_USERDATA);
+
+	bt_FieldBuffer* fields = &type->as.userdata.fields;
+
+	bt_UserdataField field;
+	field.bolt_type = field_type;
+	field.name = bt_make_string(ctx, name);
+	field.offset = offset;
+	field.getter = getter;
+	field.setter = setter;
+
+	bt_buffer_push(ctx, fields, field);
+}
+
+#define DEFINE_USERDATA_NUMBER_FIELD(fnname, dtype)                                                                \
+static bt_Value userdata_get_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset)                         \
+{																										           \
+	return bt_make_number((bt_number)(*(dtype*)(userdata + offset)));								               \
+}																										           \
+																										           \
+static void userdata_set_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)	           \
+{																										           \
+	assert(BT_IS_NUMBER(value));																		           \
+	*(dtype*)(userdata + offset) = (dtype)bt_get_number(value);											           \
+}																										           \
+																										           \
+void bt_userdata_type_field_##fnname(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)	           \
+{						                                                                                           \
+	push_userdata_field(ctx, type, name, offset, ctx->types.number, userdata_get_##fnname, userdata_set_##fnname); \
 }																										  
 
 DEFINE_USERDATA_NUMBER_FIELD(double, bt_number); 
@@ -76,20 +82,30 @@ static void userdata_set_string(bt_Context* ctx, uint8_t* userdata, uint32_t off
 	*len = as_str->len;
 }
 
+static bt_Value userdata_get_bool(bt_Context* ctx, uint8_t* userdata, uint32_t offset)
+{
+	bt_bool value = *(bt_bool*)(userdata + offset);
+	if (value == BT_TRUE) return BT_VALUE_TRUE;
+	return BT_VALUE_FALSE;
+}
+
+static void userdata_set_bool(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)
+{
+	bt_bool* ref = (bt_bool*)(userdata + offset);
+	if (value == BT_VALUE_TRUE) *ref = BT_TRUE;
+	if (value == BT_VALUE_FALSE) *ref = BT_FALSE;
+
+	assert(!"Impossible value passed to userdata setter!");
+}
+
 void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
 {
-	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  
+	push_userdata_field(ctx, type, name, offset, ctx->types.string, userdata_get_string, userdata_set_string);
+}
 
-	bt_FieldBuffer* fields = &type->as.userdata.fields;
-
-	bt_UserdataField field;
-	field.bolt_type = ctx->types.string;
-	field.name = bt_make_string(ctx, name);
-	field.offset = offset;
-	field.getter = userdata_get_string;
-	field.setter = userdata_set_string;
-
-	bt_buffer_push(ctx, fields, field);
+void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
+{
+	push_userdata_field(ctx, type, name, offset, ctx->types.boolean, userdata_get_bool, userdata_set_bool);
 }
 
 void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
