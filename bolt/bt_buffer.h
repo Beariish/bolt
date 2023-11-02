@@ -14,7 +14,10 @@
 	{ (b)->elements = 0; (b)->length = (b)->capacity = 0; }
 
 #define bt_buffer_with_capacity(b, ctx, cap) \
-	{ bt_buffer_empty(b); bt_buffer_reserve(ctx, bt_buffer_unpack(b), cap); }
+	{ bt_buffer_empty(b); bt_buffer_reserve_(ctx, bt_buffer_unpack(b), cap); }
+
+#define bt_buffer_reserve(b, ctx, cap) \
+	{ bt_buffer_reserve_(ctx, bt_buffer_unpack(b), cap); }
 
 #define bt_buffer_destroy(ctx, b) \
 	{ bt_buffer_free(ctx, bt_buffer_unpack(b)); }
@@ -42,7 +45,7 @@
 	{ bt_buffer_move_(bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
 
 
-void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap);
+void bt_buffer_reserve_(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap);
 void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t by);
 void bt_buffer_free(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size);
 

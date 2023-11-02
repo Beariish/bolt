@@ -4,7 +4,7 @@
 #include <memory.h>
 #include <assert.h>
 
-void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap)
+void bt_buffer_reserve_(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap)
 {
     if (*capacity >= new_cap) return;
     ctx->gc.byets_allocated += (new_cap - *capacity) * element_size;
@@ -15,7 +15,7 @@ void bt_buffer_reserve(bt_Context* ctx, char** data, uint32_t* length, uint32_t*
 void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t by)
 {
     if ((*length) + by > *capacity) {
-        bt_buffer_reserve(ctx, data, length, capacity, element_size, (*capacity) * 2 + 1);
+        bt_buffer_reserve_(ctx, data, length, capacity, element_size, (*capacity) * 2 + 1);
     }
 }
 
@@ -32,7 +32,7 @@ void bt_buffer_free(bt_Context* ctx, char** data, uint32_t* length, uint32_t* ca
 void bt_buffer_clone_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1, char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2)
 {
     assert(element_size1 == element_size2);
-    bt_buffer_reserve(ctx, data1, length1, capacity1, element_size1, *length2);
+    bt_buffer_reserve_(ctx, data1, length1, capacity1, element_size1, *length2);
     memcpy(*data1, *data2, *length2 * element_size1);
     *length1 = *length2;
 }
@@ -40,7 +40,7 @@ void bt_buffer_clone_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_t
 void bt_buffer_append_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1, char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2)
 {
     assert(element_size1 == element_size2);
-    bt_buffer_reserve(ctx, data1, length1, capacity1, element_size1, *length1 + *length2);
+    bt_buffer_reserve_(ctx, data1, length1, capacity1, element_size1, *length1 + *length2);
     memcpy(*data1 + (*length1 * element_size1), *data2, *length2 * element_size1);
     *length1 += *length2;
 }

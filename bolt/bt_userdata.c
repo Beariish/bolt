@@ -103,7 +103,7 @@ void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* n
 	push_userdata_field(ctx, type, name, offset, ctx->types.string, userdata_get_string, userdata_set_string);
 }
 
-void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
+void bt_userdata_type_field_bool(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
 {
 	push_userdata_field(ctx, type, name, offset, ctx->types.boolean, userdata_get_bool, userdata_set_bool);
 }

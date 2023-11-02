@@ -2,6 +2,10 @@
 
 #include "../bt_embedding.h"
 
+#include <memory.h>
+#include <string.h>
+#include <stdio.h>
+
 static void bt_str_length(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -22,6 +26,135 @@ static void bt_str_substring(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(substring));
 }
 
+static void bt_string_concat(bt_Context* ctx, bt_Thread* thread)
+{
+	uint8_t argc = bt_argc(thread);
+
+	uint32_t total_len = 0;
+	for (uint8_t i = 0; i < argc; i++) {
+		bt_String* str = (bt_String*)bt_get_object(bt_arg(thread, i));
+		total_len += str->len;
+	}
+
+	bt_String* result = bt_make_string_empty(ctx, total_len);
+
+	uint32_t progress = 0;
+	for (uint8_t i = 0; i < argc; i++) {
+		bt_String* str = (bt_String*)bt_get_object(bt_arg(thread, i));
+		memcpy(BT_STRING_STR(result) + progress, BT_STRING_STR(str), str->len);
+		progress += str->len;
+	}
+
+	BT_STRING_STR(result)[total_len] = 0;
+
+	bt_return(thread, BT_VALUE_OBJECT(result));
+}
+
+typedef bt_Buffer(char) bt_StringBuffer;
+
+static void push_string(bt_Context* ctx, bt_StringBuffer* output, const char* cstr, size_t len)
+{
+	bt_buffer_reserve(output, ctx, output->length + len);
+
+	for (uint32_t i = 0; i < len; i++) {
+		bt_buffer_push(ctx, output, cstr[i]);
+	}
+}
+
+static void sprint_invalid(bt_Context* ctx, bt_StringBuffer* output) 
+{
+	const char* to_format = "<invalid>";
+	push_string(ctx, output, to_format, strlen(to_format));
+}
+
+static void sptint_unknown_specifier(bt_Context* ctx, bt_StringBuffer* output)
+{
+	const char* to_format = "<unknown specicier>";
+	push_string(ctx, output, to_format, strlen(to_format));
+}
+
+static void sprint_uint64_t(bt_Context* ctx, bt_StringBuffer* output, bt_Value value)
+{
+	if (!bt_is_number(value)) {
+		sprint_invalid(ctx, output);
+		return;
+	}
+
+	char buf[128];
+	int32_t len = sprintf(buf, "%lld", (uint64_t)BT_AS_NUMBER(value));
+
+	push_string(ctx, output, buf, len);
+}
+
+static void sprint_float(bt_Context* ctx, bt_StringBuffer* output, bt_Value value)
+{
+	if (!bt_is_number(value)) {
+		sprint_invalid(ctx, output);
+		return;
+	}
+
+	char buf[128];
+	int32_t len = sprintf(buf, "%f", BT_AS_NUMBER(value));
+
+	push_string(ctx, output, buf, len);
+}
+
+static void sprint_string(bt_Context* ctx, bt_StringBuffer* output, bt_Value value)
+{
+	bt_String* as_str = bt_to_string(ctx, value);
+
+	push_string(ctx, output, BT_STRING_STR(as_str), as_str->len);
+}
+
+static void bt_string_format(bt_Context* ctx, bt_Thread* thread)
+{
+	uint8_t argc = bt_argc(thread);
+
+	bt_String* format = (bt_String*)bt_get_object(bt_arg(thread, 0));
+
+	bt_StringBuffer output;
+	bt_buffer_empty(&output);
+
+	uint8_t current_arg = 1;
+
+	char* current_format = BT_STRING_STR(format);
+	while (*current_format) {
+		if (*current_format == '%') {
+			char specifier = *(++current_format);
+			current_format++;
+
+			switch (specifier) {
+			case '%':
+				bt_buffer_push(ctx, &output, '%');
+				break;
+			case 'd': case 'i':
+				sprint_uint64_t(ctx, &output, current_arg < argc ? bt_arg(thread, current_arg++) : BT_VALUE_NULL);
+				break;
+			case 'f':
+				sprint_float(ctx, &output, current_arg < argc ? bt_arg(thread, current_arg++) : BT_VALUE_NULL);
+				break;
+			case 's': case 'v':
+				sprint_string(ctx, &output, current_arg < argc ? bt_arg(thread, current_arg++) : BT_VALUE_NULL);
+				break;
+			default:
+				sptint_unknown_specifier(ctx, &output);
+				break;
+			}
+		}
+		else {
+			bt_buffer_push(ctx, &output, *current_format);
+			current_format++;
+		}
+	}
+
+	bt_buffer_push(ctx, &output, '\0');
+
+	bt_String* result = bt_make_string_len(ctx, output.elements, output.length);
+	bt_buffer_destroy(ctx, &output);
+
+	bt_return(thread, BT_VALUE_OBJECT(result));
+}
+
 void boltstd_open_strings(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -40,6 +173,18 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, substring_sig, BT_VALUE_CSTRING(context, "substring"), BT_VALUE_OBJECT(substring_ref));
 	bt_module_export(context, module, substring_sig, BT_VALUE_CSTRING(context, "substring"), BT_VALUE_OBJECT(substring_ref));
+
+	bt_Type* concat_sig = bt_make_vararg(context, bt_make_method(context, string, &string, 1), string);
+	fn_ref = bt_make_native(context, concat_sig, bt_string_concat);
+
+	bt_type_add_field(context, string, concat_sig, BT_VALUE_CSTRING(context, "concat"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, concat_sig, BT_VALUE_CSTRING(context, "concat"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* format_sig = bt_make_vararg(context, bt_make_method(context, string, &string, 1), context->types.any);
+	fn_ref = bt_make_native(context, format_sig, bt_string_format);
+
+	bt_type_add_field(context, string, format_sig, BT_VALUE_CSTRING(context, "format"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, format_sig, BT_VALUE_CSTRING(context, "format"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }
