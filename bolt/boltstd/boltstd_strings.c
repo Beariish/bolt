@@ -180,7 +180,8 @@ static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_NUMBER((double)-1));
 }
 
-static void bt_string_replace(bt_Context* ctx, bt_Thread* thread) {
+static void bt_string_replace(bt_Context* ctx, bt_Thread* thread) 
+{
 	bt_String* orig_str = (bt_String*)bt_get_object(bt_arg(thread, 0));
 	bt_String* rep_str = (bt_String*)bt_get_object(bt_arg(thread, 1));
 	bt_String* with_str = (bt_String*)bt_get_object(bt_arg(thread, 2));
@@ -212,6 +213,20 @@ static void bt_string_replace(bt_Context* ctx, bt_Thread* thread) {
 		orig += len_front + len_rep;
 	}
 	strcpy(tmp, orig);
+
+	bt_return(thread, BT_VALUE_OBJECT(result));
+}
+
+static void bt_string_reverse(bt_Context* ctx, bt_Thread* thread) 
+{
+	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 0));
+
+	bt_String* result = bt_make_string_empty(ctx, arg->len);
+	BT_STRING_STR(result)[arg->len] = 0;
+
+	for (uint32_t i = 0; i < arg->len; ++i) {
+		BT_STRING_STR(result)[i] = BT_STRING_STR(arg)[arg->len - i - 1];
+	}
 
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
@@ -260,6 +275,12 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, replace_sig, BT_VALUE_CSTRING(context, "replace"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, replace_sig, BT_VALUE_CSTRING(context, "replace"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* reverse_sig = bt_make_method(context, string, &string, 1);
+	fn_ref = bt_make_native(context, reverse_sig, bt_string_reverse);
+
+	bt_type_add_field(context, string, reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }
