@@ -256,6 +256,22 @@ int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
     return -1;
 }
 
+BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key)
+{
+    bt_TablePair* start = BT_TABLE_PAIRS(tbl);
+
+    for (uint32_t i = 0; i < tbl->length; i++) {
+        if (bt_value_is_equal(key, start[i].key)) {
+            memcpy(start + i, start + i + 1, sizeof(bt_TablePair) * tbl->length - i - 1);
+            tbl->length--;
+
+            return BT_TRUE;
+        }
+    }
+
+    return BT_FALSE;
+}
+
 bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity)
 {
     bt_Array* arr = BT_ALLOCATE(ctx, ARRAY, bt_Array);

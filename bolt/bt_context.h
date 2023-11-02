@@ -106,6 +106,7 @@ struct bt_Context {
 	bt_Table* type_registry;
 	bt_Table* loaded_modules;
 	bt_Table* prelude;
+	bt_Table* native_references;
 
 	struct bt_Thread* current_thread;
 
@@ -114,6 +115,9 @@ struct bt_Context {
 
 BOLT_API void bt_push_root(bt_Context* ctx, bt_Object* root);
 BOLT_API void bt_pop_root(bt_Context* ctx);
+
+BOLT_API uint32_t bt_add_ref(bt_Context* ctx, bt_Object* obj);
+BOLT_API uint32_t bt_remove_ref(bt_Context* ctx, bt_Object* obj);
 
 typedef struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];

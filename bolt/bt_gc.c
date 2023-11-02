@@ -222,6 +222,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	grey(gc, (bt_Object*)ctx->type_registry);
 	grey(gc, (bt_Object*)ctx->prelude);
 	grey(gc, (bt_Object*)ctx->loaded_modules);
+	grey(gc, (bt_Object*)ctx->native_references);
 
 	for (uint32_t i = 0; i < gc->ctx->troot_top; ++i) {
 		grey(gc, (bt_Object*)gc->ctx->troots[i]);

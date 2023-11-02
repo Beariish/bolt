@@ -61,6 +61,7 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 
 	ctx->loaded_modules = bt_make_table(ctx, 1);
 	ctx->prelude = bt_make_table(ctx, 16);
+	ctx->native_references = bt_make_table(ctx, 16);
 
 	ctx->type_registry = bt_make_table(ctx, 16);
 	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "number")), ctx->types.number);
@@ -262,6 +263,36 @@ void bt_push_root(bt_Context* ctx, bt_Object* root)
 void bt_pop_root(bt_Context* ctx)
 {
 	ctx->troots[--ctx->troot_top] = 0;
+}
+
+uint32_t bt_add_ref(bt_Context* ctx, bt_Object* obj)
+{
+	bt_Value num_refs = bt_table_get(ctx->native_references, BT_VALUE_OBJECT(obj));
+	if (num_refs == BT_VALUE_NULL) {
+		num_refs = BT_VALUE_NUMBER(0);
+	}
+
+	num_refs = BT_VALUE_NUMBER((uint32_t)BT_AS_NUMBER(num_refs) + 1);
+	bt_table_set(ctx, ctx->native_references, BT_VALUE_OBJECT(obj), num_refs);
+
+	return (uint32_t)BT_AS_NUMBER(num_refs);
+}
+
+uint32_t bt_remove_ref(bt_Context* ctx, bt_Object* obj)
+{
+	bt_Value num_refs = bt_table_get(ctx->native_references, BT_VALUE_OBJECT(obj));
+	if (num_refs == BT_VALUE_NULL) {
+		return 0;
+	}
+
+	num_refs = BT_VALUE_NUMBER((uint32_t)BT_AS_NUMBER(num_refs) - 1);
+	bt_table_set(ctx, ctx->native_references, BT_VALUE_OBJECT(obj), num_refs);
+
+	if ((uint32_t)BT_AS_NUMBER(num_refs) == 0) {
+		bt_table_delete_key(ctx->native_references, BT_VALUE_OBJECT(obj));
+	}
+
+	return (uint32_t)BT_AS_NUMBER(num_refs);
 }
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)

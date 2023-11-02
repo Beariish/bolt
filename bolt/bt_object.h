@@ -182,6 +182,7 @@ BOLT_API bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* k
 BOLT_API bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
 BOLT_API bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key);
 BOLT_API int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key);
+BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key);
 
 BOLT_API bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity);
 BOLT_API uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value);
