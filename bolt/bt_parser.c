@@ -1277,6 +1277,11 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 bt_buffer_with_capacity(&call->as.call.args, parse->context, max_arg);
                 
                 for (uint8_t i = 0; i < max_arg; i++) {
+                    if (!args[i]) {
+                        parse_error_fmt(parse, "Failed to evaluate argument %d", call->source->line, call->source->col, i);
+                        return NULL;
+                    }
+
                     bt_Type* arg_type = type_check(parse, args[i])->resulting_type;
                     
                     if (i < to_call->as.fn.args.length) {

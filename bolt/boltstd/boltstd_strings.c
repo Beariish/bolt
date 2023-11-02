@@ -155,6 +155,31 @@ static void bt_string_format(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
 
+static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_String* source = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* needle = (bt_String*)bt_get_object(bt_arg(thread, 1));
+
+	for (uint32_t i = 0; i < source->len - needle->len; ++i) {
+		const char* start = BT_STRING_STR(source) + i;
+
+		int32_t found = (int32_t)i;
+		for (uint32_t j = 0; j < needle->len; j++) {
+			if (start[j] != BT_STRING_STR(needle)[j]) {
+				found = -1;
+				break;
+			}
+		}
+
+		if (found != -1) {
+			bt_return(thread, BT_VALUE_NUMBER((double)found));
+			return;
+		}
+	}
+
+	bt_return(thread, BT_VALUE_NUMBER((double)-1));
+}
+
 void boltstd_open_strings(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -185,6 +210,13 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, format_sig, BT_VALUE_CSTRING(context, "format"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, format_sig, BT_VALUE_CSTRING(context, "format"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* find_args[] = { string, string };
+	bt_Type* find_sig = bt_make_method(context, context->types.number, find_args, 2);
+	fn_ref = bt_make_native(context, find_sig, bt_string_find);
+
+	bt_type_add_field(context, string, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }
