@@ -2,6 +2,8 @@
 
 #include "../bt_embedding.h"
 
+#include <stdlib.h>
+
 static void bt_arr_length(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -242,6 +244,97 @@ static void bt_arr_slice(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
 
+typedef struct bt_SortCtx
+{
+	bt_Context* context;
+	bt_Thread* thread;
+	bt_Value comp_fn;
+	bt_bool in_use;
+} bt_SortCtx;
+
+static bt_SortCtx sort_context;
+
+static int bt_sort_comp(const void* in_a, const void* in_b)
+{
+	bt_Value a = *(bt_Value*)in_a;
+	bt_Value b = *(bt_Value*)in_b;
+
+	bt_push(sort_context.thread, sort_context.comp_fn);
+	bt_push(sort_context.thread, a);
+	bt_push(sort_context.thread, b);
+	bt_call(sort_context.thread, 2);
+
+	bt_Value result = bt_pop(sort_context.thread);
+	if (result == BT_VALUE_TRUE) return -1;
+
+	bt_push(sort_context.thread, sort_context.comp_fn);
+	bt_push(sort_context.thread, b);
+	bt_push(sort_context.thread, a);
+	bt_call(sort_context.thread, 2);
+
+	result = bt_pop(sort_context.thread);
+	if (result == BT_VALUE_TRUE) return 1;
+
+	return 0;
+}
+
+static int bt_sort_comp_nums(const void* in_a, const void* in_b)
+{
+	bt_number a = BT_AS_NUMBER(*(bt_Value*)in_a);
+	bt_number b = BT_AS_NUMBER(*(bt_Value*)in_b);
+
+	return (a > b) - (a < b);
+}
+
+static bt_Type* bt_arr_sort_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 2) return NULL;
+	bt_Type* arg = bt_type_dealias(args[0]);
+
+	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+
+	bt_Type* comparer = bt_type_dealias(args[1]);
+
+	if (comparer != ctx->types.null) {
+		if (comparer->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
+
+		if (comparer->as.fn.return_type != ctx->types.boolean) return NULL;
+		if (comparer->as.fn.args.length != 2) return NULL;
+		if (!comparer->as.fn.args.elements[0]->satisfier(
+			comparer->as.fn.args.elements[0], arg->as.array.inner)) return NULL;
+		if (!comparer->as.fn.args.elements[1]->satisfier(
+			comparer->as.fn.args.elements[1], arg->as.array.inner)) return NULL;
+	}
+	else {
+		if (arg->as.array.inner != ctx->types.number) return NULL;
+	}
+
+	return bt_make_method(ctx, NULL, args, 2);
+}
+
+static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Value sorter = bt_arg(thread, 1);
+
+	// only allowed for number fast case
+	if (sorter == BT_VALUE_NULL) {
+		qsort(arg->items.elements, arg->items.length, sizeof(bt_Value), bt_sort_comp_nums);
+	}
+	else {
+		if (sort_context.in_use == BT_TRUE) {
+			bt_runtime_error(thread, "Cannot nest sorts!", NULL);
+		}
+
+		sort_context.in_use = BT_TRUE;
+		sort_context.comp_fn = sorter;
+		sort_context.context = ctx;
+		sort_context.thread = thread;
+		qsort(arg->items.elements, arg->items.length, sizeof(bt_Value), bt_sort_comp);
+		sort_context.in_use = BT_FALSE;
+	}
+}
+
 void boltstd_open_arrays(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -293,6 +386,11 @@ void boltstd_open_arrays(bt_Context* context)
 	fn_ref = bt_make_native(context, arr_slice_sig, bt_arr_slice);
 	bt_type_add_field(context, array, arr_slice_sig, BT_VALUE_CSTRING(context, "slice"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_slice_sig, BT_VALUE_CSTRING(context, "slice"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* arr_sort_sig = bt_make_poly_method(context, "sort([T], null | fn(T, T): bool)", bt_arr_sort_type);
+	fn_ref = bt_make_native(context, arr_sort_sig, bt_arr_sort);
+	bt_type_add_field(context, array, arr_sort_sig, BT_VALUE_CSTRING(context, "sort"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_sort_sig, BT_VALUE_CSTRING(context, "sort"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "arrays"), module);
 }
