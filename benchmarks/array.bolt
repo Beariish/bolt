@@ -70,3 +70,31 @@ bench("clone and map 1m array", 20, fn {
 })
 
 bench("reverse 1m array", 100, fn { to_probe.reverse() })
+
+bench("filter 1m array", 20, fn {
+    let evens = to_probe.filter(fn(n: number) { return imod(n, 2) == 0 })
+})
+
+bench("small slice 1m array", 20, fn {
+    let slice = to_probe.slice(1000, 100)
+})
+
+bench("large slice 1m array", 20, fn {
+    let slice = to_probe.slice(1000, 100000)
+})
+
+bench_with_pre_work("builtin sort 1m array", 10, fn {
+    to_probe.reverse()
+
+    return fn {
+        to_probe.sort(null)
+    }
+})
+
+bench_with_pre_work("in-lang sort 1m array", 10, fn {
+    to_probe.reverse()
+
+    return fn {
+        to_probe.sort(fn(a: number, b: number) { return a < b })
+    }
+})
