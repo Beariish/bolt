@@ -212,6 +212,36 @@ static void bt_arr_filter(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
 
+static bt_Type* bt_arr_slice_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 3) return NULL;
+	bt_Type* arg = bt_type_dealias(args[0]);
+
+	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+
+	bt_Type* newargs[] = { arg, bt_type_number(ctx), bt_type_number(ctx) };
+
+	return bt_make_method(ctx, arg, newargs, 3);
+}
+
+static void bt_arr_slice(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	uint32_t start = (uint32_t)bt_get_number(bt_arg(thread, 1));
+	uint32_t length = (uint32_t)bt_get_number(bt_arg(thread, 2));
+
+	if (start < 0 || start >= arr->items.length) bt_runtime_error(thread, "Slice start index outside of array bounds", NULL);
+	if (start + length > arr->items.length) bt_runtime_error(thread, "Slice extends past end of array", NULL);
+
+	bt_Array* result = bt_make_array(ctx, (uint16_t)length);
+
+	for (uint32_t i = start; i < start + length; ++i) {
+		bt_array_push(ctx, result, arr->items.elements[i]);
+	}
+
+	bt_return(thread, BT_VALUE_OBJECT(result));
+}
+
 void boltstd_open_arrays(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -258,6 +288,11 @@ void boltstd_open_arrays(bt_Context* context)
 	fn_ref = bt_make_native(context, arr_filter_sig, bt_arr_filter);
 	bt_type_add_field(context, array, arr_filter_sig, BT_VALUE_CSTRING(context, "filter"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_filter_sig, BT_VALUE_CSTRING(context, "filter"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* arr_slice_sig = bt_make_poly_method(context, "slice([T], number, number): [T]", bt_arr_slice_type);
+	fn_ref = bt_make_native(context, arr_slice_sig, bt_arr_slice);
+	bt_type_add_field(context, array, arr_slice_sig, BT_VALUE_CSTRING(context, "slice"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_slice_sig, BT_VALUE_CSTRING(context, "slice"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "arrays"), module);
 }
