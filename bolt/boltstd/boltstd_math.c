@@ -71,6 +71,11 @@ SIMPLE_OP(exp, exp);
 SIMPLE_OP(deg, deg);
 SIMPLE_OP(rad, rad);
 
+static double imod(double x, double y)
+{
+	return (double)(((uint64_t)x) % ((uint64_t)y));
+}
+
 #define COMPLEX_OP(name, op)                              \
 static void bt_##name(bt_Context* ctx, bt_Thread* thread) \
 {                                                         \
@@ -81,6 +86,7 @@ static void bt_##name(bt_Context* ctx, bt_Thread* thread) \
 
 COMPLEX_OP(pow, pow);
 COMPLEX_OP(mod, fmod);
+COMPLEX_OP(imod, imod);
 COMPLEX_OP(atan2, atan2);
 
 void boltstd_open_math(bt_Context* context)
@@ -154,6 +160,7 @@ bt_module_export(context, module, two_num_to_num_sig, BT_VALUE_CSTRING(context, 
 
 	IMPL_COMPLEX_OP(pow);
 	IMPL_COMPLEX_OP(mod);
+	IMPL_COMPLEX_OP(imod);
 	IMPL_COMPLEX_OP(atan2);
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "math"), module);
