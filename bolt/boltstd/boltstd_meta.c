@@ -3,25 +3,6 @@
 #include "../bt_embedding.h"
 #include "../bt_type.h"
 
-static void btstd_argc(bt_Context* ctx, bt_Thread* thread)
-{
-	thread->depth--;
-	uint8_t argc = bt_argc(thread);
-	thread->depth++;
-	bt_return(thread, BT_VALUE_NUMBER(argc));
-}
-
-static void btstd_arg(bt_Context* ctx, bt_Thread* thread)
-{
-	bt_number arg = bt_get_number(bt_arg(thread, 0));
-	uint8_t arg_idx = (uint8_t)arg;
-
-	thread->depth--;
-	bt_Value value = bt_arg(thread, arg_idx);
-	thread->depth++;
-	bt_return(thread, value);
-}
-
 static void btstd_gc(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_collect(&ctx->gc, 0);
@@ -120,17 +101,11 @@ static void btstd_get_union_entry(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_meta(bt_Context* context)
 {
-	static bt_bool IS_OPEN = BT_FALSE;
-	if (IS_OPEN) return;
-	IS_OPEN = BT_TRUE;
-
 	bt_Module* module = bt_make_user_module(context);
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "stack_size"), bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));
 
-	bt_Type* arg_args[] = { context->types.number };
-	bt_Type* arg_sig = bt_make_signature(context, context->types.any, arg_args, 1);
 	bt_Type* info_sig = bt_make_signature(context, context->types.number, NULL, 0);
 
 	bt_Type* grey_args[] = { context->types.any };
@@ -155,12 +130,6 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_Type* get_union_entry_args[] = { context->types.type, context->types.number };
 	bt_Type* get_union_entry_sig = bt_make_signature(context, context->types.type, get_union_entry_args, 2);
-
-	//bt_module_export(context, module, arg_sig, BT_VALUE_CSTRING(context, "arg"), BT_VALUE_OBJECT(
-	//	bt_make_native(context, arg_sig, btstd_arg)));
-
-	bt_module_export(context, module, info_sig, BT_VALUE_CSTRING(context, "argc"), BT_VALUE_OBJECT(
-		bt_make_native(context, info_sig, btstd_argc)));
 
 	bt_module_export(context, module, gc_sig, BT_VALUE_CSTRING(context, "gc"), BT_VALUE_OBJECT(
 		bt_make_native(context, gc_sig, btstd_gc)));

@@ -96,5 +96,6 @@ bench_with_pre_work("in-lang sort 1m array", 10, fn {
 
     return fn {
         to_probe.sort(fn(a: number, b: number) { return a < b })
+        to_probe.sort(fn a, b => a < b )
     }
 })
