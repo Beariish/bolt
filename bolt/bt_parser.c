@@ -1274,6 +1274,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 bt_AstNode* call = make_node(parse, BT_AST_NODE_CALL);
                 call->source = lhs_node->source;
                 call->as.call.fn = lhs_node;
+                call->as.call.is_methodcall = self_arg;
                 bt_buffer_with_capacity(&call->as.call.args, parse->context, max_arg);
                 
                 for (uint8_t i = 0; i < max_arg; i++) {

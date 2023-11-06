@@ -590,9 +590,43 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         uint8_t start_loc = get_registers(ctx, args->length + 1);
 
-        compile_expression(ctx, lhs, start_loc);
+        // TODO(bearish): factor this out with common table indexing code
+        if (expr->as.call.is_methodcall) {
+            if (lhs->source->type != BT_TOKEN_PERIOD) 
+                compile_error_token(ctx->compiler, "Expected methodcall to come from index operation '%.*s'", lhs->source); 
+        
+            uint8_t obj_loc = start_loc + 1;
+            compile_expression(ctx, lhs->as.binary_op.left, obj_loc);
 
-        for (uint8_t i = 0; i < args->length; i++) {
+            bt_AstNode* rhs = lhs->as.binary_op.right;
+
+            methodcall_hoist_fail:
+            if (lhs->as.binary_op.hoistable) {
+                bt_StrSlice name = { lhs->as.binary_op.from->name, (uint16_t)strlen(lhs->as.binary_op.from->name) };
+                bt_Value hoisted = bt_table_get(lhs->as.binary_op.from->prototype_values, lhs->as.binary_op.key);
+                if (hoisted == BT_VALUE_NULL) {
+                    lhs->as.binary_op.hoistable = BT_FALSE;
+                    goto methodcall_hoist_fail;
+                }
+                uint8_t idx = push(ctx, hoisted);
+                emit_ab(ctx, BT_OP_LOAD, start_loc, idx, BT_FALSE);
+            }
+            else if (lhs->as.binary_op.accelerated) {
+                if (lhs->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
+                    emit_abc(ctx, BT_OP_LOAD_IDX, start_loc, obj_loc, lhs->as.binary_op.idx, BT_TRUE);
+                }
+            }
+            else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+                uint8_t idx = push(ctx,
+                    BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
+                emit_abc(ctx, BT_OP_LOAD_IDX_K, start_loc, obj_loc, idx, BT_FALSE);
+            }
+        }
+        else {
+            compile_expression(ctx, lhs, start_loc);
+        }
+
+        for (uint8_t i = expr->as.call.is_methodcall; i < args->length; i++) {
             compile_expression(ctx, args->elements[i], start_loc + i + 1);
         }
 

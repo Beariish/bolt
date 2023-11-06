@@ -108,6 +108,7 @@ typedef struct bt_AstNode {
 		struct {
 			bt_AstBuffer args;
 			bt_AstNode* fn;
+			bt_bool is_methodcall;
 		} call;
 
 		struct {
