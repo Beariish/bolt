@@ -32,6 +32,8 @@ typedef struct bt_Type {
 		} selector;
 
 		struct {
+			bt_Table* tmpl;
+
 			bt_Table* layout;
 			bt_Table* key_layout;
 			bt_Type* parent;

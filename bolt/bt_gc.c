@@ -105,7 +105,9 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			}
 		} break;
 		case BT_TYPE_CATEGORY_TABLESHAPE: {
+			grey(gc, (bt_Object*)as_type->as.table_shape.tmpl);
 			grey(gc, (bt_Object*)as_type->as.table_shape.layout);
+			grey(gc, (bt_Object*)as_type->as.table_shape.key_layout);
 			grey(gc, (bt_Object*)as_type->as.table_shape.parent);
 		} break;
 		case BT_TYPE_CATEGORY_TYPE: {

@@ -85,6 +85,25 @@ static uint8_t internal_ffsll(uint64_t mask)
     return bit;
 }
 
+static void table_ensure_template_made(bt_Context* ctx, bt_Type* tblshp)
+{
+    if (tblshp->as.table_shape.tmpl == 0)
+    {
+        bt_Table* layout = tblshp->as.table_shape.layout;
+
+        bt_Table* result = bt_make_table(ctx, layout->length);
+        for (uint8_t i = 0; i < layout->length; ++i)
+        {
+            bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
+            bt_table_set(ctx, result, pair->key, BT_VALUE_NULL);
+        }
+
+        result->prototype = bt_type_get_proto(ctx, tblshp);
+
+        tblshp->as.table_shape.tmpl = result;
+    }
+}
+
 static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c, bt_bool is_accelerated)
 {
     bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
@@ -856,6 +875,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         push_registers(ctx);
 
         bt_AstBuffer* fields = &expr->as.table.fields;
+        bt_Type* resulting = expr->resulting_type;
 
         if (expr->as.table.typed) {
             uint8_t t_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
@@ -865,6 +885,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_ab(ctx, BT_OP_LOAD, t_loc, t_idx, BT_FALSE);
             emit_abc(ctx, BT_OP_TABLE, result_loc, fields->length, t_loc, BT_TRUE);
             restore_registers(ctx);
+
+            table_ensure_template_made(ctx->context, resulting);
         }
         else {
             emit_aibc(ctx, BT_OP_TABLE, result_loc, fields->length);
@@ -872,13 +894,22 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         uint8_t val_loc = get_register(ctx);
 
+
         for (uint32_t i = 0; i < fields->length; ++i) {
             bt_AstNode* entry = fields->elements[i];
-            uint8_t key_idx = push(ctx, entry->as.table_field.key);
-
             compile_expression(ctx, entry->as.table_field.value_expr, val_loc);
 
-            emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, key_idx, val_loc, BT_FALSE);
+            if (expr->as.table.typed) {
+                bt_Table* layout = resulting->as.table_shape.layout;
+                int16_t idx = bt_table_get_idx(layout, entry->as.table_field.key);
+                if (idx == -1 || idx > UINT8_MAX)
+                    compile_error_token(ctx->compiler, "Failed to compile table literal", expr->source);
+                emit_abc(ctx, BT_OP_STORE_IDX, result_loc, (uint8_t)idx, val_loc, BT_TRUE);
+            }
+            else {
+                uint8_t key_idx = push(ctx, entry->as.table_field.key);
+                emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, key_idx, val_loc, BT_FALSE);
+            }
         }
 
         restore_registers(ctx);

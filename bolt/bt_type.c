@@ -411,6 +411,7 @@ bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool seale
 	result->as.table_shape.layout = 0;
 	result->as.table_shape.parent = 0;
 	result->as.table_shape.map = 0;
+	result->as.table_shape.tmpl = 0;
 	return result;
 }
 

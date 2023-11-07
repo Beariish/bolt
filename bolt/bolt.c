@@ -978,9 +978,12 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(TABLE): 
 			if (BT_IS_ACCELERATED(op)) {
-				obj = (bt_Object*)bt_make_table(context, BT_GET_B(op));
-				((bt_Table*)obj)->prototype = bt_type_get_proto(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
-				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
+				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
+				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, sizeof(bt_TablePair) * BT_GET_B(op));
+				memcpy((char*)obj2 + sizeof(bt_Object), 
+					((char*)((bt_Type*)obj)->as.table_shape.tmpl) + sizeof(bt_Object),
+					sizeof(bt_Table) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Object));
+				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 			}
 			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
 		NEXT;
