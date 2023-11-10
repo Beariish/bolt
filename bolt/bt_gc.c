@@ -232,13 +232,14 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	
 	if (gc->ctx->current_thread) {
 		bt_Thread* thr = gc->ctx->current_thread;
-		uint32_t top = thr->top + thr->callstack[thr->depth - 1].size + thr->callstack[thr->depth - 1].user_top;
+		uint32_t top = thr->top + BT_STACKFRAME_GET_SIZE(thr->callstack[thr->depth - 1]) 
+			+ BT_STACKFRAME_GET_USER_TOP(thr->callstack[thr->depth - 1]);
 
 		for (uint32_t i = 0; i < thr->depth; ++i) {
-			bt_StackFrame* stck = &thr->callstack[i];
-			grey(gc, (bt_Object*)stck->callable);
+			bt_StackFrame stck = thr->callstack[i];
+			grey(gc, (bt_Object*)BT_STACKFRAME_GET_CALLABLE(stck));
 
-			uint32_t ltop = thr->top + stck->size + stck->user_top;
+			uint32_t ltop = thr->top + BT_STACKFRAME_GET_SIZE(stck) + BT_STACKFRAME_GET_USER_TOP(stck);
 			top = top > ltop ? top : ltop;
 		}
 

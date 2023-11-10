@@ -9,6 +9,7 @@
 #include "bt_compiler.h"
 
 #include <setjmp.h>
+#include <stdint.h>
 
 typedef void* (*bt_Alloc)(size_t size);
 typedef void* (*bt_Realloc)(void* ptr, size_t size);
@@ -34,10 +35,27 @@ typedef enum {
 
 typedef void (*bt_ErrorFunc)(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col);
 
+// 6b callable ptr, 1b size, 1b user_top
+typedef uint64_t bt_StackFrame;
+
+#define BT_MAKE_STACKFRAME(callable, size, user_top) \
+	((((uint64_t)(callable)) << 16) | ((size & 0xff) << 8) | (user_top & 0xff))
+
+#define BT_STACKFRAME_GET_CALLABLE(frame) \
+	((bt_Callable*)((frame) >> 16))
+
+#define BT_STACKFRAME_GET_SIZE(frame) \
+	(((frame) >> 8) & 0xff)
+
+#define BT_STACKFRAME_GET_USER_TOP(frame) \
+	((frame) & 0xff)
+
+/*
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
 	uint8_t size, user_top;
 } bt_StackFrame;
+*/
 
 typedef struct bt_NativeFrame {
 	uint8_t argc;

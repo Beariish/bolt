@@ -28,12 +28,12 @@ static BT_FORCE_INLINE bt_Value bt_get_returned(bt_Thread* thread)
 
 static BT_FORCE_INLINE bt_Value bt_getup(bt_Thread* thread, uint8_t idx)
 {
-	return BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable)[idx];
+	return BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]))[idx];
 }
 
 static BT_FORCE_INLINE void bt_setup(bt_Thread* thread, uint8_t idx, bt_Value value)
 {
-	BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable)[idx] = value;
+	BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]))[idx] = value;
 }
 #else
 BOLT_API uint8_t bt_argc(bt_Thread* thread);

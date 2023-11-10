@@ -8,6 +8,7 @@
 #include <immintrin.h>
 #include <string.h>
 
+#include "bt_context.h"
 #include "bt_object.h"
 #include "bt_tokenizer.h"
 #include "bt_parser.h"
@@ -533,10 +534,7 @@ bt_Thread* bt_make_thread(bt_Context* context)
 	result->native_stack[result->native_depth].return_loc = 0;
 	result->native_stack[result->native_depth].argc = 0;
 	
-	result->callstack[result->depth].size = 0;
-	result->callstack[result->depth].callable = 0;
-	result->callstack[result->depth].user_top = 0;
-	result->depth++;
+	result->callstack[result->depth++] = BT_MAKE_STACKFRAME(0, 0, 0);
 
 	return result;
 }
@@ -602,7 +600,7 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 	thread->last_error = bt_make_string(thread->context, message);
 	if (thread->should_report) {
 		if (ip != NULL) {
-			bt_Callable* callable = thread->callstack[thread->depth - 1].callable;
+			bt_Callable* callable = BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]);
 			const char* source = bt_get_debug_source(callable);
 
 			bt_DebugLocBuffer* loc_buffer = bt_get_debug_locs(callable);
@@ -629,19 +627,22 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 void bt_push(bt_Thread* thread, bt_Value value)
 {
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
-	thread->stack[thread->top + frame->size + (++frame->user_top)] = value;
+	*frame += 1;
+	thread->stack[thread->top + BT_STACKFRAME_GET_SIZE(*frame) + BT_STACKFRAME_GET_USER_TOP(*frame)] = value;
 }
 
 bt_Value bt_pop(bt_Thread* thread)
 {
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
-	return thread->stack[thread->top + frame->size + frame->user_top--];
+	bt_Value result = thread->stack[thread->top + BT_STACKFRAME_GET_SIZE(*frame) + BT_STACKFRAME_GET_USER_TOP(*frame)];
+	*frame -= 1;
+	return result;
 }
 
 bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
 {
 	bt_StackFrame* frame = thread->callstack + thread->depth - 1;
-	bt_Value* true_top = thread->stack + thread->top + frame->size + frame->user_top;
+	bt_Value* true_top = thread->stack + thread->top + BT_STACKFRAME_GET_SIZE(*frame) + BT_STACKFRAME_GET_USER_TOP(*frame);
 
 	bt_Closure* cl = BT_ALLOCATE_INLINE_STORAGE(thread->context, CLOSURE, bt_Closure, sizeof(bt_Value) * num_upvals);
 	cl->num_upv = num_upvals;
@@ -652,7 +653,7 @@ bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
 	}
 
 	cl->fn = (bt_Fn*)BT_AS_OBJECT(*(true_top - num_upvals));
-	frame->user_top -= num_upvals + 1;
+	*frame -= num_upvals + 1;
 
 	return BT_VALUE_OBJECT(cl);
 }
@@ -662,27 +663,25 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	uint16_t old_top = thread->top;
 
 	bt_StackFrame* frame = &thread->callstack[thread->depth - 1];
-	frame->user_top -= argc; // + 1 for the function itself
+	*frame -= argc; // + 1 for the function itself
 
-	thread->top += frame->size + 2;
+	thread->top += BT_STACKFRAME_GET_SIZE(*frame) + 2;
 	bt_Object* obj = BT_AS_OBJECT(thread->stack[thread->top - 1]);
-
-	thread->callstack[thread->depth].callable = (bt_Callable*)obj;
-	thread->callstack[thread->depth].user_top = 0;
-	thread->depth++;
 
 	switch (BT_OBJECT_GET_TYPE(obj)) {
 	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* callable = (bt_Fn*)obj;
-		thread->callstack[thread->depth - 1].size = callable->stack_size;
+		thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, callable->stack_size, 0);
 		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_CLOSURE: {
 		bt_Fn* callable = ((bt_Closure*)obj)->fn;
-		thread->callstack[thread->depth - 1].size = callable->stack_size;
+		thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, callable->stack_size, 0);
 		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_NATIVE_FN: {
+		thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
+
 		thread->native_stack[thread->native_depth].return_loc = -2;
 		thread->native_stack[thread->native_depth].argc = argc;
 		thread->native_depth++;
@@ -693,7 +692,8 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	} break;
 	case BT_OBJECT_TYPE_MODULE: {
 		bt_Module* mod = (bt_Module*)obj;
-		thread->callstack[thread->depth - 1].size = mod->stack_size;
+		thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, mod->stack_size, 0);
+
 		call(thread->context, thread, mod, mod->instructions.elements, mod->constants.elements, -1);
 	} break;
 	default: bt_runtime_error(thread, "Unsupported callable type.", NULL);
@@ -942,7 +942,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 {
 	register bt_Value* __restrict stack = thread->stack + thread->top;
 	_mm_prefetch((const char*)stack, 1);
-	register bt_Value* __restrict upv = BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable);
+	register bt_Value* __restrict upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
 	register bt_Object* __restrict obj, * __restrict obj2;
 
 	BT_ASSUME(obj);
@@ -1114,23 +1114,21 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 
 			thread->top += BT_GET_B(op) + 1;
-			thread->callstack[thread->depth].callable = (bt_Callable*)obj;
-			thread->depth++;
 
 			switch (BT_OBJECT_GET_TYPE(obj)) {
 			case BT_OBJECT_TYPE_FN:
-				thread->callstack[thread->depth - 1].size = ((bt_Fn*)obj)->stack_size;
+				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Fn*)obj)->stack_size, 0);
 				call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
 			break;
 			case BT_OBJECT_TYPE_CLOSURE:
 				switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
 				case BT_OBJECT_TYPE_FN:
-					thread->callstack[thread->depth - 1].size = ((bt_Closure*)obj)->fn->stack_size;
+					thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
 					call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
 					break;
 				case BT_OBJECT_TYPE_NATIVE_FN:
-					thread->callstack[thread->depth - 1].size = 0;
-					thread->callstack[thread->depth - 1].user_top = 0;
+					thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
+
 					thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
 					thread->native_stack[thread->native_depth].argc = BT_GET_C(op);
 					thread->native_depth++;
@@ -1142,8 +1140,8 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 				}
 			break;
 			case BT_OBJECT_TYPE_NATIVE_FN:
-				thread->callstack[thread->depth - 1].size = 0;
-				thread->callstack[thread->depth - 1].user_top = 0;
+				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
+
 				thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
 				thread->native_stack[thread->native_depth].argc = BT_GET_C(op);
 				thread->native_depth++;
@@ -1172,8 +1170,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(ITERFOR):
 			obj = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			thread->top += BT_GET_A(op) + 2;
-			thread->callstack[thread->depth].callable = (bt_Callable*)obj;
-			thread->depth++;
+			thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
 
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
 				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, -2);
