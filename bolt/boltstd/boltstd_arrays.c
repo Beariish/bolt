@@ -290,34 +290,39 @@ static int bt_sort_comp_nums(const void* in_a, const void* in_b)
 
 static bt_Type* bt_arr_sort_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 {
-	if (argc != 2) return NULL;
+	if (argc != 2 && argc != 1) return NULL;
 	bt_Type* arg = bt_type_dealias(args[0]);
 
 	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
 
-	bt_Type* comparer = bt_type_dealias(args[1]);
+	if (argc == 2) {
+		bt_Type* comparer = bt_type_dealias(args[1]);
 
-	if (comparer != ctx->types.null) {
-		if (comparer->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
+		if (comparer != ctx->types.null) {
+			if (comparer->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
 
-		if (comparer->as.fn.return_type != ctx->types.boolean) return NULL;
-		if (comparer->as.fn.args.length != 2) return NULL;
-		if (!comparer->as.fn.args.elements[0]->satisfier(
-			comparer->as.fn.args.elements[0], arg->as.array.inner)) return NULL;
-		if (!comparer->as.fn.args.elements[1]->satisfier(
-			comparer->as.fn.args.elements[1], arg->as.array.inner)) return NULL;
+			if (comparer->as.fn.return_type != ctx->types.boolean) return NULL;
+			if (comparer->as.fn.args.length != 2) return NULL;
+			if (!comparer->as.fn.args.elements[0]->satisfier(
+				comparer->as.fn.args.elements[0], arg->as.array.inner)) return NULL;
+			if (!comparer->as.fn.args.elements[1]->satisfier(
+				comparer->as.fn.args.elements[1], arg->as.array.inner)) return NULL;
+		}
+		else {
+			if (arg->as.array.inner != ctx->types.number) return NULL;
+		}
 	}
 	else {
 		if (arg->as.array.inner != ctx->types.number) return NULL;
 	}
 
-	return bt_make_method(ctx, arg, args, 2);
+	return bt_make_method(ctx, arg, args, argc);
 }
 
 static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
-	bt_Value sorter = bt_arg(thread, 1);
+	bt_Value sorter = bt_argc(thread) == 2 ? bt_arg(thread, 1) : BT_VALUE_NULL;
 
 	// only allowed for number fast case
 	if (sorter == BT_VALUE_NULL) {

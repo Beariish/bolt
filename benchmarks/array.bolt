@@ -98,3 +98,12 @@ bench_with_pre_work("in-lang sort 1m array", 10, fn {
         to_probe.sort(fn(a: number, b: number) { return a < b })
     }
 })
+
+bench("7-element complex op", 10000, fn {
+    let arr = 
+        [0, 3, 1, 4, 5, 2, 0]
+            .slice(1, 5)
+            .sort()
+            .reverse()
+            .map(fn(x: number) { return x * 2 })
+})

@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 static bt_bool can_start_identifier(char character) {
-	return isalpha(character) || character == '_' || character == '@';
+	return character > 0 && (isalpha(character) || character == '_' || character == '@');
 }
 
 static bt_bool can_contain_identifier(char character) {

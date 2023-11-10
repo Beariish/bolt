@@ -524,13 +524,15 @@ bt_Thread* bt_make_thread(bt_Context* context)
 {
 	bt_Thread* result = context->alloc(sizeof(bt_Thread));
 	result->depth = 0;
+	result->native_depth = 0;
 	result->top = 0;
 	result->context = context;
 	result->should_report = BT_TRUE;
 	result->last_error = 0;
 
-	result->callstack[result->depth].return_loc = 0;
-	result->callstack[result->depth].argc = 0;
+	result->native_stack[result->native_depth].return_loc = 0;
+	result->native_stack[result->native_depth].argc = 0;
+	
 	result->callstack[result->depth].size = 0;
 	result->callstack[result->depth].callable = 0;
 	result->callstack[result->depth].user_top = 0;
@@ -665,8 +667,6 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 	thread->top += frame->size + 2;
 	bt_Object* obj = BT_AS_OBJECT(thread->stack[thread->top - 1]);
 
-	thread->callstack[thread->depth].return_loc = -2;
-	thread->callstack[thread->depth].argc = argc;
 	thread->callstack[thread->depth].callable = (bt_Callable*)obj;
 	thread->callstack[thread->depth].user_top = 0;
 	thread->depth++;
@@ -683,8 +683,13 @@ void bt_call(bt_Thread* thread, uint8_t argc)
 		call(thread->context, thread, callable->module, callable->instructions.elements, callable->constants.elements, -1);
 	} break;
 	case BT_OBJECT_TYPE_NATIVE_FN: {
+		thread->native_stack[thread->native_depth].return_loc = -2;
+		thread->native_stack[thread->native_depth].argc = argc;
+		thread->native_depth++;
+
 		bt_NativeFn* callable = (bt_NativeFn*)obj;
 		callable->fn(thread->context, thread);
+		thread->native_depth--;
 	} break;
 	case BT_OBJECT_TYPE_MODULE: {
 		bt_Module* mod = (bt_Module*)obj;
@@ -1109,10 +1114,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 
 			thread->top += BT_GET_B(op) + 1;
-			thread->callstack[thread->depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
-			thread->callstack[thread->depth].argc = BT_GET_C(op);
 			thread->callstack[thread->depth].callable = (bt_Callable*)obj;
-			thread->callstack[thread->depth].user_top = 0;
 			thread->depth++;
 
 			switch (BT_OBJECT_GET_TYPE(obj)) {
@@ -1129,15 +1131,25 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 				case BT_OBJECT_TYPE_NATIVE_FN:
 					thread->callstack[thread->depth - 1].size = 0;
 					thread->callstack[thread->depth - 1].user_top = 0;
+					thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
+					thread->native_stack[thread->native_depth].argc = BT_GET_C(op);
+					thread->native_depth++;
+
 					((bt_NativeFn*)((bt_Closure*)obj)->fn)->fn(context, thread);
-					break;
+					thread->native_depth--;
+				break;
 				default: bt_runtime_error(thread, "Closure contained unsupported callable type.", ip);
 				}
 			break;
 			case BT_OBJECT_TYPE_NATIVE_FN:
 				thread->callstack[thread->depth - 1].size = 0;
 				thread->callstack[thread->depth - 1].user_top = 0;
+				thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
+				thread->native_stack[thread->native_depth].argc = BT_GET_C(op);
+				thread->native_depth++;
+
 				((bt_NativeFn*)obj)->fn(context, thread);
+				thread->native_depth--;
 			break;
 			default: bt_runtime_error(thread, "Unsupported callable type.", ip);
 			}
@@ -1167,7 +1179,10 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, -2);
 			}
 			else {
+				thread->native_stack[thread->native_depth].return_loc = -2;
+				thread->native_depth++;
 				((bt_NativeFn*)((bt_Closure*)obj)->fn)->fn(context, thread);
+				thread->native_depth--;
 			}
 
 			thread->depth--;

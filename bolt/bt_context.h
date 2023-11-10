@@ -36,9 +36,13 @@ typedef void (*bt_ErrorFunc)(bt_ErrorType type, const char* module, const char* 
 
 typedef struct bt_StackFrame {
 	bt_Callable* callable;
-	uint8_t size, argc, user_top;
-	int8_t return_loc;
+	uint8_t size, user_top;
 } bt_StackFrame;
+
+typedef struct bt_NativeFrame {
+	uint8_t argc;
+	int8_t return_loc;
+} bt_NativeFrame;
 
 typedef struct bt_Path {
 	char* spec;
@@ -125,6 +129,9 @@ typedef struct bt_Thread {
 
 	bt_StackFrame callstack[BT_CALLSTACK_SIZE];
 	uint32_t depth;
+
+	bt_NativeFrame native_stack[BT_CALLSTACK_SIZE];
+	uint32_t native_depth;
 
 	bt_String* last_error;
 	jmp_buf error_loc;

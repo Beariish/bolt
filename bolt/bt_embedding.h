@@ -8,7 +8,7 @@
 
 static BT_FORCE_INLINE uint8_t bt_argc(bt_Thread* thread)
 {
-	return thread->callstack[thread->depth - 1].argc;
+	return thread->native_stack[thread->native_depth - 1].argc;
 }
 
 static BT_FORCE_INLINE bt_Value bt_arg(bt_Thread* thread, uint8_t idx)
@@ -18,7 +18,7 @@ static BT_FORCE_INLINE bt_Value bt_arg(bt_Thread* thread, uint8_t idx)
 
 static BT_FORCE_INLINE void bt_return(bt_Thread* thread, bt_Value value)
 {
-	thread->stack[thread->top + thread->callstack[thread->depth - 1].return_loc] = value;
+	thread->stack[thread->top + thread->native_stack[thread->native_depth - 1].return_loc] = value;
 }
 
 static BT_FORCE_INLINE bt_Value bt_get_returned(bt_Thread* thread)
