@@ -262,7 +262,7 @@ BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key)
 
     for (uint32_t i = 0; i < tbl->length; i++) {
         if (bt_value_is_equal(key, start[i].key)) {
-            memcpy(start + i, start + i + 1, sizeof(bt_TablePair) * tbl->length - i - 1);
+            memcpy(start + i, start + tbl->length - 1, sizeof(bt_TablePair));
             tbl->length--;
 
             return BT_TRUE;
