@@ -3,7 +3,13 @@
 #include "bt_config.h"
 #include <stdint.h>
 
-#define BOLT_VERSION "0.0.1"
+#define BOLT_VERSION_MAJOR 0
+#define BOLT_VERSION_MINOR 0
+#define BOLT_VERSION_REVISION 1
+
+#define BOLT_STR(x) #x
+#define BOLT_XSTR(x) BOLT_STR(x)
+#define BOLT_VERSION BOLT_XSTR(BOLT_VERSION_MAJOR) "." BOLT_XSTR(BOLT_VERSION_MINOR) "." BOLT_XSTR(BOLT_VERSION_REVISION)
 
 #ifdef _NDEBUG
 #undef BOLT_DEBUG
