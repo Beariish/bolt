@@ -91,11 +91,13 @@ static void table_ensure_template_made(bt_Context* ctx, bt_Type* tblshp)
     {
         bt_Table* layout = tblshp->as.table_shape.layout;
 
-        bt_Table* result = bt_make_table(ctx, layout->length);
-        for (uint8_t i = 0; i < layout->length; ++i)
-        {
-            bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
-            bt_table_set(ctx, result, pair->key, BT_VALUE_NULL);
+        bt_Table* result = bt_make_table(ctx, layout ? layout->length : 0);
+        if (layout) {
+            for (uint8_t i = 0; i < layout->length; ++i)
+            {
+                bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
+                bt_table_set(ctx, result, pair->key, BT_VALUE_NULL);
+            }
         }
 
         result->prototype = bt_type_get_proto(ctx, tblshp);

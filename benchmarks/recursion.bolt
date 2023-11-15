@@ -1,0 +1,14 @@
+import bench from "bench"
+
+type Fibber = final {}
+
+method Fibber.fib(n: number): number {
+    if n < 2 { return n }
+    return this.fib(n - 1) + this.fib(n - 2)
+}
+
+let fibber = Fibber => {}
+
+bench("fib(30)", 25, fn {
+    fibber.fib(30)
+})
