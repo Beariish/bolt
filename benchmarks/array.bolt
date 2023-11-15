@@ -107,3 +107,15 @@ bench("7-element complex op", 10000, fn {
             .reverse()
             .map(fn(x: number) { return x * 2 })
 })
+
+bench_with_pre_work("1k-element complex op", 100, fn {
+    let arr = [:number]
+    for i in 1000 { arr.push(1000 - i) }
+
+    return fn {
+        arr.slice(20, 890)
+            .sort()
+            .reverse()
+            .map(fn(x: number) { return x * 2 })
+    }
+})
