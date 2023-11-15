@@ -50,13 +50,6 @@ typedef uint64_t bt_StackFrame;
 #define BT_STACKFRAME_GET_USER_TOP(frame) \
 	((frame) & 0xff)
 
-/*
-typedef struct bt_StackFrame {
-	bt_Callable* callable;
-	uint8_t size, user_top;
-} bt_StackFrame;
-*/
-
 typedef struct bt_NativeFrame {
 	uint8_t argc;
 	int8_t return_loc;

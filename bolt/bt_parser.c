@@ -491,6 +491,11 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
     case BT_TOKEN_IDENTIFIER: {
         bt_Type* result = resolve_type_identifier(parse, token);
 
+        if (!result) {
+            parse_error_token(parse, "Failed to resolve type identifier '%.*s'", token);
+            return NULL;
+        }
+
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_QUESTION) {
             bt_tokenizer_emit(tok);
