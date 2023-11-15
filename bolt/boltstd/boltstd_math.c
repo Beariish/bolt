@@ -76,6 +76,14 @@ static double imod(double x, double y)
 	return (double)(((uint64_t)x) % ((uint64_t)y));
 }
 
+static void bt_ispow2(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_number num = BT_AS_NUMBER(bt_arg(thread, 0));
+	uint64_t as_int = (uint64_t)num;
+
+	bt_return(thread, BT_VALUE_BOOL(((as_int + 1) & as_int) == 0));
+}
+
 #define COMPLEX_OP(name, op)                              \
 static void bt_##name(bt_Context* ctx, bt_Thread* thread) \
 {                                                         \
@@ -162,6 +170,10 @@ bt_module_export(context, module, two_num_to_num_sig, BT_VALUE_CSTRING(context, 
 	IMPL_COMPLEX_OP(mod);
 	IMPL_COMPLEX_OP(imod);
 	IMPL_COMPLEX_OP(atan2);
+
+	bt_Type* num_to_bool_sig = bt_make_signature(context, context->types.boolean, &context->types.number, 1);
+	bt_module_export(context, module, num_to_bool_sig, BT_VALUE_CSTRING(context, "ispow2"),
+		BT_VALUE_OBJECT(bt_make_native(context, num_to_bool_sig, bt_ispow2)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "math"), module);
 }

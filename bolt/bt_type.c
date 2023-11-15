@@ -81,6 +81,8 @@ bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 
 bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 {
+	if (left == right) return BT_TRUE;
+
 	if (left->category != BT_TYPE_CATEGORY_TABLESHAPE || right->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
 
 	if (right->as.table_shape.parent) {
@@ -152,6 +154,7 @@ static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 
 bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 {
+	if (!left || !right) return BT_FALSE;
 	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
 
 	bt_TypeBuffer* types = &left->as.selector.types;
@@ -721,7 +724,7 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	switch (a->category) {
 	case BT_TYPE_CATEGORY_ARRAY: return bt_type_is_equal(a->as.array.inner, b->as.array.inner);
 	case BT_TYPE_CATEGORY_TABLESHAPE: 
-		if (a->prototype) return a->prototype == b->prototype;
+		if (a->prototype_values) return a->prototype_values == b->prototype_values;
 		else return BT_FALSE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
 		if (a->is_polymorphic) {

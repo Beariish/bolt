@@ -100,6 +100,9 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         new_binding.type = node->resulting_type;
     } break;
     case BT_AST_NODE_ALIAS: {
+        if (node->as.alias.is_bound) return;
+
+        node->as.alias.is_bound = BT_TRUE;
         new_binding.is_const = BT_TRUE;
         new_binding.name = node->source->source;
         char* name = parse->context->alloc(node->source->source.length + 1);
@@ -405,7 +408,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
                 parse_error_token(parse, "Unexpected field '%.*s' in sealed table literal", key_expr->source);
             }
 
-            if (expected && !expected->satisfier(field->as.table_field.value_type, expected)) {
+            if (expected && !expected->satisfier(expected, field->as.table_field.value_type)) {
                 parse_error_fmt(parse, "Invalid type for field '%.*s': wanted '%s', got '%s'", key_expr->source->line, key_expr->source->col,
                     key_expr->source->source.length, key_expr->source->source.source, expected->name, field->as.table_field.value_type->name);
             }
@@ -476,7 +479,7 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
     return result;
 }
 
-static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
+static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 {
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_emit(tok);
@@ -485,6 +488,9 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
     bt_bool is_final = BT_FALSE;
 
     switch (token->type) {
+    case BT_TOKEN_BANG: {
+        return NULL;
+    }
     case BT_TOKEN_NULL_LITERAL: {
         return parse->context->types.null;
     }
@@ -503,7 +509,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         }
         else if (token->type == BT_TOKEN_PLUS) {
             bt_tokenizer_emit(tok);
-            bt_Type* rhs = parse_type(parse, BT_FALSE);
+            bt_Type* rhs = parse_type(parse, BT_FALSE, NULL);
 
             if (result->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
                 parse_error(parse, "Type composition must be done between table types", token->line, token->col);
@@ -545,7 +551,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
             while (token->type == BT_TOKEN_UNION) {
                 bt_tokenizer_emit(tok);
-                bt_push_union_variant(ctx, selector, parse_type(parse, BT_FALSE));
+                bt_push_union_variant(ctx, selector, parse_type(parse, BT_FALSE, NULL));
 
                 token = bt_tokenizer_peek(tok);
             }
@@ -564,7 +570,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             bt_tokenizer_emit(tok);
             token = bt_tokenizer_peek(tok);
             while (token->type != BT_TOKEN_RIGHTPAREN) {
-                args[arg_top++] = parse_type(parse, BT_TRUE);
+                args[arg_top++] = parse_type(parse, BT_TRUE, NULL);
                 token = bt_tokenizer_emit(tok);
                 if (token->type != BT_TOKEN_COMMA && token->type != BT_TOKEN_RIGHTPAREN) {
                     parse_error_token(parse, "Invalid token in function type signature: '%.*s'", token);
@@ -578,7 +584,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
         if (token->type == BT_TOKEN_COLON) {
             bt_tokenizer_emit(tok);
-            return_type = parse_type(parse, BT_TRUE);
+            return_type = parse_type(parse, BT_TRUE, NULL);
         }
 
         return bt_make_signature(ctx, return_type, args, arg_top);
@@ -604,9 +610,9 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
         if (token->type == BT_TOKEN_VARARG) {
             bt_tokenizer_emit(tok);
 
-            bt_Type* key_type = parse_type(parse, BT_FALSE);
+            bt_Type* key_type = parse_type(parse, BT_FALSE, NULL);
             bt_tokenizer_expect(tok, BT_TOKEN_COLON);
-            bt_Type* value_type = parse_type(parse, BT_FALSE);
+            bt_Type* value_type = parse_type(parse, BT_FALSE, NULL);
 
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
@@ -615,6 +621,13 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
 
         bt_Type* result = bt_make_tableshape(ctx, "<tableshape>", is_sealed);
         result->as.table_shape.final = is_final;
+        
+        if (alias)
+        {
+            alias->as.alias.type = result;
+            push_local(parse, alias);
+        }
+
         while (token && token->type != BT_TOKEN_RIGHTBRACE) {
             token = bt_tokenizer_emit(tok);
             if (token->type != BT_TOKEN_IDENTIFIER) {
@@ -628,7 +641,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COLON) {
                 bt_tokenizer_emit(tok);
-                type = parse_type(parse, BT_TRUE);
+                type = parse_type(parse, BT_TRUE, NULL);
                 token = bt_tokenizer_peek(tok);
             }
 
@@ -663,7 +676,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse)
             return ctx->types.array;
         }
 
-        bt_Type* inner = parse_type(parse, BT_TRUE);
+        bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
         return bt_make_array_type(parse->context, inner);
     } break;
@@ -720,7 +733,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         if (next->type == BT_TOKEN_COMMA) next = bt_tokenizer_emit(tok);
         else if (next->type == BT_TOKEN_COLON) {
             bt_tokenizer_emit(tok);
-            explicit_type = parse_type(parse, BT_FALSE);
+            explicit_type = parse_type(parse, BT_FALSE, NULL);
             break;
         }
 
@@ -1036,7 +1049,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
 
             if (next->type == BT_TOKEN_COLON) {
                 next = bt_tokenizer_emit(tok);
-                this_arg.type = parse_type(parse, BT_TRUE);
+                this_arg.type = parse_type(parse, BT_TRUE, NULL);
             }
             else {
                 this_arg.type = parse->context->types.any;
@@ -1058,7 +1071,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     
     if (next->type == BT_TOKEN_COLON) {
         next = bt_tokenizer_emit(tok);
-        result->as.fn.ret_type = parse_type(parse, BT_TRUE);
+        result->as.fn.ret_type = parse_type(parse, BT_TRUE, NULL);
     }
 
     next = bt_tokenizer_emit(tok);
@@ -1151,7 +1164,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     }
     else if (lhs->type == BT_TOKEN_TYPE) {
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
-        bt_Type* inner = parse_type(parse, BT_TRUE);
+        bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
 
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
@@ -1942,7 +1955,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     if (type_or_expr->type == BT_TOKEN_COLON) {
         bt_tokenizer_emit(tok);
 
-        bt_Type* type = parse_type(parse, BT_TRUE);
+        bt_Type* type = parse_type(parse, BT_TRUE, NULL);
         if (!type) parse_error_token(parse, "Failed to parse explicit type for binding '%.*s'", name_or_const);
 
         node->resulting_type = type;
@@ -1988,12 +2001,41 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     return node;
 }
 
+static bt_bool can_start_expression(bt_Token* token) 
+{
+    switch (token->type) {
+    case BT_TOKEN_IDENTIFIER:
+    case BT_TOKEN_FALSE_LITERAL:
+    case BT_TOKEN_TRUE_LITERAL:
+    case BT_TOKEN_STRING_LITERAL:
+    case BT_TOKEN_NUMBER_LITERAL:
+    case BT_TOKEN_NULL_LITERAL:
+    case BT_TOKEN_IDENTIFER_LITERAL:
+    case BT_TOKEN_LEFTBRACE:
+    case BT_TOKEN_LEFTBRACKET:
+    case BT_TOKEN_LEFTPAREN:
+    case BT_TOKEN_PLUS:
+    case BT_TOKEN_MINUS:
+    case BT_TOKEN_FN:
+    case BT_TOKEN_TYPE:
+    case BT_TOKEN_NOT:
+        return BT_TRUE;
+    }
+
+    return BT_FALSE;
+}
+
 static bt_AstNode* parse_return(bt_Parser* parse)
 {
     bt_AstNode* node = make_node(parse, BT_AST_NODE_RETURN);
     node->source = bt_tokenizer_peek(parse->tokenizer);
-    node->as.ret.expr = pratt_parse(parse, 0);
-    node->resulting_type = type_check(parse, node->as.ret.expr)->resulting_type;
+    node->as.ret.expr = NULL;
+    node->resulting_type = NULL;
+
+    if (can_start_expression(node->source)) {
+        node->as.ret.expr = pratt_parse(parse, 0);
+        node->resulting_type = node->as.ret.expr ? type_check(parse, node->as.ret.expr)->resulting_type : NULL;
+    }
     
     return node;
 }
@@ -2090,6 +2132,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = item->value;
 
+            bt_add_ref(parse->context, import);
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
@@ -2160,7 +2203,8 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = value;
-
+            
+            bt_add_ref(parse->context, import);
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
@@ -2194,6 +2238,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     import->type = mod_to_import->type;
     import->value = BT_VALUE_OBJECT(mod_to_import->exports);
 
+    bt_add_ref(parse->context, import);
     bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
 
     return NULL;
@@ -2559,10 +2604,11 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
 
     result->source = name;
     result->resulting_type = parse->context->types.type;
+    result->as.alias.is_bound = BT_FALSE;
 
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_ASSIGN);
 
-    bt_Type* type = parse_type(parse, BT_TRUE);
+    bt_Type* type = parse_type(parse, BT_TRUE, result);
 
     result->as.alias.type = type;
 
@@ -2628,7 +2674,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
 
             if (next->type == BT_TOKEN_COLON) {
                 next = bt_tokenizer_emit(tok);
-                this_arg.type = parse_type(parse, BT_TRUE);
+                this_arg.type = parse_type(parse, BT_TRUE, NULL);
             }
             else {
                 this_arg.type = parse->context->types.any;
@@ -2648,18 +2694,36 @@ static bt_AstNode* parse_method(bt_Parser* parse)
 
     next = bt_tokenizer_peek(tok);
 
+    bt_bool has_return = BT_FALSE;
     if (next->type == BT_TOKEN_COLON) {
         next = bt_tokenizer_emit(tok);
-        result->as.fn.ret_type = parse_type(parse, BT_TRUE);
+        result->as.fn.ret_type = parse_type(parse, BT_TRUE, NULL);
+        has_return = BT_TRUE;
     }
 
     next = bt_tokenizer_emit(tok);
+
+    bt_bool is_defined = BT_FALSE;
+    bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
 
     if (next->type == BT_TOKEN_LEFTBRACE) {
         push_scope(parse, BT_TRUE);
 
         for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
             push_arg(parse, result->as.fn.args.elements + i, result->source);
+        }
+
+        if (has_return) {
+            is_defined = BT_TRUE;
+
+            bt_Type* args[16];
+
+            for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
+                args[i] = result->as.fn.args.elements[i].type;
+            }
+
+            result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+            bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
         }
 
         parse_block(&result->as.fn.body, parse);
@@ -2680,24 +2744,23 @@ static bt_AstNode* parse_method(bt_Parser* parse)
         return NULL;
     }
 
-    bt_Type* args[16];
+    if (!is_defined) {
+        bt_Type* args[16];
 
-    for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
-        args[i] = result->as.fn.args.elements[i].type;
+        for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
+            args[i] = result->as.fn.args.elements[i].type;
+        }
+
+        result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+        bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
     }
-
-    result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
-
-    parse->current_fn = parse->current_fn->as.fn.outer;
-
-    bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
-    bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
 
     bt_AstNode* method = make_node(parse, BT_AST_NODE_METHOD);
     method->as.method.containing_type = type;
     method->as.method.fn = result;
     method->as.method.name = name_str;
 
+    parse->current_fn = parse->current_fn->as.fn.outer;
     return method;
 }
 
@@ -2779,6 +2842,10 @@ bt_bool bt_parse(bt_Parser* parser)
     }
 
     pop_scope(parser);
+
+    for (uint32_t i = 0; i < parser->root->as.module.imports.length; ++i) {
+        bt_remove_ref(parser->context, parser->root->as.module.imports.elements[i]);
+    }
 
 #ifdef BOLT_PRINT_DEBUG
     bt_debug_print_parse_tree(parser);

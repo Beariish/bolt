@@ -1,0 +1,266 @@
+import ispow2, imod from math
+import print from core
+import bench from "bench"
+
+type Node = final {
+    left: Node?,
+    right: Node?,
+    parent: Node?,
+    value: number
+}
+
+fn Node.new(left: Node?, right: Node?, parent: Node?, value: number) {
+    return Node => {
+        left: left,
+        right: right,
+        parent: parent,
+        value: value
+    }
+}
+
+method Node.get_leftmost: Node {
+    if this.left == null { return this }
+    return this.left!.get_leftmost()
+}
+
+method Node.get_rightmost: Node {
+    if this.right == null { return this }
+    return this.right!.get_rightmost()
+}
+
+method Node.get_left_n(n: number): Node {
+    if n == 1 { return this.left! }
+    return this.left!.get_left_n(n - 1)
+}
+
+method Node.get_right_n(n: number): Node {
+    if n == 1 { return this.right! }
+    return this.right!.get_right_n(n - 1)
+}
+
+method Node.get_left_sibling2(height: number): Node {
+    let parent = this.parent!
+
+    if parent.right == this { return parent.left!.get_right_n(height) }
+    return parent.get_left_sibling2(height + 1)
+}
+
+method Node.get_right_sibling2(height: number): Node {
+    let parent = this.parent!
+
+    if parent.left == this { return parent.right!.get_left_n(height) }
+    return parent.get_right_sibling2(height + 1)
+}
+
+method Node.get_left_sibling: Node {
+    let parent = this.parent!
+
+    if parent.right == this { return parent.left! }
+    return parent.get_left_sibling2(1)
+}
+
+method Node.get_right_sibling: Node {
+    let parent = this.parent!
+    if parent.left == this { return parent.right! }
+    return parent.get_right_sibling2(1)
+}
+
+
+type Heap = final {
+    root: Node?,
+    size: number,
+    last: Node?
+}
+
+fn Heap.new {
+    return Heap => {
+        root: null,
+        size: 0,
+        last: null
+    }
+}
+
+method Heap.swap_up(node: Node) {
+    if this.last == node {
+        this.last = node.parent
+    }
+
+    let parent_save = node.parent!
+    let parent_left =  parent_save.left
+    let parent_right =  parent_save.right
+    let parent_parent =  parent_save.parent
+
+    parent_save.left = node.left
+    if let left = node.left {
+        left.parent = parent_save
+    }
+
+    parent_save.right = node.right
+    if let right = node.right {
+        right.parent = parent_save
+    }
+
+    parent_save.parent = node
+
+    if parent_left == node {
+        node.left = parent_save
+        node.right = parent_right
+
+        if parent_right != null {
+            parent_right!.parent = node
+        }
+    } else {
+        node.left = parent_left
+        node.right = parent_save
+
+        if parent_left != null {
+            parent_left!.parent = node
+        }
+    }
+
+    node.parent = parent_parent
+
+    if parent_parent == null {
+        this.root = node
+    } else {
+        if parent_parent!.left == parent_save {
+            parent_parent!.left = node
+        } else {
+            parent_parent!.right = node
+        }
+    }
+}
+
+method Heap.sift_up(node: Node): ! {
+    if node.parent == null { return }
+    if node.value > node.parent!.value {
+        this.swap_up(node)
+
+        if this.root != node {
+            this.sift_up(node)
+        }
+    }
+}
+
+method Heap.sift_down(node: Node): ! {
+    if let left = node.left {
+        if left.value > node.value {
+            this.swap_up(left)
+            this.sift_down(node)
+        }
+    } else if let right = node.right {
+        if right.value > node.value {
+            this.swap_up(right)
+            this.sift_down(node)
+        }
+    }
+}
+
+method Heap.insert(value: number) {
+    if this.root == null {
+        this.root = Node.new(null, null, null, value)
+        this.last = this.root
+        this.size = 1
+        return 
+    }
+
+    let new_node: Node? = null
+    if ispow2(this.size) {
+        let parent = this.root!.get_leftmost()
+        new_node = Node.new(null, null, parent, value)
+        parent.left = new_node
+        this.last = new_node
+    } else {
+        let tlp = this.last!.parent!
+
+        if imod(this.size, 2) == 0 {
+            new_node = Node.new(null, null, tlp, value)
+            tlp.right = new_node
+            this.last = new_node
+        } else {
+            let sibling = tlp.get_right_sibling()
+            new_node = Node.new(null, null, sibling, value)
+            sibling.left = new_node
+            this.last = new_node
+        }
+    }
+
+    this.size += 1
+    this.sift_up(new_node!)
+}
+
+method Heap.pop: Node {
+    if this.size == 1 {
+        let result = this.root!
+        this.root = null
+        this.last = null
+        this.size = 0
+        return result
+    }
+
+    if this.size <= 3 {
+        let top = this.root!
+        this.swap_up(this.last!)
+        top.parent = null
+
+        if this.size == 3 {
+            this.root!.right = null
+            this.last = this.root!.left
+        } else {
+            this.root!.left = null
+            this.last = this.root
+        }
+
+        this.size -= 1
+        return top
+    }
+
+    let new_last: Node? = null
+
+    let root = this.root!
+    let last = this.last!
+
+    if ispow2(this.size - 1) {
+        new_last = root.get_rightmost()
+    } else {
+        new_last = last.get_left_sibling()
+    }
+
+    root.left!.parent = this.last
+    last.left = root.left
+    root.right!.parent = this.last
+    last.right = root.right
+
+    let lp = last.parent!
+    if lp.left == this.last {
+        lp.left = null
+    } else {
+        lp.right = null
+    }
+
+    last.parent = null
+
+    this.root = this.last
+    this.last = new_last
+    this.size -= 1
+
+    this.sift_down(this.root!)
+
+    return root
+}
+
+bench("sorted heap", 30, fn {
+    let h = Heap.new()
+
+    
+    for i in 20000 {
+        h.insert(i)
+    }
+
+    let sum = 0
+    for i in 20000 {
+        sum += h.pop().value
+    }
+})
+
+export Heap

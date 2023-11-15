@@ -7,14 +7,14 @@
 
 bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 {
+	if (a == b) return BT_TRUE;
+
 	if (BT_IS_NUMBER(a)) {
 		if (!BT_IS_NUMBER(b)) return BT_FALSE;
 		return fabs(BT_AS_NUMBER(a) - BT_AS_NUMBER(b)) < BT_EPSILON;
 	}
 
 	if (BT_IS_NUMBER(b)) return BT_FALSE;
-
-	if (a == b) return BT_TRUE;
 
 	if (BT_IS_OBJECT_FAST(a) && BT_IS_OBJECT_FAST(b)) {
 		bt_Object* obja = BT_AS_OBJECT(a);

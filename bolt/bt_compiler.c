@@ -206,7 +206,8 @@ static void load_fn(FunctionContext* ctx, bt_AstNode* expr, bt_Fn* fn, uint8_t r
                 continue;
             }
 
-            compile_error_token(ctx->compiler, "Failed to find identifier '%.*s'", expr->source);
+            compile_error_fmt(ctx->compiler, "Failed to find identifier '%.*s'", expr->source->line, expr->source->col,
+                binding->name.length, binding->name.source);
         }
 
         emit_abc(ctx, BT_OP_CLOSE, result_loc, start, expr->as.fn.upvals.length, BT_FALSE);
@@ -328,7 +329,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
         bt_Constant* constant = ctx->constants.elements + idx;
-        if (bt_value_is_equal(constant->value, value)) {
+        if (constant->value == value) {
             return idx;
         }
     }
@@ -1025,8 +1026,13 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         return BT_TRUE;
     } break;
     case BT_AST_NODE_RETURN: {
-        uint8_t ret_loc = find_binding_or_compile_temp(ctx, stmt->as.ret.expr);
-        emit_a(ctx, BT_OP_RETURN, ret_loc);
+        if (stmt->as.ret.expr) {
+            uint8_t ret_loc = find_binding_or_compile_temp(ctx, stmt->as.ret.expr);
+            emit_a(ctx, BT_OP_RETURN, ret_loc);
+        }
+        else {
+            emit(ctx, BT_OP_END);
+        }
         
         if (ctx->compiler->options.generate_debug_info) {
             --ctx->compiler->debug_top;

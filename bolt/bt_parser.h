@@ -85,6 +85,7 @@ typedef struct bt_AstNode {
 
 		struct {
 			bt_Type* type;
+			bt_bool is_bound;
 		} alias;
 
 		struct {
