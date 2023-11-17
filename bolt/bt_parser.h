@@ -84,6 +84,7 @@ typedef struct bt_AstNode {
 		} let;
 
 		struct {
+			bt_StrSlice name;
 			bt_Type* type;
 			bt_bool is_bound;
 		} alias;

@@ -619,11 +619,23 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             return bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
         }
 
-        bt_Type* result = bt_make_tableshape(ctx, "<tableshape>", is_sealed);
+        // TODO(bearish): This feels kinda hacky, dislike string allocs like this
+        char* name = "<tableshape>";
+
+        if (alias && alias->as.alias.name.length > 0) {
+            name = ctx->alloc(alias->as.alias.name.length + 1);
+            memcpy(name, alias->as.alias.name.source, alias->as.alias.name.length);
+            name[alias->as.alias.name.length] = 0;
+        }
+
+        bt_Type* result = bt_make_tableshape(ctx, name, is_sealed);
         result->as.table_shape.final = is_final;
         
-        if (alias)
-        {
+        if (alias) {
+            if (alias && alias->as.alias.name.length > 0) {
+                ctx->free(name);
+            }
+
             alias->as.alias.type = result;
             push_local(parse, alias);
         }
@@ -2605,6 +2617,7 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
     result->source = name;
     result->resulting_type = parse->context->types.type;
     result->as.alias.is_bound = BT_FALSE;
+    result->as.alias.name = name->source;
 
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_ASSIGN);
 
