@@ -2,7 +2,7 @@ import ispow2, imod from math
 import print from core
 import bench from "bench"
 
-type Node = final {
+type Node = {
     left: Node?,
     right: Node?,
     parent: Node?,
@@ -19,13 +19,13 @@ fn Node.new(left: Node?, right: Node?, parent: Node?, value: number) {
 }
 
 method Node.get_leftmost: Node {
-    if this.left == null { return this }
-    return this.left!.get_leftmost()
+    if let left = this.left { return left.get_leftmost() }
+    return this 
 }
 
 method Node.get_rightmost: Node {
-    if this.right == null { return this }
-    return this.right!.get_rightmost()
+    if let right = this.right { return right.get_rightmost() }
+    return this 
 }
 
 method Node.get_left_n(n: number): Node {
@@ -66,7 +66,7 @@ method Node.get_right_sibling: Node {
 }
 
 
-type Heap = final {
+type Heap = {
     root: Node?,
     size: number,
     last: Node?
@@ -106,38 +106,39 @@ method Heap.swap_up(node: Node) {
         node.left = parent_save
         node.right = parent_right
 
-        if parent_right != null {
-            parent_right!.parent = node
+        if let pr = parent_right {
+            pr.parent = node
         }
     } else {
         node.left = parent_left
         node.right = parent_save
 
-        if parent_left != null {
-            parent_left!.parent = node
+        if let pl = parent_left {
+            pl.parent = node
         }
     }
 
     node.parent = parent_parent
 
-    if parent_parent == null {
-        this.root = node
-    } else {
-        if parent_parent!.left == parent_save {
-            parent_parent!.left = node
+    if let pp = parent_parent {
+        if pp.left == parent_save {
+            pp.left = node
         } else {
-            parent_parent!.right = node
+            pp.right = node
         }
+    } else {
+        this.root = node
     }
 }
 
 method Heap.sift_up(node: Node): ! {
-    if node.parent == null { return }
-    if node.value > node.parent!.value {
-        this.swap_up(node)
-
-        if this.root != node {
-            this.sift_up(node)
+    if let p = node.parent {
+        if node.value > p.value {
+            this.swap_up(node)
+    
+            if this.root != node {
+                this.sift_up(node)
+            }
         }
     }
 }
@@ -251,7 +252,6 @@ method Heap.pop: Node {
 
 bench("sorted heap", 30, fn {
     let h = Heap.new()
-
     
     for i in 20000 {
         h.insert(i)
@@ -262,5 +262,3 @@ bench("sorted heap", 30, fn {
         sum += h.pop().value
     }
 })
-
-export Heap
