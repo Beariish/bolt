@@ -2144,7 +2144,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = item->value;
 
-            bt_add_ref(parse->context, import);
+            bt_add_ref(parse->context, (bt_Object*)import);
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
@@ -2216,7 +2216,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = value;
             
-            bt_add_ref(parse->context, import);
+            bt_add_ref(parse->context, (bt_Object*)import);
             bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
@@ -2250,7 +2250,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     import->type = mod_to_import->type;
     import->value = BT_VALUE_OBJECT(mod_to_import->exports);
 
-    bt_add_ref(parse->context, import);
+    bt_add_ref(parse->context, (bt_Object*)import);
     bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
 
     return NULL;
@@ -2857,7 +2857,7 @@ bt_bool bt_parse(bt_Parser* parser)
     pop_scope(parser);
 
     for (uint32_t i = 0; i < parser->root->as.module.imports.length; ++i) {
-        bt_remove_ref(parser->context, parser->root->as.module.imports.elements[i]);
+        bt_remove_ref(parser->context, (bt_Object*)parser->root->as.module.imports.elements[i]);
     }
 
 #ifdef BOLT_PRINT_DEBUG
