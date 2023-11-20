@@ -853,7 +853,7 @@ static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* __restrict resul
 	bt_runtime_error(thread, "Cannot 'not' non-bool value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) - BT_AS_NUMBER(rhs));
@@ -888,12 +888,12 @@ static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* __restrict 
 	bt_runtime_error(thread, "Cannot divide non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_eq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 }
 
-static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_neq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
@@ -908,7 +908,7 @@ static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* __restrict r
 	bt_runtime_error(thread, "Cannot lt non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static __declspec(noinline) void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
@@ -1072,14 +1072,14 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		NEXT;
 
 		CASE(STORE_IDX): 
-			if (BT_IS_ACCELERATED(op)) (BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + BT_GET_B(op))->value = stack[BT_GET_C(op)]; 
+			if (BT_IS_ACCELERATED(op)) (BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + BT_GET_B(op))->value = stack[BT_GET_C(op)];
 			else bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
 		NEXT;
 
-		CASE(LOAD_IDX_K): 
-			stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); 
-		NEXT;
+		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
 		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+
+		CASE(LOAD_PROTO): stack[BT_GET_A(op)] = bt_table_get(((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->prototype, constants[BT_GET_C(op)]); NEXT;
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
 		CASE(EXISTS):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;

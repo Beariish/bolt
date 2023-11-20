@@ -37,6 +37,7 @@
     X(STORE_IDX)   /*  R(b).[R(c)] = R(a)                            */             \
     X(LOAD_IDX_K)  /*  R(a) = R(b).[L(c)]                            */             \
     X(STORE_IDX_K) /*  R(b).[L(c)] = R(a)                            */             \
+    X(LOAD_PROTO)  /*  R(a) = R(b).prototype[L(c)]                   */             \
     X(EXPECT)      /*  R(a) = R(b) ? FAIL                            */             \
     X(EXISTS)      /*  R(a) = R(b) != null                           */             \
     X(COALESCE)    /*  R(a) = R(b) == null ? R(c) : R(b)             */             \

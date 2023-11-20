@@ -624,7 +624,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
             methodcall_hoist_fail:
             if (lhs->as.binary_op.hoistable) {
-                bt_StrSlice name = { lhs->as.binary_op.from->name, (uint16_t)strlen(lhs->as.binary_op.from->name) };
                 bt_Value hoisted = bt_table_get(lhs->as.binary_op.from->prototype_values, lhs->as.binary_op.key);
                 if (hoisted == BT_VALUE_NULL) {
                     lhs->as.binary_op.hoistable = BT_FALSE;
@@ -641,7 +640,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
-                emit_abc(ctx, BT_OP_LOAD_IDX_K, start_loc, obj_loc, idx, BT_FALSE);
+                bt_Value is_prototypical = lhs->as.binary_op.from ? bt_table_get(lhs->as.binary_op.from->prototype_types, lhs->as.binary_op.key) : BT_VALUE_NULL;
+
+                emit_abc(ctx, is_prototypical == BT_VALUE_NULL ? BT_OP_LOAD_IDX_K : BT_OP_LOAD_PROTO, start_loc, obj_loc, idx, BT_FALSE);
             }
         }
         else {
@@ -723,7 +724,10 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
-                emit_abc(ctx, BT_OP_LOAD_IDX_K, result_loc, lhs_loc, idx, BT_FALSE);
+
+                bt_Value is_prototypical = expr->as.binary_op.from ? bt_table_get(expr->as.binary_op.from->prototype_types, expr->as.binary_op.key) : BT_VALUE_NULL;
+                emit_abc(ctx, is_prototypical == BT_VALUE_NULL ? BT_OP_LOAD_IDX_K : BT_OP_LOAD_PROTO, result_loc, lhs_loc, idx, BT_FALSE);
+
                 goto try_store;
             }
         }
