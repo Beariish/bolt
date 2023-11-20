@@ -20,6 +20,10 @@ int main(int argc, char** argv) {
 
 	bt_Module* mod = bt_find_module(context, BT_VALUE_CSTRING(context, argv[1]));
 
+	if (mod == NULL) {
+		printf("ERROR: Failed to import module '%s'!\n", argv[1]);
+	}
+
 	bt_close(context);
 
 	return 0;

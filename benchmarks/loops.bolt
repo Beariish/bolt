@@ -1,6 +1,4 @@
-import * from core
-import * from math
-import * from "bench"
+import bench from "bench"
 
 fn range(end: number) {
     let current = -1
@@ -32,12 +30,4 @@ for i in 10000000 { arr.push(i) }
 
 bench("10m native iterator", 10, fn {
     for item in arr.each() {}
-})
-
-bench("weird cyberscript thing", 20, fn {
-    let arr = [:number]
-    for i in 1000000 { arr.push(i) }
-    
-    let sum = 0
-    for i in arr.each() { sum += i }
 })
