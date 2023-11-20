@@ -186,9 +186,9 @@ static void bt_string_replace(bt_Context* ctx, bt_Thread* thread)
 	bt_String* rep_str = (bt_String*)bt_get_object(bt_arg(thread, 1));
 	bt_String* with_str = (bt_String*)bt_get_object(bt_arg(thread, 2));
 
-	const char* orig = BT_STRING_STR(orig_str);
-	const char* rep = BT_STRING_STR(rep_str);
-	const char* with = BT_STRING_STR(with_str);
+	char* orig = BT_STRING_STR(orig_str);
+	char* rep = BT_STRING_STR(rep_str);
+	char* with = BT_STRING_STR(with_str);
 
 	size_t len_rep = strlen(rep);
 	if (len_rep == 0) bt_runtime_error(thread, "Replacement string cannot be empty!", NULL); // empty rep causes infinite loop during count
@@ -196,15 +196,15 @@ static void bt_string_replace(bt_Context* ctx, bt_Thread* thread)
 
 	char* tmp;
 	char* ins = orig;
-	int count;
+	uint32_t count;
 	for (count = 0; tmp = strstr(ins, rep); ++count) {
 		ins = tmp + len_rep;
 	}
 
-	bt_String* result = bt_make_string_empty(ctx, strlen(orig) + (len_with - len_rep) * count + 1);
+	bt_String* result = bt_make_string_empty(ctx, orig_str->len + (uint32_t)(len_with - len_rep) * count + 1);
 	tmp = BT_STRING_STR(result);
 
-	int len_front;
+	int64_t len_front;
 	while (count--) {
 		ins = strstr(orig, rep);
 		len_front = ins - orig;

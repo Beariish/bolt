@@ -105,7 +105,7 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "stack_size"), bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));
-	bt_module_export(context, module, context->types.string, BT_VALUE_CSTRING(context, "version"), bt_make_string(context, BOLT_VERSION));
+	bt_module_export(context, module, context->types.string, BT_VALUE_CSTRING(context, "version"), bt_make_object((bt_Object*)bt_make_string(context, BOLT_VERSION)));
 
 	bt_Type* info_sig = bt_make_signature(context, context->types.number, NULL, 0);
 

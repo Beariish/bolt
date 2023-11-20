@@ -4,7 +4,7 @@
 #if !BOLT_INLINE_HEADER
 BOLT_API uint8_t bt_argc(bt_Thread* thread)
 {
-	return thread->callstack[thread->depth - 1].argc;
+	return thread->native_stack[thread->native_depth - 1].argc;
 }
 
 BOLT_API bt_Value bt_arg(bt_Thread* thread, uint8_t idx)
@@ -14,21 +14,21 @@ BOLT_API bt_Value bt_arg(bt_Thread* thread, uint8_t idx)
 
 BOLT_API void bt_return(bt_Thread* thread, bt_Value value)
 {
-	thread->stack[thread->top + thread->callstack[thread->depth - 1].return_loc] = value;
+	thread->stack[thread->top + thread->native_stack[thread->native_depth - 1].return_loc] = value;
 }
 
 BOLT_API bt_Value bt_get_returned(bt_Thread* thread)
 {
-	return bt_pop(thread);
+	return thread->stack[thread->top];
 }
 
 BOLT_API bt_Value bt_getup(bt_Thread* thread, uint8_t idx)
 {
-	return BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable)[idx];
+	return BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]))[idx];
 }
 
 BOLT_API void bt_setup(bt_Thread* thread, uint8_t idx, bt_Value value)
 {
-	BT_CLOSURE_UPVALS(thread->callstack[thread->depth - 1].callable)[idx] = value;
+	BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]))[idx] = value;
 }
 #endif
