@@ -89,9 +89,9 @@ typedef struct bt_Type {
 
 BOLT_API bt_bool bt_is_optional(bt_Type* type);
 
-static BT_FORCE_INLINE bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
-static BT_FORCE_INLINE bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
-static BT_FORCE_INLINE bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right); }
+static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
+static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
+static inline bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right); }
 
 BOLT_API bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 BOLT_API bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);

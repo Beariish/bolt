@@ -51,3 +51,4 @@ BOLT_API void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char
 
 #define BT_ARG_AS(thread, idx, type) \
 	(type*)((bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, idx)))->data
+
