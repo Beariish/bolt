@@ -38,4 +38,4 @@
 
 // Builds bolt as a static library, meaning inlined functions get their 
 // own translation units
-//#define BOLT_STATIC_LIBRARY
+#define BOLT_STATIC_LIBRARY
