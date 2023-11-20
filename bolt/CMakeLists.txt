@@ -148,3 +148,6 @@ if(MSVC)
     )
 endif()
 
+if(NOT MSVC)
+    target_link_libraries(${PROJECT_NAME} PUBLIC m)
+endif()
