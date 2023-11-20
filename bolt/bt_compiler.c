@@ -166,7 +166,11 @@ static void compile_error_fmt(bt_Compiler* compiler, const char* format, uint16_
     va_start(va, col);
 
     char message[4096];
+#ifdef _MSC_VER
     message[vsprintf_s(message, sizeof(message) - 1, format, va)] = 0;
+#else
+    message[vsprintf(message, format, va)] = 0;
+#endif
     va_end(va);
 
     compile_error(compiler, message, line, col);

@@ -212,7 +212,7 @@ static void print_code(bt_InstructionBuffer* code)
 		case BT_OP_STORE_IDX_K: printf("[%.3d]: SIDXK  %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_LOAD_SUB_F:  printf("[%.3d]: LSUBF  %d, %d, %d\n", i, a, b, c); break;
 		case BT_OP_STORE_SUB_F: printf("[%.3d]: SSUBF  %d, %d, %d\n", i, a, b, c); break;
-		default: printf("[%.3d]: ???\n", i); __debugbreak(); break;
+		default: printf("[%.3d]: ???\n", i); break;
 		}
 	}
 }

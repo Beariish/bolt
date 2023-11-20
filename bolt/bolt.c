@@ -124,8 +124,11 @@ static void bt_error(bt_ErrorType type, const char* module, const char* message,
 
 static char* bt_read_file(bt_Context* ctx, const char* path, void** handle)
 {
+#ifdef _MSC_VER
 	fopen_s((FILE**)handle, path, "rb");
-
+#else
+	*handle = (void*)fopen(path, "rb");
+#endif
 	if (*handle == 0) return NULL;
 
 	fseek(*handle, 0, SEEK_END);
@@ -472,8 +475,11 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		bt_Path* pathspec = context->module_paths;
 		while (pathspec && !code) {
+#ifdef _MSC_VER
 			path_len = sprintf_s(path_buf, 256, pathspec->spec, BT_STRING_STR(to_load));
-
+#else
+			path_len = sprintf(path_buf, pathspec->spec, BT_STRING_STR(to_load));
+#endif
 			if (path_len >= 256) {
 				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
 				bt_pop_root(context);

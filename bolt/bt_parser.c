@@ -42,7 +42,11 @@ static void parse_error_fmt(bt_Parser* parse, const char* format, uint16_t line,
     va_start(va, col);
 
     char message[4096];
+#ifdef _MSC_VER
     message[vsprintf_s(message, sizeof(message) - 1, format, va)] = 0;
+#else
+    message[vsprintf(message, format, va)] = 0;
+#endif
     va_end(va);
 
     parse_error(parse, message, line, col);
