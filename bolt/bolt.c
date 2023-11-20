@@ -853,7 +853,7 @@ static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* __restrict resul
 	bt_runtime_error(thread, "Cannot 'not' non-bool value!", ip);
 }
 
-static __declspec(noinline) void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) - BT_AS_NUMBER(rhs));
@@ -888,12 +888,12 @@ static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* __restrict 
 	bt_runtime_error(thread, "Cannot divide non-number value!", ip);
 }
 
-static __declspec(noinline) void bt_eq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
 }
 
-static __declspec(noinline) void bt_neq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
@@ -908,7 +908,7 @@ static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* __restrict r
 	bt_runtime_error(thread, "Cannot lt non-number value!", ip);
 }
 
-static __declspec(noinline) void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
