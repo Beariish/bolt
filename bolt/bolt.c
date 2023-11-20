@@ -803,7 +803,7 @@ if (BT_IS_OBJECT(lhs)) {																			 \
 	}																								 \
 }
 
-static __declspec(noinline) void bt_add(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_add(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) + BT_AS_NUMBER(rhs));
@@ -864,7 +864,7 @@ static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict resul
 
 	bt_runtime_error(thread, "Cannot subtract non-number value!", ip);
 }
-static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_mul(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) * BT_AS_NUMBER(rhs));
@@ -876,7 +876,7 @@ static __declspec(noinline) void bt_mul(bt_Thread* thread, bt_Value* __restrict 
 	bt_runtime_error(thread, "Cannot multiply non-number value!", ip);
 }
 
-static __declspec(noinline) void bt_div(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_div(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) / BT_AS_NUMBER(rhs));
@@ -898,7 +898,7 @@ static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* __restrict resul
 	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
 }
 
-static __declspec(noinline) void bt_lt(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_lt(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) < BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
