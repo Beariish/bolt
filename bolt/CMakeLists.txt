@@ -150,4 +150,15 @@ endif()
 
 if(NOT MSVC)
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        -Ofast;
+        -O2;
+        -ffast-math;
+        -fno-signaling-nans;
+        -fno-rounding-math;
+        -funsafe-math-optimizations;
+        -fomit-frame-pointer;
+        -march=native;
+        -flto;
+    )
 endif()
