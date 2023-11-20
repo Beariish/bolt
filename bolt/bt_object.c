@@ -30,19 +30,24 @@ bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
 
 int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value)
 {
+#ifdef _MSC_VER
+#define BT_SPRINTF(...) sprintf_s(buffer, size, __VA_ARGS__)
+#else
+#define BT_SPRINTF(...) sprintf(buffer, __VA_ARGS__)
+#endif
     int32_t len = 0;
 
     if (BT_IS_NUMBER(value)) {
-        len = sprintf_s(buffer, size, "%f", BT_AS_NUMBER(value));
+        len = BT_SPRINTF("%f", BT_AS_NUMBER(value));
     }
     else {
         switch (BT_TYPEOF(value)) {
         case BT_TYPE_BOOL:
-            if (BT_IS_TRUE(value)) len = sprintf_s(buffer, size, "true");
-            else                   len = sprintf_s(buffer, size, "false");
+            if (BT_IS_TRUE(value)) len = BT_SPRINTF("true");
+            else                   len = BT_SPRINTF("false");
             break;
-        case BT_TYPE_NULL: len = sprintf_s(buffer, size, "null"); break;
-        case BT_TYPE_ENUM: len = sprintf_s(buffer, size, "%d", (uint32_t)BT_AS_ENUM(value)); break;
+        case BT_TYPE_NULL: len = BT_SPRINTF("null"); break;
+        case BT_TYPE_ENUM: len = BT_SPRINTF("%d", (uint32_t)BT_AS_ENUM(value)); break;
         default: {
             bt_Object* obj = BT_AS_OBJECT(value);
             switch (BT_OBJECT_GET_TYPE(obj)) {
@@ -51,12 +56,12 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
                 len = str->len;
                 memcpy(buffer, BT_STRING_STR(str), len);
             } break;
-            case BT_OBJECT_TYPE_TYPE:      len = sprintf_s(buffer, size, "%s", ((bt_Type*)obj)->name); break;
-            case BT_OBJECT_TYPE_FN:        len = sprintf_s(buffer, size, "<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
-            case BT_OBJECT_TYPE_NATIVE_FN: len = sprintf_s(buffer, size, "<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type ? ((bt_NativeFn*)obj)->type->name : "???"); break;
+            case BT_OBJECT_TYPE_TYPE:      len = BT_SPRINTF("%s", ((bt_Type*)obj)->name); break;
+            case BT_OBJECT_TYPE_FN:        len = BT_SPRINTF("<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
+            case BT_OBJECT_TYPE_NATIVE_FN: len = BT_SPRINTF("<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type ? ((bt_NativeFn*)obj)->type->name : "???"); break;
             case BT_OBJECT_TYPE_ARRAY: {
                 bt_Array* arr = (bt_Array*)obj;
-                len = sprintf_s(buffer, size, "<0x%llx: array[%d]>", value, arr->items.length);
+                len = BT_SPRINTF("<0x%llx: array[%d]>", value, arr->items.length);
             } break;
             case BT_OBJECT_TYPE_TABLE: {
                 bt_Table* tbl = (bt_Table*)obj;
@@ -71,15 +76,15 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
                     len = result->len;
                 }
                 else {
-                    len = sprintf_s(buffer, size, "<0x%llx: table>", value);
+                    len = BT_SPRINTF("<0x%llx: table>", value);
                 }
             } break;
             case BT_OBJECT_TYPE_IMPORT: {
                 bt_ModuleImport* import = (bt_ModuleImport*)BT_AS_OBJECT(value);
-                len = sprintf_s(buffer, size, "<0x%llx: Import(>", value);
+                len = BT_SPRINTF("<0x%llx: Import(>", value);
                 len += bt_to_string_inplace(ctx, buffer + len, size - len, BT_VALUE_OBJECT(import->name));
             } break;
-            default: len = sprintf_s(buffer, size, "<0x%llx: object>", value); break;
+            default: len = BT_SPRINTF("<0x%llx: object>", value); break;
             }
         }
         }

@@ -459,8 +459,11 @@ static const char* get_tok_name(bt_TokenType type)
 static void tokenizer_error(bt_Tokenizer* tok, bt_Token* got, bt_TokenType expected)
 {
 	char buffer[1024];
+#ifdef _MSC_VER
 	buffer[sprintf_s(buffer, sizeof(buffer), "Expected token '%s', got '%.*s'", get_tok_name(expected), got->source.length, got->source.source)] = 0;
-
+#else
+	buffer[sprintf(buffer, "Expected token '%s', got '%.*s'", get_tok_name(expected), got->source.length, got->source.source)] = 0;
+#endif
 	tok->context->on_error(BT_ERROR_PARSE, tok->source_name, buffer, got->line, got->col);
 }
 
