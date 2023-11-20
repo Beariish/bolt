@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <time.h>
 
-static __forceinline uint64_t get_timestamp()
+static uint64_t get_timestamp()
 {
 	struct timespec ts;
 #ifdef _MSC_VER
@@ -17,7 +17,7 @@ static __forceinline uint64_t get_timestamp()
 	uint64_t seconds = ts.tv_sec;
 	uint64_t nano_seconds = ts.tv_nsec;
 
-	return (seconds * 1'000'000) + (nano_seconds / 1'000);
+	return (seconds * 1000000) + (nano_seconds / 1000);
 }
 
 static void bt_time(bt_Context* ctx, bt_Thread* thread)
