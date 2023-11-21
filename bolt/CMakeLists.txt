@@ -162,5 +162,6 @@ if(NOT MSVC)
         -funsafe-math-optimizations;
         -fomit-frame-pointer;
         -march=native;
+        -flto;
     )
 endif()
