@@ -47,10 +47,14 @@ See below for the status of Bolt on each relevant compiler.
 | Clang    | ⚙️     | compiles, but runtime is fishy. would appreciate help. |
 
 ## Contributing
-Some notes about how to contribute to bolt, what is and is not likely to be accepted, etc
+Bug reports and fixes are of course welcome, and changes/improvements to the embedding side and C api will generally be considered. Performance improvements are likely to be accepted as long as they're repeatable in a case defined in the `benchmarks/` directory, and don't come at some other significant cost.
+
+Actual language features and extensions will require a lot more consideration, discussion, and revision before any real work should be started. There is a farily clear vision and roadmap for the language, and I explicitly want to avoid bloating it with features that don't further its' goals. 
+
+Standard library improvements and extensions are accepted as long as they don't bring in an external dependency, and aren't too niche/overlapping not to make sense.
 
 ## Roadmap
-* 0.1.x - Bugfixing and stabilization *[we are here]*
+* 0.1.x - Bugfixing and stabilization, debugability *[we are here]*
 * 0.2.x - Compile to bytecode and bytecode bundles
 * 0.3.x - Generics and arrow functions
 * 0.4.x - Fibres and coroutines
