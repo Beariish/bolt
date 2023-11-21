@@ -26,7 +26,7 @@ for const animal in animals.each() {
 * Embed-first design, prioritizing inter-language performance and agility  
 
 ## Links
-* **Bolt programming guide**
+* **[Bolt programming guide](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Programming%20Guide.md)**
 * **Bolt standard library reference**
 * **Bolt embedding and API reference**
 * **Bolt performance**
