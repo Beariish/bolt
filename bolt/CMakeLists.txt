@@ -150,6 +150,7 @@ endif()
 
 if(NOT MSVC)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    set(TARGET x86_64-none-none)
 
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
     target_compile_options(${PROJECT_NAME} PRIVATE
