@@ -149,9 +149,7 @@ if(MSVC)
 endif()
 
 if(NOT MSVC)
-    # workaround because ranlib fails to generate symbols with clang when using -flto
-    set(CMAKE_AR ${CMAKE_CXX_COMPILER_AR} CACHE PATH "AR" FORCE)
-    set(CMAKE_RANLIB ${CMAKE_CXX_COMPILER_RANLIB} CACHE PATH "RANLIB" FORCE)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
     target_compile_options(${PROJECT_NAME} PRIVATE
@@ -163,6 +161,5 @@ if(NOT MSVC)
         -funsafe-math-optimizations;
         -fomit-frame-pointer;
         -march=native;
-        -flto;
     )
 endif()
