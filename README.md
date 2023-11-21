@@ -39,6 +39,7 @@ For more information and options regarding embedding Bolt in your application, s
 See below for the status of Bolt on each relevant compiler. 
 
 ## Compiler Status
+[![Build Status](https://github.com/Beariish/bolt/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/Beariish/bolt/actions/workflows/cmake-multi-platform.yml)
 | Compiler | Status | Reason |
 | -------- | ------ | ------ |
 | MSVC     | ✅     | no issues |
