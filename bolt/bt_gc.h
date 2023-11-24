@@ -14,6 +14,7 @@ typedef struct bt_GC {
 	size_t next_cycle, byets_allocated, min_size, cycle_growth_pct;
 	uint32_t grey_cap, grey_count;
 	bt_Object** greys;
+	bt_bool is_paused;
 
 	bt_Context* ctx;
 } bt_GC;
@@ -36,3 +37,6 @@ BOLT_API void bt_gc_set_growth_pct(bt_Context* ctx, size_t growth_pct);
 
 BOLT_API void bt_grey_obj(bt_Context* ctx, bt_Object* obj);
 BOLT_API uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);
+
+BOLT_API void bt_gc_pause(bt_Context* ctx);
+BOLT_API void bt_gc_unpause(bt_Context* ctx);

@@ -1,6 +1,7 @@
 #include "bt_debug.h"
 
 #include "bt_value.h"
+#include "bt_gc.h"
 
 #include <stdio.h>
 
@@ -242,4 +243,168 @@ void bt_debug_print_fn(bt_Context* ctx, bt_Fn* fn)
 	printf("<%s>\n", fn->signature->name);
 	print_constants(ctx, &fn->constants);
 	print_code(&fn->instructions);
+}
+
+static const char* op_to_mnemonic[] = {
+#define X(op) #op,
+	BT_OPS_X
+#undef X
+};
+
+static bt_bool is_op_abc(uint8_t op) {
+	switch (op) {
+	case BT_OP_EXPORT: case BT_OP_CLOSE:
+	case BT_OP_ADD: case BT_OP_SUB: case BT_OP_MUL: case BT_OP_DIV:
+	case BT_OP_EQ: case BT_OP_NEQ: case BT_OP_LT: case BT_OP_LTE:
+	case BT_OP_AND: case BT_OP_OR: case BT_OP_LOAD_IDX:
+	case BT_OP_STORE_IDX: case BT_OP_LOAD_PROTO:
+	case BT_OP_COALESCE: case BT_OP_TCHECK:
+	case BT_OP_TSATIS: case BT_OP_TCAST:
+	case BT_OP_TSET: case BT_OP_COMPOSE:
+	case BT_OP_CALL: case BT_OP_LOAD_SUB_F:
+	case BT_OP_STORE_SUB_F:
+		return BT_TRUE;
+	default:
+		return BT_FALSE;
+	}
+}
+
+static bt_bool is_op_ab(uint8_t op) {
+	switch (op) {
+	case BT_OP_LOAD_BOOL: case BT_OP_MOVE:
+	case BT_OP_LOADUP: case BT_OP_STOREUP:
+	case BT_OP_NEG: case BT_OP_NOT:
+	case BT_OP_EXISTS: case BT_OP_EXPECT:
+		return BT_TRUE;
+	default:
+		return BT_FALSE;
+	}
+}
+
+static bt_bool is_op_a(uint8_t op) {
+	switch (op) {
+	case BT_OP_LOAD_NULL: case BT_OP_RETURN:
+		return BT_TRUE;
+	default:
+		return BT_FALSE;
+	}
+}
+
+static bt_bool is_op_aibc(uint8_t op) {
+	switch (op) {
+	case BT_OP_LOAD: case BT_OP_LOAD_SMALL:
+	case BT_OP_LOAD_IMPORT: case BT_OP_TABLE:
+	case BT_OP_ARRAY: case BT_OP_JMPF:
+	case BT_OP_NUMFOR: case BT_OP_ITERFOR: 
+		return BT_TRUE;
+	default:
+		return BT_FALSE;
+	}
+}
+
+static bt_bool is_op_ibc(uint8_t op) {
+	switch (op) {
+	case BT_OP_JMP:
+		return BT_TRUE;
+	default:
+		return BT_FALSE;
+	}
+}
+
+#ifdef _MSC_VER
+#pragma warning(disable: 4477)
+#endif
+
+static void format_single_instruction(char* buffer, bt_Op instruction)
+{
+	size_t len = 0;
+	if (BT_IS_ACCELERATED(instruction)) {
+		len = sprintf(buffer, "ACC ");
+	}
+
+	uint8_t op = BT_GET_OPCODE(instruction);
+	len += sprintf(buffer + len, op_to_mnemonic[op]);
+	
+	if (is_op_abc(op)) {
+		len += sprintf(buffer + len, "%*s%3d, %3d, %3d", 12 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
+	}
+	else if (is_op_ab(op)) {
+		len += sprintf(buffer + len, "%*s%3d, %3d", 12 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction));
+	}
+	else if (is_op_a(op)) {
+		len += sprintf(buffer + len, "%*s%3d", 12 - len, " ", BT_GET_A(instruction));
+	}
+	else if (is_op_aibc(op)) {
+		len += sprintf(buffer + len, "%*s%3d, %3d", 12 - len, " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
+	}
+	else if (is_op_ibc(op)) {
+		len += sprintf(buffer + len, "%*s%3d", 12 - len, " ", BT_GET_IBC(instruction));
+	}
+
+	buffer[len] = 0;
+}
+
+bt_String* bt_debug_dump_fn(bt_Context* ctx, bt_Callable* function)
+{
+	bt_Fn* underlying = (bt_Fn*)function;
+	if (BT_OBJECT_GET_TYPE(function) == BT_OBJECT_TYPE_CLOSURE) {
+		underlying = function->cl.fn;
+	}
+
+	// this function does a lot of intermediate allocating, let's pause until end
+	bt_gc_pause(ctx);
+
+	bt_String* result = bt_make_string_empty(ctx, 0);
+	result = bt_append_cstr(ctx, result, underlying->signature->name);
+	result = bt_append_cstr(ctx, result, "\n\tModule: ");
+	result = bt_concat_strings(ctx, result, underlying->module->name);
+	result = bt_append_cstr(ctx, result, "\n\tStack size: ");
+	result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(underlying->stack_size)));
+	result = bt_append_cstr(ctx, result, "\n\tHas debug: ");
+	result = bt_append_cstr(ctx, result, underlying->debug ? "YES" : "NO");
+	result = bt_append_cstr(ctx, result, "\n");
+
+	if (BT_OBJECT_GET_TYPE(function) == BT_OBJECT_TYPE_CLOSURE) {
+		result = bt_append_cstr(ctx, result, "\tUpvals [");
+		result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(function->cl.num_upv)));
+		result = bt_append_cstr(ctx, result, "]:\n");
+
+		for (uint32_t i = 0; i < function->cl.num_upv; ++i) {
+			result = bt_append_cstr(ctx, result, "\t  [");
+			result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(i)));
+			result = bt_append_cstr(ctx, result, "]: ");
+			result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_CLOSURE_UPVALS(function)[i]));
+			result = bt_append_cstr(ctx, result, "\n");
+		}
+	}
+
+	result = bt_append_cstr(ctx, result, "\tConstants [");
+	result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(underlying->constants.length)));
+	result = bt_append_cstr(ctx, result, "]:\n");
+
+	for (uint32_t i = 0; i < underlying->constants.length; ++i) {
+		result = bt_append_cstr(ctx, result, "\t  [");
+		result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(i)));
+		result = bt_append_cstr(ctx, result, "]: ");
+		result = bt_concat_strings(ctx, result, bt_to_string(ctx, underlying->constants.elements[i]));
+		result = bt_append_cstr(ctx, result, "\n");
+	}
+
+	result = bt_append_cstr(ctx, result, "\tCode [");
+	result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(underlying->instructions.length)));
+	result = bt_append_cstr(ctx, result, "]:\n");
+
+	char buffer[128];
+	for (uint32_t i = 0; i < underlying->instructions.length; ++i) {
+		buffer[sprintf(buffer, "\t  [%03d]: ", i)] = 0;
+		result = bt_append_cstr(ctx, result, buffer);
+
+		format_single_instruction(buffer, underlying->instructions.elements[i]);
+		result = bt_append_cstr(ctx, result, buffer);
+		result = bt_append_cstr(ctx, result, "\n");
+	}
+
+	bt_gc_unpause(ctx);
+
+	return result;
 }

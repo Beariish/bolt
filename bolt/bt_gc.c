@@ -10,6 +10,7 @@ void bt_make_gc(bt_Context* ctx)
 	result.ctx = ctx;
 	ctx->gc = result;
 
+	bt_gc_unpause(ctx);
 	bt_gc_set_grey_cap(ctx, 32);
 	bt_gc_set_next_cycle(ctx, 1024 * 1024 * 10); // 10mb
 	bt_gc_set_min_size(ctx, ctx->gc.next_cycle);
@@ -293,4 +294,14 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	ctx->current_thread = old_thr;
 
 	return n_collected;
+}
+
+void bt_gc_pause(bt_Context* ctx)
+{
+	ctx->gc.is_paused = BT_TRUE;
+}
+
+BOLT_API void bt_gc_unpause(bt_Context* ctx)
+{
+	ctx->gc.is_paused = BT_FALSE;
 }

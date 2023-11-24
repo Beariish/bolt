@@ -12,6 +12,7 @@
 
 #include "bt_context.h"
 #include "bt_debug.h"
+#include "bt_object.h"
 
 static const uint8_t INVALID_BINDING = 255;
 
@@ -337,6 +338,16 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
         bt_Constant* constant = ctx->constants.elements + idx;
         if (constant->value == value) {
             return idx;
+        }
+
+        if (bt_is_object(constant->value) && bt_is_object(value)) {
+            bt_Object* obja = BT_AS_OBJECT(constant->value);
+            bt_Object* objb = BT_AS_OBJECT(value);
+            if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_STRING && BT_OBJECT_GET_TYPE(objb) == BT_OBJECT_TYPE_STRING) {
+                if (bt_value_is_equal(constant->value, value)) {
+                    return idx;
+                }
+            }
         }
     }
 

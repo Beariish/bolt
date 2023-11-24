@@ -823,15 +823,7 @@ static BT_NO_INLINE void bt_add(bt_Thread* thread, bt_Value* __restrict result, 
 		bt_String* rhs_str = (bt_String*)BT_AS_OBJECT(rhs);
 
 		if (BT_OBJECT_GET_TYPE(lhs_str) == BT_OBJECT_TYPE_STRING && BT_OBJECT_GET_TYPE(rhs_str) == BT_OBJECT_TYPE_STRING) {
-			uint32_t length = lhs_str->len + rhs_str->len;
-
-			bt_String* str_result = bt_make_string_empty(thread->context, length);
-			char* added = BT_STRING_STR(str_result);
-			memcpy(added, BT_STRING_STR(lhs_str), lhs_str->len);
-			memcpy(added + lhs_str->len, BT_STRING_STR(rhs_str), rhs_str->len);
-			added[length] = 0;
-
-			*result = BT_VALUE_OBJECT(str_result);
+			*result = BT_VALUE_OBJECT(bt_concat_strings(thread->context, lhs_str, rhs_str));
 			return;
 		}
 	}

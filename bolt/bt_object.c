@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 
 static uint64_t MurmurOAAT64(const char* key, uint32_t len)
 {
@@ -38,7 +39,14 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
     int32_t len = 0;
 
     if (BT_IS_NUMBER(value)) {
-        len = BT_SPRINTF("%f", BT_AS_NUMBER(value));
+        double n = BT_AS_NUMBER(value);
+
+        if (floor(n) == n) {
+            len = BT_SPRINTF("%lld", (uint64_t)n);
+        }
+        else {
+            len = BT_SPRINTF("%f", n);
+        }
     }
     else {
         switch (BT_TYPEOF(value)) {
@@ -58,6 +66,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             } break;
             case BT_OBJECT_TYPE_TYPE:      len = BT_SPRINTF("%s", ((bt_Type*)obj)->name); break;
             case BT_OBJECT_TYPE_FN:        len = BT_SPRINTF("<0x%llx: %s>", value, ((bt_Fn*)obj)->signature->name); break;
+            case BT_OBJECT_TYPE_CLOSURE:        len = BT_SPRINTF("<0x%llx: %s>", value, ((bt_Closure*)obj)->fn->signature->name); break;
             case BT_OBJECT_TYPE_NATIVE_FN: len = BT_SPRINTF("<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type ? ((bt_NativeFn*)obj)->type->name : "???"); break;
             case BT_OBJECT_TYPE_ARRAY: {
                 bt_Array* arr = (bt_Array*)obj;
@@ -175,6 +184,33 @@ bt_StrSlice bt_as_strslice(bt_String* str)
 const char* const bt_get_string(bt_String* str)
 {
     return BT_STRING_STR(str);
+}
+
+bt_String* bt_concat_strings(bt_Context* ctx, bt_String* a, bt_String* b)
+{
+    uint32_t length = a->len + b->len;
+
+    bt_String* result = bt_make_string_empty(ctx, length);
+    char* added = BT_STRING_STR(result);
+    memcpy(added, BT_STRING_STR(a), a->len);
+    memcpy(added + a->len, BT_STRING_STR(b), b->len);
+    added[length] = 0;
+
+    return result;
+}
+
+bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b)
+{
+    uint32_t b_len = (uint32_t)strlen(b);
+    uint32_t length = a->len + b_len;
+
+    bt_String* result = bt_make_string_empty(ctx, length);
+    char* added = BT_STRING_STR(result);
+    memcpy(added, BT_STRING_STR(a), a->len);
+    memcpy(added + a->len, b, b_len);
+    added[length] = 0;
+
+    return result;
 }
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)

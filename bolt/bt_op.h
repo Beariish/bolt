@@ -15,7 +15,7 @@
     X(LOAD_BOOL)   /*  R(a) = b ? BT_TRUE : BT_FALSE                 */             \
     X(LOAD_IMPORT) /*  R(a) = imports[ubc]                           */             \
     X(TABLE)       /*  R(a) = new tablesize(ibc)                     */             \
-    X(ARRAY)       /*  R(a) = new array[b]                           */             \
+    X(ARRAY)       /*  R(a) = new array[ibc]                         */             \
     X(MOVE)        /*  R(a) = R(b)                                   */             \
     X(EXPORT)      /*  exports[R(a)]: R(c) = R(b)                    */             \
     X(CLOSE)       /*  R(a) = Closure(R(b)) with upvals[R(b+1..b+c)] */             \

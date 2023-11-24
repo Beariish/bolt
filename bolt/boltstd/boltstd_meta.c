@@ -2,6 +2,7 @@
 
 #include "../bt_embedding.h"
 #include "../bt_type.h"
+#include "../bt_debug.h"
 
 static void btstd_gc(bt_Context* ctx, bt_Thread* thread)
 {
@@ -99,6 +100,23 @@ static void btstd_get_union_entry(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(u->as.selector.types.elements[(uint64_t)idx]));
 }
 
+static bt_Type* btstd_dump_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 1) return NULL;
+	bt_Type* fn = args[0];
+	if (fn->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
+
+	bt_Type* sig = bt_make_signature(ctx, ctx->types.string, args, 1);
+
+	return sig;
+}
+
+static void btstd_dump(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Callable* arg = (bt_Callable*)BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_return(thread, BT_VALUE_OBJECT(bt_debug_dump_fn(ctx, arg)));
+}
+
 void boltstd_open_meta(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -167,6 +185,10 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_module_export(context, module, get_union_entry_sig, BT_VALUE_CSTRING(context, "get_union_entry"), BT_VALUE_OBJECT(
 		bt_make_native(context, get_union_entry_sig, btstd_get_union_entry)));
+
+	bt_Type* dump_sig = bt_make_poly_signature(context, "dump(fn): string", btstd_dump_type);
+	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(
+		bt_make_native(context, dump_sig, btstd_dump)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "meta"), module);
 }

@@ -175,6 +175,8 @@ BOLT_API bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len);
 BOLT_API bt_String* bt_hash_string(bt_String* str);
 BOLT_API bt_StrSlice bt_as_strslice(bt_String* str);
 BOLT_API const char* const bt_get_string(bt_String* str);
+BOLT_API bt_String* bt_concat_strings(bt_Context* ctx, bt_String* a, bt_String* b);
+BOLT_API bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b);
 
 BOLT_API bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
 BOLT_API bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);

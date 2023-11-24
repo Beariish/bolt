@@ -13,19 +13,19 @@ fn abs(re: number, im: number) {
 fn level(x: number, y: number) {
     let zre = x
     let zim = y
-
+    
     for l in 255 {
         let tre = zre * zre - zim * zim
         let tim = zre * zim + zim * zre
-
+        
         zre = tre + x
         zim = tim + y
-
+        
         if abs(zre, zim) > 2 {
             return l
         }
     }
-
+    
     return 255
 }
 
