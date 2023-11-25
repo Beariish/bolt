@@ -1196,4 +1196,6 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 #endif
 		}
 	}
+
+	BT_ASSUME(0);
 }

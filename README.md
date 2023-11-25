@@ -55,6 +55,8 @@ Standard library improvements and extensions are accepted as long as they don't 
 
 ## Roadmap
 * 0.1.x - Bugfixing and stabilization, debugability *[we are here]*
+* 1. Focus on improving code quality, reducing duplication and some loving comments
+* * - 
 * 0.2.x - Compile to bytecode and bytecode bundles
 * 0.3.x - Generics and arrow functions
 * 0.4.x - Fibres and coroutines
