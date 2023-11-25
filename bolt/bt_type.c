@@ -249,7 +249,7 @@ bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
 }
 
 bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
-	assert(to_unnull->category == BT_TYPE_CATEGORY_UNION);
+	if (to_unnull->category != BT_TYPE_CATEGORY_UNION) return to_unnull;
 
 	int32_t found_idx = -1;
 	bt_TypeBuffer* types = &to_unnull->as.selector.types;

@@ -257,6 +257,7 @@ static bt_bool is_op_abc(uint8_t op) {
 	case BT_OP_ADD: case BT_OP_SUB: case BT_OP_MUL: case BT_OP_DIV:
 	case BT_OP_EQ: case BT_OP_NEQ: case BT_OP_LT: case BT_OP_LTE:
 	case BT_OP_AND: case BT_OP_OR: case BT_OP_LOAD_IDX:
+	case BT_OP_LOAD_IDX_K: case BT_OP_STORE_IDX_K:
 	case BT_OP_STORE_IDX: case BT_OP_LOAD_PROTO:
 	case BT_OP_COALESCE: case BT_OP_TCHECK:
 	case BT_OP_TSATIS: case BT_OP_TCAST:
@@ -326,19 +327,19 @@ static void format_single_instruction(char* buffer, bt_Op instruction)
 	len += sprintf(buffer + len, op_to_mnemonic[op]);
 	
 	if (is_op_abc(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d, %3d", 12 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
+		len += sprintf(buffer + len, "%*s%3d, %3d, %3d", 15 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
 	}
 	else if (is_op_ab(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d", 12 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction));
+		len += sprintf(buffer + len, "%*s%3d, %3d", 15 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction));
 	}
 	else if (is_op_a(op)) {
-		len += sprintf(buffer + len, "%*s%3d", 12 - len, " ", BT_GET_A(instruction));
+		len += sprintf(buffer + len, "%*s%3d", 15 - len, " ", BT_GET_A(instruction));
 	}
 	else if (is_op_aibc(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d", 12 - len, " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
+		len += sprintf(buffer + len, "%*s%3d, %3d", 15 - len, " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
 	}
 	else if (is_op_ibc(op)) {
-		len += sprintf(buffer + len, "%*s%3d", 12 - len, " ", BT_GET_IBC(instruction));
+		len += sprintf(buffer + len, "%*s%3d", 15 - len, " ", BT_GET_IBC(instruction));
 	}
 
 	buffer[len] = 0;

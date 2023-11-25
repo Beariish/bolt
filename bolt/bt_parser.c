@@ -1318,6 +1318,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                             max_arg--;
 
                             to_call = old_to_call->as.poly_fn.applicator(parse->context, arg_types, max_arg);
+                            self_arg = 0;
 
                             if (!to_call) {
                                 parse_error(parse, "Found no polymorhic mode for function", next->line, next->col);
@@ -2537,7 +2538,17 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     bt_AstNode* iterator = pratt_parse(parse, 0);
 
+    if (!iterator) {
+        parse_error_token(parse, "Failed to evaluate iterator '%.*s'", identifier->source);
+        return NULL;
+    }
+
     bt_Type* generator_type = type_check(parse, iterator)->resulting_type;
+
+    if (!generator_type) {
+        parse_error_token(parse, "Failed to determine type of generator '%.*s'", iterator->source);
+        return NULL;
+    }
 
     if (generator_type == parse->context->types.number) {
         bt_AstNode* stop = iterator;
