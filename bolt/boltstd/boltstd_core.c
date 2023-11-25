@@ -136,6 +136,55 @@ static void bt_protect(bt_Context* ctx, bt_Thread* thread)
 	bt_destroy_thread(ctx, new_thread);
 }
 
+static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc < 1 || argc > 2) return NULL;
+	bt_Type* arg = bt_type_dealias(args[0]);
+
+	if (arg->category != BT_TYPE_CATEGORY_UNION) return NULL;
+	if (!bt_union_has_variant(arg, bt_error_type)) return NULL;
+	if (argc == 2 && bt_type_dealias(args[1]) != ctx->types.string) return NULL;
+
+	bt_Type* return_type;
+	if (arg->as.selector.types.length > 2) {
+		return_type = bt_make_union(ctx);
+	
+		for (uint8_t i = 0; i < arg->as.selector.types.length; ++i) {
+			bt_Type* next = arg->as.selector.types.elements[i];
+			if (next == bt_error_type) continue;
+
+			bt_push_union_variant(ctx, return_type, next);
+		}
+	}
+	else {
+		return_type = arg->as.selector.types.elements[0];
+		if (return_type == bt_error_type) {
+			return_type = arg->as.selector.types.elements[1];
+		}
+	}
+
+	return bt_make_signature(ctx, return_type, args, argc);
+}
+
+static void bt_assert(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value result = bt_arg(thread, 0);
+
+	if (bt_is_type(result, bt_error_type)) {
+		bt_String* error_message = (bt_String*)BT_AS_OBJECT(bt_get(ctx, BT_AS_OBJECT(result), bt_error_what_key));
+		if (bt_argc(thread) == 2) {
+			bt_String* new_error = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 1));
+			new_error = bt_append_cstr(ctx, new_error, ": ");
+			error_message = bt_concat_strings(ctx, new_error, error_message);
+		}
+
+		bt_runtime_error(thread, BT_STRING_STR(error_message), NULL);
+	}
+	else {
+		bt_return(thread, result);
+	}
+}
+
 void boltstd_open_core(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -181,9 +230,14 @@ void boltstd_open_core(bt_Context* context)
 		BT_VALUE_OBJECT(bt_make_native(context, error_sig, bt_error)));
 
 	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn(..?): ?, ..?): ?", bt_protect_type);
-	bt_module_export(context, module, protect_sig, 
-		BT_VALUE_CSTRING(context, "protect"), 
+	bt_module_export(context, module, protect_sig,
+		BT_VALUE_CSTRING(context, "protect"),
 		BT_VALUE_OBJECT(bt_make_native(context, protect_sig, bt_protect)));
+
+	bt_Type* assert_sig = bt_make_poly_signature(context, "assert(? | Error, ?string): ?", bt_assert_type);
+	bt_module_export(context, module, assert_sig,
+		BT_VALUE_CSTRING(context, "assert"),
+		BT_VALUE_OBJECT(bt_make_native(context, assert_sig, bt_assert)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "core"), module);
 }

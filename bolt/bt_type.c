@@ -548,6 +548,15 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 	uni->name[written_length] = 0;
 }
 
+BOLT_API bt_bool bt_union_has_variant(bt_Type* uni, bt_Type* variant)
+{
+	for (uint32_t i = 0; i < uni->as.selector.types.length; ++i) {
+		if (uni->as.selector.types.elements[i] == variant) return BT_TRUE;
+	}
+
+	return BT_FALSE;
+}
+
 bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name)
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
