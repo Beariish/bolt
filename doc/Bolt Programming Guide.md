@@ -106,6 +106,31 @@ cart.at_checkout = true
 
 What really makes tables interesting and powerful in bolt are table-shape types, which are explained much further in detail later in the guide.
 
+Tables can also explicitly have no type, in which case they simply behave as a mapping of `any` to `any`, returning `null` on missed key.
+```rust
+let tbl: {} = {
+	1: "hello",
+	key: "value"
+}
+
+print(tbl[1])        // hello
+print(tbl.key)       // value
+print(tbl["key"])    // value
+print(tbl.other_key) // null
+```
+
+If you would rather they behave like a binding between specific types, there's a special syntax for dictionary-style tables.
+```rust
+let map: { ..string: number } = {
+	"one": 1,
+	"two": 2,
+	"three": "3" // compile-error, invalid value type
+	4: "four"    // compile-error, invalid key type
+}
+
+print(typeof(map["one"])) // 'number?', returning null if the key is missing
+```
+
 #### 6. Null
 `null` is both the simplest type and value in Bolt. The value `null` is the only assignable value of the type `null`. This makes it a little useless on it's own, but powerful when combined with optional types or unions.
 
