@@ -180,11 +180,32 @@ void bt_close(bt_Context* context)
 {
 	bt_Object* obj = context->root;
 
-	while (obj) {
-		bt_Object* next = (bt_Object*)BT_OBJECT_NEXT(obj);
-		bt_free(context, obj);
-		obj = next;
-	}
+	context->types.any = 0;
+	context->types.array = 0;
+	context->types.boolean = 0;
+	context->types.null = 0;
+	context->types.number = 0;
+	context->types.string = 0;
+	context->types.table = 0;
+	
+	context->meta_names.add = 0;
+	context->meta_names.div = 0;
+	context->meta_names.mul = 0;
+	context->meta_names.sub = 0;
+	context->meta_names.format = 0;
+	
+	context->type_registry = 0;
+	context->prelude = 0;
+	context->loaded_modules = 0;
+	context->troot_top = 0;
+	context->current_thread = 0;
+
+	while (bt_collect(&context->gc, 0));
+
+	context->native_references = 0;
+	while (bt_collect(&context->gc, 0));
+
+	bt_free(context, context->root);
 
 	bt_Path* path = context->module_paths;
 	while (path) {
@@ -384,6 +405,9 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
 		bt_Userdata* userdata = (bt_Userdata*)obj;
+		if (userdata->type->as.userdata.finalizer) {
+			userdata->type->as.userdata.finalizer(context, userdata);
+		}
 		context->free(userdata->data);
 	} break;
 	}

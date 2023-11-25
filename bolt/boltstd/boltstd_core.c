@@ -69,8 +69,8 @@ static void bt_throw(bt_Context* ctx, bt_Thread* thread)
 	bt_runtime_error(thread, BT_STRING_STR(message), NULL);
 }
 
-static bt_Type* bt_error_type;
-static bt_Value bt_error_what_key;
+bt_Type* bt_error_type;
+bt_Value bt_error_what_key;
 
 static void bt_error(bt_Context* ctx, bt_Thread* thread)
 {

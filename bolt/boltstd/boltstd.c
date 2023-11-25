@@ -5,6 +5,7 @@
 #include "boltstd_math.h"
 #include "boltstd_meta.h"
 #include "boltstd_strings.h"
+#include "boltstd_io.h"
 
 void boltstd_open_all(bt_Context* context)
 {
@@ -13,4 +14,5 @@ void boltstd_open_all(bt_Context* context)
 	boltstd_open_math(context);
 	boltstd_open_meta(context);
 	boltstd_open_strings(context);
+	boltstd_open_io(context);
 }

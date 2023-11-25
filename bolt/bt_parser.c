@@ -466,7 +466,33 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
     if (!result) {
         bt_ModuleImport* import = find_import_fast(parse, identifier->source);
         if (import) {
-            if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
+            // Module reference
+            if (import->type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+                if (!bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_PERIOD)) {
+                    parse_error_token(parse, "Expected subscript after module rference '%.*s'", identifier);
+                    return NULL;
+                }
+
+                bt_Token* name = bt_tokenizer_emit(parse->tokenizer);
+
+                if (name->type != BT_TOKEN_IDENTIFIER) {
+                    parse_error_token(parse, "Expected identifier after module reference, got '%.*s'", name);
+                    return NULL;
+                }
+
+                bt_Value as_key = BT_VALUE_OBJECT(bt_make_string_len(parse->context, name->source.source, name->source.length));
+
+                bt_Table* exports = (bt_Table*)BT_AS_OBJECT(import->value);
+                bt_Value found_type = bt_table_get(exports, as_key);
+
+                if (!BT_IS_OBJECT(found_type) || BT_OBJECT_GET_TYPE(BT_AS_OBJECT(found_type)) != BT_OBJECT_TYPE_TYPE) {
+                    parse_error_token(parse, "Import '%.*s' is not a Type", name);
+                    return NULL;
+                }
+
+                return (bt_Type*)BT_AS_OBJECT(found_type);
+            }
+            else if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
                 parse_error_token(parse, "Import '%.*s' didn't resolve to type", identifier);
                 return NULL;
             }
@@ -1272,6 +1298,11 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                 if (to_call->is_polymorphic) {
                     bt_Type* arg_types[16];
                     for (uint8_t i = 0; i < max_arg; ++i) {
+                        if (!args[i]) {
+                            parse_error_fmt(parse, "Failed to determine type of arg %d", next->line, next->col, i + 1);
+                            return NULL;
+                        }
+
                         arg_types[i] = type_check(parse, args[i])->resulting_type;
                     }
 

@@ -155,6 +155,8 @@ typedef union {
 	bt_Closure cl;
 } bt_Callable;
 
+typedef void (*bt_UserdataFinalizer)(bt_Context* ctx, struct bt_Userdata* userdata);
+
 typedef struct bt_Userdata {
 	bt_Object obj;
 	bt_Type* type;

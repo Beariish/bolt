@@ -387,6 +387,7 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA);
 	bt_buffer_empty(&result->as.userdata.fields);
 	bt_buffer_empty(&result->as.userdata.functions);
+	result->as.userdata.finalizer = NULL;
 	return result;
 }
 
@@ -631,6 +632,8 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 			return BT_FALSE;
 		}
 	case BT_TYPE_CATEGORY_TABLESHAPE: {
+		if (BT_OBJECT_GET_TYPE(as_obj) != BT_OBJECT_TYPE_TABLE) return BT_FALSE;
+
 		bt_Table* as_tbl = (bt_Table*)as_obj;
 
 		while (type) {
@@ -648,6 +651,11 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 		return BT_TRUE;
 	} break;
+	case BT_TYPE_CATEGORY_USERDATA: {
+		if (BT_OBJECT_GET_TYPE(as_obj) != BT_OBJECT_TYPE_USERDATA) return BT_FALSE;
+		bt_Userdata* data = (bt_Userdata*)as_obj;
+		return bt_type_dealias(data->type) == bt_type_dealias(type);
+	}
 	}
 
 	// TODO: Table and array types

@@ -126,3 +126,8 @@ void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
 
 	bt_buffer_push(ctx, methods, me);
 }
+
+void bt_userdata_type_set_finalizer(bt_Type* type, bt_UserdataFinalizer finalizer)
+{
+	type->as.userdata.finalizer = finalizer;
+}
