@@ -19,7 +19,7 @@ for const animal in animals.each() {
 ```
 
 ## Features
-* Lightning-fast performance, outperforming other languages in its class
+* [Lightning-fast performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md), outperforming other languages in its class
 * Compact implementation, entire library <10kloc and compiles to <200kb
 * Ease of embedding, only a handful of lines to get going
 * Rich type system to catch errors before code is ran, with plenty of support for extending it from native code
@@ -29,7 +29,7 @@ for const animal in animals.each() {
 * **[Bolt programming guide](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Programming%20Guide.md)**
 * **Bolt standard library reference**
 * **Bolt embedding and API reference**
-* **Bolt performance**
+* **[Bolt performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md)**
 * **Notable Bolt users**
 
 ## Building
@@ -56,7 +56,6 @@ Standard library improvements and extensions are accepted as long as they don't 
 ## Roadmap
 * 0.1.x - Bugfixing and stabilization, debugability *[we are here]*
 * 1. Focus on improving code quality, reducing duplication and some loving comments
-* * - 
 * 0.2.x - Compile to bytecode and bytecode bundles
 * 0.3.x - Generics and arrow functions
 * 0.4.x - Fibres and coroutines
