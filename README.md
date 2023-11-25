@@ -30,7 +30,7 @@ for const animal in animals.each() {
 * **Bolt standard library reference**
 * **Bolt embedding and API reference**
 * **[Bolt performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md)**
-* **Notable Bolt users**
+* **[Notable Bolt users](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Users.md)**
 
 ## Building
 Bolt currently only builds on x64. 32-bit architectures are explicitly not supported, arm and riscv are untested.
