@@ -33,6 +33,6 @@ method PrettyPrinter.pretty_print_internal(x: any, indent: string, indent_single
 }
 
 export fn pretty_print(x: any) {
-    let printer = AnyPrinter => {}
+    let printer = PrettyPrinter => {}
     printer.pretty_print_internal(x, "", false)
 }
