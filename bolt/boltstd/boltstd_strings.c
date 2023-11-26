@@ -26,6 +26,17 @@ static void bt_str_substring(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(substring));
 }
 
+static void bt_str_remainder(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_String* str = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 0));
+	uint32_t start = (uint32_t)BT_AS_NUMBER(bt_arg(thread, 1));
+
+	if (start < 0 || start > str->len) bt_runtime_error(thread, "Attempted to substring outside of bounds!", NULL);
+
+	bt_String* substring = bt_make_string_len(ctx, BT_STRING_STR(str) + start, str->len - start);
+	bt_return(thread, BT_VALUE_OBJECT(substring));
+}
+
 static void bt_string_concat(bt_Context* ctx, bt_Thread* thread)
 {
 	uint8_t argc = bt_argc(thread);
@@ -249,6 +260,14 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, substring_sig, BT_VALUE_CSTRING(context, "substring"), BT_VALUE_OBJECT(substring_ref));
 	bt_module_export(context, module, substring_sig, BT_VALUE_CSTRING(context, "substring"), BT_VALUE_OBJECT(substring_ref));
+
+	bt_Type* remainder_args[] = { context->types.string, context->types.number };
+	bt_Type* remainder_sig = bt_make_method(context, context->types.string, remainder_args, 2);
+	bt_NativeFn* remainder_ref = bt_make_native(context, remainder_sig, bt_str_remainder);
+
+	bt_type_add_field(context, string, remainder_sig, BT_VALUE_CSTRING(context, "remainder"), BT_VALUE_OBJECT(remainder_ref));
+	bt_module_export(context, module, remainder_sig, BT_VALUE_CSTRING(context, "remainder"), BT_VALUE_OBJECT(remainder_ref));
+
 
 	bt_Type* concat_sig = bt_make_vararg(context, bt_make_method(context, string, &string, 1), string);
 	fn_ref = bt_make_native(context, concat_sig, bt_string_concat);

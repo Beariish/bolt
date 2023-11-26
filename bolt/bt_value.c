@@ -16,7 +16,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 
 	if (BT_IS_NUMBER(b)) return BT_FALSE;
 
-	if (BT_IS_OBJECT_FAST(a) && BT_IS_OBJECT_FAST(b)) {
+	if (BT_IS_OBJECT(a) && BT_IS_OBJECT(b)) {
 		bt_Object* obja = BT_AS_OBJECT(a);
 		bt_Object* objb = BT_AS_OBJECT(b);
 

@@ -335,6 +335,22 @@ eat_whitespace:
 				if (*(tok->current + 1) == '"') {
 					tok->current++; tok->col++;
 				}
+
+				if (*(tok->current + 1) == 'n') {
+					tok->current++; tok->col++;
+				}
+
+				if (*(tok->current + 1) == 't') {
+					tok->current++; tok->col++;
+				}
+
+				if (*(tok->current + 1) == 'r') {
+					tok->current++; tok->col++;
+				}
+				if (*(tok->current + 1) == '\\') {
+					tok->current++; tok->col++;
+				}
+
 			}
 			else if (*tok->current == '\n') {
 				tok->col = 1; tok->line++;

@@ -220,6 +220,9 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 				bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(what));
 				bt_return(thread, BT_VALUE_OBJECT(result));
 			}
+			else {
+				bt_return(thread, BT_VALUE_OBJECT(as_string));
+			}
 		}
 		else {
 			bt_return(thread, BT_VALUE_OBJECT(as_string));

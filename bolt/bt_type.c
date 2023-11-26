@@ -138,12 +138,14 @@ static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 		bt_Table* keys = right->as.table_shape.key_layout;
 		bt_Table* vals = right->as.table_shape.layout;
 
-		for (uint32_t i = 0; i < keys->length; ++i) {
-			bt_Type* key_type = (bt_Type*)BT_AS_OBJECT((BT_TABLE_PAIRS(keys) + i)->value);
-			bt_Type* val_type = (bt_Type*)BT_AS_OBJECT((BT_TABLE_PAIRS(vals) + i)->value);
+		if (keys) {
+			for (uint32_t i = 0; i < keys->length; ++i) {
+				bt_Type* key_type = (bt_Type*)BT_AS_OBJECT((BT_TABLE_PAIRS(keys) + i)->value);
+				bt_Type* val_type = (bt_Type*)BT_AS_OBJECT((BT_TABLE_PAIRS(vals) + i)->value);
 		
-			if (l_key->satisfier(l_key, key_type) == BT_FALSE) return BT_FALSE;
-			if (l_val->satisfier(l_val, val_type) == BT_FALSE) return BT_FALSE;
+				if (l_key->satisfier(l_key, key_type) == BT_FALSE) return BT_FALSE;
+				if (l_val->satisfier(l_val, val_type) == BT_FALSE) return BT_FALSE;
+			}
 		}
 
 		return BT_TRUE;
@@ -156,6 +158,7 @@ bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 {
 	if (!left || !right) return BT_FALSE;
 	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
+	if (left == right) return BT_TRUE;
 
 	bt_TypeBuffer* types = &left->as.selector.types;
 
@@ -611,7 +614,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (type == type->ctx->types.boolean && BT_IS_BOOL(value)) return BT_TRUE;
 	if (type == type->ctx->types.number && BT_IS_NUMBER(value)) return BT_TRUE;
 
-	if (!BT_IS_OBJECT_FAST(value)) return BT_FALSE;
+	if (!BT_IS_OBJECT(value)) return BT_FALSE;
 	bt_Object* as_obj = BT_AS_OBJECT(value);
 
 	if (type == type->ctx->types.string && BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_STRING) return BT_TRUE;
@@ -655,10 +658,25 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		if (BT_OBJECT_GET_TYPE(as_obj) != BT_OBJECT_TYPE_USERDATA) return BT_FALSE;
 		bt_Userdata* data = (bt_Userdata*)as_obj;
 		return bt_type_dealias(data->type) == bt_type_dealias(type);
-	}
+	} break;
+	case BT_TYPE_CATEGORY_ARRAY: {
+		if (BT_OBJECT_GET_TYPE(as_obj) != BT_OBJECT_TYPE_ARRAY) return BT_FALSE;
+		if (type->as.array.inner == type->ctx->types.any) return BT_TRUE;
+		
+		bt_Array* array = (bt_Array*)as_obj;
+		
+		for (uint32_t i = 0; i < array->items.length; i++) {
+			bt_Value item = array->items.elements[i];
+			if (!bt_is_type(item, type->as.array.inner)) {
+				return BT_FALSE;
+			}
+		}
+
+		return BT_TRUE;
+	} break;
 	}
 
-	// TODO: Table and array types
+	// TODO: Table types
 	return BT_FALSE;
 }
 
@@ -691,33 +709,43 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 
 bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 {
+	type = bt_type_dealias(type);
+
 	if (type == type->ctx->types.string) {
 		return BT_VALUE_OBJECT(bt_to_string(type->ctx, value));
 	}
 
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-		if (!BT_IS_OBJECT_FAST(value)) return BT_VALUE_NULL;
+		if (!BT_IS_OBJECT(value)) return BT_VALUE_NULL;
 
 		bt_Object* obj = BT_AS_OBJECT(value);
 		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
-			bt_runtime_error(type->ctx->current_thread, "lhs was not a table!", NULL);
+			return BT_VALUE_NULL;
 		}
 
 		bt_Table* src = (bt_Table*)obj;
 		bt_Table* layout = type->as.table_shape.layout;
 		
-		bt_Table* dst = bt_make_table(type->ctx, layout->length);
+		bt_Table* dst = bt_make_table(type->ctx, layout ? layout->length : 0);
 
-		for (uint32_t i = 0; i < layout->length; ++i) {
-			bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
+		if (type->as.table_shape.sealed) {
+			for (uint32_t i = 0; i < (layout ? layout->length : 0); ++i) {
+				bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
 
-			bt_Value val = bt_table_get(src, pair->key);
+				bt_Value val = bt_table_get(src, pair->key);
 
-			if (val == BT_VALUE_NULL && bt_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
-				bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
+				if (val == BT_VALUE_NULL && bt_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
+					bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
+				}
+
+				bt_table_set(type->ctx, dst, pair->key, val);
 			}
-
-			bt_table_set(type->ctx, dst, pair->key, val);
+		}
+		else {
+			for (uint32_t i = 0; i < src->length; i++) {
+				bt_TablePair* pair = BT_TABLE_PAIRS(src) + i;
+				bt_table_set(type->ctx, dst, pair->key, pair->value);
+			}
 		}
 
 		dst->prototype = bt_type_get_proto(type->ctx, type);

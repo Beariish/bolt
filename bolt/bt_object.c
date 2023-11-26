@@ -140,6 +140,7 @@ bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, ui
             switch (str[++i]) {
             case 'n':  strbuf[idx++] = '\n'; break;
             case 't':  strbuf[idx++] = '\t'; break;
+            case 'r':  strbuf[idx++] = '\r'; break;
             case '"':  strbuf[idx++] = '"';  break;
             case '\\': strbuf[idx++] = '\\'; break;
             default: bt_runtime_error(ctx->current_thread, "Unhandled escape character in string!", NULL);

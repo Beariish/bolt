@@ -341,7 +341,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
         } break;
         case BT_TOKEN_STRING_LITERAL: {
             // Cut off the quotes!
-            result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source + 1, node->source->source.length - 2));
+            result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
         } break;
         case BT_TOKEN_NUMBER_LITERAL: {
             bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
@@ -358,7 +358,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
         result = node->as.enum_literal.value;
     } break;
 
-    default: parse_error_token(parse, "Failed to make table key from '%.*s'", node->source);
+    default: return 0; // parse_error_token(parse, "Failed to make table key from '%.*s'", node->source);
     }
 
     return result;
@@ -446,6 +446,11 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
 static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
 {
+    // null is special, being both a value and a type, so we special-case it here
+    if (identifier->type == BT_TOKEN_NULL_LITERAL) {
+        return parse->context->types.null;
+    }
+
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
         parse_error_token(parse, "Invalid identifier: '%.*s'", identifier);
         return NULL;
@@ -521,9 +526,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
     case BT_TOKEN_BANG: {
         return NULL;
     }
-    case BT_TOKEN_NULL_LITERAL: {
-        return parse->context->types.null;
-    }
+    case BT_TOKEN_NULL_LITERAL:
     case BT_TOKEN_IDENTIFIER: {
         bt_Type* result = resolve_type_identifier(parse, token);
 
@@ -577,6 +580,12 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         }
         else if (token->type == BT_TOKEN_UNION && recurse) {
             bt_Type* selector = bt_make_union(ctx);
+
+            if (alias) {
+                alias->as.alias.type = selector;
+                push_local(parse, alias);
+            }
+
             bt_push_union_variant(ctx, selector, result);
 
             while (token->type == BT_TOKEN_UNION) {
@@ -1563,14 +1572,28 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 parse_error(parse, "Unable to coalesce rhs into lhs", node->source->line, node->source->col);
             }
         } break;
+        case BT_TOKEN_PERIOD: {
+            // dot syntax acceleration
+            if (node->as.binary_op.right->type == BT_AST_NODE_IDENTIFIER) {
+                node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
+                node->as.binary_op.right->resulting_type = parse->context->types.string;
+                node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFER_LITERAL;
+            }
+        }
         case BT_TOKEN_LEFTBRACKET: {
-            node->source->type = BT_TOKEN_PERIOD;
-            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
-            if (lhs->category == BT_TYPE_CATEGORY_ARRAY) {
+            bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
+            if (!lhs) {
+                parse_error(parse, "Lhs has no discernable type", node->source->line, node->source->col);
+                return node;
+            }
+
+            if (lhs->category == BT_TYPE_CATEGORY_ARRAY && node->source->type != BT_TOKEN_PERIOD) {
+                node->source->type = BT_TOKEN_PERIOD;
+
                 bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
                 if (!(rhs == parse->context->types.number || rhs == parse->context->types.any)) {
                     parse_error(parse, "Expected numeric index for array subscript", node->source->line, node->source->col);
-                    return NULL;
+                    return node;
                 }
 
                 node->resulting_type = lhs->as.array.inner;
@@ -1580,22 +1603,9 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
                 return node;
             }
-        }
-        case BT_TOKEN_PERIOD: {
-            // dot syntax acceleration
-            if (node->as.binary_op.right->type == BT_AST_NODE_IDENTIFIER) {
-                node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
-                node->as.binary_op.right->resulting_type = parse->context->types.string;
-                node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFER_LITERAL;
-            }
-
+        
+            node->source->type = BT_TOKEN_PERIOD;
             // TODO(bearish): Make a smarter check than just comparing against literal table type
-            bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
-            if (!lhs) {
-                parse_error(parse, "Lhs has no discernable type", node->source->line, node->source->col);
-                return node;
-            }
-
             if (lhs == parse->context->types.table) {
                 node->resulting_type = parse->context->types.any;
                 return node;
@@ -1632,6 +1642,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
 
                 bt_Table* layout = lhs->as.table_shape.layout;
+
+                if (!layout) {
+                    parse_error_token(parse, "Attempted to get field, but table has none", node->source);
+                    return node;
+                }
+
                 bt_Value table_entry = bt_table_get(layout, rhs_key);
                 if (table_entry != BT_VALUE_NULL) {
                     bt_Type* type = (bt_Type*)BT_AS_OBJECT(table_entry);
@@ -1720,7 +1736,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return node;
             }
 
-            bt_Type* type = find_binding(parse, node->as.binary_op.right);
+            bt_Type* type = type_check(parse, node->as.binary_op.right)->resulting_type;
 
             bt_Type* to = type->as.type.boxed;
 
@@ -1889,6 +1905,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         }
         default:
             node->resulting_type = type_check(parse, node->as.binary_op.left)->resulting_type;
+
+            if (!node->resulting_type) {
+                parse_error(parse, "Failed to evaluate left operand", node->source->line, node->source->col);
+                return NULL;
+            }
+
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
                 parse_error(parse, "Mismatched types for binary operator", node->source->line, node->source->col);
                 return NULL;
@@ -2441,6 +2463,12 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     }
     else {
         bt_AstNode* condition = pratt_parse(parser, 0);
+        
+        if (!condition) {
+            parse_error(parser, "Failed to parse condition for if statement", next->line, next->col);
+            return NULL;
+        }
+
         if (type_check(parser, condition)->resulting_type != parser->context->types.boolean) {
             parse_error_token(parser, "'if' expression must evaluate to boolean", condition->source);
             return NULL;

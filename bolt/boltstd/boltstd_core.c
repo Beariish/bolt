@@ -3,6 +3,7 @@
 #include "../bt_embedding.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 static uint64_t get_timestamp()
@@ -32,13 +33,13 @@ static void bt_sameline(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_cout(const char* fmt, bt_Context* ctx, bt_Thread* thread)
 {
-	static char buffer[4096];
+	static char buffer[4096*128];
 	int32_t pos = 0;
 
 	uint8_t argc = bt_argc(thread);
 	for (uint8_t i = 0; i < argc; ++i) {
 		bt_Value arg = bt_arg(thread, i);
-		pos += bt_to_string_inplace(ctx, buffer + pos, 4096 - pos, arg);
+		pos += bt_to_string_inplace(ctx, buffer + pos, (4096 * 128) - pos, arg);
 
 		if (i < argc - 1) buffer[pos++] = ' ';
 	}
@@ -61,6 +62,23 @@ static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
 	bt_return(thread, BT_VALUE_OBJECT(bt_to_string(ctx, arg)));
+}
+
+static void bt_tonumber(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value arg = bt_arg(thread, 0);
+	bt_String* as_str = (bt_String*)BT_AS_OBJECT(arg);
+
+	char* end;
+	char* start = BT_STRING_STR(as_str);
+	double n = strtod(start, &end);
+
+	if (start == *end) {
+		bt_return(thread, BT_VALUE_NULL);
+	}
+	else {
+		bt_return(thread, BT_VALUE_NUMBER(n));
+	}
 }
 
 static void bt_throw(bt_Context* ctx, bt_Thread* thread)
@@ -213,6 +231,11 @@ void boltstd_open_core(bt_Context* context)
 	bt_module_export(context, module, tostring_sig,
 		BT_VALUE_CSTRING(context, "to_string"),
 		BT_VALUE_OBJECT(bt_make_native(context, tostring_sig, bt_tostring)));
+
+	bt_Type* tonumber_sig = bt_make_signature(context, bt_make_nullable(context, context->types.number), &context->types.string, 1);
+	bt_module_export(context, module, tonumber_sig,
+		BT_VALUE_CSTRING(context, "to_number"),
+		BT_VALUE_OBJECT(bt_make_native(context, tonumber_sig, bt_tonumber)));
 
 	bt_Type* time_sig = bt_make_signature(context, context->types.number, NULL, 0);
 	bt_module_export(context, module, time_sig,
