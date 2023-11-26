@@ -1,6 +1,7 @@
 #include "bt_value.h"
 #include "bt_object.h"
 #include "bt_type.h"
+#include "bt_context.h"
 
 #include <math.h>
 #include <string.h>
@@ -20,16 +21,20 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 		bt_Object* obja = BT_AS_OBJECT(a);
 		bt_Object* objb = BT_AS_OBJECT(b);
 
-		if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_GET_TYPE(objb)) {
-			if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_TYPE) {
+		uint8_t type = BT_OBJECT_GET_TYPE(obja);
+		if (type == BT_OBJECT_GET_TYPE(objb)) {
+			if (type == BT_OBJECT_TYPE_STRING) {
+				bt_String* a_str = (bt_String*)obja;
+				bt_String* b_str = (bt_String*)objb;
+				// Strings this short are interned, and comparison is alerady sorted by the identity compare
+				if (a_str->len != b_str->len) return BT_FALSE;
+				if (a_str->interned && b_str->interned) return BT_FALSE;
+				if (a_str->hash && b_str->hash) return a_str->hash == b_str->hash;
+				return strncmp(BT_STRING_STR(a_str), BT_STRING_STR(b_str), a_str->len) == 0;
+			} else if (type == BT_OBJECT_TYPE_TYPE) {
 				bt_Type* ta = bt_type_dealias((bt_Type*)obja);
 				bt_Type* tb = bt_type_dealias((bt_Type*)objb);
 				return bt_type_is_equal(ta, tb);
-			} else if (BT_OBJECT_GET_TYPE(obja) == BT_OBJECT_TYPE_STRING) {
-				bt_String* a_str = (bt_String*)obja;
-				bt_String* b_str = (bt_String*)objb;
-				if (a_str->hash && b_str->hash) return a_str->hash == b_str->hash;
-				return strncmp(BT_STRING_STR(a_str), BT_STRING_STR(b_str), (size_t)fmax(a_str->len, b_str->len)) == 0;
 			}
 		}
 	}

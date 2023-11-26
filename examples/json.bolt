@@ -1,4 +1,4 @@
-import to_number, error, Error from core
+import to_number, error, Error, print from core
 import min from math
 
 export type JsonValue = null 
@@ -8,44 +8,44 @@ export type JsonValue = null
                | [JsonValue] 
                | { ..string: JsonValue }
 
-fn json_parse_null(content: string) {
-    if content.length() < 4 { return null }
+fn json_parse_null(content: string, idx: number) {
+    if content.length() < idx + 4 { return null }
 
-    let start = content.substring(0, 4)
+    let start = content.substring(idx, 4)
 
     if start == "null" {
-        return content.remainder(4)
+        return idx + 4
     }
 
     return null
 }
 
-fn json_parse_true(content: string) {
-    if content.length() < 4 { return null }
+fn json_parse_true(content: string, idx: number) {
+    if content.length() < idx + 4 { return null }
 
-    let start = content.substring(0, 4)
+    let start = content.substring(idx, 4)
 
     if start == "true" {
-        return content.remainder(4)
+        return idx + 4
     }
 
     return null
 }
 
-fn json_parse_false(content: string) {
-    if content.length() < 5 { return null }
+fn json_parse_false(content: string, idx: number) {
+    if content.length() < idx + 5 { return null }
 
-    let start = content.substring(0, 5)
+    let start = content.substring(idx, 5)
 
     if start == "false" {
-        return content.remainder(5)
+        return idx + 5
     }
 
     return null
 }
 
 type ParseSuccess = {
-    remainder: string,
+    remainder: number,
     result: JsonValue
 }
 
@@ -59,8 +59,8 @@ let numchars: { ..string: bool } = {
     "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true,
 }
 
-fn eat_whitespace(s: string) {
-    let first_idx = -1
+fn eat_whitespace(s: string, idx: number) {
+    let first_idx = idx - 1
     let first = " "
 
     for whitespace[first]? {
@@ -69,27 +69,29 @@ fn eat_whitespace(s: string) {
         first = s.substring(first_idx, 1)
     }
 
-    return s.remainder(first_idx)
+    return first_idx
 }
 
-fn json_parse_string(content: string): ParseResult {
-    let first = content.substring(0, 1)
+fn json_parse_string(content: string, idx: number): ParseResult {
+    let first = content.substring(idx, 1)
     if first != "\"" { return error("Expected string to start with quote") }
-
-    content = content.remainder(1)
     
     let result = ""
-    let length = -1
+    let length = 0
+    let last_eaten = 1
     first = ""
     for first != "\"" {
         length += 1
-        if content.length() < length { return error("Unexpected end of source") }
-        first = content.substring(length, 1)
+        if content.length() < length + idx { return error("Unexpected end of source") }
+        first = content.substring(idx + length, 1)
 
         if first == "\"" { break }
 
         if first == "\\" {
-            first = content.substring(length + 1, 1)
+            result += content.substring(idx + last_eaten, length - last_eaten)
+            last_eaten = length + 2
+
+            first = content.substring(idx + length + 1, 1)
             if first == "n" { result += "\n" }
             else if first == "t" { result += "\t" }
             else if first == "r" { result += "\r" }
@@ -97,51 +99,51 @@ fn json_parse_string(content: string): ParseResult {
 
             length += 1
             first = content.substring(length + 1, 1)
-        } else {
-            result += first
         }
     }
 
+    result += content.substring(idx + last_eaten, length - last_eaten)
+
     return ParseSuccess => {
-        remainder: content.remainder(length + 1),
+        remainder: idx + length + 1,
         result: result
     }
 }
 
 type JsonParser = final {}
-method JsonParser.parse_single(content: string): ParseResult {
-    content = eat_whitespace(content)
-    let first = content.substring(0, 1)
+method JsonParser.parse_single(content: string, idx: number): ParseResult {
+    idx = eat_whitespace(content, idx)
+    let first = content.substring(idx, 1)
 
     if first == "n" {
-        if let remainder = json_parse_null(content) {
+        if let remainder = json_parse_null(content, idx) {
             return ParseSuccess => {
                 remainder: remainder,
                 result: null
             }
         } else {
-            return error("Expected null, got " + content.substring(0, min(content.length(), 4)))
+            return error("Expected null, got " + content.substring(idx, min(content.length(), 4)))
         }
     } else if first == "t" {
-        if let remainder = json_parse_true(content) {
+        if let remainder = json_parse_true(content, idx) {
             return ParseSuccess => {
                 remainder: remainder,
                 result: true
             }
         } else {
-            return error("Expected true, got " + content.substring(0, min(content.length(), 4)))
+            return error("Expected true, got " + content.substring(idx, min(content.length(), 4)))
         }
     } else if first == "f" {
-        if let remainder = json_parse_false(content) {
+        if let remainder = json_parse_false(content, idx) {
             return ParseSuccess => {
                 remainder: remainder,
                 result: false
             }
         } else {
-            return error("Expected false, got " + content.substring(0, min(content.length(), 5)))
+            return error("Expected false, got " + content.substring(idx, min(content.length(), 5)))
         }
     } else if numchars[first]? {
-        let last_idx = 1
+        let last_idx = idx + 1
         let last = content.substring(last_idx, 1)
 
         for numchars[last]? and content.length() > last_idx + 1 {
@@ -149,81 +151,80 @@ method JsonParser.parse_single(content: string): ParseResult {
             last = content.substring(last_idx, 1)
         }
 
-        let num_str = content.substring(0, last_idx)
+        let num_str = content.substring(idx, last_idx - idx)
         if let num = to_number(num_str) {
             return ParseSuccess => {
-                remainder: content.remainder(last_idx),
+                remainder: last_idx,
                 result: num
             }
         } else {
             return error("Expected number")
         }
     } else if first == "\"" {
-        return json_parse_string(content)
+        return json_parse_string(content, idx)
     } else if first == "[" {
-        content = content.remainder(1)
-        
         let result = [:JsonValue]
         for first != "]" {
-            content = eat_whitespace(content)
-            let value = this.parse_single(content)
+            idx += 1
+            idx = eat_whitespace(content, idx)
+            let value = this.parse_single(content, idx)
 
             if value is Error { return value }
             else if let res = value as ParseSuccess {
                 result.push(res.result)
-                content = res.remainder
+                idx = res.remainder
             }
 
-            content = eat_whitespace(content)
-            if content.length() < 1 { return error("Unexpected end of file in array") }
-            first = content.substring(0, 1)
+            idx = eat_whitespace(content, idx)
+            if content.length() < idx { return error("Unexpected end of file in array") }
+            first = content.substring(idx, 1)
 
             if first == "," {
-                content = content.remainder(1)
-                if content.length() < 1 { return error("Unexpected end of file in array") }
-                first = content.substring(0, 1)
+                idx += 1
+                if content.length() < idx { return error("Unexpected end of file in array") }
+                first = content.substring(idx, 1)
             }
         }
 
         return ParseSuccess => {
-            remainder: content.remainder(1),
+            remainder: idx + 1,
             result: result
         }
     } else if first == "{" {
-        content = content.remainder(1)
+        idx += 1
 
         let result: { ..string: JsonValue } = {}
         for first != "}" {
-            content = eat_whitespace(content)
+            idx = eat_whitespace(content, idx)
 
-            first = content.substring(0, 1)
+            first = content.substring(idx, 1)
             if first == "," {
-                content = eat_whitespace(content.remainder(1))
+                idx = eat_whitespace(content, idx + 1)
             }
 
-            if content.length() < 1 { return error("Unexpected end of source") }
+            if content.length() < idx { return error("Unexpected end of source") }
             
-            let key = json_parse_string(content)
+            let key = json_parse_string(content, idx)
             if key is Error { return key }
             else if let s = key as ParseSuccess {
-                content = eat_whitespace(s.remainder)
-                if content.length() < 1 { return error("Unexpected end of source") }
-                if content.substring(0, 1) != ":" { return error("Expected colon") }
-                content = eat_whitespace(content.remainder(1))
+                idx = eat_whitespace(content, s.remainder)
+                if content.length() < idx { return error("Unexpected end of source") }
+                if content.substring(idx, 1) != ":" { return error("Expected colon") }
+                idx = eat_whitespace(content, idx + 1)
 
-                let value = this.parse_single(content)
+                let value = this.parse_single(content, idx)
                 if value is Error { return value }
                 else if let v = value as ParseSuccess {
                     result[s.result as string!] = v.result
-                    content = eat_whitespace(v.remainder)
-                    if content.length() < 1 { return error("Unexpected end of source") }
-                    first = content.substring(0, 1)
+                    idx = eat_whitespace(content, v.remainder)
+                    if content.length() < idx { return error("Unexpected end of source") }
+                    first = content.substring(idx, 1)
                 }
             }
         }
 
         return ParseSuccess => {
-            remainder: content.remainder(1),
+            remainder: idx + 1,
             result: result
         }
     }
@@ -233,7 +234,7 @@ method JsonParser.parse_single(content: string): ParseResult {
 
 export fn parse(input: string): JsonValue | Error {
     let parser = JsonParser => {}
-    let result = parser.parse_single(input)
+    let result = parser.parse_single(input, 0)
     
     if result is Error { return result as Error! }
     

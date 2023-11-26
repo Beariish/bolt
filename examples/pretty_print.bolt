@@ -1,4 +1,5 @@
-import print, to_string from core
+import print, to_string, write from core
+import tables
 
 type PrettyPrinter = final {}
 

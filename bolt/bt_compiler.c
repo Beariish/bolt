@@ -639,7 +639,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
             methodcall_hoist_fail:
             if (lhs->as.binary_op.hoistable) {
-                bt_Value hoisted = bt_table_get(lhs->as.binary_op.from->prototype_values, lhs->as.binary_op.key);
+                bt_Type* t = lhs->as.binary_op.from;
+                bt_Table* proto = t->prototype_values;
+                while (!proto && t->prototype) {
+                    proto = t->prototype->prototype_values;
+                    t = t->prototype;
+                }
+
+                if (!proto) { 
+                    lhs->as.binary_op.hoistable = BT_FALSE;
+                    goto methodcall_hoist_fail; 
+                }
+
+                bt_Value hoisted = bt_table_get(proto, lhs->as.binary_op.key);
                 if (hoisted == BT_VALUE_NULL) {
                     lhs->as.binary_op.hoistable = BT_FALSE;
                     goto methodcall_hoist_fail;

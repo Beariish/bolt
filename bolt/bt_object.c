@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <math.h>
 
-static uint64_t MurmurOAAT64(const char* key, uint32_t len)
+uint64_t bt_hash_str(const char* key, uint32_t len)
 {
     uint64_t h = 525201411107845655ull;
     for (uint32_t i = 0; i < len; ++i, ++key) {
@@ -109,10 +109,15 @@ bt_String* bt_make_string(bt_Context* ctx, const char* str)
 
 bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
 {
+    if (len <= BT_STRINGTABLE_MAX_LEN) {
+        return bt_get_or_make_interned(ctx, str, len);
+    }
+
     bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
     memcpy(BT_STRING_STR(result), str, len);
     BT_STRING_STR(result)[len] = 0;
     result->len = len;
+    result->interned = 0;
     result->hash = 0;
     return result;
 }
@@ -168,7 +173,7 @@ bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len)
 bt_String* bt_hash_string(bt_String* str)
 {
     if (str->hash == 0) {
-        str->hash = MurmurOAAT64(BT_STRING_STR(str), str->len);
+        str->hash = bt_hash_str(BT_STRING_STR(str), str->len);
     }
 
     return str;

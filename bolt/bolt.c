@@ -37,6 +37,10 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 
 	bt_make_gc(ctx);
 
+	for (uint32_t i = 0; i < BT_STRINGTABLE_SIZE; i++) {
+		bt_buffer_empty(&ctx->string_table[i]);
+	}
+
 	ctx->n_allocated = 0;
 	ctx->next = 0;
 	ctx->root = bt_allocate(ctx, sizeof(bt_Object), BT_OBJECT_TYPE_NONE);
@@ -397,6 +401,12 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		if (!tbl->is_inline) {
 			context->gc.byets_allocated -= tbl->capacity * sizeof(bt_TablePair);
 			context->free(tbl->outline);
+		}
+	} break;
+	case BT_OBJECT_TYPE_STRING: {
+		bt_String* str = (bt_String*)obj;
+		if (str->len <= BT_STRINGTABLE_MAX_LEN) {
+			bt_remove_interned(context, str);
 		}
 	} break;
 	case BT_OBJECT_TYPE_ARRAY: {
@@ -812,6 +822,47 @@ uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip)
 	}
 
 	return 0;
+}
+
+bt_String* bt_get_or_make_interned(bt_Context* ctx, const char* str, uint32_t len)
+{
+	uint64_t hash = bt_hash_str(str, len);
+	uint64_t bucket_idx = hash % BT_STRINGTABLE_SIZE;
+
+	bt_StringTableBucket* bucket = ctx->string_table + bucket_idx;
+
+	for (uint32_t i = 0; i < bucket->length; ++i) {
+		bt_StringTableEntry* entry = bucket->elements + i;
+		if (entry->hash == hash) return entry->string;
+	}
+
+	bt_StringTableEntry new_entry;
+	new_entry.hash = hash;
+	new_entry.string = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
+	memcpy(BT_STRING_STR(new_entry.string), str, len);
+	BT_STRING_STR(new_entry.string)[len] = 0;
+	new_entry.string->len = len;
+	new_entry.string->hash = hash;
+	new_entry.string->interned = 1;
+	bt_buffer_push(ctx, bucket, new_entry);
+
+	return new_entry.string;
+}
+
+void bt_remove_interned(bt_Context* ctx, bt_String* str)
+{
+	const char* source = BT_STRING_STR(str);
+	uint64_t bucket_idx = str->hash % BT_STRINGTABLE_SIZE;
+
+	bt_StringTableBucket* bucket = ctx->string_table + bucket_idx;
+	for (uint32_t i = 0; i < bucket->length; ++i) {
+		bt_StringTableEntry* entry = bucket->elements + i;
+		if (entry->hash == str->hash) {
+			bucket->elements[i] = bucket->elements[bucket->length - 1];
+			bucket->length--;
+			return;
+		}
+	}
 }
 
 #define XSTR(x) #x

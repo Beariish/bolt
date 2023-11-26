@@ -1621,7 +1621,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                     bt_Type* entry = (bt_Type*)BT_AS_OBJECT(proto_entry);
                     node->resulting_type = entry;
 
-                    if (lhs->as.table_shape.final) {
+                    if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
+                        node->as.binary_op.hoistable = BT_TRUE;
+                        node->as.binary_op.from = lhs;
+                        node->as.binary_op.key = rhs_key;
+                    } else if (lhs->as.table_shape.final) {
                         node->as.binary_op.hoistable = BT_TRUE;
                         node->as.binary_op.from = lhs;
                         node->as.binary_op.key = rhs_key;

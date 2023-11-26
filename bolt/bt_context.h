@@ -27,6 +27,21 @@ typedef void (*bt_FreeSource)(bt_Context* ctx, char* source);
 #define BT_CALLSTACK_SIZE 128
 #endif
 
+#ifndef BT_STRINGTABLE_SIZE
+#define BT_STRINGTABLE_SIZE 255
+#endif
+
+#ifndef BT_STRINGTABLE_MAX_LEN
+#define BT_STRINGTABLE_MAX_LEN 24
+#endif
+
+typedef struct bt_StringTableEntry {
+	uint64_t hash;
+	bt_String* string;
+} bt_StringTableEntry;
+
+typedef bt_Buffer(bt_StringTableEntry) bt_StringTableBucket;
+
 typedef enum {
 	BT_ERROR_PARSE,
 	BT_ERROR_COMPILE,
@@ -92,6 +107,8 @@ struct bt_Context {
 	uint32_t n_allocated;
 
 	bt_Path* module_paths;
+
+	bt_StringTableBucket string_table[BT_STRINGTABLE_SIZE];
 
 	struct {
 		bt_Type* any;
@@ -192,3 +209,6 @@ BOLT_API bt_TokenBuffer* bt_get_debug_tokens(bt_Callable* callable);
 BOLT_API bt_StrSlice bt_get_debug_line(const char* source, uint16_t line);
 BOLT_API bt_DebugLocBuffer* bt_get_debug_locs(bt_Callable* callable); 
 BOLT_API uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip);
+
+BOLT_API bt_String* bt_get_or_make_interned(bt_Context* ctx, const char* str, uint32_t len);
+BOLT_API void bt_remove_interned(bt_Context* ctx, bt_String* str);

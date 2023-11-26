@@ -85,7 +85,8 @@ typedef struct bt_Array {
 typedef struct bt_String {
 	bt_Object obj;
 	uint64_t hash;
-	uint32_t len;
+	uint32_t interned : 1;
+	uint32_t len : 31;
 } bt_String;
 
 #define BT_STRING_STR(s) (((char*)s) + sizeof(bt_String))
@@ -165,6 +166,7 @@ typedef struct bt_Userdata {
 
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string_hashed(ctx, str))
 
+BOLT_API uint64_t bt_hash_str(const char* key, uint32_t len);
 BOLT_API bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
 BOLT_API int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value);
 
