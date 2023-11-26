@@ -1,0 +1,38 @@
+import print, to_string from core
+
+type PrettyPrinter = final {}
+
+method PrettyPrinter.pretty_print_internal(x: any, indent: string, indent_single: bool): ! {
+    if let t = x as table {
+        if indent_single {
+            print(indent + "{")
+        } else {
+            print("{")
+        }
+        for pair in tables.pairs(t) {
+            write(indent + "   " + to_string(pair.key) + ": ") 
+            this.pretty_print_internal(pair.value, indent + "   ", false)
+        }
+        print(indent + "}")
+    } else if let a = x as type([any]) {
+        print("[")
+        for item in a.each() {
+            this.pretty_print_internal(item, indent + "   ", true)
+        }
+        print(indent + "]")
+    } else {
+        let to_print = to_string(x)
+        if x is string { to_print = "\"" + to_print + "\"" }
+
+        if indent_single {
+            print(indent + to_print)
+        } else {
+            print(to_print)
+        }
+    }
+}
+
+export fn pretty_print(x: any) {
+    let printer = AnyPrinter => {}
+    printer.pretty_print_internal(x, "", false)
+}
