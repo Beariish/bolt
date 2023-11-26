@@ -73,7 +73,7 @@ static void bt_tonumber(bt_Context* ctx, bt_Thread* thread)
 	char* start = BT_STRING_STR(as_str);
 	double n = strtod(start, &end);
 
-	if (start == *end) {
+	if (start == end) {
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {

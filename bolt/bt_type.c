@@ -729,7 +729,7 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 		bt_Table* dst = bt_make_table(type->ctx, layout ? layout->length : 0);
 
 		if (type->as.table_shape.sealed) {
-			for (uint32_t i = 0; i < (layout ? layout->length : 0); ++i) {
+			for (uint32_t i = 0; i < (layout ? layout->length : 0u); ++i) {
 				bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
 
 				bt_Value val = bt_table_get(src, pair->key);

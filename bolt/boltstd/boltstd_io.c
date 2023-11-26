@@ -109,7 +109,7 @@ static void btio_get_size(bt_Context* ctx, bt_Thread* thread)
 		int64_t pos = ftell(state->handle);
 		fseek(state->handle, 0, SEEK_END);
 		int64_t size = ftell(state->handle);
-		fseek(state->handle, pos, SEEK_SET);
+		fseek(state->handle, (long)pos, SEEK_SET);
 
 		bt_return(thread, BT_VALUE_NUMBER(size));
 	}
@@ -128,7 +128,7 @@ static void btio_seek_set(bt_Context* ctx, bt_Thread* thread)
 	btio_FileState* state = (btio_FileState*)file->data;
 
 	if (state->is_open) {
-		fseek(state->handle, (int64_t)pos, SEEK_SET);
+		fseek(state->handle, (long)pos, SEEK_SET);
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
@@ -146,7 +146,7 @@ static void btio_seek_relative(bt_Context* ctx, bt_Thread* thread)
 	btio_FileState* state = (btio_FileState*)file->data;
 
 	if (state->is_open) {
-		fseek(state->handle, (int64_t)pos, SEEK_CUR);
+		fseek(state->handle, (long)pos, SEEK_CUR);
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
@@ -202,14 +202,14 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 			int64_t pos = ftell(state->handle);
 			fseek(state->handle, 0, SEEK_END);
 			size = (size_t)ftell(state->handle);
-			fseek(state->handle, pos, SEEK_SET);
+			fseek(state->handle, (long)pos, SEEK_SET);
 		}
 
 		char* buffer = ctx->alloc(size);
 
 		size_t n_read = fread(buffer, 1, size, state->handle);
 
-		bt_String* as_string = bt_make_string_len(ctx, buffer, n_read);
+		bt_String* as_string = bt_make_string_len(ctx, buffer, (uint32_t)n_read);
 		ctx->free(buffer);
 
 		if (n_read != size) {
@@ -304,7 +304,7 @@ void boltstd_open_io(bt_Context* context)
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
 	bt_module_export(context, module, bt_make_alias(context, "File", io_file_type),
 		BT_VALUE_CSTRING(context, "File"), BT_VALUE_OBJECT(io_file_type));
-	bt_add_ref(context, io_file_type);
+	bt_add_ref(context, (bt_Object*)io_file_type);
 
 	bt_Type* open_args[] = { context->types.string, context->types.string };
 	bt_Type* open_return_type = bt_make_union(context);
