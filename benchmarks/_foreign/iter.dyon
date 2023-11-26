@@ -1,0 +1,14 @@
+
+fn main() {
+    for i 15 {
+        start_time := now()
+
+        for j [0, 10000000) {
+        }
+
+        end_time := now()
+        duration_ms := (end_time - start_time) * 1000
+
+        println(["10m numeric iterations took", duration_ms, "ms"])
+    }
+}

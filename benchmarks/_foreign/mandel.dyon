@@ -1,0 +1,58 @@
+fn norm2(re: f64, im: f64) -> f64 {
+    return re * re - im * (-im)
+}
+
+fn abs(re: f64, im: f64) -> f64 {
+    return sqrt(norm2(re, im))
+}
+
+fn level(x: f64, y: f64) -> f64 {
+    cre := x
+    cim := y
+    zre := cre
+    zim := cim
+
+    for i 255 {
+        tre := zre * zre - zim * zim
+        tim := zre * zim + zim * zre
+
+        zre = tre + cre
+        zim = tim + cim
+
+        if abs(zre, zim) > 2 {
+            return clone(i)
+        }
+    }
+
+    return 255
+}
+
+fn main() {
+    for outer 15 {
+        start_time := now()
+
+        xmin := -2
+        xmax := 2
+        ymin := -2
+        ymax := 2
+        n := 256
+
+        dx := (xmax - xmin) / n
+        dy := (ymax - ymin) / n
+
+        result := 0
+        for xi n {
+            x := xmin + xi * dx
+            for yi n {
+                y := ymin + yi * dy
+                result += level(x, y)
+            }
+        }
+
+        
+        end_time := now()
+        duration_ms := (end_time - start_time) * 1000
+
+        println(["Finished in", duration_ms, "ms", "|", result])
+    }
+}

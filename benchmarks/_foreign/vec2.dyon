@@ -1,0 +1,63 @@
+fn make_vec2(x: f64, y: f64) -> Vec2 {
+    return {
+        x: clone(x),
+        y: clone(y)
+    }
+}
+
+fn add_vec2(a: Vec2, b: Vec2) -> Vec2 {
+    return make_vec2(a.x + b.x, a.y + b.y)
+}
+
+fn vec2_distance(a: Vec2, b: Vec2) -> f64 {
+    sx := a.x + b.x
+    sy := a.y + b.y
+    return sqrt(sx * sx + sy * sy)
+}
+
+fn main() {
+    for i 15 {
+        start_time := now()
+
+        for j 100000 {
+            a := make_vec2(5, 5)
+            b := make_vec2(10, 10)
+            c := add_vec2(a, b)
+        }
+
+        end_time := now()
+        duration_ms := (end_time - start_time) * 1000
+
+        println(["100k vec2 create, create, add took", duration_ms, "ms"])
+    }
+
+    for i 15 {
+        start_time := now()
+
+        a := make_vec2(5, 5)
+        b := make_vec2(10, 10)
+        for j 100000 {
+            c := add_vec2(a, b)
+        }
+
+        end_time := now()
+        duration_ms := (end_time - start_time) * 1000
+
+        println(["100k vec2 add took", duration_ms, "ms"])
+    }
+
+    for i 15 {
+        start_time := now()
+
+        a := make_vec2(5, 5)
+        b := make_vec2(10, 10)
+        for j 1000000 {
+            vec2_distance(a, b)
+        }
+
+        end_time := now()
+        duration_ms := (end_time - start_time) * 1000
+
+        println(["1m vec2 distance() took", duration_ms, "ms"])
+    }
+}
