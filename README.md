@@ -32,6 +32,11 @@ for const animal in animals.each() {
 * **[Bolt performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md)**
 * **[Notable Bolt users](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Users.md)**
 
+## Dependencies 
+Bolt only depends on the C standard library as well as `libm`.
+Some standard library modules include things like file and system IO, but these can be disabled easily.
+By default, Bolt sets up an environment that uses `malloc`/`realloc`/`free`, but this is also easy to configure.
+
 ## Building
 Bolt currently only builds on x64. 32-bit architectures are explicitly not supported, arm and riscv are untested.
 Running `cmake` in the root directory of the project will generate a static library for the language, as well as the CLI tool.
@@ -39,6 +44,8 @@ For more information and options regarding embedding Bolt in your application, s
 See below for the status of Bolt on each relevant compiler. 
 
 ## Compiler Status
+Please note that Bolt is **not** yet stable, expect to encounter compiler bugs and crashes. If you do, opening an issue with replicable Bolt code would be much appreciated 😊
+
 [![Build Status](https://github.com/Beariish/bolt/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/Beariish/bolt/actions/workflows/cmake-multi-platform.yml)
 | Compiler | Status | Reason |
 | -------- | ------ | ------ |
@@ -56,6 +63,7 @@ Standard library improvements and extensions are accepted as long as they don't 
 ## Roadmap
 * 0.1.x - Bugfixing and stabilization, debugability *[we are here]*
 * 1. Focus on improving code quality, reducing duplication and some loving comments
+* 2. Locate and fix compiler bugs, patch up any holes in the runtime.
 * 0.2.x - Compile to bytecode and bytecode bundles
 * 0.3.x - Generics and arrow functions
 * 0.4.x - Fibres and coroutines

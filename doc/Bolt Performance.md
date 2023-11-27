@@ -43,3 +43,12 @@ This calls the same method repeatedly on a pre-allocated object, purely benchmar
 <p align="center">
     <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Vec2%20distance.png"></img>
 </p>
+
+# Why is Bolt fast?
+* Typesafety and accelerated bytecode
+* Inline allocations
+* Register VM
+* String interning
+* Nanboxing
+* Imports
+* Setupless calling convention
