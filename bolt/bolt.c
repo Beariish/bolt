@@ -431,10 +431,18 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->len;
 	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
 	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
-	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_FN: 
+		return sizeof(bt_Fn) 
+			+ ((bt_Fn*)obj)->constants.capacity * sizeof(bt_Value) 
+			+ ((bt_Fn*)obj)->instructions.capacity * sizeof(bt_Op);
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
-	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
-	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_CLOSURE: 
+		return sizeof(bt_Closure)
+			+ ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
+	case BT_OBJECT_TYPE_METHOD: 
+		return sizeof(bt_Fn) 
+			+ ((bt_Fn*)obj)->constants.capacity * sizeof(bt_Value) 
+			+ ((bt_Fn*)obj)->instructions.capacity * sizeof(bt_Op);
 	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array) + sizeof(bt_Value) * ((bt_Array*)obj)->capacity;
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);

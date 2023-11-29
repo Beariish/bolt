@@ -385,6 +385,8 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Val
 
     bt_buffer_clone(ctx, &result->constants, constants);
     bt_buffer_clone(ctx, &result->instructions, instructions);
+    ctx->gc.byets_allocated += result->constants.capacity * sizeof(bt_Value);
+    ctx->gc.byets_allocated += result->instructions.capacity * sizeof(bt_Op);
 
     return result;
 }
