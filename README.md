@@ -27,7 +27,7 @@ for const animal in animals.each() {
 
 ## Links
 * **[Bolt programming guide](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Programming%20Guide.md)**
-* **Bolt standard library reference**
+* **[Bolt standard library reference](https://github.com/Beariish/bolt/tree/main/doc/Bolt%20Standard%20Library)**
 * **Bolt embedding and API reference**
 * **[Bolt performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md)**
 * **[Notable Bolt users](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Users.md)**
