@@ -3,12 +3,13 @@
 #include "../bt_embedding.h"
 
 #include <stdlib.h>
+#include <memory.h>
 
 static void bt_arr_length(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
 	bt_Array* as_arr = (bt_Array*)BT_AS_OBJECT(arg);
-	bt_return(thread, BT_VALUE_NUMBER(as_arr->items.length));
+	bt_return(thread, BT_VALUE_NUMBER(as_arr->length));
 }
 
 static void bt_arr_pop(bt_Context* ctx, bt_Thread* thread)
@@ -63,7 +64,7 @@ static void bt_arr_each_iter(bt_Context* ctx, bt_Thread* thread)
 	bt_Array* arr = (bt_Array*)BT_AS_OBJECT(bt_getup(thread, 0));
 	bt_number idx = BT_AS_NUMBER(bt_getup(thread, 1));
 
-	if (idx >= arr->items.length) {
+	if (idx >= arr->length) {
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
@@ -110,13 +111,13 @@ static void bt_arr_reverse(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
 
-	uint32_t i = arr->items.length - 1;
+	uint32_t i = arr->length - 1;
 	uint32_t j = 0;
 	while (i > j)
 	{
-		bt_Value temp = arr->items.elements[i];
-		arr->items.elements[i] = arr->items.elements[j];
-		arr->items.elements[j] = temp;
+		bt_Value temp = arr->items[i];
+		arr->items[i] = arr->items[j];
+		arr->items[j] = temp;
 		i--;
 		j++;
 	}
@@ -128,8 +129,9 @@ static void bt_arr_clone(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
 
-	bt_Array* clone = bt_make_array(ctx, arr->items.length);
-	bt_buffer_append(ctx, &clone->items, &arr->items);
+	bt_Array* clone = bt_make_array(ctx, arr->length);
+	clone->length = arr->length;
+	memcpy(clone->items, arr->items, sizeof(bt_Value) * clone->length);
 
 	bt_return(thread, BT_VALUE_OBJECT(clone));
 }
@@ -160,11 +162,11 @@ static void bt_arr_map(bt_Context* ctx, bt_Thread* thread)
 	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
 	bt_Value applicator = bt_arg(thread, 1);
 
-	bt_Array* result = bt_make_array(ctx, arg->items.length);
+	bt_Array* result = bt_make_array(ctx, arg->length);
 
-	for (uint32_t i = 0; i < arg->items.length; ++i) {
+	for (uint32_t i = 0; i < arg->length; ++i) {
 		bt_push(thread, applicator);
-		bt_push(thread, arg->items.elements[i]);
+		bt_push(thread, arg->items[i]);
 		bt_call(thread, 1);
 
 		bt_Value mapped = bt_pop(thread);
@@ -200,16 +202,16 @@ static void bt_arr_filter(bt_Context* ctx, bt_Thread* thread)
 	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
 	bt_Value filter = bt_arg(thread, 1);
 
-	bt_Array* result = bt_make_array(ctx, arg->items.length / 2);
+	bt_Array* result = bt_make_array(ctx, arg->length / 2);
 
-	for (uint32_t i = 0; i < arg->items.length; ++i) {
+	for (uint32_t i = 0; i < arg->length; ++i) {
 		bt_push(thread, filter);
-		bt_push(thread, arg->items.elements[i]);
+		bt_push(thread, arg->items[i]);
 		bt_call(thread, 1);
 
 		bt_Value filtered = bt_pop(thread);
 		if (filtered == BT_VALUE_TRUE) {
-			bt_array_push(ctx, result, arg->items.elements[i]);
+			bt_array_push(ctx, result, arg->items[i]);
 		}
 	}
 
@@ -234,13 +236,13 @@ static void bt_arr_slice(bt_Context* ctx, bt_Thread* thread)
 	uint32_t start = (uint32_t)bt_get_number(bt_arg(thread, 1));
 	uint32_t length = (uint32_t)bt_get_number(bt_arg(thread, 2));
 
-	if (start < 0 || start >= arr->items.length) bt_runtime_error(thread, "Slice start index outside of array bounds", NULL);
-	if (start + length > arr->items.length) bt_runtime_error(thread, "Slice extends past end of array", NULL);
+	if (start < 0 || start >= arr->length) bt_runtime_error(thread, "Slice start index outside of array bounds", NULL);
+	if (start + length > arr->length) bt_runtime_error(thread, "Slice extends past end of array", NULL);
 
 	bt_Array* result = bt_make_array(ctx, (uint16_t)length);
 
 	for (uint32_t i = start; i < start + length; ++i) {
-		bt_array_push(ctx, result, arr->items.elements[i]);
+		bt_array_push(ctx, result, arr->items[i]);
 	}
 
 	bt_return(thread, BT_VALUE_OBJECT(result));
@@ -318,7 +320,7 @@ static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 
 	// only allowed for number fast case
 	if (sorter == BT_VALUE_NULL) {
-		qsort(arg->items.elements, arg->items.length, sizeof(bt_Value), bt_sort_comp_nums);
+		qsort(arg->items, arg->length, sizeof(bt_Value), bt_sort_comp_nums);
 	}
 	else {
 		if (sort_context.in_use == BT_TRUE) {
@@ -329,7 +331,7 @@ static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 		sort_context.comp_fn = sorter;
 		sort_context.context = ctx;
 		sort_context.thread = thread;
-		qsort(arg->items.elements, arg->items.length, sizeof(bt_Value), bt_sort_comp);
+		qsort(arg->items, arg->length, sizeof(bt_Value), bt_sort_comp);
 		sort_context.in_use = BT_FALSE;
 	}
 

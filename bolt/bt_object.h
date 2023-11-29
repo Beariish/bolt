@@ -79,7 +79,8 @@ typedef struct bt_Table {
 
 typedef struct bt_Array {
 	bt_Object obj;
-	bt_ValueBuffer items;
+	bt_Value* items;
+	uint32_t length, capacity;
 } bt_Array;
 
 typedef struct bt_String {
@@ -190,7 +191,7 @@ BOLT_API bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* 
 BOLT_API int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key);
 BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key);
 
-BOLT_API bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity);
+BOLT_API bt_Array* bt_make_array(bt_Context* ctx, uint32_t initial_capacity);
 BOLT_API uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value);
 BOLT_API bt_Value bt_array_pop(bt_Array* arr);
 BOLT_API uint64_t bt_array_length(bt_Array* arr);

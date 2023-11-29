@@ -665,8 +665,8 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		
 		bt_Array* array = (bt_Array*)as_obj;
 		
-		for (uint32_t i = 0; i < array->items.length; i++) {
-			bt_Value item = array->items.elements[i];
+		for (uint32_t i = 0; i < array->length; i++) {
+			bt_Value item = array->items[i];
 			if (!bt_is_type(item, type->as.array.inner)) {
 				return BT_FALSE;
 			}

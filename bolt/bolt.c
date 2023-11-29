@@ -411,7 +411,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_ARRAY: {
 		bt_Array* arr = (bt_Array*)obj;
-		bt_buffer_destroy(context, &arr->items);
+		context->free(arr->items);
 	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
 		bt_Userdata* userdata = (bt_Userdata*)obj;
@@ -435,7 +435,7 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
 	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
 	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
-	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
+	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array) + sizeof(bt_Value) * ((bt_Array*)obj)->capacity;
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
 	}
@@ -1068,7 +1068,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(ARRAY):
 			obj = (bt_Object*)bt_make_array(context, BT_GET_IBC(op));
-			((bt_Array*)obj)->items.length = BT_GET_IBC(op);
+			((bt_Array*)obj)->length = BT_GET_IBC(op);
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
 		NEXT;
 

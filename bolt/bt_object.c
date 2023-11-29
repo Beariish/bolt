@@ -70,7 +70,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             case BT_OBJECT_TYPE_NATIVE_FN: len = BT_SPRINTF("<Native(0x%llx): %s>", value, ((bt_NativeFn*)obj)->type ? ((bt_NativeFn*)obj)->type->name : "???"); break;
             case BT_OBJECT_TYPE_ARRAY: {
                 bt_Array* arr = (bt_Array*)obj;
-                len = BT_SPRINTF("<0x%llx: array[%d]>", value, arr->items.length);
+                len = BT_SPRINTF("<0x%llx: array[%d]>", value, arr->length);
             } break;
             case BT_OBJECT_TYPE_TABLE: {
                 bt_Table* tbl = (bt_Table*)obj;
@@ -319,25 +319,38 @@ BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key)
     return BT_FALSE;
 }
 
-bt_Array* bt_make_array(bt_Context* ctx, uint16_t initial_capacity)
+bt_Array* bt_make_array(bt_Context* ctx, uint32_t initial_capacity)
 {
     bt_Array* arr = BT_ALLOCATE(ctx, ARRAY, bt_Array);
-    bt_buffer_with_capacity(&arr->items, ctx, initial_capacity);
+    arr->items = initial_capacity ? ctx->alloc(sizeof(bt_Value) * initial_capacity) : 0;
+    arr->length = 0;
+    arr->capacity = initial_capacity;
+
+    ctx->gc.byets_allocated += initial_capacity * sizeof(bt_Value);
 
     return arr;
 }
 
 uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value)
 {
-    bt_buffer_push(ctx, &arr->items, value);
-    return arr->items.length;
+    if (arr->length == arr->capacity) {
+        uint32_t old_cap = arr->capacity;
+
+        arr->capacity *= 2;
+        if (arr->capacity == 0) arr->capacity = 4;
+        arr->items = ctx->realloc(arr->items, sizeof(bt_Value) * arr->capacity);
+        ctx->gc.byets_allocated += (arr->capacity - old_cap) * sizeof(bt_Value);
+    }
+
+    arr->items[arr->length++] = value;
+
+    return arr->length;
 }
 
 bt_Value bt_array_pop(bt_Array* arr)
 {
-    if (arr->items.length > 0) {
-        bt_Value result = bt_buffer_pop(&arr->items);
-        return result;
+    if (arr->length > 0) {
+        return arr->items[--arr->length];
     }
 
     return BT_VALUE_NULL;
@@ -345,20 +358,20 @@ bt_Value bt_array_pop(bt_Array* arr)
 
 uint64_t bt_array_length(bt_Array* arr)
 {
-    return arr->items.length;
+    return arr->length;
 }
 
 bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt_Value value)
 {
-    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!", NULL);
-    arr->items.elements[index] = value;
+    if (index >= arr->length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!", NULL);
+    arr->items[index] = value;
     return BT_TRUE;
 }
 
 bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index)
 {
-    if (index >= arr->items.length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!", NULL);
-    return arr->items.elements[index];
+    if (index >= arr->length) bt_runtime_error(ctx->current_thread, "Array index out of bounds!", NULL);
+    return arr->items[index];
 }
 
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size)
