@@ -41,7 +41,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
     if (BT_IS_NUMBER(value)) {
         double n = BT_AS_NUMBER(value);
 
-        if (floor(n) == n) {
+        if (floor(n) == n && !isnan(n) && !isinf(n)) {
             len = BT_SPRINTF("%lld", (uint64_t)n);
         }
         else {

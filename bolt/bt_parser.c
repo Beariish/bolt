@@ -2176,14 +2176,14 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
     if (name_or_first_item->type == BT_TOKEN_MUL) {
         bt_tokenizer_emit(tok);
-        
+
         // glob import
         bt_Token* next = bt_tokenizer_emit(tok);
         if (next->type != BT_TOKEN_FROM) {
             parse_error_token(parse, "Unexpected token '%.*s' in import statement, expected 'from'", next);
             return NULL;
         }
-        
+
         bt_String* module_name_str = parse_module_name(parse, NULL);
         bt_Value module_name = BT_VALUE_OBJECT(module_name_str);
         bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
@@ -2201,13 +2201,13 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             bt_TablePair* item = BT_TABLE_PAIRS(values) + i;
             bt_Value type_val = bt_table_get(types, item->key);
 
-            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            bt_ModuleImport * import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
             import->name = (bt_String*)BT_AS_OBJECT(item->key);
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = item->value;
 
             bt_add_ref(parse->context, (bt_Object*)import);
-            bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
+            bt_buffer_push(parse->context, & parse->root->as.module.imports, import);
         }
 
         return NULL;
@@ -2260,7 +2260,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         for (uint32_t i = 0; i < items.length; ++i) {
             bt_StrSlice* item = items.elements + i;
 
-            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            bt_ModuleImport * import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
             import->name = bt_make_string_hashed_len(parse->context, item->source, item->length);
 
             bt_Value type_val = bt_table_get(types, BT_VALUE_OBJECT(import->name));
@@ -2270,16 +2270,16 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
             if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
                 bt_String* mod_name_str = (bt_String*)BT_AS_OBJECT(module_name);
-                parse_error_fmt(parse, "Failed to import item '%.*s' from module '%.*s'", name_begin->col, name_begin->line, 
+                parse_error_fmt(parse, "Failed to import item '%.*s' from module '%.*s'", name_begin->col, name_begin->line,
                     item->length, item->source, mod_name_str->len, BT_STRING_STR(mod_name_str));
                 return NULL;
             }
 
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = value;
-            
+
             bt_add_ref(parse->context, (bt_Object*)import);
-            bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
+            bt_buffer_push(parse->context, & parse->root->as.module.imports, import);
         }
 
         bt_buffer_destroy(parse->context, &items);
@@ -2298,13 +2298,19 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             return NULL;
         }
     }
-    
+
     bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
 
     if (!mod_to_import) {
         bt_String* name_str = (bt_String*)BT_AS_OBJECT(module_name);
         parse_error_fmt(parse, "Failed to import module '%.*s'", name_or_first_item->line, name_or_first_item->col, name_str->len, BT_STRING_STR(name_str));
         return NULL;
+    }
+
+    // Strip quotes for relative imports
+    if (output_name->source.source[0] == '"') {
+        output_name->source.source++;
+        output_name->source.length -= 2;
     }
 
     bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
