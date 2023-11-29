@@ -90,6 +90,10 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->meta_names.collect = bt_make_string_hashed_len(ctx, "@collect", 8);
 
 	ctx->compiler_options.generate_debug_info = BT_TRUE;
+	ctx->compiler_options.accelerate_arithmetic = BT_TRUE;
+	ctx->compiler_options.allow_method_hoisting = BT_TRUE;
+	ctx->compiler_options.predict_hash_slots = BT_TRUE;
+	ctx->compiler_options.typed_array_subscript = BT_TRUE;
 
 	ctx->module_paths = NULL;
 	bt_append_module_path(ctx, "%s.bolt");

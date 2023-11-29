@@ -545,6 +545,23 @@ static bt_bool is_assigning(bt_TokenType op) {
     return BT_FALSE;
 }
 
+static bt_Value get_from_proto(bt_Type* type, bt_Value key)
+{
+    if (!type) return BT_VALUE_NULL;
+
+    bt_Table* proto = type->prototype_values;
+    while (!proto && type->prototype) {
+        proto = type->prototype->prototype_values;
+        type = type->prototype;
+    }
+
+    if (!proto) {
+        return BT_VALUE_NULL;
+    }
+
+    return bt_table_get(proto, key);
+}
+
 static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_t result_loc)
 {
     if (ctx->compiler->options.generate_debug_info) {
@@ -638,20 +655,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             bt_AstNode* rhs = lhs->as.binary_op.right;
 
             methodcall_hoist_fail:
-            if (lhs->as.binary_op.hoistable) {
-                bt_Type* t = lhs->as.binary_op.from;
-                bt_Table* proto = t->prototype_values;
-                while (!proto && t->prototype) {
-                    proto = t->prototype->prototype_values;
-                    t = t->prototype;
-                }
-
-                if (!proto) { 
-                    lhs->as.binary_op.hoistable = BT_FALSE;
-                    goto methodcall_hoist_fail; 
-                }
-
-                bt_Value hoisted = bt_table_get(proto, lhs->as.binary_op.key);
+            if (lhs->as.binary_op.hoistable && ctx->compiler->options.allow_method_hoisting) {
+                bt_Value hoisted = get_from_proto(lhs->as.binary_op.from, lhs->as.binary_op.key);
                 if (hoisted == BT_VALUE_NULL) {
                     lhs->as.binary_op.hoistable = BT_FALSE;
                     goto methodcall_hoist_fail;
@@ -659,7 +664,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 uint8_t idx = push(ctx, hoisted);
                 emit_ab(ctx, BT_OP_LOAD, start_loc, idx, BT_FALSE);
             }
-            else if (lhs->as.binary_op.accelerated) {
+            else if (lhs->as.binary_op.accelerated && ctx->compiler->options.predict_hash_slots) {
                 if (lhs->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
                     emit_abc(ctx, BT_OP_LOAD_IDX, start_loc, obj_loc, lhs->as.binary_op.idx, BT_TRUE);
                 }
@@ -667,9 +672,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
-                bt_Value is_prototypical = lhs->as.binary_op.from ? bt_table_get(lhs->as.binary_op.from->prototype_types, lhs->as.binary_op.key) : BT_VALUE_NULL;
+                bt_Value is_prototypical = get_from_proto(lhs->as.binary_op.from, lhs->as.binary_op.key);
 
-                emit_abc(ctx, is_prototypical == BT_VALUE_NULL ? BT_OP_LOAD_IDX_K : BT_OP_LOAD_PROTO, start_loc, obj_loc, idx, BT_FALSE);
+                emit_abc(ctx, (is_prototypical == BT_VALUE_NULL || !ctx->compiler->options.predict_hash_slots) ? BT_OP_LOAD_IDX_K : BT_OP_LOAD_PROTO, start_loc, obj_loc, idx, BT_FALSE);
             }
         }
         else {
@@ -698,7 +703,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_ab(ctx, BT_OP_EXPECT, result_loc, operand_loc, BT_FALSE);
             break;
         case BT_TOKEN_MINUS:
-            emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc, expr->as.unary_op.accelerated);
+            emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc, expr->as.unary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_NOT: 
             emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc, BT_FALSE);
@@ -731,7 +736,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         if (expr->source->type == BT_TOKEN_PERIOD) {
         hoist_fail:
-            if (expr->as.binary_op.hoistable) {
+            if (expr->as.binary_op.hoistable && ctx->compiler->options.allow_method_hoisting) {
                 bt_StrSlice name = { expr->as.binary_op.from->name, (uint16_t)strlen(expr->as.binary_op.from->name) };
                 bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);
                 if (hoisted == BT_VALUE_NULL) {
@@ -742,7 +747,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
                 goto try_store;
             }
-            else if (expr->as.binary_op.accelerated) {
+            else if (expr->as.binary_op.accelerated && ctx->compiler->options.predict_hash_slots) {
                 if (expr->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
                     emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, expr->as.binary_op.idx, BT_TRUE);
                     goto try_store;
@@ -752,8 +757,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
 
-                bt_Value is_prototypical = expr->as.binary_op.from ? bt_table_get(expr->as.binary_op.from->prototype_types, expr->as.binary_op.key) : BT_VALUE_NULL;
-                emit_abc(ctx, is_prototypical == BT_VALUE_NULL ? BT_OP_LOAD_IDX_K : BT_OP_LOAD_PROTO, result_loc, lhs_loc, idx, BT_FALSE);
+                bt_Value is_prototypical = get_from_proto(expr->as.binary_op.from, expr->as.binary_op.key);
+                emit_abc(ctx, (is_prototypical == BT_VALUE_NULL || !ctx->compiler->options.predict_hash_slots) ? BT_OP_LOAD_IDX_K : BT_OP_LOAD_PROTO, result_loc, lhs_loc, idx, BT_FALSE);
 
                 goto try_store;
             }
@@ -762,7 +767,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
 #define HOISTABLE_OP(unhoisted) \
-        if (expr->as.binary_op.hoistable) {                                                                        \
+        if (expr->as.binary_op.hoistable && ctx->compiler->options.allow_method_hoisting) {                                                                        \
             bt_StrSlice name = { expr->as.binary_op.from->name, (uint16_t)strlen(expr->as.binary_op.from->name) }; \
             bt_Value hoisted = bt_table_get(expr->as.binary_op.from->prototype_values, expr->as.binary_op.key);    \
             if(hoisted == BT_VALUE_NULL) goto unhoisted;                                                           \
@@ -789,22 +794,22 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_PLUS:
         case BT_TOKEN_PLUSEQ:
             HOISTABLE_OP(unhoist_add)
-            else { unhoist_add: emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated); }
+            else { unhoist_add: emit_abc(ctx, BT_OP_ADD, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic); }
             break;
         case BT_TOKEN_MINUS:
         case BT_TOKEN_MINUSEQ:
             HOISTABLE_OP(unhoist_sub)
-            else { unhoist_sub: emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated); }
+            else { unhoist_sub: emit_abc(ctx, BT_OP_SUB, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic); }
             break;
         case BT_TOKEN_MUL:
         case BT_TOKEN_MULEQ:
             HOISTABLE_OP(unhoist_mul)
-            else { unhoist_mul: emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated); }
+            else { unhoist_mul: emit_abc(ctx, BT_OP_MUL, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic); }
             break;
         case BT_TOKEN_DIV:
         case BT_TOKEN_DIVEQ:
             HOISTABLE_OP(unhoist_div)
-            else { unhoist_div: emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated); }
+            else { unhoist_div: emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic); }
             break;
         case BT_TOKEN_AND:
             emit_abc(ctx, BT_OP_AND, result_loc, lhs_loc, rhs_loc, BT_FALSE);
@@ -828,27 +833,27 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_COMPOSE, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_PERIOD:
-            if (expr->as.binary_op.accelerated && expr->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY) {
+            if (expr->as.binary_op.accelerated && expr->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY && ctx->compiler->options.typed_array_subscript) {
                 emit_abc(ctx, BT_OP_LOAD_SUB_F, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             } else emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_EQUALS:
-            emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
+            emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_NOTEQ:
-            emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
+            emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_LT:
-            emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
+            emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_LTE:
-            emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
+            emit_abc(ctx, BT_OP_LTE, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_GT:
-            emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated);
+            emit_abc(ctx, BT_OP_LT, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_GTE:
-            emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated);
+            emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_ASSIGN:
             emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc, BT_FALSE);
@@ -869,14 +874,18 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
             if (lhs->as.binary_op.accelerated) {
                 if (lhs->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY) {
+                    if (!ctx->compiler->options.typed_array_subscript) goto failed_array;
+
                     uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
                     emit_abc(ctx, BT_OP_STORE_SUB_F, tbl_loc, idx_loc, result_loc, BT_FALSE);
                 }
-                else emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, lhs->as.binary_op.idx, result_loc, BT_TRUE);
+                else if (ctx->compiler->options.predict_hash_slots) emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, lhs->as.binary_op.idx, result_loc, BT_TRUE);
+                else goto failed_fast;
                 goto stored_fast;
             }
             else if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
                 lhs->as.binary_op.right->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+            failed_fast:;
                 bt_Token* source = lhs->as.binary_op.right->source;
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, source->source.source, source->source.length)));
@@ -884,6 +893,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 goto stored_fast;
             }
 
+        failed_array:;
             uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
             emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, idx_loc, result_loc, BT_FALSE);
         stored_fast:
@@ -933,7 +943,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             bt_AstNode* entry = fields->elements[i];
             compile_expression(ctx, entry->as.table_field.value_expr, val_loc);
 
-            if (expr->as.table.typed) {
+            if (expr->as.table.typed && ctx->compiler->options.predict_hash_slots) {
                 bt_Table* layout = resulting->as.table_shape.layout;
                 int16_t idx = bt_table_get_idx(layout, entry->as.table_field.key);
                 if (idx == -1 || idx > UINT8_MAX)
@@ -969,7 +979,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 emit_aibc(ctx, BT_OP_LOAD_SMALL, idx_loc, i);
             }
             else {
-                emit_abc(ctx, BT_OP_ADD, idx_loc, idx_loc, one_loc, BT_TRUE);
+                emit_abc(ctx, BT_OP_ADD, idx_loc, idx_loc, one_loc, ctx->compiler->options.accelerate_arithmetic);
             }
             compile_expression(ctx, entry, val_loc);
 

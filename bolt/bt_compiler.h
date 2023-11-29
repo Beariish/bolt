@@ -7,6 +7,10 @@
 
 typedef struct bt_CompilerOptions {
 	bt_bool generate_debug_info;
+	bt_bool accelerate_arithmetic;
+	bt_bool allow_method_hoisting;
+	bt_bool predict_hash_slots;
+	bt_bool typed_array_subscript;
 } bt_CompilerOptions;
 
 typedef struct bt_Compiler {
