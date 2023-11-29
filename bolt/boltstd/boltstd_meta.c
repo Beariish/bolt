@@ -6,7 +6,8 @@
 
 static void btstd_gc(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_collect(&ctx->gc, 0);
+	uint32_t n_collected = bt_collect(&ctx->gc, 0);
+	bt_return(thread, BT_VALUE_NUMBER(n_collected));
 }
 
 static void btstd_memsize(bt_Context* ctx, bt_Thread* thread)
@@ -25,6 +26,22 @@ static void btstd_grey(bt_Context* ctx, bt_Thread* thread)
 
 	bt_Object* arg = BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_grey_obj(ctx, arg);
+}
+
+static void btstd_add_reference(bt_Context* ctx, bt_Thread* thread)
+{
+	if (!BT_IS_OBJECT(bt_arg(thread, 0))) return;
+
+	bt_Object* arg = BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_return(thread, BT_VALUE_NUMBER(bt_add_ref(ctx, arg)));
+}
+
+static void btstd_remove_reference(bt_Context* ctx, bt_Thread* thread)
+{
+	if (!BT_IS_OBJECT(bt_arg(thread, 0))) return;
+
+	bt_Object* arg = BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_return(thread, BT_VALUE_NUMBER(bt_remove_ref(ctx, arg)));
 }
 
 static void btstd_push_root(bt_Context* ctx, bt_Thread* thread)
@@ -129,8 +146,11 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_Type* grey_args[] = { context->types.any };
 
-	bt_Type* gc_sig = bt_make_signature(context, NULL, NULL, 0);
+	bt_Type* gc_sig = bt_make_signature(context, context->types.number, NULL, 0);
+	bt_Type* pop_sig = bt_make_signature(context, NULL, NULL, 0);
 	bt_Type* grey_sig = bt_make_signature(context, NULL, grey_args, 1);
+	
+	bt_Type* reference_sig = bt_make_signature(context, context->types.number, grey_args, 1);
 
 	bt_Type* prelude_args[] = { context->types.string, context->types.type, context->types.any };
 	bt_Type* prelude_sig = bt_make_signature(context, NULL, prelude_args, 3);
@@ -143,6 +163,8 @@ void boltstd_open_meta(bt_Context* context)
 
 	bt_Type* getenumname_args[] = { context->types.type, context->types.any };
 	bt_Type* getenumname_sig = bt_make_signature(context, context->types.string, getenumname_args, 2);
+
+	bt_Type* appendmodulepath_sig = bt_make_signature(context, NULL, findtype_args, 1);
 
 	bt_Type* get_union_size_args[] = { context->types.type };
 	bt_Type* get_union_size_sig = bt_make_signature(context, context->types.number, get_union_size_args, 1);
@@ -159,8 +181,14 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export(context, module, grey_sig, BT_VALUE_CSTRING(context, "push_root"), BT_VALUE_OBJECT(
 		bt_make_native(context, grey_sig, btstd_push_root)));
 
-	bt_module_export(context, module, gc_sig, BT_VALUE_CSTRING(context, "pop_root"), BT_VALUE_OBJECT(
-		bt_make_native(context, gc_sig, btstd_pop_root)));
+	bt_module_export(context, module, pop_sig, BT_VALUE_CSTRING(context, "pop_root"), BT_VALUE_OBJECT(
+		bt_make_native(context, pop_sig, btstd_pop_root)));
+
+	bt_module_export(context, module, reference_sig, BT_VALUE_CSTRING(context, "add_reference"), BT_VALUE_OBJECT(
+		bt_make_native(context, reference_sig, btstd_add_reference)));
+
+	bt_module_export(context, module, reference_sig, BT_VALUE_CSTRING(context, "remove_reference"), BT_VALUE_OBJECT(
+		bt_make_native(context, reference_sig, btstd_remove_reference)));
 
 	bt_module_export(context, module, info_sig, BT_VALUE_CSTRING(context, "mem_size"), BT_VALUE_OBJECT(
 		bt_make_native(context, info_sig, btstd_memsize)));
@@ -177,8 +205,8 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export(context, module, getenumname_sig, BT_VALUE_CSTRING(context, "get_enum_name"), BT_VALUE_OBJECT(
 		bt_make_native(context, getenumname_sig, btstd_get_enum_name)));
 
-	bt_module_export(context, module, findtype_sig, BT_VALUE_CSTRING(context, "add_module_path"), BT_VALUE_OBJECT(
-		bt_make_native(context, findtype_sig, btstd_add_module_path)));
+	bt_module_export(context, module, appendmodulepath_sig, BT_VALUE_CSTRING(context, "add_module_path"), BT_VALUE_OBJECT(
+		bt_make_native(context, appendmodulepath_sig, btstd_add_module_path)));
 
 	bt_module_export(context, module, get_union_size_sig, BT_VALUE_CSTRING(context, "get_union_size"), BT_VALUE_OBJECT(
 		bt_make_native(context, get_union_size_sig, btstd_get_union_size)));

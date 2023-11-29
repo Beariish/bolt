@@ -23,7 +23,7 @@ static bt_Type* bt_arr_pop_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	bt_Type* arg = args[0];
 	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
 
-	bt_Type* sig = bt_make_method(ctx, arg->as.array.inner, args, 1);
+	bt_Type* sig = bt_make_method(ctx, bt_make_nullable(ctx, arg->as.array.inner), args, 1);
 
 	return sig;
 }
@@ -269,15 +269,7 @@ static int bt_sort_comp(const void* in_a, const void* in_b)
 	bt_Value result = bt_pop(sort_context.thread);
 	if (result == BT_VALUE_TRUE) return -1;
 
-	bt_push(sort_context.thread, sort_context.comp_fn);
-	bt_push(sort_context.thread, b);
-	bt_push(sort_context.thread, a);
-	bt_call(sort_context.thread, 2);
-
-	result = bt_pop(sort_context.thread);
-	if (result == BT_VALUE_TRUE) return 1;
-
-	return 0;
+	return 1;
 }
 
 static int bt_sort_comp_nums(const void* in_a, const void* in_b)
@@ -354,7 +346,7 @@ void boltstd_open_arrays(bt_Context* context)
 	bt_type_add_field(context, array, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
 
-	bt_Type* arr_pop_sig = bt_make_poly_method(context, "pop([T]): T", bt_arr_pop_type);
+	bt_Type* arr_pop_sig = bt_make_poly_method(context, "pop([T]): T?", bt_arr_pop_type);
 	fn_ref = bt_make_native(context, arr_pop_sig, bt_arr_pop);
 	bt_type_add_field(context, array, arr_pop_sig, BT_VALUE_CSTRING(context, "pop"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_pop_sig, BT_VALUE_CSTRING(context, "pop"), BT_VALUE_OBJECT(fn_ref));

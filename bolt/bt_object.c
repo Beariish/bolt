@@ -335,8 +335,12 @@ uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value)
 
 bt_Value bt_array_pop(bt_Array* arr)
 {
-    bt_Value result = bt_buffer_pop(&arr->items);
-    return result;
+    if (arr->items.length > 0) {
+        bt_Value result = bt_buffer_pop(&arr->items);
+        return result;
+    }
+
+    return BT_VALUE_NULL;
 }
 
 uint64_t bt_array_length(bt_Array* arr)
