@@ -40,3 +40,12 @@ for const pair in tables.pairs(t) {
     print(pair.value)         // 10, 20, 30
 }
 ```
+
+---
+
+```rust
+tables.delete(t: table, key: any): bool
+```
+
+Searches for and deletes entry `key` in `t`, returning whether or not it was found.
+This function will fail to monomorphise for any sealed table types, but beware that deleting known keys from unsealsed tableshapes is also unsafe.
