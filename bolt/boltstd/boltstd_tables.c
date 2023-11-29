@@ -99,7 +99,7 @@ void boltstd_open_tables(bt_Context* context)
 	bt_module_export(context, module, table_pairs_sig, BT_VALUE_CSTRING(context, "pairs"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* table_delete_sig = bt_make_poly_signature(context, "delete({}, any): bool", bt_table_delete_type);
-	bt_NativeFn* fn_ref = bt_make_native(context, table_delete_sig, bt_table_delete);
+	fn_ref = bt_make_native(context, table_delete_sig, bt_table_delete);
 	bt_module_export(context, module, table_delete_sig, BT_VALUE_CSTRING(context, "delete"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "tables"), module);
