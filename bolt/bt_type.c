@@ -724,6 +724,11 @@ bt_Value bt_cast_type(bt_Value value, bt_Type* type)
 		}
 
 		bt_Table* src = (bt_Table*)obj;
+
+		if (src->prototype == bt_type_get_proto(type->ctx, type)) {
+			return value;
+		}
+
 		bt_Table* layout = type->as.table_shape.layout;
 		
 		bt_Table* dst = bt_make_table(type->ctx, layout ? layout->length : 0);
