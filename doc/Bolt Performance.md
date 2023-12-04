@@ -45,10 +45,48 @@ This calls the same method repeatedly on a pre-allocated object, purely benchmar
 </p>
 
 # Why is Bolt fast?
-* Typesafety and accelerated bytecode
-* Inline allocations
-* Register VM
-* String interning
-* Nanboxing
-* Imports
-* Setupless calling convention
+### Nanboxing
+Bolt makes use of [nanboxing](https://github.com/zuiderkwast/nanbox) in order to keep value representations nice and compact. This means that every stack-stored value in bolt is 8 bytes wide. Unlike some implementations though, Bolt (quite aptly) uses qNaN to mean "this is not a number", leaving actual double values completely unmasked. Coupled with the type system, this makes arithmetic very fast. 
+
+There are only a few primitive types that can be stored directly in the nanbox (number, null, boolean, enum), with the rest being relegated to an "object" type that makes a second hop to a heap-allocated GC header. It may be interesting to explore separating strings into their own primitive type, or inlining the tags for arrays and tables as well (there's a whole unused bit there!), but it's unclear how much value this would provide.
+
+### Register based VM
+Bolt's VM uses register-style stack addressing when executing its bytecode, which is generally the approach preferred by other high-performance embedded environments as well. The main reason for this is quite simple: you can encode more information in a single instruction. From a high level, this means your dispatch loop will spend less time decoding instructions and reading the next, and more time performing actual useful work. 
+
+Consider the following Bolt function:
+```rust
+fn add(a: number, b: number) { return a + b }
+```
+
+In a stack-based VM, this may compile down to something like:
+```rust
+PUSH 0 // [a]
+PUSH 1 // [b, a]
+ADD    // [a+b]
+RETURN
+```
+
+While in current bolt, it actually becomes:
+```rust
+ADD    2, 0, 1 // result = a + b
+RETURN 2       // return result
+```
+
+Not only is this two instructions shorter, but the stack-based approach involves two extra copies (pushing a and b to the stack), but the `ADD` and `RETURN`` instructions both encode 0 arguments, either leaving gaps in the instruction stream if constant-sized, or requiring variable-read dispatch.
+
+### Typesafety and accelerated bytecode
+Bolt's type system is a large factor behind it's impressive performance. Despite the compiler still being in it's early stages, having basic checking in place lets it emit smarter sequences of instructions, or perform work at compile-time that would otherwise need to be repeated.
+
+The clearest example of this is that many instructions in Bolt make use of the "acceleration bit", which when set tells the VM to take a fast path for that instruction, often forgoing doing any runtime type checking or hashtable lookups. Coupled with unmasked nanbox doubles, this means things like arithmetic often compile down to a single native instruction.
+
+### Imports
+Bolt has a more formal import/export system than many dynamic languages. This is in part due to the type system, needing them to be resolved during compilation in order to facilitate checking, but it also bakes into the compilation model of Bolt functions. Every function keeps a reference to the module it was defined in, which in turn holds references to all the imports in that module. This means functions do not need to dynamically capture their imports, avoiding closure invocations, and are able to linearly address them in the import array instead of making some kind of environment lookup.
+
+### Setupless calling convention
+Once again thanks to the type system in Bolt, the calling convention can be made a lot simpler than in other dynamic languages. You cannot invoke a function with an incorrect number of arguments, the compiler knows ahead of time whether the function returns any values, and where to store them. This makes the setup for every function call very light, and the cleanup afterwards literally nonexistent. 
+
+### Inline allocations
+Bolt makes use of inline table allocations whenever the shape of the table is known at compiletime, making for a single allocation instead of needing to make two jumps in memory to fetch the contents. This not only makes lookup faster, but the allocation/freeing of tables as well. In most circumstances, for hard-typed table creation (via `=>` operator), the type contains a table template as well, with all keys pre-hashed and put into the correct slots, so creating the table becomes a single alloc + memcpy. 
+
+### String interning
+Bolt deduplicates strings through interning, performing a hash on the character data if the strings length is beneath a certain threshold (`32`, currently, derived through testing), and searching for it in a global string deduplication table before allocating a new object. Allocations are costly, and for some non-trivial tasks (see `examples/json.bolt`) it provides a very significant speedup.
