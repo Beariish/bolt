@@ -61,9 +61,9 @@ fn add(a: number, b: number) { return a + b }
 In a stack-based VM, this may compile down to something like:
 ```rust
 PUSH 0 // [a]
-PUSH 1 // [b, a]
+PUSH 1 // [a, b]
 ADD    // [a+b]
-RETURN
+RETURN // []
 ```
 
 While in current bolt, it actually becomes:
