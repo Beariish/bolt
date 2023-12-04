@@ -1381,11 +1381,6 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
         bt_buffer_move(result->debug, &ctx.debug);
     }
 
-#ifdef BOLT_PRINT_DEBUG
-    bt_debug_print_fn(compiler->context, result);
-    printf("-----------------------------------------------------\n");
-#endif 
-
     bt_buffer_destroy(compiler->context, &fn_constants);
     bt_buffer_destroy(compiler->context, &ctx.constants);
     bt_buffer_destroy(compiler->context, &ctx.output);

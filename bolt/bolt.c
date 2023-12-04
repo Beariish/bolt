@@ -280,11 +280,6 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source, const char
 		return NULL;
 	}
 
-#ifdef BOLT_PRINT_DEBUG
-	bt_debug_print_module(context, result);
-	printf("-----------------------------------------------------\n");
-#endif
-
 	bt_close_compiler(compiler);
 	bt_close_parser(parser);
 	bt_close_tokenizer(tok);

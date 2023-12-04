@@ -9,6 +9,22 @@ method Fibber.fib(n: number): number {
 
 let fibber = Fibber => {}
 
+fn fib_iter(n: number) {
+    let x = 0
+    let y = 1
+    for i in n - 1 {
+        let z = x + y
+        x = y
+        y = z
+    }
+
+    return y
+}
+
 bench("fib(30)", 25, fn {
     fibber.fib(30)
+})
+
+bench("fib_iter(30)", 150, fn {
+    fib_iter(30)
 })
