@@ -18,6 +18,7 @@ typedef void (*bt_Free)(void* ptr);
 typedef char* (*bt_ReadFile)(bt_Context* ctx, const char* path, void** out_handle);
 typedef void (*bt_CloseFile)(bt_Context* ctx, const char* path, void*  in_handle);
 typedef void (*bt_FreeSource)(bt_Context* ctx, char* source);
+typedef void (*bt_Write)(bt_Context* ctx, const char* msg);
 
 #ifndef BT_STACK_SIZE
 #define BT_STACK_SIZE 1024
@@ -81,6 +82,8 @@ typedef struct bt_Handlers {
 	bt_Realloc realloc;
 	bt_ErrorFunc on_error;
 
+	bt_Write write;
+
 	bt_ReadFile read_file;
 	bt_CloseFile close_file;
 	bt_FreeSource free_source;
@@ -93,6 +96,8 @@ struct bt_Context {
 	bt_Free free;
 	bt_Realloc realloc;
 	bt_ErrorFunc on_error;
+
+	bt_Write write;
 
 	bt_ReadFile read_file;
 	bt_CloseFile close_file;

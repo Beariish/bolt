@@ -31,6 +31,8 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->realloc = handlers->realloc;
 	ctx->on_error = handlers->on_error;
 
+	ctx->write = handlers->write;
+
 	ctx->read_file = handlers->read_file;
 	ctx->close_file = handlers->close_file;
 	ctx->free_source = handlers->free_source;
@@ -121,6 +123,11 @@ static void bt_error(bt_ErrorType type, const char* module, const char* message,
 	} break;
 	}
 }
+
+static void bt_write(bt_Context* ctx, const char* msg)
+{
+	printf(msg);
+}
 #endif
 
 #ifdef BOLT_ALLOW_MALLOC
@@ -179,6 +186,7 @@ bt_Handlers bt_default_handlers()
 
 #ifdef BOLT_ALLOW_PRINTF
 	result.on_error = bt_error;
+	result.write = bt_write;
 #endif
 
 	return result;

@@ -79,6 +79,8 @@ Bolt's type system is a large factor behind it's impressive performance. Despite
 
 The clearest example of this is that many instructions in Bolt make use of the "acceleration bit", which when set tells the VM to take a fast path for that instruction, often forgoing doing any runtime type checking or hashtable lookups. Coupled with unmasked nanbox doubles, this means things like arithmetic often compile down to a single native instruction.
 
+Finally, the type system also massively speeds up native interop with Bolt. In most dynamic languages, the first chunk of a native-callable function is just type- and argument checking, making sure the user called the function properly and aborting if not. Because the compiler ensures this for you in Bolt, native functions can simply assume all arguments are fine and move on. For large functions this probably doesn't sound all too important, but when your thin wrappers over things like `sin()` no longer have to perform extra work, it makes a big difference.
+
 ### Imports
 Bolt has a more formal import/export system than many dynamic languages. This is in part due to the type system, needing them to be resolved during compilation in order to facilitate checking, but it also bakes into the compilation model of Bolt functions. Every function keeps a reference to the module it was defined in, which in turn holds references to all the imports in that module. This means functions do not need to dynamically capture their imports, avoiding closure invocations, and are able to linearly address them in the import array instead of making some kind of environment lookup.
 

@@ -28,7 +28,7 @@ static void bt_time(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_sameline(bt_Context* ctx, bt_Thread* thread)
 {
-	printf("\r");
+	ctx->write(ctx, "\r");
 }
 
 static void bt_cout(const char* fmt, bt_Context* ctx, bt_Thread* thread)
@@ -45,12 +45,13 @@ static void bt_cout(const char* fmt, bt_Context* ctx, bt_Thread* thread)
 	}
 
 	buffer[pos] = 0;
-	printf(fmt, buffer);
+	ctx->write(ctx, buffer);
 }
 
 static void bt_print(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_cout("%s\n", ctx, thread);
+	bt_cout("%s", ctx, thread);
+	ctx->write(ctx, "\n");
 }
 
 static void bt_write(bt_Context* ctx, bt_Thread* thread)
