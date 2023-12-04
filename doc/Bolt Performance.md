@@ -25,21 +25,21 @@ This benchmark computes a mandelbrot set. It doesn't render it out to an image o
 
 ---
 
-The next few benchmarks are somewhat memory-bound, which is why Bolt gets two entries. The performance of Bolt with the system allocator varies a lot depending on OS and toolchain. Building with mimalloc (which takes only 3 lines of code to configure bolt for) eliminates this variance and lets us focus purely on language performance. Bolt's internal allocator is still very, very simple, and implementing a more complicated middle layer would help alleviate the issues with making lots of system allocations. This is what the other fast languages do in this benchmark. 
+The next few benchmarks are somewhat memory-bound, which is why Bolt gets two entries. The performance of Bolt with the system allocator varies a lot depending on OS and toolchain. Building with mimalloc (which takes only 3 lines of code to configure Bolt for) eliminates this variance and lets us focus purely on language performance. Bolt's internal allocator is still very, very simple, and implementing a more complicated middle layer would help alleviate the issues with making lots of system allocations. This is what the other fast languages do in this benchmark. 
 <p align="center">
     <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Vec2%20create%20create%20add.png"></img>
 </p>
 
 ---
 
-This benchmark only makes a single allocation per iteration, as opposed to 3, and instead relies more on method invocation and object setup. 
+This benchmark only makes a single allocation per iteration, and instead measures both method invocation and object setup. 
 <p align="center">
     <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Vec2%20add.png"></img>
 </p>
 
 ---
 
-This calls the same method repeatedly on a pre-allocated object, purely benchmarking the performance of object lookups.
+This calls the same method repeatedly on a pre-allocated object, purely benchmarking the invocation performance.
 <p align="center">
     <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Vec2%20distance.png"></img>
 </p>
