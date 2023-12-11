@@ -139,11 +139,7 @@ static void bt_write(bt_Context* ctx, const char* msg)
 
 static char* bt_read_file(bt_Context* ctx, const char* path, void** handle)
 {
-#ifdef _MSC_VER
-	fopen_s((FILE**)handle, path, "rb");
-#else
 	*handle = (void*)fopen(path, "rb");
-#endif
 	if (*handle == 0) return NULL;
 
 	fseek(*handle, 0, SEEK_END);
@@ -293,11 +289,19 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source, const char
 
 void bt_push_root(bt_Context* ctx, bt_Object* root)
 {
+	if (ctx->troot_top >= BT_TEMPROOTS_SIZE) {
+		bt_runtime_error(ctx->current_thread, "Temp root stack overflow!", NULL);
+	}
+
 	ctx->troots[ctx->troot_top++] = root;
 }
 
 void bt_pop_root(bt_Context* ctx)
 {
+	if (ctx->troot_top <= 0) {
+		bt_runtime_error(ctx->current_thread, "Temp root stack underflow!", NULL);
+	}
+
 	ctx->troots[--ctx->troot_top] = 0;
 }
 
@@ -524,11 +528,8 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 		bt_Path* pathspec = context->module_paths;
 		while (pathspec && !code) {
-#ifdef _MSC_VER
-			path_len = sprintf_s(path_buf, 256, pathspec->spec, BT_STRING_STR(to_load));
-#else
 			path_len = sprintf(path_buf, pathspec->spec, BT_STRING_STR(to_load));
-#endif
+	
 			if (path_len >= 256) {
 				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
 				bt_pop_root(context);
@@ -621,14 +622,13 @@ bt_bool bt_execute_with_args(bt_Context* context, bt_Thread* thread, bt_Callable
 
 	context->current_thread = thread;
 
-	int32_t result = setjmp(&thread->error_loc[0]);
-
 	bt_push(thread, BT_VALUE_OBJECT(callable));
 
 	for (uint8_t i = 0; i < argc; ++i) {
 		bt_push(thread, args[i]);
 	}
 
+	int32_t result = setjmp(&thread->error_loc[0]);
 	if (result == 0) bt_call(thread, argc);
 	else {
 		context->current_thread = old_thread;
@@ -656,19 +656,21 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 	if (thread->should_report) {
 		if (ip != NULL) {
 			bt_Callable* callable = BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]);
-			const char* source = bt_get_debug_source(callable);
-
+			
+			uint16_t line = 0, col = 0;
+				
 			bt_DebugLocBuffer* loc_buffer = bt_get_debug_locs(callable);
-			uint32_t loc_index = bt_get_debug_index(callable, ip);
+			if (loc_buffer) {
+				uint32_t loc_index = bt_get_debug_index(callable, ip);
+				bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
+				bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
+				
+				line = source_token->line - 1;
+				col = source_token->col;
+			}
 
-			bt_TokenBuffer* tokens = bt_get_debug_tokens(callable);
-
-			bt_Token* source_token = tokens->elements[loc_buffer->elements[loc_index]];
-			// TODO(bearish): use this for something, better formatted errors
-			//bt_StrSlice line_source = bt_get_debug_line(source, source_token->line - 1);
 			bt_Module* module = get_module(callable);
-
-			thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, source_token->line - 1, source_token->col);
+			thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, line, col);
 		}
 		else {
 			thread->context->on_error(BT_ERROR_RUNTIME, "<native>", message, 0, 0);
@@ -1197,6 +1199,10 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		NEXT;
 
 		CASE(CALL):
+			if (thread->depth >= BT_CALLSTACK_SIZE) {
+				bt_runtime_error(thread, "Stack overflow!", ip);
+			}
+
 			obj2 = (bt_Object*)(uint64_t)thread->top;
 
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);

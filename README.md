@@ -21,6 +21,7 @@ for const animal in animals.each() {
 ## Features
 * [Lightning-fast performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md), outperforming other languages in its class
 * Compact implementation, entire library <10kloc and compiles to <200kb
+* Blazingly quick compilation, plow through code at over 500kloc/thread/second. That's 50'000 lines in the blink of an eye.
 * Ease of embedding, only a handful of lines to get going
 * Rich type system to catch errors before code is ran, with plenty of support for extending it from native code
 * Embed-first design, prioritizing inter-language performance and agility  

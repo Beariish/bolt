@@ -286,6 +286,14 @@ fn printer() {
 }
 ```
 
+Sometimes it can be desirable to explicitly note that a function returns nothing, for example to allow early-definition of methods for recursion, or just to document its usecase. To do this, the special symbol `!` is used:
+
+```rust
+fn printer(): ! {
+	print("I never return!")
+}
+```
+
 Most syntax in Bolt becomes optional if it's purely structural, meaning an empty parameter list can be left off as well.
 
 ```rust

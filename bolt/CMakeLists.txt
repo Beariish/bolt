@@ -108,37 +108,37 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:
-            /fp:fast;
-            ${DEFAULT_CXX_EXCEPTION_HANDLING}
+            /Od;
+            /MTd;
         >
         $<$<CONFIG:Release>:
             /O2;
             /Ob2;
             /Oi;
-            /Oy-;
+            /Oy;
             /Gr;
             /Gy-;
-            /fp:except-;
             /Ot;
-            /fp:fast;
             /GR-;
             /GS-;
             /GL;
-            /Zi;
             /Gm-;
             /Zc:inline;
             /WX-;
             /Zc:forScope;
-            /std:c11;
-            /MT;
             /openmp-;
             /FC;
             /Ot;
+            /MT;
         >
+        /std:c11;
+        /fp:except-;
+        /fp:fast;
         /permissive-;
         /sdl-;
         /W3;
-        ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT}
+        /Zi;
+        /arch:AVX;
     )
     target_link_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Release>:
@@ -146,9 +146,10 @@ if(MSVC)
             /LTCG;
             /OPT:ICF;
             /NXCOMPAT:NO;
-            /DYNAMICBASE:NO
+            /DYNAMICBASE:NO;
         >
-        /SUBSYSTEM:CONSOLE
+        /DEBUG;
+        /SUBSYSTEM:CONSOLE;
     )
 endif()
 
@@ -174,18 +175,18 @@ if(NOT MSVC)
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
-    -Ofast;
-    -O3;
-    -ffast-math;
-    -fno-signaling-nans;
-    -fno-rounding-math;
-    -funsafe-math-optimizations;
-    -fomit-frame-pointer;
-    -march=native;
-    -flto;
-    -ffp-contract=fast;
-    -fmerge-all-constants;
-    -fmodulo-sched;
-    -fmodulo-sched-allow-regmoves;
-)
+        -Ofast;
+        -O3;
+        -ffast-math;
+        -fno-signaling-nans;
+        -fno-rounding-math;
+        -funsafe-math-optimizations;
+        -fomit-frame-pointer;
+        -march=native;
+        -flto;
+        -ffp-contract=fast;
+        -fmerge-all-constants;
+        -fmodulo-sched;
+        -fmodulo-sched-allow-regmoves;
+    )
 endif()

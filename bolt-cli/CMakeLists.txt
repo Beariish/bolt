@@ -48,23 +48,50 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 ################################################################################
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Release>:
-            /Oi;
-            /Gy
+        $<$<CONFIG:Debug>:
+            /Od;
+            /MTd;
         >
+        $<$<CONFIG:Release>:
+            /O2;
+            /Ob2;
+            /Oi;
+            /Oy;
+            /Gr;
+            /Gy-;
+            /Ot;
+            /GR-;
+            /GS-;
+            /GL;
+            /Gm-;
+            /Zc:inline;
+            /WX-;
+            /Zc:forScope;
+            /openmp-;
+            /FC;
+            /Ot;
+            /MT;
+        >
+        /std:c11;
+        /fp:except-;
+        /fp:fast;
         /permissive-;
-        /sdl;
+        /sdl-;
         /W3;
-        ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
-        ${DEFAULT_CXX_EXCEPTION_HANDLING}
+        /Zi;
+        /arch:AVX;
     )
+
     target_link_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Release>:
-            /OPT:REF;
-            /OPT:ICF
+            /OPT:NOREF;
+            /LTCG;
+            /OPT:ICF;
+            /NXCOMPAT:NO;
+            /DYNAMICBASE:NO;
         >
         /DEBUG;
-        /SUBSYSTEM:CONSOLE
+        /SUBSYSTEM:CONSOLE;
     )
 endif()
 

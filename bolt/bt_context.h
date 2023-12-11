@@ -36,6 +36,10 @@ typedef void (*bt_Write)(bt_Context* ctx, const char* msg);
 #define BT_STRINGTABLE_MAX_LEN 24
 #endif
 
+#ifndef BT_TEMPROOTS_SIZE
+#define BT_TEMPROOTS_SIZE 16
+#endif
+
 typedef struct bt_StringTableEntry {
 	uint64_t hash;
 	bt_String* string;
@@ -105,7 +109,7 @@ struct bt_Context {
 
 	bt_Object* root;
 	bt_Object* next;
-	bt_Object* troots[16];
+	bt_Object* troots[BT_TEMPROOTS_SIZE];
 	uint32_t troot_top;
 
 	bt_GC gc;
