@@ -163,7 +163,7 @@ static void bt_arr_map(bt_Context* ctx, bt_Thread* thread)
 	bt_Value applicator = bt_arg(thread, 1);
 
 	bt_Array* result = bt_make_array(ctx, arg->length);
-	bt_push_root(ctx, result);
+	bt_push_root(ctx, (bt_Object*)result);
 
 	for (uint32_t i = 0; i < arg->length; ++i) {
 		bt_push(thread, applicator);
@@ -205,7 +205,7 @@ static void bt_arr_filter(bt_Context* ctx, bt_Thread* thread)
 	bt_Value filter = bt_arg(thread, 1);
 
 	bt_Array* result = bt_make_array(ctx, arg->length / 2);
-	bt_push_root(ctx, result);
+	bt_push_root(ctx, (bt_Object*)result);
 
 	for (uint32_t i = 0; i < arg->length; ++i) {
 		bt_push(thread, filter);
@@ -244,7 +244,7 @@ static void bt_arr_slice(bt_Context* ctx, bt_Thread* thread)
 	if (start + length > arr->length) bt_runtime_error(thread, "Slice extends past end of array", NULL);
 
 	bt_Array* result = bt_make_array(ctx, (uint16_t)length);
-	bt_push_root(ctx, result);
+	bt_push_root(ctx, (bt_Object*)result);
 
 	for (uint32_t i = start; i < start + length; ++i) {
 		bt_array_push(ctx, result, arr->items[i]);
