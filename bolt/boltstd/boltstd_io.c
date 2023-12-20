@@ -300,6 +300,9 @@ void boltstd_open_io(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
+	bt_close_error_reason = BT_VALUE_OBJECT(bt_make_string_hashed(context, "File already closed"));
+	bt_add_ref(context, BT_AS_OBJECT(bt_close_error_reason));
+
 	io_file_type = bt_make_userdata_type(context, "File");
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
 	bt_module_export(context, module, bt_make_alias(context, "File", io_file_type),
@@ -310,68 +313,39 @@ void boltstd_open_io(bt_Context* context)
 	bt_Type* open_return_type = bt_make_union(context);
 	bt_push_union_variant(context, open_return_type, io_file_type);
 	bt_push_union_variant(context, open_return_type, bt_error_type);
-	bt_Type* open_sig = bt_make_signature(context, open_return_type, open_args, 2);
-	bt_module_export(context, module, open_sig, BT_VALUE_CSTRING(context, "open"), BT_VALUE_OBJECT(
-		bt_make_native(context, open_sig, btio_open)));
-
-	bt_close_error_reason = BT_VALUE_OBJECT(bt_make_string_hashed(context, "File already closed"));
-	bt_add_ref(context, BT_AS_OBJECT(bt_close_error_reason));
+	bt_module_export_native(context, module, "open", btio_open, open_return_type, open_args, 2);
 
 	bt_Type* optional_error = bt_make_nullable(context, bt_error_type);
-
-	bt_Type* close_sig = bt_make_signature(context, optional_error, &io_file_type, 1);
-	bt_module_export(context, module, close_sig, BT_VALUE_CSTRING(context, "close"), BT_VALUE_OBJECT(
-		bt_make_native(context, close_sig, btio_close)));
+	bt_module_export_native(context, module, "close", btio_close, optional_error, &io_file_type, 1);
 
 	bt_Type* get_size_return_type = bt_make_union(context);
 	bt_push_union_variant(context, get_size_return_type, context->types.number);
 	bt_push_union_variant(context, get_size_return_type, bt_error_type);
-	bt_Type* get_size_sig = bt_make_signature(context, get_size_return_type, &io_file_type, 1);
-	bt_module_export(context, module, get_size_sig, BT_VALUE_CSTRING(context, "get_size"), BT_VALUE_OBJECT(
-		bt_make_native(context, get_size_sig, btio_get_size)));
+	bt_module_export_native(context, module, "get_size", btio_get_size, get_size_return_type, &io_file_type, 1);
 
 	bt_Type* seek_args[] = { io_file_type, context->types.number };
-	bt_Type* seek_set_type = bt_make_signature(context, optional_error, seek_args, 2);
-
-	bt_module_export(context, module, seek_set_type, BT_VALUE_CSTRING(context, "seek_set"), BT_VALUE_OBJECT(
-		bt_make_native(context, seek_set_type, btio_seek_set)));
-
-	bt_module_export(context, module, seek_set_type, BT_VALUE_CSTRING(context, "seek_relative"), BT_VALUE_OBJECT(
-		bt_make_native(context, seek_set_type, btio_seek_relative)));
-
-	bt_Type* seek_end_type = bt_make_signature(context, optional_error, &io_file_type, 1);
-	bt_module_export(context, module, seek_end_type, BT_VALUE_CSTRING(context, "seek_end"), BT_VALUE_OBJECT(
-		bt_make_native(context, seek_end_type, btio_seek_end)));
+	bt_module_export_native(context, module, "seek_set", btio_seek_set, optional_error, seek_args, 2);
+	bt_module_export_native(context, module, "seek_relative", btio_seek_relative, optional_error, seek_args, 2);
+	bt_module_export_native(context, module, "seek_end", btio_seek_end, optional_error, &io_file_type, 1);
 
 	bt_Type* number_or_error = bt_make_union(context);
 	bt_push_union_variant(context, number_or_error, context->types.number);
 	bt_push_union_variant(context, number_or_error, bt_error_type);
 
-	bt_Type* tell_type = bt_make_signature(context, number_or_error, &io_file_type, 1);
-	bt_module_export(context, module, tell_type, BT_VALUE_CSTRING(context, "tell"), BT_VALUE_OBJECT(
-		bt_make_native(context, tell_type, btio_tell)));
+	bt_module_export_native(context, module, "tell", btio_tell, number_or_error, &io_file_type, 1);
 
 	bt_Type* string_or_error = bt_make_union(context);
 	bt_push_union_variant(context, string_or_error, context->types.string);
 	bt_push_union_variant(context, string_or_error, bt_error_type);
 
 	bt_Type* read_args[] = { io_file_type, context->types.number };
-	bt_Type* read_sig = bt_make_signature(context, string_or_error, read_args, 2);
-	bt_module_export(context, module, read_sig, BT_VALUE_CSTRING(context, "read"), BT_VALUE_OBJECT(
-		bt_make_native(context, read_sig, btio_read)));
+	bt_module_export_native(context, module, "read", btio_read, string_or_error, read_args, 2);
 
 	bt_Type* write_args[] = { io_file_type, context->types.string };
-	bt_Type* write_sig = bt_make_signature(context, optional_error, write_args, 2);
-	bt_module_export(context, module, write_sig, BT_VALUE_CSTRING(context, "write"), BT_VALUE_OBJECT(
-		bt_make_native(context, write_sig, btio_write)));
+	bt_module_export_native(context, module, "write", btio_write, optional_error, write_args, 2);
 
-	bt_Type* iseof_sig = bt_make_signature(context, context->types.boolean, &io_file_type, 1);
-	bt_module_export(context, module, iseof_sig, BT_VALUE_CSTRING(context, "is_eof"), BT_VALUE_OBJECT(
-		bt_make_native(context, iseof_sig, btio_iseof)));
-
-	bt_Type* delete_sig = bt_make_signature(context, optional_error, &context->types.string, 1);
-	bt_module_export(context, module, delete_sig, BT_VALUE_CSTRING(context, "delete"), BT_VALUE_OBJECT(
-		bt_make_native(context, delete_sig, btio_delete)));
+	bt_module_export_native(context, module, "is_eof", btio_iseof, context->types.boolean, &io_file_type, 1);
+	bt_module_export_native(context, module, "delete", btio_delete, optional_error, &context->types.string, 1);
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "io"), module);
 }

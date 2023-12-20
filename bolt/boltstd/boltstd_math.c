@@ -171,9 +171,7 @@ bt_module_export(context, module, two_num_to_num_sig, BT_VALUE_CSTRING(context, 
 	IMPL_COMPLEX_OP(imod);
 	IMPL_COMPLEX_OP(atan2);
 
-	bt_Type* num_to_bool_sig = bt_make_signature(context, context->types.boolean, &context->types.number, 1);
-	bt_module_export(context, module, num_to_bool_sig, BT_VALUE_CSTRING(context, "ispow2"),
-		BT_VALUE_OBJECT(bt_make_native(context, num_to_bool_sig, bt_ispow2)));
+	bt_module_export_native(context, module, "ispow2", bt_ispow2, context->types.boolean, &context->types.number, 1);
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "math"), module);
 }

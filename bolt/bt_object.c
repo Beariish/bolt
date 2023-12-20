@@ -474,6 +474,13 @@ void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Valu
     bt_table_set(ctx, module->exports, key, value);
 }
 
+void bt_module_export_native(bt_Context* ctx, bt_Module* module, const char* name, bt_NativeProc proc, bt_Type* ret_type, bt_Type** args, uint8_t arg_count)
+{
+    bt_Type* sig = bt_make_signature(ctx, ret_type, args, arg_count);
+    bt_NativeFn* fn = bt_make_native(ctx, sig, proc);
+    bt_module_export(ctx, module, sig, BT_VALUE_CSTRING(ctx, name), BT_VALUE_OBJECT(fn));
+}
+
 bt_Type* bt_module_get_export_type(bt_Module* module, bt_Value key)
 {
     return bt_tableshape_get_layout(module->type, key);

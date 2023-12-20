@@ -219,39 +219,21 @@ void boltstd_open_core(bt_Context* context)
 		BT_VALUE_CSTRING(context, "write"),
 		BT_VALUE_OBJECT(bt_make_native(context, printable_sig, bt_write)));
 
-	bt_module_export(context, module, noargs_sig,
-		BT_VALUE_CSTRING(context, "sameline"),
-		BT_VALUE_OBJECT(bt_make_native(context, noargs_sig, bt_sameline)));
+	bt_module_export_native(context, module, "sameline",  bt_sameline, NULL,                  NULL,                   0);
+	bt_module_export_native(context, module, "throw",     bt_throw,    NULL,                  &context->types.string, 1);
+	bt_module_export_native(context, module, "to_string", bt_tostring, context->types.string, &context->types.any,    1);
 
-	bt_Type* throw_sig = bt_make_signature(context, NULL, &context->types.string, 1);
-	bt_module_export(context, module, throw_sig,
-		BT_VALUE_CSTRING(context, "throw"),
-		BT_VALUE_OBJECT(bt_make_native(context, throw_sig, bt_throw)));
+	bt_Type* tonumber_ret = bt_make_nullable(context, context->types.number);
+	bt_module_export_native(context, module, "to_number", bt_tonumber, tonumber_ret, &context->types.string, 1);
 
-	bt_Type* tostring_sig = bt_make_signature(context, context->types.string, &context->types.any, 1);
-	bt_module_export(context, module, tostring_sig,
-		BT_VALUE_CSTRING(context, "to_string"),
-		BT_VALUE_OBJECT(bt_make_native(context, tostring_sig, bt_tostring)));
-
-	bt_Type* tonumber_sig = bt_make_signature(context, bt_make_nullable(context, context->types.number), &context->types.string, 1);
-	bt_module_export(context, module, tonumber_sig,
-		BT_VALUE_CSTRING(context, "to_number"),
-		BT_VALUE_OBJECT(bt_make_native(context, tonumber_sig, bt_tonumber)));
-
-	bt_Type* time_sig = bt_make_signature(context, context->types.number, NULL, 0);
-	bt_module_export(context, module, time_sig,
-		BT_VALUE_CSTRING(context, "time"),
-		BT_VALUE_OBJECT(bt_make_native(context, time_sig, bt_time)));
+	bt_module_export_native(context, module, "time", bt_time, context->types.number, NULL, 0);
 
 	bt_error_type = bt_make_tableshape(context, "Error", BT_FALSE);
 	bt_error_what_key = BT_VALUE_CSTRING(context, "what");
 	bt_tableshape_add_layout(context, bt_error_type, context->types.string, bt_error_what_key, context->types.string);
 	bt_module_export(context, module, bt_make_alias(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
 
-	bt_Type* error_sig = bt_make_signature(context, bt_error_type, &context->types.string, 1);
-	bt_module_export(context, module, error_sig,
-		BT_VALUE_CSTRING(context, "error"),
-		BT_VALUE_OBJECT(bt_make_native(context, error_sig, bt_error)));
+	bt_module_export_native(context, module, "error", bt_error, bt_error_type, &context->types.string, 1);
 
 	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn(..T): R, ..T): R | Error", bt_protect_type);
 	bt_module_export(context, module, protect_sig,

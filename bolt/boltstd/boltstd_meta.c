@@ -138,81 +138,30 @@ void boltstd_open_meta(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
-	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "stack_size"), bt_make_number(BT_STACK_SIZE));
+	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "stack_size"),     bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));
-	bt_module_export(context, module, context->types.string, BT_VALUE_CSTRING(context, "version"), bt_make_object((bt_Object*)bt_make_string(context, BOLT_VERSION)));
+	bt_module_export(context, module, context->types.string, BT_VALUE_CSTRING(context, "version"),        bt_make_object((bt_Object*)bt_make_string(context, BOLT_VERSION)));
 
-	bt_Type* info_sig = bt_make_signature(context, context->types.number, NULL, 0);
-
-	bt_Type* grey_args[] = { context->types.any };
-
-	bt_Type* gc_sig = bt_make_signature(context, context->types.number, NULL, 0);
-	bt_Type* pop_sig = bt_make_signature(context, NULL, NULL, 0);
-	bt_Type* grey_sig = bt_make_signature(context, NULL, grey_args, 1);
+	bt_Type* findtype_ret = bt_make_nullable(context, context->types.type);
 	
-	bt_Type* reference_sig = bt_make_signature(context, context->types.number, grey_args, 1);
+	bt_Type* regtype_args[]         = { context->types.string, context->types.type   };
+	bt_Type* getenumname_args[]     = { context->types.type,   context->types.any    };
+	bt_Type* get_union_entry_args[] = { context->types.type,   context->types.number };
 
-	bt_Type* prelude_args[] = { context->types.string, context->types.type, context->types.any };
-	bt_Type* prelude_sig = bt_make_signature(context, NULL, prelude_args, 3);
-
-	bt_Type* regtype_args[] = { context->types.string, context->types.type };
-	bt_Type* regtype_sig = bt_make_signature(context, NULL, regtype_args, 2);
-
-	bt_Type* findtype_args[] = { context->types.string };
-	bt_Type* findtype_sig = bt_make_signature(context, bt_make_nullable(context, context->types.type), findtype_args, 1);
-
-	bt_Type* getenumname_args[] = { context->types.type, context->types.any };
-	bt_Type* getenumname_sig = bt_make_signature(context, context->types.string, getenumname_args, 2);
-
-	bt_Type* appendmodulepath_sig = bt_make_signature(context, NULL, findtype_args, 1);
-
-	bt_Type* get_union_size_args[] = { context->types.type };
-	bt_Type* get_union_size_sig = bt_make_signature(context, context->types.number, get_union_size_args, 1);
-
-	bt_Type* get_union_entry_args[] = { context->types.type, context->types.number };
-	bt_Type* get_union_entry_sig = bt_make_signature(context, context->types.type, get_union_entry_args, 2);
-
-	bt_module_export(context, module, gc_sig, BT_VALUE_CSTRING(context, "gc"), BT_VALUE_OBJECT(
-		bt_make_native(context, gc_sig, btstd_gc)));
-
-	bt_module_export(context, module, grey_sig, BT_VALUE_CSTRING(context, "grey"), BT_VALUE_OBJECT(
-		bt_make_native(context, grey_sig, btstd_grey)));
-
-	bt_module_export(context, module, grey_sig, BT_VALUE_CSTRING(context, "push_root"), BT_VALUE_OBJECT(
-		bt_make_native(context, grey_sig, btstd_push_root)));
-
-	bt_module_export(context, module, pop_sig, BT_VALUE_CSTRING(context, "pop_root"), BT_VALUE_OBJECT(
-		bt_make_native(context, pop_sig, btstd_pop_root)));
-
-	bt_module_export(context, module, reference_sig, BT_VALUE_CSTRING(context, "add_reference"), BT_VALUE_OBJECT(
-		bt_make_native(context, reference_sig, btstd_add_reference)));
-
-	bt_module_export(context, module, reference_sig, BT_VALUE_CSTRING(context, "remove_reference"), BT_VALUE_OBJECT(
-		bt_make_native(context, reference_sig, btstd_remove_reference)));
-
-	bt_module_export(context, module, info_sig, BT_VALUE_CSTRING(context, "mem_size"), BT_VALUE_OBJECT(
-		bt_make_native(context, info_sig, btstd_memsize)));
-
-	bt_module_export(context, module, info_sig, BT_VALUE_CSTRING(context, "next_cycle"), BT_VALUE_OBJECT(
-		bt_make_native(context, info_sig, btstd_nextcycle)));
-
-	bt_module_export(context, module, regtype_sig, BT_VALUE_CSTRING(context, "register_type"), BT_VALUE_OBJECT(
-		bt_make_native(context, regtype_sig, btstd_register_type)));
-
-	bt_module_export(context, module, findtype_sig, BT_VALUE_CSTRING(context, "find_type"), BT_VALUE_OBJECT(
-		bt_make_native(context, findtype_sig, btstd_find_type)));
-
-	bt_module_export(context, module, getenumname_sig, BT_VALUE_CSTRING(context, "get_enum_name"), BT_VALUE_OBJECT(
-		bt_make_native(context, getenumname_sig, btstd_get_enum_name)));
-
-	bt_module_export(context, module, appendmodulepath_sig, BT_VALUE_CSTRING(context, "add_module_path"), BT_VALUE_OBJECT(
-		bt_make_native(context, appendmodulepath_sig, btstd_add_module_path)));
-
-	bt_module_export(context, module, get_union_size_sig, BT_VALUE_CSTRING(context, "get_union_size"), BT_VALUE_OBJECT(
-		bt_make_native(context, get_union_size_sig, btstd_get_union_size)));
-
-	bt_module_export(context, module, get_union_entry_sig, BT_VALUE_CSTRING(context, "get_union_entry"), BT_VALUE_OBJECT(
-		bt_make_native(context, get_union_entry_sig, btstd_get_union_entry)));
+	bt_module_export_native(context, module, "gc",               btstd_gc,               context->types.number, NULL,                   0);
+	bt_module_export_native(context, module, "grey",             btstd_grey,             NULL,                  &context->types.any,    1);
+	bt_module_export_native(context, module, "push_root",        btstd_push_root,        NULL,                  &context->types.any,    1);
+	bt_module_export_native(context, module, "pop_root",         btstd_pop_root,         NULL,                  NULL,                   0);
+	bt_module_export_native(context, module, "add_reference",    btstd_add_reference,    context->types.number, &context->types.any,    1);
+	bt_module_export_native(context, module, "remove_reference", btstd_remove_reference, context->types.number, &context->types.any,    1);
+	bt_module_export_native(context, module, "mem_size",         btstd_memsize,          context->types.number, NULL,                   0);
+	bt_module_export_native(context, module, "next_cycle",       btstd_nextcycle,        context->types.number, NULL,                   0);
+	bt_module_export_native(context, module, "register_type",    btstd_register_type,    NULL,                  regtype_args,           2);
+	bt_module_export_native(context, module, "find_type",        btstd_find_type,        findtype_ret,          &context->types.string, 1);
+	bt_module_export_native(context, module, "get_enum_name",    btstd_get_enum_name,    context->types.string, getenumname_args,       2);
+	bt_module_export_native(context, module, "add_module_path",  btstd_add_module_path,  NULL,                  &context->types.string, 1);
+	bt_module_export_native(context, module, "get_union_size",   btstd_get_union_size,   context->types.number, &context->types.type,   1);
+	bt_module_export_native(context, module, "get_union_entry",  btstd_get_union_entry,  context->types.type,   get_union_entry_args,   2);
 
 	bt_Type* dump_sig = bt_make_poly_signature(context, "dump(fn): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(

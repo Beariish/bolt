@@ -6,12 +6,19 @@ def myrange(high):
         yield current
         current += 1
 
+def fib(n):
+    a = 0.0
+    b = 1.0
+    for i in range(n):
+        (a, b) = (b, a + b)
+    return a
+
 for outer in range(15):
     start_time = time.time()
 
-    for i in myrange(10000000):
-        pass
+    fib(10000000)
 
     end_time = time.time()
 
     print("10m range() iterations in", (end_time - start_time) * 1000, "ms")
+

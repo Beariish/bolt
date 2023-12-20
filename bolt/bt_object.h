@@ -209,6 +209,8 @@ BOLT_API bt_Type* bt_get_return_type(bt_Callable* callable);
 BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
 
 BOLT_API void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
+BOLT_API void bt_module_export_native(bt_Context* ctx, bt_Module* module, const char* name, bt_NativeProc proc, bt_Type* ret_type, bt_Type** args, uint8_t arg_count);
+
 BOLT_API bt_Type* bt_module_get_export_type(bt_Module* module, bt_Value key);
 BOLT_API bt_Value bt_module_get_export(bt_Module* module, bt_Value key);
 
