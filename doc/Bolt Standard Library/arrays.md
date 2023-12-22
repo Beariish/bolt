@@ -1,5 +1,5 @@
 # Arrays
-Module for utility functions when working with arrays. All functions in this module are availible both as imports and exposed directly on the `array` prototype. That meanas that these are equal:
+Module for utility functions when working with arrays. All functions in this module are availible both as imports and exposed directly on the `array` prototype. That means that these are equal:
 ```rust
 import arrays
 

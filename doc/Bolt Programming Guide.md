@@ -290,7 +290,7 @@ Sometimes it can be desirable to explicitly note that a function returns nothing
 
 ```rust
 fn printer(): ! {
-	print("I never return!")
+	print("I return nothing!")
 }
 ```
 
@@ -515,9 +515,10 @@ let second = Vector2 => { x: 5, y: 5, z: 5 }    // fails at compile-time!
 let third = { x: 1, z: 2 } as Vector2!          // fails at runtime...
 ```
 
-##### Associated functions
+##### Prototype functions
 
-It's often useful to associate functions with tableshapes, this can be done by defining functions after the tables layout.
+It's often useful to associate functions with tableshapes, this can be done by inserting them into the type's prototype.
+It's worth noting that prototype insertion can only be done at the statement level, meaning assigning function syntax isn't availible.
 
 ```rust
 type Vector2 = { x: number, y: number }
@@ -529,7 +530,7 @@ fn Vector2.new(x: number, y: number) {
 let x = Vector2.new(10, 10)
 ```
 
-If an associated function's first argument is of the same type as the enclosing table, a sugaring syntax for object-style calls becomes available.
+If an prototypical function's first argument is of the same type as the owning prototype, a sugaring syntax for object-style calls becomes available.
 
 ```rust
 fn Vector2.add(lhs: Vector2, rhs: Vector2) {
@@ -700,8 +701,8 @@ fn fetch(address: string, kind: AddressType) {
 	}
 }
 
-let const result  = fetch("127.0.0.1:8080", AddressKind.IPv4)
-let const result2 = fetch("[::1/128]:8080", AddressKind.IPv6) 
+let const result  = fetch("127.0.0.1:8080", AddressType.IPv4)
+let const result2 = fetch("[::1/128]:8080", AddressType.IPv6) 
 ```
 
 #### 9. typeof() and type()
