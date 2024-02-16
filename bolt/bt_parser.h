@@ -19,6 +19,7 @@ typedef enum {
 	BT_AST_NODE_HOIST,
 
 	BT_AST_NODE_FUNCTION,
+	BT_AST_NODE_RECURSE_ALIAS,
 	BT_AST_NODE_METHOD,
 	BT_AST_NODE_BINARY_OP,
 	BT_AST_NODE_UNARY_OP,
@@ -99,7 +100,12 @@ typedef struct bt_AstNode {
 			bt_Buffer(bt_ParseBinding) upvals;
 			bt_Type* ret_type;
 			bt_AstNode* outer;
+			bt_Token* name;
 		} fn;
+
+		struct {
+			bt_Type* signature;
+		} recurse_alias;
 
 		struct {
 			bt_Type* containing_type;
@@ -112,6 +118,11 @@ typedef struct bt_AstNode {
 			bt_AstNode* fn;
 			bt_bool is_methodcall;
 		} call;
+
+		struct {
+			bt_AstBuffer args;
+			bt_Type* signature;
+		} recursive_call;
 
 		struct {
 			bt_StrSlice name;

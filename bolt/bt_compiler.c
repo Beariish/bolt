@@ -1353,6 +1353,12 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
 
     push_scope(&ctx);
 
+    bt_Fn* result = NULL;
+    if (fn->as.fn.name) {
+        result = BT_ALLOCATE(ctx.context, FN, bt_Fn);
+        push_named(&ctx, fn->as.fn.name->source, BT_VALUE_OBJECT(result));
+    }
+
     bt_ArgBuffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {
         bt_FnArg* arg = args->elements + i;
@@ -1374,7 +1380,12 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
         bt_buffer_push(compiler->context, &fn_constants, ctx.constants.elements[i].value);
     }
     
-    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
+    if (!result) {
+        result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
+    }
+    else {
+        bt_make_fn_inplace(result, compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
+    }
 
     if (compiler->options.generate_debug_info) {
         result->debug = compiler->context->alloc(sizeof(bt_DebugLocBuffer));

@@ -123,6 +123,11 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         new_binding.name = node->as.branch.identifier->source;
         new_binding.type = node->as.branch.bound_type;
     } break;
+    case BT_AST_NODE_RECURSE_ALIAS: {
+        new_binding.is_const = BT_TRUE;
+        new_binding.name = node->source->source;
+        new_binding.type = node->as.recurse_alias.signature;
+    } break;
     default: parse_error_token(parse, "Internal parser error: Unexpected local at '%.*s'", node->source);
     }
 
@@ -1060,7 +1065,7 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
     return expected;
 }
 
-static bt_AstNode* parse_function_literal(bt_Parser* parse)
+static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier)
 {
     bt_Tokenizer* tok = parse->tokenizer;
 
@@ -1120,15 +1125,34 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
 
     next = bt_tokenizer_peek(tok);
     
+    bt_bool has_return = BT_FALSE;
     if (next->type == BT_TOKEN_COLON) {
         next = bt_tokenizer_emit(tok);
         result->as.fn.ret_type = parse_type(parse, BT_TRUE, NULL);
+        has_return = BT_TRUE;
     }
 
     next = bt_tokenizer_emit(tok);
 
     if (next->type == BT_TOKEN_LEFTBRACE) {
         push_scope(parse, BT_TRUE);
+
+        if (has_return && identifier) {
+            bt_Type* args[16];
+
+            for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
+                args[i] = result->as.fn.args.elements[i].type;
+            }
+
+            result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+
+            bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
+            alias->source = identifier;
+            alias->as.recurse_alias.signature = result->resulting_type;
+            result->as.fn.name = identifier;
+
+            push_local(parse, alias);
+        }
 
         for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
             push_arg(parse, result->as.fn.args.elements + i, result->source);
@@ -1148,13 +1172,15 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse)
     
     bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
-    bt_Type* args[16];
+    if (!(has_return && identifier)) {
+        bt_Type* args[16];
 
-    for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
-        args[i] = result->as.fn.args.elements[i].type;
+        for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
+            args[i] = result->as.fn.args.elements[i].type;
+        }
+
+        result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
     }
-
-    result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
 
     parse->current_fn = parse->current_fn->as.fn.outer;
 
@@ -1191,7 +1217,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
     bt_AstNode* lhs_node;
 
     if (lhs->type == BT_TOKEN_FN) {
-        lhs_node = parse_function_literal(parse);
+        lhs_node = parse_function_literal(parse, NULL);
     }
     else if (lhs->type == BT_TOKEN_LEFTPAREN) {
         lhs_node = pratt_parse(parse, 0);
@@ -1430,6 +1456,13 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             lhs_node->as.binary_op.hoistable = BT_FALSE;
             lhs_node->as.binary_op.left = lhs;
             lhs_node->as.binary_op.right = rhs;
+
+            if (!lhs || !rhs) {
+                if (!lhs) parse_error(parse, "Failed to parse lhs", lhs_node->source->line, lhs_node->source->col);
+                if (!rhs) parse_error(parse, "Failed to parse rhs", lhs_node->source->line, lhs_node->source->col);
+                break;
+            }
+
             type_check(parse, lhs_node);
 
             continue;
@@ -1512,7 +1545,7 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
 
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 {
-    if (node->resulting_type) {
+    if (!node || node->resulting_type) {
         return node;
     }
 
@@ -1829,11 +1862,15 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = resulting_type;
         } break;
 #define XSTR(x) #x
-#define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                            \
+#define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                     \
         case tok1: case tok2: {                                                                                                    \
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;                                             \
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;                                            \
-            if(!lhs || !rhs) break;                                                                                                \
+            if(!lhs || !rhs) {                                                                                                     \
+                if(!lhs) parse_error(parse, "Failed to check type of lhs", node->source->line, node->source->col);                 \
+                if(!rhs) parse_error(parse, "Failed to check type of rhs", node->source->line, node->source->col);                 \
+                break;                                                                                                             \
+            }                                                                                                                      \
                                                                                                                                    \
             if(node->source->type == tok2) {                                                                                       \
                 bt_AstNode* left = node->as.binary_op.left;                                                                        \
@@ -2380,7 +2417,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         ident = bt_tokenizer_emit(tok);
         if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
 
-        bt_AstNode* fn = parse_function_literal(parser);
+        bt_AstNode* fn = parse_function_literal(parser, NULL);
         if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
     
         bt_StrSlice this_str = { "this", 4 };
@@ -2403,7 +2440,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         return result;
     }
 
-    bt_AstNode* fn = parse_function_literal(parser);
+    bt_AstNode* fn = parse_function_literal(parser, ident);
     if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_LET);

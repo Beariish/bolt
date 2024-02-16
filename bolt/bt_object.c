@@ -377,18 +377,22 @@ bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index)
 bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
-    
-    result->signature = signature;
-    result->stack_size = stack_size;
+    return bt_make_fn_inplace(result, ctx, module, signature, constants, instructions, stack_size);
+}
 
-    result->module = module;
+bt_Fn* bt_make_fn_inplace(bt_Fn* fn, bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size)
+{
+    fn->signature = signature;
+    fn->stack_size = stack_size;
 
-    bt_buffer_clone(ctx, &result->constants, constants);
-    bt_buffer_clone(ctx, &result->instructions, instructions);
-    ctx->gc.byets_allocated += result->constants.capacity * sizeof(bt_Value);
-    ctx->gc.byets_allocated += result->instructions.capacity * sizeof(bt_Op);
+    fn->module = module;
 
-    return result;
+    bt_buffer_clone(ctx, &fn->constants, constants);
+    bt_buffer_clone(ctx, &fn->instructions, instructions);
+    ctx->gc.byets_allocated += fn->constants.capacity * sizeof(bt_Value);
+    ctx->gc.byets_allocated += fn->instructions.capacity * sizeof(bt_Op);
+
+    return fn;
 }
 
 bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
