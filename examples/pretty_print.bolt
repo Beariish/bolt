@@ -1,24 +1,22 @@
 import print, to_string, write from core
-import tables
+import pairs from tables
 
-type PrettyPrinter = final {}
-
-method PrettyPrinter.pretty_print_internal(x: any, indent: string, indent_single: bool): ! {
+fn pretty_print_internal(x: any, indent: string, indent_single: bool): ! {
     if let t = x as table {
         if indent_single {
             print(indent + "{")
         } else {
             print("{")
         }
-        for pair in tables.pairs(t) {
+        for pair in pairs(t) {
             write(indent + "   " + to_string(pair.key) + ": ") 
-            this.pretty_print_internal(pair.value, indent + "   ", false)
+            pretty_print_internal(pair.value, indent + "   ", false)
         }
         print(indent + "}")
     } else if let a = x as type([any]) {
         print("[")
         for item in a.each() {
-            this.pretty_print_internal(item, indent + "   ", true)
+            pretty_print_internal(item, indent + "   ", true)
         }
         print(indent + "]")
     } else {
@@ -34,6 +32,5 @@ method PrettyPrinter.pretty_print_internal(x: any, indent: string, indent_single
 }
 
 export fn pretty_print(x: any) {
-    let printer = PrettyPrinter => {}
-    printer.pretty_print_internal(x, "", false)
+    pretty_print_internal(x, "", false)
 }
