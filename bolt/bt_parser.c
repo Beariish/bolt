@@ -99,6 +99,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
 
     switch (node->type) {
     case BT_AST_NODE_LET: {
+        new_binding.is_recurse = BT_FALSE;
         new_binding.is_const = node->as.let.is_const;
         new_binding.name = node->as.let.name;
         new_binding.type = node->resulting_type;
@@ -107,6 +108,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         if (node->as.alias.is_bound) return;
 
         node->as.alias.is_bound = BT_TRUE;
+        new_binding.is_recurse = BT_FALSE;
         new_binding.is_const = BT_TRUE;
         new_binding.name = node->source->source;
         char* name = parse->context->alloc(node->source->source.length + 1);
@@ -119,11 +121,13 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
             parse_error_token(parse, "Expected local at '%.*s' to be within if-let statement", node->as.branch.identifier);
         }
 
+        new_binding.is_recurse = BT_FALSE;
         new_binding.is_const = BT_FALSE;
         new_binding.name = node->as.branch.identifier->source;
         new_binding.type = node->as.branch.bound_type;
     } break;
     case BT_AST_NODE_RECURSE_ALIAS: {
+        new_binding.is_recurse = BT_TRUE;
         new_binding.is_const = BT_TRUE;
         new_binding.name = node->source->source;
         new_binding.type = node->as.recurse_alias.signature;
@@ -146,6 +150,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
 static void push_arg(bt_Parser* parse, bt_FnArg* arg, bt_Token* source) {
     bt_ParseBinding new_binding;
     new_binding.is_const = BT_FALSE;
+    new_binding.is_recurse = BT_FALSE;
     new_binding.name = arg->name;
     new_binding.type = arg->type;
     new_binding.source = 0;
@@ -328,6 +333,7 @@ static void destroy_subobj(bt_Context* ctx, bt_AstNode* node)
         bt_buffer_destroy(ctx, &node->as.loop_numeric.body);
     } break;
 
+    case BT_AST_NODE_RECURSIVE_CALL:
     case BT_AST_NODE_CALL: {
         bt_buffer_destroy(ctx, &node->as.call.args);
     } break;
@@ -1149,7 +1155,6 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
             alias->source = identifier;
             alias->as.recurse_alias.signature = result->resulting_type;
-            result->as.fn.name = identifier;
 
             push_local(parse, alias);
         }
@@ -1207,6 +1212,12 @@ static void parse_block(bt_AstBuffer* result, bt_Parser* parse)
     }
 
     pop_scope(parse);
+}
+
+static bt_bool is_recursive_alias(bt_Parser* parse, bt_AstNode* ident)
+{
+    bt_ParseBinding* binding = find_local(parse, ident);
+    return (binding && binding->is_recurse);
 }
 
 static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
@@ -1372,7 +1383,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
                     return NULL;
                 }
 
-                bt_AstNode* call = make_node(parse, BT_AST_NODE_CALL);
+                bt_AstNode* call = make_node(parse, is_recursive_alias(parse, lhs_node) ? BT_AST_NODE_RECURSIVE_CALL : BT_AST_NODE_CALL);
                 call->source = lhs_node->source;
                 call->as.call.fn = lhs_node;
                 call->as.call.is_methodcall = self_arg;

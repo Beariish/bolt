@@ -31,32 +31,27 @@ static void bt_sameline(bt_Context* ctx, bt_Thread* thread)
 	ctx->write(ctx, "\r");
 }
 
-static void bt_cout(const char* fmt, bt_Context* ctx, bt_Thread* thread)
+static void bt_cout(bt_Context* ctx, bt_Thread* thread)
 {
-	static char buffer[4096*128];
-	int32_t pos = 0;
-
 	uint8_t argc = bt_argc(thread);
 	for (uint8_t i = 0; i < argc; ++i) {
 		bt_Value arg = bt_arg(thread, i);
-		pos += bt_to_string_inplace(ctx, buffer + pos, (4096 * 128) - pos, arg);
+		bt_String* as_str = bt_to_string(ctx, arg);
+		ctx->write(ctx, BT_STRING_STR(as_str));
 
-		if (i < argc - 1) buffer[pos++] = ' ';
+		if (i < argc - 1) ctx->write(ctx, " ");
 	}
-
-	buffer[pos] = 0;
-	ctx->write(ctx, buffer);
 }
 
 static void bt_print(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_cout("%s", ctx, thread);
+	bt_cout(ctx, thread);
 	ctx->write(ctx, "\n");
 }
 
 static void bt_write(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_cout("%s", ctx, thread);
+	bt_cout(ctx, thread);
 }
 
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)

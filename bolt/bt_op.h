@@ -47,6 +47,7 @@
     X(TSET)        /*  (R(a) as Type)[R(b)]: R(c+1) = R(c)           */             \
     X(COMPOSE)     /*  R(a) = fieldsof(b) + fieldsof(c)              */             \
     X(CALL)        /*  R(a) = R(b)(R(b + 1) .. R(b + c))             */             \
+    X(REC_CALL)    /*  R(a) = cur_fn((R(b) .. R(b + c))              */             \
     X(JMP)         /*  pc += ibc                                     */             \
     X(JMPF)        /*  if(R(a) == BT_FALSE) pc += ibc                */             \
     X(RETURN)      /*  R(frame->ret_pos) = R(a)                      */             \

@@ -31,6 +31,7 @@ typedef enum {
 	BT_AST_NODE_LOOP_NUMERIC,
 	BT_AST_NODE_LET,
 	BT_AST_NODE_CALL,
+	BT_AST_NODE_RECURSIVE_CALL,
 	BT_AST_NODE_ALIAS,
 
 	BT_AST_NODE_BREAK,
@@ -48,7 +49,7 @@ typedef struct bt_ParseBinding {
 	bt_StrSlice name;
 	bt_Type* type;
 	bt_AstNode* source;
-	bt_bool is_const;
+	bt_bool is_const, is_recurse;
 } bt_ParseBinding;
 
 typedef bt_Buffer(bt_AstNode*) bt_AstBuffer;
@@ -100,7 +101,6 @@ typedef struct bt_AstNode {
 			bt_Buffer(bt_ParseBinding) upvals;
 			bt_Type* ret_type;
 			bt_AstNode* outer;
-			bt_Token* name;
 		} fn;
 
 		struct {

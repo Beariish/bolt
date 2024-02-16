@@ -199,7 +199,6 @@ BOLT_API bt_bool bt_array_set(bt_Context* ctx, bt_Array* arr, uint64_t index, bt
 BOLT_API bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index);
 
 BOLT_API bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
-BOLT_API bt_Fn* bt_make_fn_inplace(bt_Fn* fn, bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
 BOLT_API bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports);
 BOLT_API bt_Module* bt_make_user_module(bt_Context* ctx);
 BOLT_API void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok);

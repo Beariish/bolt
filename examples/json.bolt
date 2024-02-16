@@ -110,8 +110,7 @@ fn json_parse_string(content: string, idx: number): ParseResult {
     }
 }
 
-type JsonParser = final {}
-method JsonParser.parse_single(content: string, idx: number): ParseResult {
+fn parse_single(content: string, idx: number): ParseResult {
     idx = eat_whitespace(content, idx)
     let first = content.substring(idx, 1)
 
@@ -167,7 +166,7 @@ method JsonParser.parse_single(content: string, idx: number): ParseResult {
         for first != "]" {
             idx += 1
             idx = eat_whitespace(content, idx)
-            let value = this.parse_single(content, idx)
+            let value = parse_single(content, idx)
 
             if value is Error { return value }
             else if let res = value as ParseSuccess {
@@ -212,7 +211,7 @@ method JsonParser.parse_single(content: string, idx: number): ParseResult {
                 if content.substring(idx, 1) != ":" { return error("Expected colon") }
                 idx = eat_whitespace(content, idx + 1)
 
-                let value = this.parse_single(content, idx)
+                let value = parse_single(content, idx)
                 if value is Error { return value }
                 else if let v = value as ParseSuccess {
                     result[s.result as string!] = v.result
@@ -233,8 +232,7 @@ method JsonParser.parse_single(content: string, idx: number): ParseResult {
 }
 
 export fn parse(input: string): JsonValue | Error {
-    let parser = JsonParser => {}
-    let result = parser.parse_single(input, 0)
+    let result = parse_single(input, 0)
     
     if result is Error { return result as Error! }
     

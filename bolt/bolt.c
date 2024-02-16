@@ -1250,6 +1250,38 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			thread->top = (uint32_t)(uint64_t)obj2;
 		NEXT;
 
+		CASE(REC_CALL):
+			if (thread->depth >= BT_CALLSTACK_SIZE) {
+				bt_runtime_error(thread, "Stack overflow!", ip);
+			}
+
+		obj2 = (bt_Object*)(uint64_t)thread->top;
+
+		obj = (bt_Object*)BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]);
+
+		thread->top += BT_GET_B(op);
+
+		switch (BT_OBJECT_GET_TYPE(obj)) {
+		case BT_OBJECT_TYPE_FN:
+			thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Fn*)obj)->stack_size, 0);
+			call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op)));
+			break;
+		case BT_OBJECT_TYPE_CLOSURE:
+			switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
+			case BT_OBJECT_TYPE_FN:
+				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
+				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (BT_GET_B(op)));
+				break;
+			default: bt_runtime_error(thread, "Closure contained unsupported callable type.", ip);
+			}
+			break;
+		default: bt_runtime_error(thread, "Unsupported callable type.", ip);
+		}
+
+		thread->depth--;
+		thread->top = (uint32_t)(uint64_t)obj2;
+		NEXT;
+
 		CASE(JMP): ip += BT_GET_IBC(op); NEXT;
 		CASE(JMPF): if (stack[BT_GET_A(op)] == BT_VALUE_FALSE) ip += BT_GET_IBC(op); NEXT;
 

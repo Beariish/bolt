@@ -60,7 +60,9 @@ static void btio_open(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_String* path = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_String* mode = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 1));
-	FILE* file = fopen(BT_STRING_STR(path), BT_STRING_STR(mode));
+	const char* cpath = BT_STRING_STR(path);
+	const char* cmode = BT_STRING_STR(mode);
+	FILE* file = fopen(cpath, cmode);
 
 	if (file) {
 		btio_FileState state;

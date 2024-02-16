@@ -689,6 +689,21 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         restore_registers(ctx);
     } break;
+    case BT_AST_NODE_RECURSIVE_CALL: {
+        bt_AstBuffer* args = &expr->as.call.args;
+
+        push_registers(ctx);
+
+        uint8_t start_loc = get_registers(ctx, args->length);
+
+        for (uint8_t i = expr->as.call.is_methodcall; i < args->length; i++) {
+            compile_expression(ctx, args->elements[i], start_loc + i);
+        }
+
+        emit_abc(ctx, BT_OP_REC_CALL, result_loc, start_loc, args->length - 1, BT_FALSE);
+
+        restore_registers(ctx);
+    } break;
     case BT_AST_NODE_UNARY_OP: {
         push_registers(ctx);
         bt_AstNode* operand = expr->as.unary_op.operand;
@@ -1353,11 +1368,6 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
 
     push_scope(&ctx);
 
-    bt_Fn* result = NULL;
-    if (fn->as.fn.name) {
-        result = BT_ALLOCATE(ctx.context, FN, bt_Fn);
-        push_named(&ctx, fn->as.fn.name->source, BT_VALUE_OBJECT(result));
-    }
 
     bt_ArgBuffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {
@@ -1380,13 +1390,8 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
         bt_buffer_push(compiler->context, &fn_constants, ctx.constants.elements[i].value);
     }
     
-    if (!result) {
-        result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
-    }
-    else {
-        bt_make_fn_inplace(result, compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
-    }
-
+    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
+    
     if (compiler->options.generate_debug_info) {
         result->debug = compiler->context->alloc(sizeof(bt_DebugLocBuffer));
         bt_buffer_move(result->debug, &ctx.debug);
