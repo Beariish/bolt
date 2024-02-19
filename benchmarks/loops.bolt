@@ -25,7 +25,7 @@ bench("10m closure for", 10, fn {
     for glarg in range(10000000) {}
 })
 
-let arr: [number]
+let arr = [:number]
 for i in 10000000 { arr.push(i) }
 
 bench("10m native iterator", 10, fn {
