@@ -51,10 +51,8 @@ bench("1m untyped array assignment", 50, fn {
     }
 })
 
-fn doubler(x: number) { return x * 2 }
-
 bench("mapping 1m array", 20, fn {
-    let new_arr = to_probe.map(doubler)
+    let new_arr = to_probe.map(fn(x: number) { return x * 2 })
 })
 
 bench("manual mapping 1m array", 20, fn {
