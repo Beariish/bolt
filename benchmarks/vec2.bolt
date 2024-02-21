@@ -33,6 +33,8 @@ method Vec2.distance(other: Vec2) {
     return sqrt(sx * sx + sy * sy)
 }
 
+method Vec2.do_nothing { } 
+
 bench("unhoisted 100k vec2 create, create, add", 35, fn {
     for i in 100000 {
         let a = Vec2.new(5, 5)
@@ -49,11 +51,18 @@ bench("unhoisted 100k vec2 add", 35, fn {
     }
 })    
 
-bench("unhoisted 1m vec2 method", 35, fn {
+bench("unhoisted 1m vec2 distance", 35, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 1000000 {
         let c = a.distance(b)
+    }
+})
+
+bench("unhoisted 1m vec2 do nothing", 35, fn {
+    let a = Vec2.new(5, 5)
+    for i in 1000000 {
+        a.do_nothing()
     }
 })
 

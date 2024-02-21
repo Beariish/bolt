@@ -2096,12 +2096,12 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         }
         else {
             if (!rhs) {
-                parse_error_token(parse, "Assignemnt failed to evaluate to type", node->source); return NULL;
+                parse_error_token(parse, "Assignment failed to evaluate to type", node->source); return NULL;
             }
             node->resulting_type = type_check(parse, rhs)->resulting_type;
             
             if (!node->resulting_type) {
-                parse_error_token(parse, "Assignemnt failed to evaluate to type", node->source); return NULL;
+                parse_error_token(parse, "Assignment failed to evaluate to type", node->source); return NULL;
             }
         }
     }

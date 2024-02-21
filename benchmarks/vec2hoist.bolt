@@ -25,3 +25,10 @@ bench("hoisted 1m vec2 method", 35, fn {
         let c = a.distance(b)
     }
 })
+
+bench("hoisted 1m vec2 do nothing", 35, fn {
+    let a = Vec2.new(5, 5)
+    for i in 1000000 {
+        a.do_nothing()
+    }
+})

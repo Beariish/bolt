@@ -9,8 +9,8 @@ A simple bolt program may look something like this:
 import print from core
 
 fn speak(animal: string) {
-	if animal == "cat" { return "meow" }
-	else if animal == "dog" { return "woof" }
+	if      animal == "cat"   { return "meow"   }
+	else if animal == "dog"   { return "woof"   }
 	else if animal == "mouse" { return "squeak" }
 	
 	return "nothing!"
