@@ -75,7 +75,8 @@ typedef struct bt_Table {
 	bt_TablePair* outline;
 } bt_Table;
 
-#define BT_TABLE_PAIRS(t) (((bt_Table*)t)->is_inline ? ((bt_TablePair*)((char*)(t) + sizeof(bt_Table))) : ((bt_Table*)t)->outline)
+#define BT_TABLE_INLINE_OFFSET (sizeof(bt_Table) - sizeof(bt_TablePair*))
+#define BT_TABLE_PAIRS(t) (((bt_Table*)t)->is_inline ? ((bt_TablePair*)((char*)(t) + BT_TABLE_INLINE_OFFSET)) : ((bt_Table*)t)->outline)
 
 typedef struct bt_Array {
 	bt_Object obj;

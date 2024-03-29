@@ -221,9 +221,17 @@ bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b)
 
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 {
-    bt_Table* table = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, sizeof(bt_TablePair) * initial_size);
+    bt_Table* table;
+    if (initial_size > 0) {
+        table = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, (sizeof(bt_TablePair) * initial_size) - sizeof(bt_TablePair*));
+        table->is_inline = BT_TRUE;
+    }
+    else {
+        table = BT_ALLOCATE(ctx, TABLE, bt_Table);
+        table->is_inline = BT_FALSE;
+    }
+    
     table->length = 0;
-    table->is_inline = BT_TRUE;
     table->capacity = initial_size;
     table->inline_capacity = initial_size;
     table->prototype = NULL;
@@ -247,13 +255,20 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
         uint32_t old_cap = tbl->capacity;
         tbl->capacity *= 2;
         if (tbl->capacity == 0) tbl->capacity = 4;
-        tbl->outline = ctx->realloc(tbl->outline, sizeof(bt_TablePair) * tbl->capacity);
-        ctx->gc.byets_allocated += (tbl->capacity - old_cap) * sizeof(bt_TablePair);
 
         if (tbl->is_inline) {
-            memcpy(tbl->outline, BT_TABLE_PAIRS(tbl), sizeof(bt_TablePair) * tbl->length);
+            uint64_t old_start = (uint64_t)tbl->outline;
+            tbl->outline = ctx->alloc(sizeof(bt_TablePair) * tbl->capacity);
+
+            tbl->outline->key = old_start;
+            memcpy((uint8_t*)tbl->outline + sizeof(bt_TablePair*), (uint8_t*)BT_TABLE_PAIRS(tbl) + sizeof(bt_TablePair*), sizeof(bt_TablePair) * tbl->length - sizeof(bt_TablePair*));
             tbl->is_inline = BT_FALSE;
         }
+        else {
+            tbl->outline = ctx->realloc(tbl->outline, sizeof(bt_TablePair) * tbl->capacity);
+        }
+
+        ctx->gc.byets_allocated += (tbl->capacity - old_cap) * sizeof(bt_TablePair);
     }
 
     (BT_TABLE_PAIRS(tbl) + tbl->length)->key = key;

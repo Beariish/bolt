@@ -51,39 +51,40 @@ bench("Mandelbrot", 25, fn {
 
 bench("Mandelbrot Inlined", 25, fn {
     let xmin = -2
-    let xmax = 2
     let ymin = -2
-    let ymax = 2
     let n = 256
 
     let dx = 4 / n
     let dy = 4 / n
 
     let result = 0
+    let x = xmin - dx
     for i in n {
-        let x = xmin + i * dx
+        x += dx
+        
+        let y = ymin - dy
         for j in n {
-            let y = ymin + j * dy
-            
+            y += dy
+
             let zre = x
             let zim = y
         
-            let iter = 0
-            for iter < 255 {
-                let tre = zre * zre - zim * zim
-                let tim = zre * zim + zim * zre
+            let res = 255
+            for iter in 255 {
+                let zre2 = zre * zre
+                let tre = zre2 - zim * zim
+                let tim = (zre * zim) * 2
         
                 zre = tre + x
                 zim = tim + y
         
-                if sqrt(zre * zre - zim * (-zim)) > 2 {
+                if sqrt(zre2 - zim * (-zim)) > 2 {
+                    res = iter
                     break
                 }
-
-                iter += 1
             }
         
-            result += iter
+            result += res
         }
     }
 })
