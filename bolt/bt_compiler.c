@@ -666,7 +666,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
             else if (lhs->as.binary_op.accelerated && ctx->compiler->options.predict_hash_slots) {
                 if (lhs->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
+                    uint8_t idx = push(ctx,
+                        BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
+                    
                     emit_abc(ctx, BT_OP_LOAD_IDX, start_loc, obj_loc, lhs->as.binary_op.idx, BT_TRUE);
+                    emit_aibc(ctx, BT_OP_LOAD_IDX_EXT, 0, idx);
                 }
             }
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
@@ -764,7 +768,11 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
             else if (expr->as.binary_op.accelerated && ctx->compiler->options.predict_hash_slots) {
                 if (expr->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
+                    uint8_t idx = push(ctx,
+                        BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
+                    
                     emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, expr->as.binary_op.idx, BT_TRUE);
+                    emit_aibc(ctx, BT_OP_LOAD_IDX_EXT, 0, idx);
                     goto try_store;
                 }
             }

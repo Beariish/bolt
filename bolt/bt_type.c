@@ -676,7 +676,6 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	} break;
 	}
 
-	// TODO: Table types
 	return BT_FALSE;
 }
 

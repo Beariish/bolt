@@ -1156,9 +1156,18 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(OR):  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
 		CASE(NOT): bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
 
-		CASE(LOAD_IDX): 
-			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = (BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_B(op)])) + BT_GET_C(op))->value;
-			else stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); 
+		CASE(LOAD_IDX):
+			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			if (BT_IS_ACCELERATED(op)) {
+				if (BT_IS_SLOW(stack[BT_GET_B(op)])) {
+					obj2 = (bt_Object*)BT_GET_A(op); // save this, as we modify op
+					stack[(uint8_t)obj2] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
+				}
+				else {
+					stack[BT_GET_A(op)] = (BT_TABLE_PAIRS(obj) + BT_GET_C(op))->value;
+					ip++; // skip the ext op
+				}
+			} else stack[BT_GET_A(op)] = bt_get(context, obj, stack[BT_GET_C(op)]); 
 		NEXT;
 
 		CASE(STORE_IDX): 
@@ -1177,13 +1186,16 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TSATIS): stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
-		CASE(TCAST): 
-			if (BT_IS_ACCELERATED(op)) {
-				obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
-				((bt_Table*)obj)->prototype = bt_type_get_proto(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
+		CASE(TCAST):
+			if (bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
 				stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
+
+				if (BT_IS_OBJECT(stack[BT_GET_A(op)])) {
+					stack[BT_GET_A(op)] = BT_MAKE_SLOW(stack[BT_GET_A(op)]);
+				}
+			} else {
+				stack[BT_GET_A(op)] = BT_VALUE_NULL;
 			}
-			else stack[BT_GET_A(op)] = bt_cast_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])); 
 		NEXT;
 
 		CASE(TSET):
@@ -1315,6 +1327,13 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(STORE_SUB_F): bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
+
+		CASE(LOAD_IDX_EXT):
+#ifdef BT_DEBUG
+			assert(0 && "Opcode should be unreachable!");
+#endif
+			NEXT;
+			
 #ifndef BOLT_USE_INLINE_THREADING
 #ifdef BT_DEBUG
 		default: assert(0 && "Unimplemented opcode!");

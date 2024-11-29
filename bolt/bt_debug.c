@@ -203,6 +203,7 @@ static bt_bool is_op_aibc(uint8_t op) {
 static bt_bool is_op_ibc(uint8_t op) {
 	switch (op) {
 	case BT_OP_JMP:
+	case BT_OP_LOAD_IDX_EXT:
 		return BT_TRUE;
 	default:
 		return BT_FALSE;
