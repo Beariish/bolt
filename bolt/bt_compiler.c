@@ -670,7 +670,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                         BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
                     
                     emit_abc(ctx, BT_OP_LOAD_IDX, start_loc, obj_loc, lhs->as.binary_op.idx, BT_TRUE);
-                    emit_aibc(ctx, BT_OP_LOAD_IDX_EXT, 0, idx);
+                    emit_aibc(ctx, BT_OP_IDX_EXT, 0, idx);
                 }
             }
             else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
@@ -772,7 +772,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                         BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
                     
                     emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, expr->as.binary_op.idx, BT_TRUE);
-                    emit_aibc(ctx, BT_OP_LOAD_IDX_EXT, 0, idx);
+                    emit_aibc(ctx, BT_OP_IDX_EXT, 0, idx);
                     goto try_store;
                 }
             }
@@ -902,7 +902,15 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                     uint8_t idx_loc = find_binding_or_compile_temp(ctx, lhs->as.binary_op.right);
                     emit_abc(ctx, BT_OP_STORE_SUB_F, tbl_loc, idx_loc, result_loc, BT_FALSE);
                 }
-                else if (ctx->compiler->options.predict_hash_slots) emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, lhs->as.binary_op.idx, result_loc, BT_TRUE);
+                else if (ctx->compiler->options.predict_hash_slots)
+                {
+                    bt_Token* source = lhs->as.binary_op.right->source;
+                    uint8_t idx = push(ctx,
+                        BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, source->source.source, source->source.length)));
+                    
+                    emit_abc(ctx, BT_OP_STORE_IDX, tbl_loc, lhs->as.binary_op.idx, result_loc, BT_TRUE);
+                    emit_aibc(ctx, BT_OP_IDX_EXT, 0, idx);
+                }
                 else goto failed_fast;
                 goto stored_fast;
             }
@@ -971,7 +979,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 int16_t idx = bt_table_get_idx(layout, entry->as.table_field.key);
                 if (idx == -1 || idx > UINT8_MAX)
                     compile_error_token(ctx->compiler, "Failed to compile table literal", expr->source);
+                uint8_t key_idx = push(ctx, entry->as.table_field.key);
                 emit_abc(ctx, BT_OP_STORE_IDX, result_loc, (uint8_t)idx, val_loc, BT_TRUE);
+                emit_aibc(ctx, BT_OP_IDX_EXT, 0, key_idx);
             }
             else {
                 uint8_t key_idx = push(ctx, entry->as.table_field.key);

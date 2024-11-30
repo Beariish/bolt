@@ -66,7 +66,7 @@
     X(STORE_SUB_F)                                                                  \
 																					\
 	/* Extension for other fast opcodes that need an additional op to store data */ \
-	X(LOAD_IDX_EXT)
+	X(IDX_EXT)
 
 typedef enum {
 #define X(op) BT_OP_##op,
