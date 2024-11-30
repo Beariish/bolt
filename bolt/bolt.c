@@ -1159,13 +1159,13 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(LOAD_IDX):
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 			if (BT_IS_ACCELERATED(op)) {
-				if (BT_IS_SLOW(stack[BT_GET_B(op)])) {
-					obj2 = (bt_Object*)BT_GET_A(op); // save this, as we modify op
-					stack[(uint8_t)obj2] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
-				}
-				else {
+				if (BT_IS_FAST(stack[BT_GET_B(op)])) {
 					stack[BT_GET_A(op)] = (BT_TABLE_PAIRS(obj) + BT_GET_C(op))->value;
 					ip++; // skip the ext op
+				}
+				else {
+					obj2 = (bt_Object*)BT_GET_A(op); // save this, as we modify op
+					stack[(uint8_t)obj2] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
 				}
 			} else stack[BT_GET_A(op)] = bt_get(context, obj, stack[BT_GET_C(op)]); 
 		NEXT;
@@ -1174,13 +1174,13 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			obj = BT_AS_OBJECT(stack[BT_GET_A(op)]);
 
 			if (BT_IS_ACCELERATED(op))	{
-				if (BT_IS_SLOW(stack[BT_GET_A(op)])) {
-					obj2 = (bt_Object*)BT_GET_C(op); // save this, as we modify op
-					bt_set(context, obj, constants[BT_GET_IBC(*(++ip))], stack[(uint8_t)obj2]);
-				}
-				else {
+				if (BT_IS_FAST(stack[BT_GET_A(op)])) {
 					(BT_TABLE_PAIRS(obj) + BT_GET_B(op))->value = stack[BT_GET_C(op)];
 					ip++; // skip the ext op
+				}
+				else {
+					obj2 = (bt_Object*)BT_GET_C(op); // save this, as we modify op
+					bt_set(context, obj, constants[BT_GET_IBC(*(++ip))], stack[(uint8_t)obj2]);
 				}
 			}
 			else bt_set(context, obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 

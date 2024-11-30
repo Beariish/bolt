@@ -38,6 +38,7 @@ typedef struct bt_Object bt_Object;
 #define BT_IS_OBJECT(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_OBJECT)
 
 #define BT_IS_SLOW(x)    (((x) & BT_SLOW_MASK) != 0)
+#define BT_IS_FAST(x)    (((x) & BT_SLOW_MASK) == 0)
 #define BT_MAKE_SLOW(x)  (((x) | BT_SLOW_MASK))
 
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
