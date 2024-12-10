@@ -1,34 +1,115 @@
 import * from core
 
 type TestCase = {
+    scope_name: string,
     name: string,
     result: bool,
     failures: [string],
     body: fn
 }
 
-let all_tests: [TestCase]
-
-fn case(name: string, body: fn) {
-    all_tests.push(TestCase => {
-        name: name,
-        result: true,
-        failures: [:string],
-        body: body
-    })
+type TestScope = {
+    name: string,
+    tests: [TestCase],
+    subscopes: [TestScope],
+    parent: TestScope?
 }
 
-fn prefix(pfx: string) { 
-    return fn(name: string, body: fn) {
-        case(pfx + ": " + name, body)
-    } 
+type TestState = {
+    root: TestScope,
+    current_scope: TestScope?,
+    current_test: TestCase?,
+    failures: [TestCase]
 }
 
-let current_test: { inner: TestCase? }
+let state = TestState => {
+    root: TestScope => {
+        name: "",
+        tests: [:TestCase],
+        subscopes: [:TestScope],
+        parent: null,
+    },
+    current_scope: null,
+    current_test: null,
+    failures: [:TestCase]
+}
+
+state.current_scope = state.root
+
+fn run_scope(scope: TestScope): ! {
+    let n_total = scope.tests.length()
+    let n_success = 0
+
+    for test in scope.tests.each() {
+        state.current_test = test
+        test.body()
+
+        if test.result {
+            n_success += 1
+        } else {
+            state.failures.push(test)
+        }
+    }
+
+    if n_total > 0 {
+        print("[" + scope.name + "] " + to_string(n_success) + "/" + to_string(n_total) + " tests successful!")
+    }
+
+    for subscope in scope.subscopes.each() {
+        run_scope(subscope)
+    }
+}
+
+fn run {
+    run_scope(state.root)
+
+    if state.failures.length() > 0 {
+        print("Tests Failed (" + to_string(state.failures.length()) + "):")
+        for test in state.failures.each() {
+            print("[" + test.scope_name + "]: " + test.name)
+            for message in test.failures.each() {
+                print("-    " + message)
+            }
+        }
+    }
+}
+
+fn push_scope(name: string) {
+    let new_scope = TestScope => {
+        name: state.current_scope!.name + "." + name,
+        tests: [:TestCase],
+        subscopes: [:TestScope],
+        parent: state.current_scope
+    }
+
+    state.current_scope!.subscopes.push(new_scope)
+    state.current_scope = new_scope
+} 
+
+fn pop_scope {
+    state.current_scope = state.current_scope!.parent
+
+    if state.current_scope == state.root {
+        run()
+    }
+}
+
+fn test(name: string, body: fn) {
+    let scope = state.current_scope!
+    scope.tests.push(
+        TestCase => {
+            scope_name: scope.name,
+            name: name,
+            result: true,
+            failures: [:string],
+            body: body
+        }
+    )
+}
 
 fn expect(condition: bool, message: string) {
     if not condition {
-        if let test = current_test.inner {
+        if let test = state.current_test {
             test.result = false
             test.failures.push(message)
         } else {
@@ -37,44 +118,7 @@ fn expect(condition: bool, message: string) {
     }
 }
 
-fn run {
-    print("Running", all_tests.length(), "tests...")
-    
-    let start_time = time()
-
-    let failures = [:TestCase]
-    for test in all_tests.each() {
-        current_test.inner = test
-
-        let result = protect(test.body)
-        
-        if let error = result as Error {
-            expect(false, "Test failed with runtime error: " + to_string(error.what))
-        }
-
-        if not test.result {
-            failures.push(test)
-        }
-    }
-
-    let end_time = time()
-
-    print("Run complete in", to_string((end_time - start_time) / 1000) + "ms!")
-    print("[" + to_string(all_tests.length() - failures.length()) + "/" + to_string(all_tests.length()) + "] tests succeeded!")
-
-    if failures.length() > 0 {
-        print("Failures:")
-    }
-
-    for const test in failures.each() {
-        print("-", test.name)
-        for const reason in test.failures.each() {
-            print("   \"" + reason + "\"")
-        }
-    }
-}
-
-export case
-export prefix
+export push_scope
+export pop_scope
+export test
 export expect
-export run

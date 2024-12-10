@@ -14,7 +14,7 @@ static void bt_arr_length(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_arr_pop(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* as_arr = (bt_Array*)BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_Array* as_arr = (bt_Array*	)BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_return(thread, bt_array_pop(as_arr));
 }
 
