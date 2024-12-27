@@ -475,7 +475,7 @@ void bt_free(bt_Context* context, bt_Object* obj)
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
 {
 	bt_table_set(context, context->type_registry, name, BT_VALUE_OBJECT(type));
-	bt_register_prelude(context, name, bt_make_alias(context, 0, type), BT_VALUE_OBJECT(type));
+	bt_register_prelude(context, name, context->types.type, BT_VALUE_OBJECT(type));
 }
 
 bt_Type* bt_find_type(bt_Context* context, bt_Value name)

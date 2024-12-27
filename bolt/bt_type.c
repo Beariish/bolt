@@ -767,6 +767,7 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	if (!a || !b) return BT_FALSE;
 
 	a = bt_type_dealias(a); b = bt_type_dealias(b);
+
 	if (a == b) return BT_TRUE;
 	if (a->category != b->category) return BT_FALSE;
 
