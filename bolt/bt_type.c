@@ -608,12 +608,30 @@ bt_bool bt_is_alias(bt_Type* type)
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
 {
+	type = bt_type_dealias(type);
+	
 	if (type == type->ctx->types.any) return BT_TRUE;
+
+	if (type->category == BT_TYPE_CATEGORY_UNION) {
+		bt_TypeBuffer* types = &type->as.selector.types;
+
+		bt_bool found = BT_FALSE;
+		for (uint32_t i = 0; i < types->length; i++) {
+			if (bt_is_type(value, types->elements[i])) {
+				found = BT_TRUE;
+				break;
+			}
+		}
+
+		return found;
+	}
+	
 	if (type == type->ctx->types.null && value == BT_VALUE_NULL) return BT_TRUE;
 	if (value == BT_VALUE_NULL) return BT_FALSE;
 	if (type == type->ctx->types.boolean && BT_IS_BOOL(value)) return BT_TRUE;
 	if (type == type->ctx->types.number && BT_IS_NUMBER(value)) return BT_TRUE;
 
+	
 	if (!BT_IS_OBJECT(value)) return BT_FALSE;
 	bt_Object* as_obj = BT_AS_OBJECT(value);
 
@@ -639,6 +657,8 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 		bt_Table* as_tbl = (bt_Table*)as_obj;
 
+		if (as_tbl->prototype != type->prototype_values) return BT_FALSE;
+		
 		while (type) {
 			bt_Table* layout = type->as.table_shape.layout;
 			for (uint32_t i = 0; i < layout->length; i++) {
@@ -775,7 +795,22 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	case BT_TYPE_CATEGORY_ARRAY: return bt_type_is_equal(a->as.array.inner, b->as.array.inner);
 	case BT_TYPE_CATEGORY_TABLESHAPE: 
 		if (a->prototype_values) return a->prototype_values == b->prototype_values;
-		else return BT_FALSE;
+		else if (a->as.table_shape.sealed != b->as.table_shape.sealed) return BT_FALSE;
+		else if (a->as.table_shape.parent != b->as.table_shape.parent) return BT_FALSE;
+		else {
+			bt_Table* a_layout = a->as.table_shape.layout;
+			bt_Table* b_layout = b->as.table_shape.layout;
+			if (a_layout->length != b_layout->length) return BT_FALSE;
+		
+			for (uint32_t i = 0; i < a_layout->length; i++) {
+				bt_TablePair* a_pair = BT_TABLE_PAIRS(a_layout) + i;
+
+				bt_Value b_type = bt_table_get(b_layout, a_pair->key);
+				if (!bt_type_is_equal((bt_Type*)BT_AS_OBJECT(a_pair->value), (bt_Type*)BT_AS_OBJECT(b_type))) return BT_FALSE;
+			}
+
+			return BT_TRUE;
+		}
 	case BT_TYPE_CATEGORY_SIGNATURE:
 		if (a->is_polymorphic) {
 			if (!b->is_polymorphic) return BT_FALSE;
