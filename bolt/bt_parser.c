@@ -792,7 +792,11 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
 
     bt_Token* next = bt_tokenizer_peek(tok);
     while (next && next->type != BT_TOKEN_RIGHTBRACKET) {
-        if (next->type == BT_TOKEN_COMMA) next = bt_tokenizer_emit(tok);
+        if (next->type == BT_TOKEN_COMMA) {
+            bt_tokenizer_emit(tok);
+            next = bt_tokenizer_peek(tok);
+            continue;
+        }
         else if (next->type == BT_TOKEN_COLON) {
             bt_tokenizer_emit(tok);
             explicit_type = parse_type(parse, BT_FALSE, NULL);
