@@ -798,8 +798,8 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 		for (uint32_t i = 0; i < a->as.selector.types.length; ++i) {
 			bt_Type* a_current = a->as.selector.types.elements[i];
 			bt_bool found = BT_FALSE;
-			for (uint32_t j = 0; j < b->as.selector.types.length; ++i) {
-				bt_Type* b_current = b->as.selector.types.elements[i];
+			for (uint32_t j = 0; j < b->as.selector.types.length; ++j) {
+				bt_Type* b_current = b->as.selector.types.elements[j];
 				if (bt_type_is_equal(a_current, b_current)) {
 					found = BT_TRUE;
 					break;
