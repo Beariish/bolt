@@ -513,15 +513,46 @@ void bt_append_module_path(bt_Context* context, const char* spec)
 	*ptr_next = actual_next;
 }
 
+// I really don't like this but we need to do something here so that identical modules through different paths maintain identity
+static bt_Value bt_normalize_path(bt_Context* context, bt_Value path)
+{
+	bt_String* as_string = (bt_String*)BT_AS_OBJECT(path);
+	bt_String* result = bt_make_string_empty(context, as_string->len);
+	char* char_data = BT_STRING_STR(result);
+	
+	uint32_t new_len = 0;
+	for (uint32_t idx = 0; idx < as_string->len; idx++) {
+		char_data[new_len++] = BT_STRING_STR(as_string)[idx];
+
+		if (new_len > 2 && char_data[new_len - 1] == '.' && char_data[new_len - 2] == '.') {
+			new_len -= 4; // skip the slash
+
+			while (new_len > 0 && char_data[new_len] != '/') char_data[new_len--] = 0;
+		}
+	}
+
+	while (char_data[0] == '/') {
+		for (uint32_t idx = 0; idx < new_len - 1; idx++) {
+			char_data[idx] = char_data[idx + 1];
+		}
+
+		char_data[new_len--] = 0;
+	}
+	
+	result->len = new_len;
+	return BT_VALUE_OBJECT(result);
+}
+
 bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 {
 	bt_push_root(context, BT_AS_OBJECT(name));
 	// TODO: resolve module name with path
-	bt_Module* mod = (bt_Module*)BT_AS_OBJECT(bt_table_get(context->loaded_modules, name));
+	bt_Value normalized_path = bt_normalize_path(context, name);
+	bt_Module* mod = (bt_Module*)BT_AS_OBJECT(bt_table_get(context->loaded_modules, normalized_path));
 	if (mod == 0) {
 		bt_String* to_load = (bt_String*)BT_AS_OBJECT(name);
 
-		char path_buf[256];
+		char path_buf[BT_MODULE_PATH_SIZE];
 		uint32_t path_len = 0;
 		void* handle = NULL;
 		char* code = NULL;
@@ -530,7 +561,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		while (pathspec && !code) {
 			path_len = sprintf(path_buf, pathspec->spec, BT_STRING_STR(to_load));
 	
-			if (path_len >= 256) {
+			if (path_len >= BT_MODULE_PATH_SIZE) {
 				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
 				bt_pop_root(context);
 				return NULL;
@@ -538,7 +569,8 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 			path_buf[path_len] = 0;
 			code = context->read_file(context, path_buf, &handle);
-
+			if (code) context->close_file(context, path_buf, handle);
+			
 			pathspec = pathspec->next;
 		}
 
@@ -548,16 +580,15 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 			return NULL;
 		}
 
-		context->close_file(context, path_buf, handle);
 
 		bt_Module* new_mod = bt_compile_module(context, code, path_buf);
 		context->free_source(context, code);
 
 		if (new_mod) {
-			new_mod->name = (bt_String*)BT_AS_OBJECT(name);
+			new_mod->name = (bt_String*)BT_AS_OBJECT(normalized_path);
 			new_mod->path = bt_make_string_len(context, path_buf, path_len);
 			if (bt_execute(context, (bt_Callable*)new_mod)) {
-				bt_register_module(context, name, new_mod);
+				bt_register_module(context, normalized_path, new_mod);
 
 				bt_pop_root(context);
 				return new_mod;

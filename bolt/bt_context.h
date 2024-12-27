@@ -40,6 +40,10 @@ typedef void (*bt_Write)(bt_Context* ctx, const char* msg);
 #define BT_TEMPROOTS_SIZE 16
 #endif
 
+#ifndef BT_MODULE_PATH_SIZE
+#define BT_MODULE_PATH_SIZE 512
+#endif
+
 typedef struct bt_StringTableEntry {
 	uint64_t hash;
 	bt_String* string;
