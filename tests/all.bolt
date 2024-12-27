@@ -1,6 +1,6 @@
-import print from core 
+import * from "test"
+import "_scope"
 
-import "tables"
-import run from "test"
+import "parser/all"
 
-run()
+pop_scope() 

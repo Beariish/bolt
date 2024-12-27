@@ -1,0 +1,163 @@
+import * from "../test"
+
+push_scope("literals")
+
+test("numbers", fn {
+    let const a = 0
+    let const b = 1000
+    let const c = -10
+    let const d = 0.125
+    let const e = -0.125
+    let const f = 1.
+})
+
+test("strings", fn {
+    let const a = "this is a single line string"
+    let const b = "this is a string         with a large gap"
+    let const c = "this is a 
+    multiline string"
+})
+
+test("booleans", fn {
+    let const t = true
+    let const f = false
+})
+
+test("null", fn {
+    let const n = null
+})
+
+test("empty array", fn {
+    let const a = []
+})
+
+test("untyped arrays", fn {
+    let const a = [1, 2, 3, 4]
+    let const b = ["a", "b", "c"]
+    let const c = [true, false]
+    let const d = [null]
+})
+
+test("mixed-type arrays", fn {
+    let const a = [1, "b", false, null]
+    let const b = ["b", true, null, 2]
+})
+
+test("empty set-type arrays", fn {
+    let const a = [: number]
+    let const b = [: string]
+    let const c = [: bool]
+    let const d = [: null]
+})
+
+test("set-type arrays", fn {
+    let const a = [1, 2, 3 : number]
+    let const b = ["a", "b", "c" : string]
+    let const c = [true, false : bool]
+    let const d = [null : null]
+})
+
+test("union-type arrays", fn {
+    // currently broken
+    //let const a = [1, "a" : number | string]
+    //let const b = ["b", false : string | bool]
+})
+
+test("arrays with trailing comma", fn {
+    let const a = [1, 2, 3, 4, ]
+    let const b = ["a", "b", "c", ]
+})
+
+test("typed array with trailing comma", fn {
+    let const a = [1, 2, 3, 4, : number]
+    let const b = ["1", "2", "3", : string]
+})
+
+test("table literals", fn {
+    let const a = { a: 10 }
+    let const b = { a: "hello" }
+    let const c = { a: false }
+    let const d = { a: null }
+})
+
+test("nested array in table literal", fn {
+    let const a = { a: [] }
+    let const b = { a: [1, 2, 3] }
+    let const c = { a: [1, 2, 3 : number] }
+    let const d = { a: [: number] }
+})
+
+test("nested table in table literal", fn {
+    let const a = { a: {} }
+    let const b = { a: { a: 10 } }
+    let const c = { a: { a: [] } }
+    let const d = { a: { a: {} } }
+})
+
+test("table literals with non-text keys", fn {
+    let const a = { 1: 10 }
+    let const b = { false: 20 }
+    let const c = { "hello": 30 }
+})
+
+test("multi-key table literals", fn {
+    let const a = {
+        a: 10,
+        b: false,
+        c: "string",
+        d: null,
+        e: [1, 2, 3],
+        f: {
+            a: 10,
+            b: false,
+            c: "string",
+            d: null,
+            e: [1, 2, 3]
+        }
+    }
+})
+
+test("table literal with trailing comma", fn {
+    let const a = {
+        a: 10,
+    }
+})
+
+type Test = {
+    a: string,
+    b: number,
+}
+
+test("strongly-typed table literal", fn {
+    let const a = Test => {
+        a: "hello",
+        b: 100
+    }
+})
+
+type UnsealedTest = unsealed {
+    a: string,
+    b: number,
+}
+
+test("unsealed typed table literal", fn {
+    let const a = UnsealedTest => {
+        a: "hello",
+        b: 100,
+        //c: false - this should work
+    }
+})
+
+test("dictionary table literal", fn {
+    let const a: { ..string: string } = {
+        "hello": "world",
+        "goodbye": "sailor"
+    }
+
+    let const b: { ..number: string } = {
+        1: "one",
+        2: "two"
+    }
+})
+
+pop_scope()

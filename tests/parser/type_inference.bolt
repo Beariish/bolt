@@ -1,0 +1,137 @@
+import * from "../test"
+
+push_scope("type inference")
+
+test("basic type inference", fn {
+    let a = 10
+    let b = "string"
+    let c = false
+    let d = null
+
+    expect(typeof(a) == number,     "Expected a to be 'number'")
+    expect(typeof(b) == string,     "Expected b to be 'string'")
+    expect(typeof(c) == bool,       "Expected c to be 'bool'")
+    expect(typeof(d) == type(null), "Expected d to be 'null'")
+
+    expect(a is number,     "Expected a to be 'number'")
+    expect(b is string,     "Expected b to be 'string'")
+    expect(c is bool,       "Expected c to be 'bool'")
+    expect(d is type(null), "Expected d to be 'null'")
+})
+
+test("array type inference", fn {
+    let a = []
+    let b = [1, 2, 3]
+    let c = ["a", "b", "c"]
+
+    expect(typeof(a) == type([any]),    "Expected a to be '[any]'")
+    expect(typeof(b) == type([number]), "Expected b to be '[number]'")
+    expect(typeof(c) == type([string]), "Expected c to be '[string]'")
+
+    expect(a is type([any]),    "Expected a to be '[any]'")
+    expect(b is type([number]), "Expected b to be '[number]'")
+    expect(c is type([string]), "Expected c to be '[string]'")
+})
+
+test("union type array inference", fn {
+    let a = [1, "string", true]
+    let b = [1, null, 2, 3]
+    let c = [string, number, 10]
+
+    expect(typeof(a) == type([number | string | bool]), "Expected a to be '[number | string | bool]'")
+    expect(typeof(b) == type([number?]),                "Expected b to be '[number?]'")
+    expect(typeof(c) == type([Type | number]),          "Expected c to be '[Type | number]'")
+
+    expect(a is type([number | string | bool]), "Expected a to be '[number | string | bool]'")
+    expect(b is type([number?]),                "Expected b to be '[number?]'")
+    expect(c is type([Type | number]),          "Expected c to be '[Type | number]'")
+})
+
+test("tableshape type inference", fn {
+    let a = { a: 100 }
+
+    expect(typeof(a) == type({ a: number }), "Expected a to be '{a: number}'")
+    expect(a is type({ a: number }), "Expected a to be '{a: number}'")
+})
+
+test("nested tableshape type inference", fn {
+    let a = {
+        a: { a: [1, 2, 3] }
+    }
+
+    expect(typeof(a) == type({a: {a: [number]}}), "Expected a to be '{a: {a: [number]}}'")
+    expect(a is type({a: {a: [number]}}), "Expected a to be '{a: {a: [number]}}'")
+})
+
+test("function return inference", fn {
+    fn f { return 10 }
+
+    expect(typeof(f()) == number, "Expceted f() to be 'number'")
+    expect(f() is number, "Expceted f() to be 'number'")
+})
+
+test("branched function return inference", fn {
+    fn f {
+        if true { return false }
+        else { return true }
+    
+        return false // branch checking is not exhaustive yet 
+    }
+
+    expect(typeof(f()) == bool, "Expceted f() to be 'bool'")
+    expect(f() is bool, "Expceted f() to be 'bool'")
+})
+
+test("union branched function return inference", fn {
+    fn f {
+        if true { return 10 }
+        return false // branch checking is not exhaustive yet 
+    }
+
+    expect(typeof(f()) == type(number | bool), "Expceted f() to be 'number | bool'")
+    expect(f() is type(number | bool), "Expceted f() to be 'number | bool'")
+})
+
+test("empty function signature inference", fn {
+    fn f {}
+
+    expect(typeof(f) == type(fn), "Expected f to be 'fn'")
+    expect(f is type(fn), "Expected f to be 'fn'")
+})
+
+test("parameterless function signature inference", fn {
+    fn f: number { return 10 }
+
+    expect(typeof(f) == type(fn: number), "Expected f to be 'fn: number'")
+    expect(f is type(fn: number), "Expected f to be 'fn: number'")
+})
+
+test("one-parameter returnless function signature inference", fn {
+    fn f(x: number) { let y = x }
+
+    expect(typeof(f) == type(fn(number)), "Expected f to be 'fn(number)'")
+    expect(f is type(fn(number)), "Expected f to be 'fn(number)'")
+})
+
+test("one-parameter function signature inference", fn {
+    fn f(x: number): number { return x }
+
+    expect(typeof(f) == type(fn(number): number), "Expected f to be 'fn(number): number'")
+    expect(f is type(fn(number): number), "Expected f to be 'fn(number): number'")
+})
+
+test("many-parameter function signature inference", fn {
+    fn f(x: number, y: string, z: bool): number { return x }
+
+    expect(typeof(f) == type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
+    expect(f is type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
+})
+
+test("many-parameter function expression inference", fn {
+    let const f = fn(x: number, y: string, z: bool) { return x }
+
+    expect(typeof(f) == type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
+    expect(f is type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
+})
+
+pop_scope()

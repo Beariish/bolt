@@ -1,0 +1,56 @@
+import * from "../test"
+
+push_scope("bindings")
+
+test("let", fn {
+    let x = 1
+    let y = 2
+    let z = 3
+})
+
+test("let const", fn {
+    let const x = 1
+    let const y = 2
+    let const z = 3
+})
+
+test("let with type annotation", fn {
+    let const x: number = 1
+    let const y: number = 2
+    let const z: number = 3
+})
+
+test("shadowing, nested let", fn {
+    let x = 1
+
+    if true {
+        let x = 2
+        expect(x == 2, "We aren't seeing nested x")
+    }
+
+    expect(x == 1, "We aren't seeing top-level x")
+})
+
+test("shadowing, nested let const", fn {
+    let x = 1
+
+    if true {
+        let const x = 2
+        expect(x == 2, "We aren't seeing nested x")
+    }
+
+    expect(x == 1, "We aren't seeing top-level x")
+})
+
+test("if let", fn {
+    let x: number? = 10
+
+    if let y = x {
+        expect(typeof(y) == number, "Expected y to remove nullability")
+        expect(y == 10, "y was bound incorrectly")
+    } else {
+        expect(false, "We shouldn't be taking this path")
+    }
+})
+
+pop_scope()

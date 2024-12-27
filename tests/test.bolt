@@ -75,13 +75,18 @@ fn run {
 }
 
 fn push_scope(name: string) {
-    let new_scope = TestScope => {
-        name: state.current_scope!.name + "." + name,
+    let new_name = state.current_scope!.name
+
+    if new_name.length() > 0 { new_name += "." }
+    new_name += name
+
+    let const new_scope = TestScope => {
+        name: new_name,
         tests: [:TestCase],
         subscopes: [:TestScope],
         parent: state.current_scope
     }
-
+    
     state.current_scope!.subscopes.push(new_scope)
     state.current_scope = new_scope
 } 

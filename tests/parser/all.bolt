@@ -1,0 +1,8 @@
+import * from "../test"
+import "_scope"
+
+import "literals"
+import "bindings"
+import "type_inference"
+
+pop_scope() 
