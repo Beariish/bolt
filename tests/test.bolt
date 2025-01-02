@@ -42,9 +42,12 @@ fn run_scope(scope: TestScope): ! {
 
     for test in scope.tests.each() {
         state.current_test = test
-        test.body()
 
-        if test.result {
+        if let e = protect(test.body) as Error {
+            test.failures.push(e.what)
+            state.failures.push(test)
+        }
+        else if test.result {
             n_success += 1
         } else {
             state.failures.push(test)

@@ -1,0 +1,53 @@
+import * from "../test"
+
+push_scope("arithmetic")
+
+// These are in large to make sure we're maintaning precision etc when boxing
+test("addition", fn {
+    expect(1 + 1 == 2, "Addition works as expected")
+    expect(10 + 10 == 20, "Addition works as expected")
+    expect(0.1 + 0.1 == 0.2, "Addition works as expected")
+    expect(10.5 + 10.5 == 21, "Addition works as expected")
+    expect(1000000 + 1000000 == 2000000, "Addition works as expected")
+    expect(100000000000000000 + 1 == 100000000000000001, "Addition works as expected")
+})
+
+test("subtraction", fn {
+    expect(1 - 1 == 0, "Subtraction works as expected")
+    expect(10 - 10 == 0, "Subtraction works as expected")
+    expect(0.1 - 0.1 == 0, "Subtraction works as expected")
+    expect(10.5 - 10 == 0.5, "Subtraction works as expected")
+    expect(1000000 - 1000000 == 0, "Subtraction works as expected")
+    expect(100000000000000000 - 1 == 99999999999999999, "Subtraction works as expected")
+})
+
+test("multiplication", fn {
+    expect(1 * 5 == 5, "Multiplication works as expected")
+    expect(1 * 0 == 0, "Multiplication works as expected")
+    expect(5 * 5 == 25, "Multiplication works as expected")
+    expect(100 * 0.5 == 50, "Multiplication works as expected")
+    expect(1000000000000000 * 10 == 10000000000000000, "Division works as expected")
+})
+
+test("division", fn {
+    expect(1 / 2 == 0.5, "Division works as expected")
+    expect(1 / 0 != 1, "Division works as expected")
+    expect(10 / 10 == 1, "Division works as expected")
+    expect(10 / 0.5 == 20, "Division works as expected")
+    expect(10000000000000000 / 10 == 1000000000000000, "Division works as expected")
+})
+
+test("negation", fn {
+    let x = 10
+    let y = -1000
+    let z = 10000000000000
+
+    expect(-x == -10, "Negation works as expected")
+    expect(--x == 10, "Negation works as expected")
+    expect(-y == 1000, "Negation works as expected")
+    expect(--y == -1000, "Negation works as expected")
+    expect(-z == -10000000000000, "Negation works as expected")
+    expect(--z == 10000000000000, "Negation works as expected")
+})
+
+pop_scope()

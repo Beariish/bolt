@@ -1,0 +1,17 @@
+import * from "../test"
+
+import core 
+
+push_scope("order")
+
+test("mul/div over add/sub", fn {
+    expect(10 + 2 * 5 == 20, "Order is as expected")
+    expect(10 * 2 + 5 == 25, "Order is as expected")
+    expect(10 + 2 / 5 == 10.4, "Order is as expected")
+    expect(10 / 2 + 5 == 10, "Order is as expected")
+
+    let v: bool | core.Error = core.error("Test error")
+    core.assert(v, "Expected non-error")
+})
+
+pop_scope()

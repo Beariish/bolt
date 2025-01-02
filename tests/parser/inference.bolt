@@ -1,6 +1,6 @@
 import * from "../test"
 
-push_scope("type inference")
+push_scope("inference")
 
 test("basic type inference", fn {
     let a = 10

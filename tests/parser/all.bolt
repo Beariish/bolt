@@ -3,6 +3,7 @@ import "_scope"
 
 import "literals"
 import "bindings"
-import "type_inference"
+import "inference"
+import "order"
 
 pop_scope() 
