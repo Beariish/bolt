@@ -9,4 +9,72 @@ test("mul/div over add/sub", fn {
     expect(10 / 2 + 5 == 10, "Order is as expected")
 })
 
+test("logical op order", fn {
+    expect(false == true or true, "Equals binds tighter than or")
+    expect(10 == 10 and true, "Equals binds tighter than and")
+
+    expect(false != false or true, "Equals binds tighter than or")
+    expect(10 != 11 and true, "Equals binds tighter than and")
+})
+
+test("comparison order", fn {
+    expect(10 >  5 == true,  "Gt binds tighter than equals")
+    expect(10 >= 5 == true,  "Gte binds tighter than equals")
+    expect(10 <  5 == false, "Lt binds tighter than equals")
+    expect(10 <= 5 == false, "Lte binds tighter than equals")
+    
+    expect(10 >  5 != false, "Gt binds tighter than nequals")
+    expect(10 >= 5 != false, "Gte binds tighter than nequals")
+    expect(10 <  5 != true,  "Lt binds tighter than nequals")
+    expect(10 <= 5 != true,  "Lte binds tighter than nequals")
+})
+
+test("coalescence order", fn {
+    let coal: number? = null
+    expect(coal ?? 10 > 15 == false, "Coalesce binds tighter than comparisons")
+    expect(coal ?? 10 + 5 == 15, "Coalesce binds looser than arithmetic")
+})
+
+test("left to right", fn {
+    expect(10 == 10 == true, "Operators with same precedence are evaluated left to right")
+    expect(10 != 10 != true, "Operators with same precedence are evaluated left to right")
+})
+
+test("assignment opreator order", fn {
+    let x = 10
+    x *= 2 - 1
+
+    let y = 10
+    y /= 2 - 1
+
+    expect(x == 10, "Assignment operator binds looser than infix")
+    expect(y == 10, "Assignment operator binds looser than infix")
+})
+
+test("is-ordering", fn {
+    type T = { x: number }
+
+    let t = T => { x: 10 }
+    
+    expect(t is T or false, "is binds tighter than logic")
+    expect(t is T == true, "is binds tighter than comparison")
+})
+
+test("as-ordering", fn {
+    type T = { x: number }
+
+    let t = { x: 10 }
+    
+    expect(t as T is T, "as binds left to right with is")
+})
+
+test("satisfies-ordering", fn {
+    type T = { x: number }
+
+    let t = { x: 10 }
+    
+    expect(t satisfies T or false, "satisfies binds tighter than logic")
+    expect(t satisfies T == true, "satisfies binds tighter than comparison")
+})
+
 pop_scope()
