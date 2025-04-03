@@ -323,6 +323,7 @@ bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions options)
 
 void bt_close_compiler(bt_Compiler* compiler)
 {
+    // The compiler doesn't actually own any memory yet, but this is here for parity with other parts for now
 }
 
 static bt_Op* op_at(FunctionContext* ctx, uint32_t idx)
@@ -666,9 +667,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
             else if (lhs->as.binary_op.accelerated && ctx->compiler->options.predict_hash_slots) {
                 if (lhs->as.binary_op.left->resulting_type->category != BT_TYPE_CATEGORY_ARRAY) {
+                    
                     uint8_t idx = push(ctx,
                         BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
-                    
                     emit_abc(ctx, BT_OP_LOAD_IDX, start_loc, obj_loc, lhs->as.binary_op.idx, BT_TRUE);
                     emit_aibc(ctx, BT_OP_IDX_EXT, 0, idx);
                 }
@@ -968,7 +969,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         }
 
         uint8_t val_loc = get_register(ctx);
-
 
         for (uint32_t i = 0; i < fields->length; ++i) {
             bt_AstNode* entry = fields->elements[i];
@@ -1310,22 +1310,9 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     bt_AstBuffer* body = &compiler->input->root->as.module.body;
     bt_ImportBuffer* imports = &compiler->input->root->as.module.imports;
 
-    FunctionContext fn;
-    fn.min_top_register = 0;
-    fn.registers.regs[0] = 0;
-    fn.registers.regs[1] = 0;
-    fn.registers.regs[2] = 0;
-    fn.registers.regs[3] = 0;
-    fn.temp_top = 0;
-    fn.binding_top = 0;
-    fn.scope_depth = 0;
-    bt_buffer_empty(&fn.output);
-    bt_buffer_empty(&fn.constants);
-    bt_buffer_empty(&fn.debug);
+    FunctionContext fn = {0};
     fn.context = compiler->context;
     fn.compiler = compiler;
-    fn.loop_depth = 0;
-    fn.fn = 0;
 
     push_scope(&fn);
 
@@ -1365,27 +1352,13 @@ bt_Module* bt_compile(bt_Compiler* compiler)
 
 static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn) 
 {
-    FunctionContext ctx;
-    ctx.min_top_register = 0;
-    ctx.registers.regs[0] = 0;
-    ctx.registers.regs[1] = 0;
-    ctx.registers.regs[2] = 0;
-    ctx.registers.regs[3] = 0;
-    ctx.temp_top = 0;
-    ctx.binding_top = 0;
-    ctx.scope_depth = 0;
-    bt_buffer_empty(&ctx.output);
-    bt_buffer_empty(&ctx.constants);
-    bt_buffer_empty(&ctx.debug);
+    FunctionContext ctx = {0};
     ctx.context = compiler->context;
     ctx.compiler = compiler;
     ctx.outer = parent;
-    ctx.module = 0;
-    ctx.loop_depth = 0;
     ctx.fn = fn;
 
     push_scope(&ctx);
-
 
     bt_ArgBuffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {

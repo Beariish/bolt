@@ -345,7 +345,7 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE);
 	result->as.fn.return_type = ret;
 	bt_buffer_with_capacity(&result->as.fn.args, context, arg_count);
-	for (uint8_t i = 0; i < arg_count; ++i) bt_buffer_push(context, &result->as.fn.args, args[i]);
+	for (uint8_t i = 0; i < arg_count; ++i) { bt_buffer_push(context, &result->as.fn.args, args[i]); }
 	result->as.fn.is_vararg = BT_FALSE;
 	result->as.fn.varargs_type = NULL;
 	result->as.fn.is_method = BT_FALSE;

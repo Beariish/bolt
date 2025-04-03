@@ -1,8 +1,6 @@
 #pragma once
 
 #include "bt_prelude.h"
-#include "bt_op.h"
-
 #include "bt_parser.h"
 
 typedef struct bt_CompilerOptions {

@@ -11,26 +11,26 @@
 	(char**)&(b)->elements, &(b)->length, &(b)->capacity, sizeof(*(b)->elements)
 
 #define bt_buffer_empty(b) \
-	{ (b)->elements = 0; (b)->length = (b)->capacity = 0; }
+	(b)->elements = 0; (b)->length = (b)->capacity = 0
 
 #define bt_buffer_with_capacity(b, ctx, cap) \
-	{ bt_buffer_empty(b); bt_buffer_reserve_(ctx, bt_buffer_unpack(b), cap); }
+	bt_buffer_empty(b); bt_buffer_reserve_(ctx, bt_buffer_unpack(b), cap)
 
 #define bt_buffer_reserve(b, ctx, cap) \
-	{ bt_buffer_reserve_(ctx, bt_buffer_unpack(b), cap); }
+	bt_buffer_reserve_(ctx, bt_buffer_unpack(b), cap)
 
 #define bt_buffer_destroy(ctx, b) \
-	{ bt_buffer_free(ctx, bt_buffer_unpack(b)); }
+	bt_buffer_free(ctx, bt_buffer_unpack(b))
 
 #define bt_buffer_clone(ctx, dst, src) \
-	{ bt_buffer_clone_(ctx, bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
+	bt_buffer_clone_(ctx, bt_buffer_unpack(dst), bt_buffer_unpack(src))
 
 #define bt_buffer_push(ctx, b, elem) \
-	{ bt_buffer_expand(ctx, bt_buffer_unpack(b), 1); \
-		(b)->elements[(b)->length++] = elem; }
+	bt_buffer_expand(ctx, bt_buffer_unpack(b), 1); \
+		(b)->elements[(b)->length++] = elem
 
 #define bt_buffer_append(ctx, dst, src) \
-	{ bt_buffer_append_(ctx, bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
+	bt_buffer_append_(ctx, bt_buffer_unpack(dst), bt_buffer_unpack(src))
 
 #define bt_buffer_pop(b) \
 	(b)->elements[--(b)->length]
@@ -42,7 +42,7 @@
 	(sizeof(*(b)->elements) * (b)->capacity)
 
 #define bt_buffer_move(dst, src) \
-	{ bt_buffer_move_(bt_buffer_unpack(dst), bt_buffer_unpack(src)); }
+	bt_buffer_move_(bt_buffer_unpack(dst), bt_buffer_unpack(src))
 
 
 void bt_buffer_reserve_(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap);
