@@ -35,13 +35,13 @@ typedef struct bt_Object {
 
 #define BT_OBJ_PTR_BITS 0b0000000000000000111111111111111111111111111111111111111111111100ull
 
-#define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->mask &= (BT_OBJ_PTR_BITS | 1ull); ((bt_Object*)(__obj))->mask |= (uint64_t)__type << 56ull;
+#define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->mask &= (BT_OBJ_PTR_BITS | 1ull); ((bt_Object*)(__obj))->mask |= (uint64_t)(__type) << 56ull;
 #define BT_OBJECT_GET_TYPE(__obj) ((((bt_Object*)(__obj))->mask) >> 56)
 
 #define BT_OBJECT_NEXT(__obj) (((bt_Object*)(__obj))->mask & BT_OBJ_PTR_BITS)
-#define BT_OBJECT_SET_NEXT(__obj, __next) (__obj)->mask = ((__obj)->mask & ~BT_OBJ_PTR_BITS) | ((uint64_t)__next)
+#define BT_OBJECT_SET_NEXT(__obj, __next) ((__obj)->mask = ((__obj)->mask & ~BT_OBJ_PTR_BITS) | ((uint64_t)(__next)))
 
-#define BT_OBJECT_GET_MARK(__obj) (__obj)->mask & 1ull
+#define BT_OBJECT_GET_MARK(__obj) ((__obj)->mask & 1ull)
 #define BT_OBJECT_MARK(__obj) (__obj)->mask |= 1ull
 #define BT_OBJECT_CLEAR(__obj) (__obj)->mask &= ~1ull
 #else
@@ -75,8 +75,8 @@ typedef struct bt_Table {
 	bt_TablePair* outline;
 } bt_Table;
 
-#define BT_TABLE_INLINE_OFFSET (sizeof(bt_Table) - sizeof(bt_TablePair*))
-#define BT_TABLE_PAIRS(t) (((bt_Table*)t)->is_inline ? ((bt_TablePair*)((char*)(t) + BT_TABLE_INLINE_OFFSET)) : ((bt_Table*)t)->outline)
+#define BT_TABLE_INLINE_OFFSET ((sizeof(bt_Table) - sizeof(bt_TablePair*)) / sizeof(intptr_t))
+#define BT_TABLE_PAIRS(t) (((bt_Table*)(t))->is_inline ? ((bt_TablePair*)((intptr_t*)(t) + BT_TABLE_INLINE_OFFSET)) : ((bt_Table*)(t))->outline)
 
 typedef struct bt_Array {
 	bt_Object obj;
@@ -91,7 +91,7 @@ typedef struct bt_String {
 	uint32_t len : 31;
 } bt_String;
 
-#define BT_STRING_STR(s) (((char*)s) + sizeof(bt_String))
+#define BT_STRING_STR(s) (((char*)(s)) + sizeof(bt_String))
 
 typedef struct bt_ModuleImport {
 	bt_Object obj;
@@ -140,7 +140,7 @@ typedef struct bt_Closure {
 	uint32_t num_upv;
 } bt_Closure;
 
-#define BT_CLOSURE_UPVALS(c) ((bt_Value*)(((char*)c) + sizeof(bt_Closure)))
+#define BT_CLOSURE_UPVALS(c) ((bt_Value*)(((intptr_t*)(c)) + (sizeof(bt_Closure) / sizeof(intptr_t))))
 
 typedef void (*bt_NativeProc)(bt_Context* ctx, bt_Thread* thread);
 

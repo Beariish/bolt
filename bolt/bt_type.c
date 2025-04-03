@@ -1,7 +1,6 @@
 #include "bt_type.h"
 #include "bt_context.h"
 
-#include <memory.h>
 #include <string.h>
 #include <assert.h>
 
