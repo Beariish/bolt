@@ -2617,6 +2617,11 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     if (identifier->type != BT_AST_NODE_IDENTIFIER || type_check(parse, identifier)->resulting_type == parse->context->types.boolean)
     {
         // "while"-style loop
+        if (needs_const) {
+            parse_error_token(parse, "'while'-style loops cannot have constant iterators", token);
+            return NULL;
+        }
+        
         if (type_check(parse, identifier)->resulting_type != parse->context->types.boolean) {
             parse_error_token(parse, "'while'-style loop condition must be boolean expression: '%.*s'", identifier->source);
             return NULL;
@@ -2652,7 +2657,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     bt_Type* generator_type = type_check(parse, iterator)->resulting_type;
 
     if (!generator_type) {
-        parse_error_token(parse, "Failed to determine type of generator '%.*s'", iterator->source);
+        parse_error_token(parse, "Failed to determine type of iterator '%.*s'", iterator->source);
         return NULL;
     }
 
