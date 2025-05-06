@@ -137,7 +137,6 @@ eat_whitespace:
 	case '/':
 		if (*(tok->current + 1) == '/') {
 			while (*tok->current != '\n') tok->current++;
-			tok->line++; tok->col = 1;
 			goto eat_whitespace;
 		}
 		else if (*(tok->current + 1) == '*') {
