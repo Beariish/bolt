@@ -134,4 +134,65 @@ test("many-parameter function expression inference", fn {
     expect(f is type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
 })
 
+test("function with ifs signature inference", fn {
+    fn f(x: any, t: string) {
+        if t == "string" {
+            return x as string!
+        } else if t == "number" {
+            return x as number!
+        }
+
+        return null
+    }
+
+    expect(typeof(f) == type(fn(any, string): string | number | null), "Expected f to be 'fn(any, string): string | number | null'")
+    expect(f is type(fn(any, string): string | number | null), "Expected f to be 'fn(any, string): string | number | null'")
+})
+
+test("function with ifs returning unions signature inference", fn {
+    fn f(x: any, t: string) {
+        if t == "string" {
+            return x as string
+        } else if t == "number" {
+            return x as number
+        }
+
+        return null
+    }
+
+    expect(typeof(f) == type(fn(any, string): string | number | null), "Expected f to be 'fn(any, string): string | number | null'")
+    expect(f is type(fn(any, string): string | number | null), "Expected f to be 'fn(any, string): string | number | null'")
+})
+
+test("function with nested ifs returning unions signature inference", fn {
+    fn f(x: any, t: string) {
+        if t == "string" {
+            if t == "true" {
+                return true
+            } else if t == "false" {
+                return false
+            } else {
+                return x as string
+            }
+        } else if t == "number" {
+            return x as number
+        }
+
+        return null
+    }
+
+    expect(typeof(f) == type(fn(any, string): string | number | bool | null), "Expected f to be 'fn(any, string): string | number | bool | null'")
+    expect(f is type(fn(any, string): string | number | bool | null), "Expected f to be 'fn(any, string): string | number | bool | null'")
+})
+
+test("function with infinite loop signature inference", fn {
+    fn f() {
+        for { return 1 }
+        return false
+    }
+
+    expect(typeof(f) == type(fn: number | bool), "Expected f to be 'fn: number | bool'")
+    expect(f is type(fn: number | bool), "Expected f to be 'fn: number | bool'")
+})
+
 pop_scope()

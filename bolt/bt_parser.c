@@ -186,24 +186,6 @@ static bt_ParseBinding* find_local(bt_Parser* parse, bt_AstNode* identifier)
     return NULL;
 }
 
-static bt_ParseBinding* find_local_fast(bt_Parser* parse, bt_StrSlice identifier)
-{
-    bt_ParseScope* current = parse->scope;
-
-    while (current) {
-        for (uint32_t i = 0; i < current->bindings.length; ++i) {
-            bt_ParseBinding* binding = current->bindings.elements + i;
-            if (bt_strslice_compare(binding->name, identifier)) {
-                return binding;
-            }
-        }
-
-        current = current->is_fn_boundary ? NULL : current->last;
-    }
-
-    return NULL;
-}
-
 static bt_ParseBinding* find_local_exhaustive(bt_Parser* parse, bt_StrSlice identifier)
 {
     bt_ParseScope* current = parse->scope;
@@ -1065,6 +1047,15 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
                 elif = elif->as.branch.next;
             }
         }
+        else if (expr->type == BT_AST_NODE_LOOP_WHILE) {
+            expected = infer_return(parse, ctx, &expr->as.loop_while.body, expected, is_inferable, level + 1);
+        }
+        else if (expr->type == BT_AST_NODE_LOOP_NUMERIC) {
+            expected = infer_return(parse, ctx, &expr->as.loop_numeric.body, expected, is_inferable, level + 1);
+        }
+        else if (expr->type == BT_AST_NODE_LOOP_ITERATOR) {
+            expected = infer_return(parse, ctx, &expr->as.loop_iterator.body, expected, is_inferable, level + 1);
+        }
     }
 
     if (level == 0 && !has_return && expected) {
@@ -1558,6 +1549,32 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident)
     return NULL;
 }
 
+static bt_Type* resolve_to_type(bt_Parser* parse, bt_AstNode* node)
+{
+    if (node->type == BT_AST_NODE_ALIAS) {
+        return node->as.alias.type;
+    }
+
+    if (node->type == BT_AST_NODE_TYPE) {
+        return node->resulting_type;
+    }
+
+    bt_Type* to_ret = NULL;
+    if (node->type == BT_AST_NODE_IDENTIFIER) {
+        to_ret = find_binding(parse, node);
+    }
+
+    if (node->type == BT_AST_NODE_IMPORT_REFERENCE) {
+        bt_ModuleImport* import = find_import(parse, node);
+        bt_Object* value = BT_AS_OBJECT(import->value);
+        if (BT_OBJECT_GET_TYPE(value) == BT_OBJECT_TYPE_TYPE) {
+            return (bt_Type*)value;
+        }
+    }
+
+    return to_ret;
+}
+
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 {
     if (!node || node->resulting_type) {
@@ -1788,12 +1805,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return node;
             }
 
-            bt_Type* type = type_check(parse, node->as.binary_op.right)->resulting_type;
+            bt_Type* type = resolve_to_type(parse, node->as.binary_op.right);
+            type = bt_type_dealias(type);
 
-            bt_Type* to = type->as.type.boxed;
-
-            if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && to->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                if (to->as.table_shape.sealed && from->as.table_shape.layout->length != to->as.table_shape.layout->length) {
+            if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+                if (type->as.table_shape.sealed && from->as.table_shape.layout->length != type->as.table_shape.layout->length) {
                     parse_error(parse, "Lhs has too many fields to conform to rhs", node->source->line, node->source->col);
                     return node;
                 }
@@ -1801,7 +1817,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 node->as.binary_op.accelerated = 1;
 
                 bt_Table* lhs = from->as.table_shape.layout;
-                bt_Table* rhs = to->as.table_shape.layout;
+                bt_Table* rhs = type->as.table_shape.layout;
                 
                 for (uint32_t i = 0; i < lhs->length; ++i) {
                     bt_TablePair* current = BT_TABLE_PAIRS(lhs) + i;
@@ -1834,7 +1850,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
             }
 
-            node->resulting_type = bt_make_nullable(parse->context, type->as.type.boxed);
+            node->resulting_type = bt_make_nullable(parse->context, type);
         } break;
         case BT_TOKEN_COMPOSE: {
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;

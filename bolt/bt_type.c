@@ -521,7 +521,16 @@ bt_Type* bt_make_union(bt_Context* context)
 
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
-	bt_buffer_push(context, &uni->as.selector.types, variant);
+	if (variant->category == BT_TYPE_CATEGORY_UNION) {
+		for (uint32_t i = 0; i < variant->as.selector.types.length; ++i) {
+			bt_Type* other_variant = variant->as.selector.types.elements[i];
+			if (!bt_type_satisfier_union(uni, other_variant)) {
+				bt_buffer_push(context, &uni->as.selector.types, other_variant);
+			}
+		}
+	} else {
+		bt_buffer_push(context, &uni->as.selector.types, variant);
+	}
 
 	// todo(bearish): don't like this
 	uint32_t new_length = 0;
