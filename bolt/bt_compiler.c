@@ -107,11 +107,8 @@ static void table_ensure_template_made(bt_Context* ctx, bt_Type* tblshp)
     }
 }
 
-static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c, bt_bool is_accelerated)
+static uint32_t emit_op(FunctionContext* ctx, bt_Op op)
 {
-    bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
-    if (is_accelerated) op = BT_ACCELERATE_OP(op);
-
     bt_buffer_push(ctx->context, &ctx->output, op);
 
     if (ctx->compiler->options.generate_debug_info) {
@@ -126,18 +123,25 @@ static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_
 #endif
                 bt_buffer_push(ctx->context, &ctx->debug, 0);
             }
+        } else {
+            bt_buffer_push(ctx->context, &ctx->debug, 0);
         }
     }
 
     return ctx->output.length - 1;
 }
 
+static uint32_t emit_abc(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, uint8_t c, bt_bool is_accelerated)
+{
+    bt_Op op = BT_MAKE_OP_ABC(code, a, b, c);
+    if (is_accelerated) op = BT_ACCELERATE_OP(op);
+    return emit_op(ctx, op);
+}
+
 static uint32_t emit_aibc(FunctionContext* ctx, bt_OpCode code, uint8_t a, int16_t ibc)
 {
     bt_Op op = BT_MAKE_OP_AIBC(code, a, ibc);
-    bt_buffer_push(ctx->context, &ctx->output, op);
-
-    return ctx->output.length - 1;
+    return emit_op(ctx, op);
 }
 
 static uint32_t emit_ab(FunctionContext* ctx, bt_OpCode code, uint8_t a, uint8_t b, bt_bool is_accelerated)
