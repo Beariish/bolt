@@ -30,8 +30,7 @@
     X(NEQ)         /*  R(a) = R(b) != R(c)                           */             \
     X(LT)          /*  R(a) = R(b) < R(c)                            */             \
     X(LTE)         /*  R(a) = R(b) <= R(c)                           */             \
-    X(AND)         /*  R(a) = R(b) and R(c)                          */             \
-    X(OR)          /*  R(a) = R(b) or R(c)                           */             \
+    X(TEST)        /*  if(R(a) == (bool)acc) ip += ibc               */             \
     X(NOT)         /*  R(a) = not R(b)                               */             \
     X(LOAD_IDX)    /*  R(a) = R(b).[R(c)]                            */             \
     X(STORE_IDX)   /*  R(b).[R(c)] = R(a)                            */             \

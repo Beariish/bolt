@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 #include "bt_context.h"
 #include "bt_debug.h"
@@ -335,6 +336,10 @@ static bt_Op* op_at(FunctionContext* ctx, uint32_t idx)
     return ctx->output.elements + idx;
 }
 
+static uint32_t op_count(FunctionContext* ctx)
+{
+    return ctx->output.length;    
+}
 
 static uint8_t push(FunctionContext* ctx, bt_Value value)
 {
@@ -747,6 +752,26 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         uint8_t lhs_loc = find_binding_or_compile_loc(ctx, lhs, result_loc);
 
+        uint8_t handled = 0;
+        uint8_t test = 0;
+        switch (expr->source->type) {
+        case BT_TOKEN_AND:
+            test = 1;
+        case BT_TOKEN_OR:
+            uint32_t instruction_idx = emit_aibc(ctx, BT_OP_TEST, result_loc, 0);
+            uint8_t rhs_loc = find_binding_or_compile_loc(ctx, rhs, result_loc);
+
+            bt_Op* test_op = op_at(ctx, instruction_idx);
+            uint32_t jmp_loc = op_count(ctx);
+
+            *test_op = BT_MAKE_OP_AIBC(BT_OP_TEST, result_loc, jmp_loc - instruction_idx - 1);
+            if (!test) *test_op = BT_ACCELERATE_OP(*test_op);
+            handled = 1;
+            break;
+        }
+
+        if (handled) break;
+            
         StorageClass storage = STORAGE_REGISTER;
         if (is_assigning(expr->source->type)) {
             storage = get_storage(ctx, lhs);
@@ -838,12 +863,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_DIVEQ:
             HOISTABLE_OP(unhoist_div)
             else { unhoist_div: emit_abc(ctx, BT_OP_DIV, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic); }
-            break;
-        case BT_TOKEN_AND:
-            emit_abc(ctx, BT_OP_AND, result_loc, lhs_loc, rhs_loc, BT_FALSE);
-            break;
-        case BT_TOKEN_OR:
-            emit_abc(ctx, BT_OP_OR, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_NULLCOALESCE:
             emit_abc(ctx, BT_OP_COALESCE, result_loc, lhs_loc, rhs_loc, BT_FALSE);

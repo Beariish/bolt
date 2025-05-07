@@ -153,8 +153,7 @@ static bt_bool is_op_abc(uint8_t op) {
 	case BT_OP_EXPORT: case BT_OP_CLOSE:
 	case BT_OP_ADD: case BT_OP_SUB: case BT_OP_MUL: case BT_OP_DIV:
 	case BT_OP_EQ: case BT_OP_NEQ: case BT_OP_LT: case BT_OP_LTE:
-	case BT_OP_AND: case BT_OP_OR: case BT_OP_LOAD_IDX:
-	case BT_OP_LOAD_IDX_K: case BT_OP_STORE_IDX_K:
+	case BT_OP_LOAD_IDX: case BT_OP_LOAD_IDX_K: case BT_OP_STORE_IDX_K:
 	case BT_OP_STORE_IDX: case BT_OP_LOAD_PROTO:
 	case BT_OP_COALESCE: case BT_OP_TCHECK:
 	case BT_OP_TSATIS: case BT_OP_TCAST:
@@ -194,6 +193,7 @@ static bt_bool is_op_aibc(uint8_t op) {
 	case BT_OP_LOAD_IMPORT: case BT_OP_TABLE:
 	case BT_OP_ARRAY: case BT_OP_JMPF:
 	case BT_OP_NUMFOR: case BT_OP_ITERFOR: 
+	case BT_OP_TEST:
 		return BT_TRUE;
 	default:
 		return BT_FALSE;

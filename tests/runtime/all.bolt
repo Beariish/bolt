@@ -2,5 +2,6 @@ import * from "../test"
 import "_scope"
 
 import "arithmetic"
+import "short_circuit"
 
 pop_scope() 

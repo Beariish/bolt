@@ -1039,26 +1039,6 @@ static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict resul
 	bt_runtime_error(thread, "Cannot lte non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_and(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
-{
-	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
-		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) && BT_IS_TRUE(rhs));
-		return;
-	}
-
-	bt_runtime_error(thread, "Cannot 'and' non-bool value!", ip);
-}
-
-static BT_FORCE_INLINE void bt_or(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
-{
-	if (BT_IS_BOOL(lhs) && BT_IS_BOOL(rhs)) {
-		*result = BT_VALUE_BOOL(BT_IS_TRUE(lhs) || BT_IS_TRUE(rhs));
-		return;
-	}
-
-	bt_runtime_error(thread, "Cannot 'or' non-bool value!", ip);
-}
-
 static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, bt_Module* __restrict module, bt_Op* __restrict ip, bt_Value* __restrict constants, int8_t return_loc)
 {
 	register bt_Value* __restrict stack = thread->stack + thread->top;
@@ -1183,10 +1163,14 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			else bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
 		NEXT;
 
-		CASE(AND): bt_and(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
-		CASE(OR):  bt_or(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  NEXT;
-		CASE(NOT): bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      NEXT;
+		CASE(NOT): bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip); NEXT;
 
+		CASE(TEST):
+			if (stack[BT_GET_A(op)] == BT_VALUE_BOOL(BT_IS_ACCELERATED(op))) {
+				ip += BT_GET_IBC(op);
+			}
+			NEXT;
+			
 		CASE(LOAD_IDX):
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
 			if (BT_IS_ACCELERATED(op)) {
