@@ -10,7 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
-static void parse_block(bt_AstBuffer* result, bt_Parser* parse);
+static void parse_block(bt_AstBuffer* result, bt_Parser* parse, bt_AstNode* scoped_ident);
+static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_tok, bt_AstNode* scoped_ident);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
@@ -1158,7 +1159,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             push_arg(parse, result->as.fn.args.elements + i, result->source);
         }
 
-        parse_block(&result->as.fn.body, parse);
+        parse_block(&result->as.fn.body, parse, NULL);
         
         pop_scope(parse);
     }
@@ -1187,9 +1188,10 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
     return result;
 }
 
-static void parse_block(bt_AstBuffer* result, bt_Parser* parse)
+static void parse_block(bt_AstBuffer* result, bt_Parser* parse, bt_AstNode* scoped_ident)
 {
     push_scope(parse, BT_FALSE);
+    if (scoped_ident) push_local(parse, scoped_ident);
 
     bt_Token* next = bt_tokenizer_peek(parse->tokenizer);
     bt_Token* start = next;
@@ -1207,6 +1209,35 @@ static void parse_block(bt_AstBuffer* result, bt_Parser* parse)
     }
 
     pop_scope(parse);
+}
+
+static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_tok, bt_AstNode* scoped_ident)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+
+    bt_Token* next = bt_tokenizer_peek(tok);
+
+    bt_AstBuffer body;
+    bt_buffer_with_capacity(&body, parse->context, 8);
+
+    if (next->type == BT_TOKEN_LEFTBRACE) {
+        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
+        parse_block(&body, parse, scoped_ident);
+        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+        return body;
+    }
+
+    if (next->type == single_tok || single_tok == 0) {
+        if (single_tok) bt_tokenizer_emit(tok); // skip single tok
+        push_scope(parse, BT_FALSE);
+        if (scoped_ident) push_local(parse, scoped_ident);
+        bt_AstNode* expr = pratt_parse(parse, 0);
+        bt_buffer_push(parse->context, &body, expr);
+        pop_scope(parse);
+        return body;
+    }
+
+    return body;
 }
 
 static bt_bool is_recursive_alias(bt_Parser* parse, bt_AstNode* ident)
@@ -2526,18 +2557,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         result->as.branch.condition = expr;
         result->as.branch.bound_type = binding_type;
 
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-
-        push_scope(parser, BT_FALSE);
-        push_local(parser, result);
-        bt_AstBuffer body;
-        bt_buffer_with_capacity(&body, parser->context, 8);
-        parse_block(&body, parser);
-        pop_scope(parser);
-
-        result->as.branch.body = body;
-
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+        result->as.branch.body = parse_block_or_single(parser, BT_TOKEN_THEN, result);
     }
     else {
         bt_AstNode* condition = pratt_parse(parser, 0);
@@ -2552,18 +2572,10 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             return NULL;
         }
 
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-
-        bt_AstBuffer body;
-        bt_buffer_with_capacity(&body, parser->context, 8);
-        parse_block(&body, parser);
-
         result->source = condition->source;
         result->as.branch.condition = condition;
-        result->as.branch.body = body;
         result->as.branch.is_let = BT_FALSE;
-
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
+        result->as.branch.body = parse_block_or_single(parser, BT_TOKEN_THEN, NULL);
     }
 
     next = bt_tokenizer_peek(tok);
@@ -2580,15 +2592,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             else_node->as.branch.condition = NULL;
             else_node->as.branch.next = NULL;
             else_node->as.branch.is_let = BT_FALSE;
-
-            bt_AstBuffer body;
-            bt_buffer_with_capacity(&body, parser->context, 8);
-            
-            bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-            parse_block(&body, parser);
-            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-
-            else_node->as.branch.body = body;
+            else_node->as.branch.body = parse_block_or_single(parser, 0, NULL);
 
             result->as.branch.next = else_node;
         }
@@ -2611,7 +2615,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     }
 
     bt_AstNode* identifier;
-    if (token->type == BT_TOKEN_LEFTBRACE) identifier = token_to_node(parse, tok->literal_true);
+    if (token->type == BT_TOKEN_LEFTBRACE || token->type == BT_TOKEN_DO) identifier = token_to_node(parse, tok->literal_true);
     else identifier = pratt_parse(parse, 0);
 
     if (identifier->type != BT_AST_NODE_IDENTIFIER || type_check(parse, identifier)->resulting_type == parse->context->types.boolean)
@@ -2630,18 +2634,8 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_WHILE);
         result->as.loop_while.condition = identifier;
 
-        bt_AstBuffer body;
-        bt_buffer_with_capacity(&body, parse->context, 8);
+        result->as.loop_while.body = parse_block_or_single(parse, BT_TOKEN_DO, NULL);
 
-        push_scope(parse, BT_FALSE);
-
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-        parse_block(&body, parse);
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-
-        pop_scope(parse);
-
-        result->as.loop_while.body = body;
         return result;
     }
 
@@ -2694,26 +2688,13 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         identifier->resulting_type = parse->context->types.number;
         result->as.loop_numeric.identifier = identifier;
 
-        bt_AstBuffer body;
-        bt_buffer_with_capacity(&body, parse->context, 8);
-
-        push_scope(parse, BT_FALSE);
-
         bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
         ident_as_let->as.let.initializer = NULL;
         ident_as_let->as.let.is_const = needs_const;
         ident_as_let->as.let.name = identifier->source->source;
         ident_as_let->resulting_type = identifier->resulting_type;
-
-        push_local(parse, ident_as_let);
-
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-        parse_block(&body, parse);
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-
-        pop_scope(parse);
-
-        result->as.loop_numeric.body = body;
+        
+        result->as.loop_numeric.body = parse_block_or_single(parse, BT_TOKEN_DO, ident_as_let);
 
         return result;
     }
@@ -2733,27 +2714,14 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     bt_Type* it_type = bt_remove_nullable(parse->context, generated_type);
     identifier->resulting_type = it_type;
 
-    bt_AstBuffer body;
-    bt_buffer_with_capacity(&body, parse->context, 8);
-
-    push_scope(parse, BT_FALSE);
-
     bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
     ident_as_let->as.let.initializer = NULL;
     ident_as_let->as.let.is_const = needs_const;
     ident_as_let->as.let.name = identifier->source->source;
     ident_as_let->resulting_type = identifier->resulting_type;
 
-    push_local(parse, ident_as_let);
-
-    bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
-    parse_block(&body, parse);
-    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
-    
-    pop_scope(parse);
-
     bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_ITERATOR);
-    result->as.loop_iterator.body = body;
+    result->as.loop_iterator.body = parse_block_or_single(parse, BT_TOKEN_DO, ident_as_let);
     result->as.loop_iterator.identifier = identifier;
     result->as.loop_iterator.iterator = iterator;
 
@@ -2896,7 +2864,7 @@ static bt_AstNode* parse_method(bt_Parser* parse)
             bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
         }
 
-        parse_block(&result->as.fn.body, parse);
+        parse_block(&result->as.fn.body, parse, NULL);
 
         pop_scope(parse);
     }

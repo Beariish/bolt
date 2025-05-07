@@ -288,6 +288,8 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("enum", token, BT_TOKEN_ENUM)
 		else BT_TEST_KEYWORD("break", token, BT_TOKEN_BREAK)
 		else BT_TEST_KEYWORD("continue", token, BT_TOKEN_CONTINUE)
+		else BT_TEST_KEYWORD("do", token, BT_TOKEN_DO)
+		else BT_TEST_KEYWORD("then", token, BT_TOKEN_THEN)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, token);
@@ -449,6 +451,8 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_BY: return "by";
 	case BT_TOKEN_IS: return "is";
 	case BT_TOKEN_AS: return "as";
+	case BT_TOKEN_DO: return "do";
+	case BT_TOKEN_THEN: return "then";
 	case BT_TOKEN_FINAL: return "final";
 	case BT_TOKEN_UNSEALED: return "unsealed";
 	case BT_TOKEN_FATARROW: return "=>";
