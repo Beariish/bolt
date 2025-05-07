@@ -15,7 +15,7 @@ static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
-static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power);
+static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power);
 static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
@@ -372,7 +372,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     token = bt_tokenizer_peek(parse->tokenizer);
     while (token && token->type != BT_TOKEN_RIGHTBRACE) {
-        bt_AstNode* key_expr = pratt_parse(parse, 0);
+        bt_AstNode* key_expr = parse_expression(parse, 0);
 
         if (!key_expr) {
             parse_error_token(parse, "Missing key expression for table literal", result->source);
@@ -390,7 +390,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             parse_error_token(parse, "Expected colon after table field name, got '%.*s'", token);
         }
 
-        bt_AstNode* value_expr = pratt_parse(parse, 0);
+        bt_AstNode* value_expr = parse_expression(parse, 0);
 
         if (!value_expr) {
             parse_error_token(parse, "Missing value expression for key '%.*s'", key_expr->source);
@@ -692,7 +692,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             if (token->type == BT_TOKEN_ASSIGN) {
                 bt_tokenizer_emit(tok);
-                bt_AstNode* expr = pratt_parse(parse, 0);
+                bt_AstNode* expr = parse_expression(parse, 0);
                 if (type && !type_check(parse, expr)->resulting_type->satisfier(expr->resulting_type, type)) {
                     parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
                     return NULL;
@@ -747,7 +747,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         return result;
     } break;
     case BT_TOKEN_TYPEOF: {
-        bt_AstNode* inner = pratt_parse(parse, 0);
+        bt_AstNode* inner = parse_expression(parse, 0);
         bt_Type* result = type_check(parse, inner)->resulting_type;
 
         if (!result) {
@@ -786,7 +786,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
             break;
         }
 
-        bt_AstNode* expr = pratt_parse(parse, 0);
+        bt_AstNode* expr = parse_expression(parse, 0);
         bt_buffer_push(parse->context, &result->as.arr.items, expr);
 
         next = bt_tokenizer_peek(tok);
@@ -1231,7 +1231,7 @@ static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_
         if (single_tok) bt_tokenizer_emit(tok); // skip single tok
         push_scope(parse, BT_FALSE);
         if (scoped_ident) push_local(parse, scoped_ident);
-        bt_AstNode* expr = pratt_parse(parse, 0);
+        bt_AstNode* expr = parse_expression(parse, 0);
         bt_buffer_push(parse->context, &body, expr);
         pop_scope(parse);
         return body;
@@ -1246,7 +1246,7 @@ static bt_bool is_recursive_alias(bt_Parser* parse, bt_AstNode* ident)
     return (binding && binding->is_recurse);
 }
 
-static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
+static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power)
 {
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* lhs = bt_tokenizer_emit(tok);
@@ -1257,12 +1257,12 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         lhs_node = parse_function_literal(parse, NULL);
     }
     else if (lhs->type == BT_TOKEN_LEFTPAREN) {
-        lhs_node = pratt_parse(parse, 0);
+        lhs_node = parse_expression(parse, 0);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
     }
     else if (lhs->type == BT_TOKEN_TYPEOF) {
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
-        bt_AstNode* inner = pratt_parse(parse, 0);
+        bt_AstNode* inner = parse_expression(parse, 0);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
 
         bt_Type* result = type_check(parse, inner)->resulting_type;
@@ -1289,7 +1289,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
         lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
         lhs_node->source = lhs;
         lhs_node->as.unary_op.accelerated = BT_FALSE;
-        lhs_node->as.unary_op.operand = pratt_parse(parse, prefix_binding_power(lhs));
+        lhs_node->as.unary_op.operand = parse_expression(parse, prefix_binding_power(lhs));
     }
     else {
         lhs_node = token_to_node(parse, lhs);
@@ -1308,7 +1308,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
             if (op->type == BT_TOKEN_LEFTBRACKET)
             {
-                bt_AstNode* rhs = pratt_parse(parse, 0);
+                bt_AstNode* rhs = parse_expression(parse, 0);
                 bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
                 
                 bt_AstNode* lhs = lhs_node;
@@ -1351,7 +1351,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
 
                 bt_Token* next = bt_tokenizer_peek(tok);
                 while (next && next->type != BT_TOKEN_RIGHTPAREN) {
-                    args[max_arg++] = pratt_parse(parse, 0);
+                    args[max_arg++] = parse_expression(parse, 0);
                     next = bt_tokenizer_emit(tok);
 
                     if (!next || (next->type != BT_TOKEN_COMMA && next->type != BT_TOKEN_RIGHTPAREN)) {
@@ -1484,7 +1484,7 @@ static bt_AstNode* pratt_parse(bt_Parser* parse, uint32_t min_binding_power)
             if (infix_bp.left < min_binding_power) break;
             bt_tokenizer_emit(tok); // consume peeked operator
             
-            bt_AstNode* rhs = pratt_parse(parse, infix_bp.right);
+            bt_AstNode* rhs = parse_expression(parse, infix_bp.right);
 
             bt_AstNode* lhs = lhs_node;
             lhs_node = make_node(parse, BT_AST_NODE_BINARY_OP);
@@ -2137,7 +2137,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
 
     if (type_or_expr->type == BT_TOKEN_ASSIGN) {
         bt_tokenizer_emit(tok); // eat assignment operator
-        bt_AstNode* rhs = pratt_parse(parse, 0);
+        bt_AstNode* rhs = parse_expression(parse, 0);
         node->as.let.initializer = rhs;
 
         if (node->resulting_type) {
@@ -2206,7 +2206,7 @@ static bt_AstNode* parse_return(bt_Parser* parse)
     node->resulting_type = NULL;
 
     if (can_start_expression(node->source)) {
-        node->as.ret.expr = pratt_parse(parse, 0);
+        node->as.ret.expr = parse_expression(parse, 0);
         node->resulting_type = node->as.ret.expr ? type_check(parse, node->as.ret.expr)->resulting_type : NULL;
     }
     
@@ -2542,7 +2542,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             return NULL;
         }
 
-        bt_AstNode* expr = pratt_parse(parser, 0);
+        bt_AstNode* expr = parse_expression(parser, 0);
         bt_Type* result_type = type_check(parser, expr)->resulting_type;
         if (!bt_is_optional(result_type)) {
             parse_error_token(parser, "Type must be optional", expr->source);
@@ -2560,7 +2560,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         result->as.branch.body = parse_block_or_single(parser, BT_TOKEN_THEN, result);
     }
     else {
-        bt_AstNode* condition = pratt_parse(parser, 0);
+        bt_AstNode* condition = parse_expression(parser, 0);
         
         if (!condition) {
             parse_error(parser, "Failed to parse condition for if statement", next->line, next->col);
@@ -2616,7 +2616,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     bt_AstNode* identifier;
     if (token->type == BT_TOKEN_LEFTBRACE || token->type == BT_TOKEN_DO) identifier = token_to_node(parse, tok->literal_true);
-    else identifier = pratt_parse(parse, 0);
+    else identifier = parse_expression(parse, 0);
 
     if (identifier->type != BT_AST_NODE_IDENTIFIER || type_check(parse, identifier)->resulting_type == parse->context->types.boolean)
     {
@@ -2641,7 +2641,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     if (!bt_tokenizer_expect(tok, BT_TOKEN_IN)) return NULL;
 
-    bt_AstNode* iterator = pratt_parse(parse, 0);
+    bt_AstNode* iterator = parse_expression(parse, 0);
 
     if (!iterator) {
         parse_error_token(parse, "Failed to evaluate iterator '%.*s'", identifier->source);
@@ -2665,7 +2665,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         if (token->type == BT_TOKEN_TO) {
             bt_tokenizer_emit(tok);
             start = stop;
-            stop = pratt_parse(parse, 0);
+            stop = parse_expression(parse, 0);
         }
         else {
             start = token_to_node(parse, tok->literal_zero);
@@ -2674,7 +2674,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_BY) {
             bt_tokenizer_emit(tok);
-            step = pratt_parse(parse, 0);
+            step = parse_expression(parse, 0);
         }
         else {
             step = token_to_node(parse, tok->literal_one);
@@ -2957,7 +2957,7 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         return NULL;
     }
     default: // no statment structure found, assume expression
-        return pratt_parse(parse, 0);
+        return parse_expression(parse, 0);
     }
 }
 
