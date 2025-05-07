@@ -519,6 +519,21 @@ bt_Type* bt_make_union(bt_Context* context)
 	return result;
 }
 
+bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* variant)
+{
+	if (!uni) return variant;
+	if (uni == variant) return uni;
+	if (uni->category != BT_TYPE_CATEGORY_UNION) {
+		bt_Type* first = uni;
+		uni = bt_make_union(context);
+		bt_push_union_variant(context, uni, first);
+	}
+
+	bt_push_union_variant(context, uni, variant);
+	return uni;
+}
+
+
 void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
 	if (variant->category == BT_TYPE_CATEGORY_UNION) {

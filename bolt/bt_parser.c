@@ -11,6 +11,7 @@
 #include <string.h>
 
 static void parse_block(bt_AstBuffer* result, bt_Parser* parse, bt_AstNode* scoped_ident);
+static bt_AstNode* parse_if_expression(bt_Parser* parse);
 static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_tok, bt_AstNode* scoped_ident);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
@@ -884,7 +885,7 @@ static bt_AstNode* token_to_node(bt_Parser* parse, bt_Token* token)
         return parse_array(parse, token);
     } break;
     default:
-        parse_error_token(parse, "Internal parser error: Attempted to convert token '%.*s'", token);
+        parse_error_token(parse, "Token '%.*s' does not evaluate to an expression", token);
     }
 
     return NULL;
@@ -1284,6 +1285,10 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
         lhs_node = make_node(parse, BT_AST_NODE_TYPE);
         lhs_node->source = lhs;
         lhs_node->resulting_type = bt_make_alias(parse->context, inner->name, inner);
+    }
+    else if (lhs->type == BT_TOKEN_IF) {
+        lhs_node = parse_if_expression(parse);
+        type_check(parse, lhs_node);
     }
     else if (prefix_binding_power(lhs)) {
         lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
@@ -2599,6 +2604,57 @@ static bt_AstNode* parse_if(bt_Parser* parser)
     }
 
     return result;
+}
+
+static bt_AstNode* get_last_expr(bt_AstBuffer* body)
+{
+    return body->elements[(body->length - 1)];    
+}
+
+static bt_AstNode* parse_if_expression(bt_Parser* parse)
+{
+    bt_AstNode* branch = parse_if(parse);
+
+    bt_Type* aggregate_type = NULL;
+
+    bt_bool has_else = BT_FALSE;
+
+    bt_AstNode* last = branch;
+    bt_AstNode* current = branch;
+    while (current) {
+        current->as.branch.is_expr = BT_TRUE;
+
+        if (!current->as.branch.condition) has_else = BT_TRUE;
+        
+        bt_AstNode* last = get_last_expr(&current->as.branch.body);
+        bt_Type* branch_type = type_check(parse, last)->resulting_type;
+
+        if (!branch_type) {
+            bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
+            bt_buffer_push(parse->context, &current->as.branch.body, new_last);
+            branch_type = type_check(parse, new_last)->resulting_type;
+        }
+
+        aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, branch_type);
+        last = current;
+        current = current->as.branch.next;
+    }
+
+    if (!has_else) {
+        bt_AstNode* new_else = make_node(parse, BT_AST_NODE_IF);
+        new_else->as.branch.next = NULL;
+        new_else->as.branch.condition = NULL;
+        new_else->as.branch.is_let = BT_FALSE;
+        new_else->as.branch.is_expr = BT_TRUE;
+        bt_buffer_empty(&new_else->as.branch.body);
+        bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
+        bt_buffer_push(parse->context, &new_else->as.branch.body, new_last);
+        last->as.branch.next = new_else;
+        aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, parse->context->types.null);
+    }
+
+    branch->resulting_type = aggregate_type;
+    return branch;
 }
 
 static bt_AstNode* parse_for(bt_Parser* parse)

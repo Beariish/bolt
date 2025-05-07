@@ -135,7 +135,7 @@ typedef struct bt_AstNode {
 			bt_AstNode* condition;
 			bt_AstNode* next;
 			bt_Type* bound_type;
-			bt_bool is_let;
+			bt_bool is_let, is_expr;
 		} branch;
 
 		struct {

@@ -195,4 +195,43 @@ test("function with infinite loop signature inference", fn {
     expect(f is type(fn: number | bool), "Expected f to be 'fn: number | bool'")
 })
 
+test("if-expr correctly infers type", fn {
+    let const x = if true then 10 else 20
+
+    expect(typeof(x) == number, "Expected x to be 'number'")
+    expect(x is number, "Expected x to be 'number'")
+})
+
+test("if-expr correctly infers type with else if branches", fn {
+    let const x = if true then 10 
+                else if false then 20
+                else 30
+
+    expect(typeof(x) == number, "Expected x to be 'number'")
+    expect(x is number, "Expected x to be 'number'")
+})
+
+test("if-expr correctly infers union type", fn {
+    let const x = if true then 10 else "badabing!"
+
+    expect(typeof(x) == type(number | string), "Expected x to be 'number | string'")
+    expect(x is type(number | string), "Expected x to be 'number | string'")
+})
+
+test("if-expr correctly infers union type with else if branches", fn {
+    let const x = if true then 10 
+                else if false then null
+                else "badabing!"
+
+    expect(typeof(x) == type(number | string | null), "Expected x to be 'number | string | null'")
+    expect(x is type(number | string | null), "Expected x to be 'number | string | null'")
+})
+
+test("if-expr correctly infers type without else clause", fn {
+    let const x = if true then 10
+
+    expect(typeof(x) == type(number?), "Expected x to be 'number?'")
+    expect(x is type(number?), "Expected x to be 'number?'")
+})
+
 pop_scope()

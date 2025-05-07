@@ -136,6 +136,7 @@ BOLT_API void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value nam
 BOLT_API bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 
 BOLT_API bt_Type* bt_make_union(bt_Context* context);
+BOLT_API bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* variant);
 BOLT_API void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
 BOLT_API bt_bool bt_union_has_variant(bt_Type* uni, bt_Type* variant);
 

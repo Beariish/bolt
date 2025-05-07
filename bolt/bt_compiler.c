@@ -71,6 +71,7 @@ static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t push(FunctionContext* ctx, bt_Value value);
 static uint8_t push_load(FunctionContext* ctx, bt_Value value);
+static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 
 // ffsll intrinsic isn't on all platforms. some complicated platform defines could speed this up
 // but it's good enough for now
@@ -1047,6 +1048,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         uint8_t type_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
         emit_ab(ctx, BT_OP_LOAD, result_loc, type_idx, BT_FALSE);
     } break;
+    case BT_AST_NODE_IF: {
+       compile_if(ctx, expr, BT_TRUE, result_loc);
+    } break;
 #ifdef BT_DEBUG
     default: assert(0);
 #endif
@@ -1060,10 +1064,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
 static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt);
 
-static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body) 
+static bt_bool compile_expression_body(FunctionContext* ctx, bt_AstBuffer* body, bt_bool is_expr, uint8_t* out_expr_loc)
 {
     push_scope(ctx);
-    for (uint32_t i = 0; i < body->length; ++i)
+    
+    uint32_t stmt_count = body->length - is_expr;
+    for (uint32_t i = 0; i < stmt_count; ++i)
     {
         bt_AstNode* stmt = body->elements[i];
         if (!stmt) continue;
@@ -1080,9 +1086,26 @@ static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body)
         }
         else if (!compile_statement(ctx, stmt)) { pop_scope(ctx); return BT_FALSE; }
     }
+
+    if (is_expr) {
+        bt_AstNode* expr = body->elements[stmt_count];
+        uint8_t result_loc = *out_expr_loc == 0 ? get_register(ctx) : *out_expr_loc;
+        if (!compile_expression(ctx, expr, result_loc)) {
+            pop_scope(ctx);
+            return BT_FALSE;
+        }
+
+        *out_expr_loc = result_loc;
+    }
+
     pop_scope(ctx);
 
     return BT_TRUE;
+}
+
+static bt_bool compile_body(FunctionContext* ctx, bt_AstBuffer* body) 
+{
+    return compile_expression_body(ctx, body, BT_FALSE, NULL);
 }
 
 static void setup_loop(FunctionContext* ctx, uint16_t loop_start)
@@ -1100,6 +1123,71 @@ static void resolve_breaks(FunctionContext* ctx)
         bt_Op* op = op_at(ctx, loc);
         BT_SET_IBC(*op, ctx->output.length - loc - 1);
     }
+}
+
+static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc)
+{
+    uint32_t end_points[64];
+    uint8_t end_top = 0;
+
+    bt_AstNode* current = stmt;
+
+    while (current) {
+        push_registers(ctx);
+
+        if (is_expr && !current->as.branch.is_expr) {
+            compile_error_token(ctx->compiler, "Expected 'if' expression, but got statement", current->source);
+            return BT_FALSE;
+        }
+        
+        uint32_t jump_loc = 0;
+
+        if (current->as.branch.is_let) {
+            push_scope(ctx);
+            uint8_t bind_loc = make_binding(ctx, current->as.branch.identifier->source);
+            compile_expression(ctx, current->as.branch.condition, bind_loc);
+            uint8_t test_loc = get_register(ctx);
+
+            emit_ab(ctx, BT_OP_EXISTS, test_loc, bind_loc, BT_FALSE);
+            jump_loc = emit_a(ctx, BT_OP_JMPF, test_loc);
+        }
+        else if (current->as.branch.condition) {
+            uint8_t condition_loc = find_binding_or_compile_temp(ctx, current->as.branch.condition);
+            jump_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
+        }
+
+        if (is_expr) {
+            uint8_t result_loc = expr_loc;
+            compile_expression_body(ctx, &current->as.branch.body, BT_TRUE, &result_loc);
+            if (result_loc != expr_loc) {
+                emit_ab(ctx, BT_OP_MOVE, expr_loc, result_loc, BT_FALSE);
+            }
+        } else {
+            compile_body(ctx, &current->as.branch.body);
+        }
+        
+        if (current->as.branch.next) end_points[end_top++] = emit(ctx, BT_OP_JMP);
+        
+        if (current->as.branch.is_let) {
+            pop_scope(ctx);
+        }
+
+        if (current->as.branch.condition) {
+            bt_Op* jmpf = op_at(ctx, jump_loc);
+            BT_SET_IBC(*jmpf, ctx->output.length - jump_loc - 1);
+        }
+
+        current = current->as.branch.next;
+        restore_registers(ctx);
+    }
+
+    // patch jumps
+    for (uint8_t i = 0; i < end_top; ++i) {
+        bt_Op* jmp = op_at(ctx, end_points[i]);
+        BT_SET_IBC(*jmp, ctx->output.length - end_points[i] - 1);
+    }
+
+    return BT_TRUE;
 }
 
 static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
@@ -1186,50 +1274,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         restore_registers(ctx);
     } break;
     case BT_AST_NODE_IF: {
-        uint32_t end_points[64];
-        uint8_t end_top = 0;
-
-        bt_AstNode* current = stmt;
-
-        while (current) {
-            push_registers(ctx);
-
-            uint32_t jump_loc = 0;
-
-            if (current->as.branch.is_let) {
-                push_scope(ctx);
-                uint8_t bind_loc = make_binding(ctx, current->as.branch.identifier->source);
-                compile_expression(ctx, current->as.branch.condition, bind_loc);
-                uint8_t test_loc = get_register(ctx);
-
-                emit_ab(ctx, BT_OP_EXISTS, test_loc, bind_loc, BT_FALSE);
-                jump_loc = emit_a(ctx, BT_OP_JMPF, test_loc);
-            }
-            else if (current->as.branch.condition) {
-                uint8_t condition_loc = find_binding_or_compile_temp(ctx, current->as.branch.condition);
-                jump_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
-            }
-
-            compile_body(ctx, &current->as.branch.body);
-            if (current->as.branch.next) end_points[end_top++] = emit(ctx, BT_OP_JMP);
-        
-            if (current->as.branch.is_let) {
-                pop_scope(ctx);
-            }
-
-            if (current->as.branch.condition) {
-                bt_Op* jmpf = op_at(ctx, jump_loc);
-                BT_SET_IBC(*jmpf, ctx->output.length - jump_loc - 1);
-            }
-
-            current = current->as.branch.next;
-            restore_registers(ctx);
-        }
-
-        for (uint8_t i = 0; i < end_top; ++i) {
-            bt_Op* jmp = op_at(ctx, end_points[i]);
-            BT_SET_IBC(*jmp, ctx->output.length - end_points[i] - 1);
-        }
+            compile_if(ctx, stmt, BT_FALSE, 0);
     } break;
     case BT_AST_NODE_LOOP_ITERATOR: {
         push_registers(ctx);
