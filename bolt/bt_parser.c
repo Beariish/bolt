@@ -12,6 +12,7 @@
 
 static void parse_block(bt_AstBuffer* result, bt_Parser* parse, bt_AstNode* scoped_ident);
 static bt_AstNode* parse_if_expression(bt_Parser* parse);
+static bt_AstNode* parse_for_expression(bt_Parser* parse);
 static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_tok, bt_AstNode* scoped_ident);
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
@@ -1200,6 +1201,7 @@ static void parse_block(bt_AstBuffer* result, bt_Parser* parse, bt_AstNode* scop
     while (next->type != BT_TOKEN_RIGHTBRACE)
     {
         bt_AstNode* expression = parse_statement(parse);
+        type_check(parse, expression);
         bt_buffer_push(parse->context, result, expression);
         next = bt_tokenizer_peek(parse->tokenizer);
 
@@ -1233,6 +1235,7 @@ static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_
         push_scope(parse, BT_FALSE);
         if (scoped_ident) push_local(parse, scoped_ident);
         bt_AstNode* expr = parse_expression(parse, 0);
+        type_check(parse, expr);
         bt_buffer_push(parse->context, &body, expr);
         pop_scope(parse);
         return body;
@@ -1288,6 +1291,10 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
     }
     else if (lhs->type == BT_TOKEN_IF) {
         lhs_node = parse_if_expression(parse);
+        type_check(parse, lhs_node);
+    }
+    else if (lhs->type == BT_TOKEN_FOR) {
+        lhs_node = parse_for_expression(parse);
         type_check(parse, lhs_node);
     }
     else if (prefix_binding_power(lhs)) {
@@ -2608,6 +2615,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
 
 static bt_AstNode* get_last_expr(bt_AstBuffer* body)
 {
+    if (body->length == 0) return NULL;
     return body->elements[(body->length - 1)];    
 }
 
@@ -2627,7 +2635,7 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
         if (!current->as.branch.condition) has_else = BT_TRUE;
         
         bt_AstNode* last = get_last_expr(&current->as.branch.body);
-        bt_Type* branch_type = type_check(parse, last)->resulting_type;
+        bt_Type* branch_type = last ? type_check(parse, last)->resulting_type : NULL;
 
         if (!branch_type) {
             bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
@@ -2688,8 +2696,8 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         }
 
         bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_WHILE);
+        result->as.loop_while.is_expr = BT_FALSE;
         result->as.loop_while.condition = identifier;
-
         result->as.loop_while.body = parse_block_or_single(parse, BT_TOKEN_DO, NULL);
 
         return result;
@@ -2740,6 +2748,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         result->as.loop_numeric.start = start;
         result->as.loop_numeric.stop = stop;
         result->as.loop_numeric.step = step;
+        result->as.loop_numeric.is_expr = BT_FALSE;
 
         identifier->resulting_type = parse->context->types.number;
         result->as.loop_numeric.identifier = identifier;
@@ -2780,8 +2789,29 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     result->as.loop_iterator.body = parse_block_or_single(parse, BT_TOKEN_DO, ident_as_let);
     result->as.loop_iterator.identifier = identifier;
     result->as.loop_iterator.iterator = iterator;
+    result->as.loop_iterator.is_expr = BT_FALSE;
 
     return result;
+}
+
+static bt_AstNode* parse_for_expression(bt_Parser* parse)
+{
+    bt_AstNode* loop = parse_for(parse);
+    loop->as.loop.is_expr = BT_TRUE;
+
+    bt_AstNode* last = get_last_expr(&loop->as.loop.body);
+    bt_Type* item_type = last ? type_check(parse, last)->resulting_type : NULL;
+
+    if (!item_type) {
+        bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
+        bt_buffer_push(parse->context, &loop->as.loop.body, new_last);
+        item_type = type_check(parse, new_last)->resulting_type;
+    }
+
+    bt_Type* result = bt_make_array_type(parse->context, item_type);
+    loop->resulting_type = result;
+
+    return loop;
 }
 
 static bt_AstNode* parse_alias(bt_Parser* parse)

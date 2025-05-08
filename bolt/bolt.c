@@ -1353,6 +1353,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
 		CASE(STORE_SUB_F): bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
+		CASE(APPEND_F): bt_array_push(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)]); NEXT;
 
 		CASE(IDX_EXT):
 #ifdef BT_DEBUG

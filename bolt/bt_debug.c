@@ -172,6 +172,7 @@ static bt_bool is_op_ab(uint8_t op) {
 	case BT_OP_LOADUP: case BT_OP_STOREUP:
 	case BT_OP_NEG: case BT_OP_NOT:
 	case BT_OP_EXISTS: case BT_OP_EXPECT:
+	case BT_OP_APPEND_F:
 		return BT_TRUE;
 	default:
 		return BT_FALSE;

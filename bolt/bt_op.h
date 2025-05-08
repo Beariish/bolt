@@ -63,6 +63,7 @@
     /*  and the index known to be a number */                                       \
     X(LOAD_SUB_F)                                                                   \
     X(STORE_SUB_F)                                                                  \
+    X(APPEND_F)                                                                     \
 																					\
 	/* Extension for other fast opcodes that need an additional op to store data */ \
 	X(IDX_EXT)

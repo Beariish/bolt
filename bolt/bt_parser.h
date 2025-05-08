@@ -140,23 +140,31 @@ typedef struct bt_AstNode {
 
 		struct {
 			bt_AstBuffer body;
+			bt_bool is_expr;
 			bt_AstNode* condition;
 		} loop_while;
 
 		struct {
 			bt_AstBuffer body;
+			bt_bool is_expr;
 			bt_AstNode* identifier;
 			bt_AstNode* iterator;
 		} loop_iterator;
 
 		struct {
 			bt_AstBuffer body;
+			bt_bool is_expr;
 			bt_AstNode* identifier;
 			bt_AstNode* start;
 			bt_AstNode* stop;
 			bt_AstNode* step;
 		} loop_numeric;
 
+		struct {
+			bt_AstBuffer body;
+			bt_bool is_expr;
+		} loop;
+		
 		struct {
 			bt_AstBuffer fields;
 			bt_bool typed;

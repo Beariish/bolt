@@ -72,6 +72,7 @@ static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t push(FunctionContext* ctx, bt_Value value);
 static uint8_t push_load(FunctionContext* ctx, bt_Value value);
 static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
+static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 
 // ffsll intrinsic isn't on all platforms. some complicated platform defines could speed this up
 // but it's good enough for now
@@ -1049,7 +1050,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         emit_ab(ctx, BT_OP_LOAD, result_loc, type_idx, BT_FALSE);
     } break;
     case BT_AST_NODE_IF: {
-       compile_if(ctx, expr, BT_TRUE, result_loc);
+            compile_if(ctx, expr, BT_TRUE, result_loc);
+    } break;
+    case BT_AST_NODE_LOOP_ITERATOR:
+    case BT_AST_NODE_LOOP_NUMERIC:
+    case BT_AST_NODE_LOOP_WHILE: {
+            compile_for(ctx, expr, BT_TRUE, result_loc);
     } break;
 #ifdef BT_DEBUG
     default: assert(0);
@@ -1190,6 +1196,72 @@ static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_exp
     return BT_TRUE;
 }
 
+static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc)
+{
+    push_registers(ctx);
+    push_scope(ctx);
+
+    if (is_expr) {
+        emit_aibc(ctx, BT_OP_ARRAY, expr_loc, 0);
+    }
+    
+    uint32_t loop_start, skip_loc;
+    switch (stmt->type) {
+    case BT_AST_NODE_LOOP_ITERATOR: {
+            uint8_t base_loc = get_registers(ctx, 2);
+            // we can never refer to this, but we make a binding to make sure it stays in active gc
+            uint8_t _it_loc = make_binding_at_loc(ctx, stmt->as.loop_iterator.identifier->source->source, base_loc);
+            uint8_t closure_loc = base_loc + 1;
+            compile_expression(ctx, stmt->as.loop_iterator.iterator, closure_loc);
+
+            loop_start = ctx->output.length;
+            skip_loc = emit_aibc(ctx, BT_OP_ITERFOR, base_loc, 0);
+        } break;
+    case BT_AST_NODE_LOOP_NUMERIC: {
+            uint8_t base_loc = get_registers(ctx, 3);
+
+            uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_numeric.identifier->source->source, base_loc);
+            uint8_t step_loc = base_loc + 1;
+            uint8_t stop_loc = base_loc + 2;
+
+            compile_expression(ctx, stmt->as.loop_numeric.start, it_loc);
+            compile_expression(ctx, stmt->as.loop_numeric.step, step_loc);
+            compile_expression(ctx, stmt->as.loop_numeric.stop, stop_loc);
+            emit_aibc(ctx, BT_OP_JMP, 0, 1);
+
+            loop_start = ctx->output.length;
+            skip_loc = emit_aibc(ctx, BT_OP_NUMFOR, it_loc, 0);
+        } break;
+    case BT_AST_NODE_LOOP_WHILE: {
+            uint8_t condition_loc = get_register(ctx);
+
+            loop_start = ctx->output.length;
+            compile_expression(ctx, stmt->as.loop_while.condition, condition_loc);
+            skip_loc = emit_aibc(ctx, BT_OP_JMPF, condition_loc, 0);
+        } break;
+    }
+
+    setup_loop(ctx, loop_start);
+
+    if (is_expr) {
+        uint8_t item_loc = 0;
+        compile_expression_body(ctx, &stmt->as.loop.body, BT_TRUE, &item_loc);
+        emit_ab(ctx, BT_OP_APPEND_F, expr_loc, item_loc, BT_FALSE);
+    } else {
+        compile_body(ctx, &stmt->as.loop.body);
+    }
+
+    emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
+    bt_Op* skip_op = op_at(ctx, skip_loc);
+    BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
+    
+    resolve_breaks(ctx);
+    pop_scope(ctx);
+    restore_registers(ctx);
+
+    return BT_TRUE;
+}
+
 static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 {
     if (ctx->compiler->options.generate_debug_info) {
@@ -1276,83 +1348,10 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
     case BT_AST_NODE_IF: {
             compile_if(ctx, stmt, BT_FALSE, 0);
     } break;
-    case BT_AST_NODE_LOOP_ITERATOR: {
-        push_registers(ctx);
-        push_scope(ctx);
-
-        uint8_t base_loc = get_registers(ctx, 2);
-        uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_iterator.identifier->source->source, base_loc);
-        uint8_t closure_loc = base_loc + 1;
-        compile_expression(ctx, stmt->as.loop_iterator.iterator, closure_loc);
-
-        uint32_t loop_start = ctx->output.length;
-        uint32_t skip_loc = emit_aibc(ctx, BT_OP_ITERFOR, base_loc, 0);
-
-        setup_loop(ctx, loop_start);
-
-        compile_body(ctx, &stmt->as.loop_iterator.body);
-
-        emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
-        bt_Op* skip_op = op_at(ctx, skip_loc);
-        BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
-
-        resolve_breaks(ctx);
-        
-        pop_scope(ctx);
-        restore_registers(ctx);
-    } break;
-    case BT_AST_NODE_LOOP_NUMERIC: {
-        push_registers(ctx);
-        push_scope(ctx);
-
-        uint8_t base_loc = get_registers(ctx, 3);
-
-        uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_numeric.identifier->source->source, base_loc);
-        uint8_t step_loc = base_loc + 1;
-        uint8_t stop_loc = base_loc + 2;
-
-        compile_expression(ctx, stmt->as.loop_numeric.start, it_loc);
-        compile_expression(ctx, stmt->as.loop_numeric.step, step_loc);
-        compile_expression(ctx, stmt->as.loop_numeric.stop, stop_loc);
-        emit_aibc(ctx, BT_OP_JMP, 0, 1);
-
-        uint32_t loop_start = ctx->output.length;
-        uint32_t skip_loc = emit_aibc(ctx, BT_OP_NUMFOR, it_loc, 0);
-
-        setup_loop(ctx, loop_start);
-
-        compile_body(ctx, &stmt->as.loop_iterator.body);
-
-        emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
-        bt_Op* skip_op = op_at(ctx, skip_loc);
-        BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
-
-        resolve_breaks(ctx);
-
-        pop_scope(ctx);
-        restore_registers(ctx);
-    } break;
+    case BT_AST_NODE_LOOP_ITERATOR:
+    case BT_AST_NODE_LOOP_NUMERIC:
     case BT_AST_NODE_LOOP_WHILE: {
-        push_registers(ctx);
-        push_scope(ctx);
-
-        uint8_t condition_loc = get_register(ctx);
-
-        uint32_t loop_start = ctx->output.length;
-        compile_expression(ctx, stmt->as.loop_while.condition, condition_loc);
-        uint32_t skip_loc = emit_aibc(ctx, BT_OP_JMPF, condition_loc, 0);
-
-        setup_loop(ctx, loop_start);
-
-        compile_body(ctx, &stmt->as.loop_while.body);
-
-        emit_aibc(ctx, BT_OP_JMP, 0, loop_start - ctx->output.length - 1);
-        bt_Op* skip_op = op_at(ctx, skip_loc);
-        BT_SET_IBC(*skip_op, ctx->output.length - skip_loc - 1);
-
-        resolve_breaks(ctx);
-        pop_scope(ctx);
-        restore_registers(ctx);
+            compile_for(ctx, stmt, BT_FALSE, 0);
     } break;
     case BT_AST_NODE_ALIAS: {
         push_named(ctx, stmt->source->source, BT_VALUE_OBJECT(stmt->as.alias.type));
