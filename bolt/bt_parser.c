@@ -1665,6 +1665,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         }
     } break;
     case BT_AST_NODE_BINARY_OP:
+        if (!node->as.binary_op.left) {
+            parse_error_token(parse, "Binary operator '%.*s' is missing left hand operand", node->source);
+            return node;
+        }
+
+        if (!node->as.binary_op.right) {
+            parse_error_token(parse, "Binary operator '%.*s' is missing right hand operand", node->source);
+            return node;
+        }
+        
         switch (node->source->type) {
         case BT_TOKEN_NULLCOALESCE: {
             node->resulting_type = type_check(parse, node->as.binary_op.right)->resulting_type;
@@ -1895,7 +1905,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             node->resulting_type = bt_make_nullable(parse->context, type);
         } break;
-        case BT_TOKEN_COMPOSE: {
+        case BT_TOKEN_COMPOSE: {    
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
             bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
 
