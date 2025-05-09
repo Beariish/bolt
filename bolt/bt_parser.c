@@ -431,7 +431,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_RIGHTBRACE);
 
-    if (type && type->as.table_shape.layout && n_satisfied != type->as.table_shape.layout->length) {
+    if (type && type->as.table_shape.layout && n_satisfied < type->as.table_shape.layout->length) {
         // TODO: actually list missing fields
         parse_error_fmt(parse, "Missing %d fields in typed table literal", result->source->line, result->source->col, 
             type->as.table_shape.layout->length - n_satisfied);

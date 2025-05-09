@@ -1002,11 +1002,15 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             if (expr->as.table.typed && ctx->compiler->options.predict_hash_slots) {
                 bt_Table* layout = resulting->as.table_shape.layout;
                 int16_t idx = bt_table_get_idx(layout, entry->as.table_field.key);
-                if (idx == -1 || idx > UINT8_MAX)
-                    compile_error_token(ctx->compiler, "Failed to compile table literal", expr->source);
                 uint8_t key_idx = push(ctx, entry->as.table_field.key);
-                emit_abc(ctx, BT_OP_STORE_IDX, result_loc, (uint8_t)idx, val_loc, BT_TRUE);
-                emit_aibc(ctx, BT_OP_IDX_EXT, 0, key_idx);
+
+                // If index is too large for acceleration, or part of an unsealed table, fallback to the slow method
+                if (idx == -1 || idx > UINT8_MAX) {
+                    emit_abc(ctx, BT_OP_STORE_IDX_K, result_loc, key_idx, val_loc, BT_FALSE);
+                } else {
+                    emit_abc(ctx, BT_OP_STORE_IDX, result_loc, (uint8_t)idx, val_loc, BT_TRUE);
+                    emit_aibc(ctx, BT_OP_IDX_EXT, 0, key_idx);
+                }
             }
             else {
                 uint8_t key_idx = push(ctx, entry->as.table_field.key);

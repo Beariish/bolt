@@ -58,7 +58,6 @@ test("set-type arrays", fn {
 })
 
 test("union-type arrays", fn {
-    // currently broken
     let const a = [1, "a" : number | string]
     let const b = ["b", false : string | bool]
 })
@@ -144,8 +143,12 @@ test("unsealed typed table literal", fn {
     let const a = UnsealedTest => {
         a: "hello",
         b: 100,
-        //c: false - this should work
+        c: false
     }
+
+    expect(typeof(a.a) == type(string), "Expected `a.a` to be `string`")
+    expect(typeof(a.b) == type(number), "Expected `a.b` to be `number`")
+    expect(typeof(a.c) == type(any), "Expected `a.c` to be `any`")
 })
 
 test("dictionary table literal", fn {
