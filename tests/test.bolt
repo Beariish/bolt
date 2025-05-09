@@ -19,7 +19,8 @@ type TestState = {
     root: TestScope,
     current_scope: TestScope?,
     current_test: TestCase?,
-    failures: [TestCase]
+    failures: [TestCase],
+    total_tests: number,
 }
 
 let state = TestState => {
@@ -31,7 +32,8 @@ let state = TestState => {
     },
     current_scope: null,
     current_test: null,
-    failures: [:TestCase]
+    failures: [:TestCase],
+    total_tests: 0
 }
 
 state.current_scope = state.root
@@ -42,6 +44,7 @@ fn run_scope(scope: TestScope): ! {
 
     for test in scope.tests.each() {
         state.current_test = test
+        state.total_tests += 1
 
         if let e = protect(test.body) as Error {
             test.failures.push(e.what)
@@ -75,6 +78,9 @@ fn run {
             }
         }
     }
+
+    let const n_passed = state.total_tests - state.failures.length()
+    print("DONE: " + to_string(n_passed) + "/" + to_string(state.total_tests) + " tests passed!")
 }
 
 fn push_scope(name: string) {

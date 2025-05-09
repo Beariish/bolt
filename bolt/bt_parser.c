@@ -784,7 +784,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         }
         else if (next->type == BT_TOKEN_COLON) {
             bt_tokenizer_emit(tok);
-            explicit_type = parse_type(parse, BT_FALSE, NULL);
+            explicit_type = parse_type(parse, BT_TRUE, NULL);
             break;
         }
 

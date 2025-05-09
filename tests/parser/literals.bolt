@@ -59,8 +59,8 @@ test("set-type arrays", fn {
 
 test("union-type arrays", fn {
     // currently broken
-    //let const a = [1, "a" : number | string]
-    //let const b = ["b", false : string | bool]
+    let const a = [1, "a" : number | string]
+    let const b = ["b", false : string | bool]
 })
 
 test("arrays with trailing comma", fn {
