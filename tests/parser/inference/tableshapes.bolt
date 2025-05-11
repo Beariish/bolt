@@ -1,0 +1,21 @@
+import * from "../../test"
+
+push_scope("tableshapes")
+
+test("tableshape type inference", fn {
+    let a = { a: 100 }
+
+    expect(typeof(a) == type({ a: number }), "Expected a to be '{a: number}'")
+    expect(a is type({ a: number }), "Expected a to be '{a: number}'")
+})
+
+test("nested tableshape type inference", fn {
+    let a = {
+        a: { a: [1, 2, 3] }
+    }
+
+    expect(typeof(a) == type({a: {a: [number]}}), "Expected a to be '{a: {a: [number]}}'")
+    expect(a is type({a: {a: [number]}}), "Expected a to be '{a: {a: [number]}}'")
+})
+
+pop_scope()

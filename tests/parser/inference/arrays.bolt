@@ -1,0 +1,33 @@
+import * from "../../test"
+
+push_scope("arrays")
+
+test("array type inference", fn {
+    let a = []
+    let b = [1, 2, 3]
+    let c = ["a", "b", "c"]
+
+    expect(typeof(a) == type([any]),    "Expected a to be '[any]'")
+    expect(typeof(b) == type([number]), "Expected b to be '[number]'")
+    expect(typeof(c) == type([string]), "Expected c to be '[string]'")
+
+    expect(a is type([any]),    "Expected a to be '[any]'")
+    expect(b is type([number]), "Expected b to be '[number]'")
+    expect(c is type([string]), "Expected c to be '[string]'")
+})
+
+test("union type array inference", fn {
+    let a = [1, "string", true]
+    let b = [1, null, 2, 3]
+    let c = [string, number, 10]
+
+    expect(typeof(a) == type([number | string | bool]), "Expected a to be '[number | string | bool]'")
+    expect(typeof(b) == type([number?]),                "Expected b to be '[number?]'")
+    expect(typeof(c) == type([Type | number]),          "Expected c to be '[Type | number]'")
+
+    expect(a is type([number | string | bool]), "Expected a to be '[number | string | bool]'")
+    expect(b is type([number?]),                "Expected b to be '[number?]'")
+    expect(c is type([Type | number]),          "Expected c to be '[Type | number]'")
+})
+
+pop_scope()

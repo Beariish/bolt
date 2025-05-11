@@ -1,0 +1,11 @@
+import * from "../../test"
+import "_scope"
+
+import "primitives"
+import "arrays"
+import "signatures"
+import "tableshapes"
+import "if-expr"
+import "for-expr"
+
+pop_scope()

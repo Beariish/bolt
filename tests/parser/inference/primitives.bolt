@@ -1,0 +1,22 @@
+import * from "../../test"
+
+push_scope("primitives")
+
+test("basic type inference", fn {
+    let a = 10
+    let b = "string"
+    let c = false
+    let d = null
+
+    expect(typeof(a) == number,     "Expected a to be 'number'")
+    expect(typeof(b) == string,     "Expected b to be 'string'")
+    expect(typeof(c) == bool,       "Expected c to be 'bool'")
+    expect(typeof(d) == type(null), "Expected d to be 'null'")
+
+    expect(a is number,     "Expected a to be 'number'")
+    expect(b is string,     "Expected b to be 'string'")
+    expect(c is bool,       "Expected c to be 'bool'")
+    expect(d is type(null), "Expected d to be 'null'")
+})
+
+pop_scope()
