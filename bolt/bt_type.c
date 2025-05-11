@@ -653,7 +653,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (value == BT_VALUE_NULL) return BT_FALSE;
 	if (type == type->ctx->types.boolean && BT_IS_BOOL(value)) return BT_TRUE;
 	if (type == type->ctx->types.number && BT_IS_NUMBER(value)) return BT_TRUE;
-
+	if (type->category == BT_TYPE_CATEGORY_ENUM && BT_IS_ENUM(value)) return BT_TRUE;
 	
 	if (!BT_IS_OBJECT(value)) return BT_FALSE;
 	bt_Object* as_obj = BT_AS_OBJECT(value);

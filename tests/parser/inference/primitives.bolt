@@ -2,21 +2,42 @@ import * from "../../test"
 
 push_scope("primitives")
 
-test("basic type inference", fn {
+test("number", fn {
     let a = 10
+
+    expect(typeof(a) == number, "Expected a to be 'number'")
+    expect(a is number,         "Expected a to be 'number'")
+})
+
+test("string", fn {
     let b = "string"
+    expect(typeof(b) == string, "Expected b to be 'string'")
+    expect(b is string,         "Expected b to be 'string'")
+})
+    
+test("bool", fn {
     let c = false
+    expect(typeof(c) == bool, "Expected c to be 'bool'")
+    expect(c is bool,         "Expected c to be 'bool'")
+})
+    
+test("null", fn {
     let d = null
-
-    expect(typeof(a) == number,     "Expected a to be 'number'")
-    expect(typeof(b) == string,     "Expected b to be 'string'")
-    expect(typeof(c) == bool,       "Expected c to be 'bool'")
     expect(typeof(d) == type(null), "Expected d to be 'null'")
+    expect(d is type(null),         "Expected d to be 'null'")
+})
 
-    expect(a is number,     "Expected a to be 'number'")
-    expect(b is string,     "Expected b to be 'string'")
-    expect(c is bool,       "Expected c to be 'bool'")
-    expect(d is type(null), "Expected d to be 'null'")
+import print from core
+
+test("enum", fn {
+    type TestEnum = enum { A, B, C }
+    
+    let e = TestEnum.A
+
+    print(typeof(e))
+
+    expect(typeof(e) == TestEnum, "Expected e to be 'TestEnum'")
+    expect(e is TestEnum,         "Expected e to be 'TestEnum'")
 })
 
 pop_scope()
