@@ -908,8 +908,7 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_LT: case BT_TOKEN_LTE:
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
     case BT_TOKEN_IS: case BT_TOKEN_AS:
-    case BT_TOKEN_FATARROW: case BT_TOKEN_COMPOSE:
-    case BT_TOKEN_SATISFIES:
+    case BT_TOKEN_FATARROW: case BT_TOKEN_SATISFIES:
         return BT_TRUE;
     default:
         return BT_FALSE;
@@ -965,8 +964,6 @@ return (InfixBindingPower) { 4, 3 };
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
     case BT_TOKEN_PERIOD: return (InfixBindingPower) { 19, 20 };
-    case BT_TOKEN_COMPOSE: return (InfixBindingPower) { 21, 22 };
-    default: return (InfixBindingPower) { 0, 0 };
     }
 }
 
@@ -1904,46 +1901,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             node->resulting_type = bt_make_nullable(parse->context, type);
-        } break;
-        case BT_TOKEN_COMPOSE: {    
-            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
-            bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
-
-            if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
-                parse_error(parse, "Operator compose '&' takes two known tableshapes", node->source->line, node->source->col);
-            }
-
-            if (!lhs->as.table_shape.sealed || !rhs->as.table_shape.sealed) {
-               parse_error(parse, "Operator compose '&' requires operands to be sealed types", node->source->line, node->source->col);
-            }
-
-            bt_Table* lhs_fields = lhs->as.table_shape.layout;
-            bt_Table* lhs_field_types = lhs->as.table_shape.key_layout;
-            bt_Table* rhs_fields = rhs->as.table_shape.layout;
-            bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
-
-            bt_Type* resulting_type = bt_make_tableshape(parse->context, "", BT_TRUE);
-
-            for (uint32_t i = 0; i < lhs_fields->length; ++i) {
-                bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
-                bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
-                bt_tableshape_add_layout(parse->context, resulting_type, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
-            }
-
-            for (uint32_t i = 0; i < rhs_fields->length; ++i) {
-                bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
-                bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
-
-                if (bt_table_get(resulting_type->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
-                    bt_String* as_str = bt_to_string(parse->context, field->key);
-                    parse_error_fmt(parse, "Both lhs and rhs have field '%.*s'", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));;
-                    break;
-                }
-
-                bt_tableshape_add_layout(parse->context, resulting_type, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
-            }
-
-            node->resulting_type = resulting_type;
         } break;
 #define XSTR(x) #x
 #define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                     \

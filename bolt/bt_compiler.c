@@ -878,9 +878,6 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_AS:
             emit_abc(ctx, BT_OP_TCAST, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated);
             break;
-        case BT_TOKEN_COMPOSE:
-            emit_abc(ctx, BT_OP_COMPOSE, result_loc, lhs_loc, rhs_loc, BT_FALSE);
-            break;
         case BT_TOKEN_PERIOD:
             if (expr->as.binary_op.accelerated && expr->as.binary_op.left->resulting_type->category == BT_TYPE_CATEGORY_ARRAY && ctx->compiler->options.typed_array_subscript) {
                 emit_abc(ctx, BT_OP_LOAD_SUB_F, result_loc, lhs_loc, rhs_loc, BT_FALSE);

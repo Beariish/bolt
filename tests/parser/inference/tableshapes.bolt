@@ -18,4 +18,15 @@ test("nested tableshape type inference", fn {
     expect(a is type({a: {a: [number]}}), "Expected a to be '{a: {a: [number]}}'")
 })
 
+test("multi-field tableshape type inference", fn {
+    let t = {
+        a: 10,
+        b: "hello",
+        c: true
+    }
+
+    expect(typeof(t) == type({a: number, b: string, c: bool}), "Expected t to be '{a: number, b: string, c: bool}'")
+    expect(t is type({a: number, b: string, c: bool}), "Expected t to be '{a: number, b: string, c: bool}'")
+})
+
 pop_scope()

@@ -224,7 +224,6 @@ eat_whitespace:
 		BT_SIMPLE_TOKEN(',', BT_TOKEN_COMMA);
 		BT_SIMPLE_TOKEN(';', BT_TOKEN_SEMICOLON);
 
-		BT_SIMPLE_TOKEN('&', BT_TOKEN_COMPOSE);
 		BT_SIMPLE_TOKEN('|', BT_TOKEN_UNION);
 		
 		BT_DOUBLEABLE_TOKEN('.', BT_TOKEN_PERIOD, BT_TOKEN_VARARG);
@@ -463,7 +462,6 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_AND: return "and";
 	case BT_TOKEN_NOT: return "not";
 	case BT_TOKEN_SATISFIES: return "satisfies";
-	case BT_TOKEN_COMPOSE: return "&";
 	case BT_TOKEN_UNION: return "|";
 	case BT_TOKEN_TYPEOF: return "typeof";
 	case BT_TOKEN_IMPORT: return "import";
@@ -471,8 +469,6 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_FROM: return "from";
 	default: return "UNHANDLED TOKEN";
 	}
-
-	return NULL;
 }
 
 static void tokenizer_error(bt_Tokenizer* tok, bt_Token* got, bt_TokenType expected)
