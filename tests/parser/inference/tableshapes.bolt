@@ -115,4 +115,28 @@ test("dictionary table with complex keys type inference", fn {
     expect(a is type({..bool | string | number: number}),         "Expected a to be '{..bool | string | number: number}'")
 })
 
+test("tableshape key access inference", fn {
+    let a = { a: 10 }
+
+    expect(typeof(a.a) == number, "Expected a.a to be 'number'")
+    expect(a.a is number,         "Expected a.a to be 'number'")
+})
+
+test("unsealed tableshape key access inference", fn {
+    let a = unsealed { a: 10 }
+
+    expect(typeof(a.a) == number, "Expected a.a to be 'number'")
+    expect(a.a is number,         "Expected a.a to be 'number'")
+    
+    expect(typeof(a.b) == any, "Expected a.b to be 'any'")
+    expect(a.b is type(null),  "Expected a.b to be 'null'")
+})
+
+test("dictionary tableshape key access inference", fn {
+    let a = { "string": 10 }
+
+    expect(typeof(a.a) == type(number?),         "Expected a.a to be 'number?'")
+    expect(typeof(a["string"]) == type(number?), "Expected a[\"string\"] to be 'number?'")
+})
+
 pop_scope()
