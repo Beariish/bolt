@@ -682,6 +682,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 		if (as_tbl->prototype != type->prototype_values) return BT_FALSE;
 
+		bt_Type* orig_type = type;
 		uint32_t num_matched = 0;
 		while (type) {
 			bt_Table* layout = type->as.table_shape.layout;
@@ -700,7 +701,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 			type = type->as.table_shape.parent;
 		}
 			
-		return num_matched == as_tbl->length || !type->as.table_shape.sealed;
+		return num_matched == as_tbl->length || !orig_type->as.table_shape.sealed;
 	} break;
 	case BT_TYPE_CATEGORY_USERDATA: {
 		if (BT_OBJECT_GET_TYPE(as_obj) != BT_OBJECT_TYPE_USERDATA) return BT_FALSE;

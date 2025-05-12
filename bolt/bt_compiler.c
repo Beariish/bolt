@@ -385,7 +385,6 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
     {
         bt_Constant* constant = ctx->constants.elements + idx;
         if (bt_strslice_compare(constant->name, name)) { return idx; }
-        if (bt_value_is_equal(constant->value, value)) { return idx; }
     }
 
     bt_Constant con;

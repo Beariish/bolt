@@ -43,4 +43,43 @@ test("unsealed tableshape with field type inference", fn {
     expect(a is type(unsealed {a: number}), "Expected a to be 'unsealed {a: number}'")
 })
 
+test("strongly typed tableshape type inference", fn {
+    type T = { a: number }
+
+    let a = T => { a: 10 }
+    expect(typeof(a) == T, "Expected a to be 'T'")
+    expect(a is T, "Expected a to be 'T'")
+})
+
+test("strongly typed unsealed tableshape type inference", fn {
+    type T = unsealed { a: number }
+
+    let a = T => { a: 10, b: 20 }
+    expect(typeof(a) == T, "Expected a to be 'T'")
+    expect(a is T, "Expected a to be 'T'")
+})
+
+
+test("strongly typed tables have weak identities", fn {
+    type A = { a: number }
+    type B = { a: number }
+
+    let a = A => { a: 10 }
+    
+    expect(typeof(a) == B, "Expected a to be 'B'")
+    expect(a is B,         "Expected a to be 'B'")
+})
+
+test("strongly typed tables with prototypes have strong identities", fn {
+    type A = { a: number }
+    fn A.a {}
+
+    type B = { a: number }
+
+    let a = A => { a: 10 }
+
+    expect(typeof(a) != B, "Expected a to not be 'B'")
+    expect(not (a is B),   "Expected a to not be 'B'")
+})
+
 pop_scope()

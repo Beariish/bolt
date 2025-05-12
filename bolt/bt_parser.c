@@ -117,7 +117,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         char* name = parse->context->alloc(node->source->source.length + 1);
         memcpy(name, node->source->source.source, node->source->source.length);
         name[node->source->source.length] = 0;
-        new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);;
+        new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);
     } break;
     case BT_AST_NODE_IF: {
         if (!node->as.branch.is_let) {
