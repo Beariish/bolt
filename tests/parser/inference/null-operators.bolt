@@ -1,0 +1,26 @@
+import * from "../../test"
+
+push_scope("null-operators")
+
+test("? operator inference", fn {
+    let const x: number | null = 10
+
+    expect(typeof(x?) == bool, "Expected x? to be 'bool'")
+    expect(x? is bool,         "Expected x? to be 'bool'")
+})
+
+test("?? operator inference", fn {
+    let const x: number | null = null
+
+    expect(typeof(x ?? 0) == number, "Expected x ?? 0 to be 'number'")
+    expect((x ?? 0) is number,       "Expected x ?? 0 to be 'number'")
+})
+
+test("! operator inference", fn {
+    let const x: number | null = 10
+
+    expect(typeof(x!) == number, "Expected x! to be 'number'")
+    expect(x! is number,         "Expected x! to be 'number'")
+})
+
+pop_scope()
