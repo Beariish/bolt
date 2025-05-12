@@ -27,14 +27,10 @@ test("null", fn {
     expect(d is type(null),         "Expected d to be 'null'")
 })
 
-import print from core
-
 test("enum", fn {
     type TestEnum = enum { A, B, C }
     
     let e = TestEnum.A
-
-    print(typeof(e))
 
     expect(typeof(e) == TestEnum, "Expected e to be 'TestEnum'")
     expect(e is TestEnum,         "Expected e to be 'TestEnum'")
