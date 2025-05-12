@@ -43,7 +43,7 @@ typedef struct bt_Object bt_Object;
 
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
 
-#define BT_EPSILON 0.0000001
+#define BT_EPSILON 0.000000000001
 
 #define BT_AS_NUMBER(x) (bt_get_number((bt_Value)x))
 #define BT_AS_ENUM(x)   (((bt_Value)x) & 0xFFFFFFFFu)

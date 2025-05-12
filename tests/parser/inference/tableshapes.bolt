@@ -137,6 +137,14 @@ test("dictionary tableshape key access inference", fn {
 
     expect(typeof(a.a) == type(number?),         "Expected a.a to be 'number?'")
     expect(typeof(a["string"]) == type(number?), "Expected a[\"string\"] to be 'number?'")
+    expect(a["string"] is number,                "Expected a[\"string\"] to be 'number'")
+})
+
+test("bracket access tableshape inference", fn {
+    let a = { a: 10 }
+
+    expect(typeof(a["a"]) == number, "Expected a[\"a\"] to be 'number'")
+    expect(a["a"] is number,         "Expected a[\"a\"] to be 'number'")
 })
 
 pop_scope()

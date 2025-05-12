@@ -1343,6 +1343,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                 
                 bt_AstNode* lhs = lhs_node;
                 lhs_node = make_node(parse, BT_AST_NODE_BINARY_OP);
+                op->type = BT_TOKEN_PERIOD; // TODO(bearish): this is a workaround as the compiler expects all indexing operators to use this
                 lhs_node->source = op;
                 lhs_node->as.binary_op.left = lhs;
                 lhs_node->as.binary_op.right = rhs;
