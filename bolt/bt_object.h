@@ -158,13 +158,13 @@ typedef union {
 	bt_Closure cl;
 } bt_Callable;
 
-typedef void (*bt_UserdataFinalizer)(bt_Context* ctx, struct bt_Userdata* userdata);
-
 typedef struct bt_Userdata {
 	bt_Object obj;
 	bt_Type* type;
 	uint8_t* data;
 } bt_Userdata;
+
+typedef void (*bt_UserdataFinalizer)(bt_Context* ctx, bt_Userdata* userdata);
 
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string_hashed(ctx, str))
 
