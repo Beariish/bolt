@@ -360,7 +360,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
     return result;
 }
 
-static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type) {
+static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type, bt_bool is_sealed) {
     bt_Token* token = source;
     bt_Context* ctx = parse->context;
 
@@ -368,7 +368,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     result->source = token;
     bt_buffer_empty(&result->as.table.fields);
     result->as.table.typed = type ? BT_TRUE : BT_FALSE;
-    result->resulting_type = type ? type : bt_make_tableshape(ctx, "<anonymous>", BT_TRUE);
+    result->resulting_type = type ? type : bt_make_tableshape(ctx, "<anonymous>", is_sealed);
 
     uint32_t n_satisfied = 0;
 
@@ -878,8 +878,12 @@ static bt_AstNode* token_to_node(bt_Parser* parse, bt_Token* token)
         return result;
     } break;
 
+    case BT_TOKEN_UNSEALED: {
+        if (!bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_LEFTBRACE)) return BT_FALSE;
+        return parse_table(parse, token, NULL, BT_FALSE);
+    } break;
     case BT_TOKEN_LEFTBRACE: {
-        return parse_table(parse, token, NULL);
+        return parse_table(parse, token, NULL, BT_TRUE);
     } break;
 
     case BT_TOKEN_LEFTBRACKET: {
@@ -1475,7 +1479,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                 bt_Token* next = bt_tokenizer_peek(tok);
                 if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) return NULL;
 
-                lhs_node = parse_table(parse, next, type);
+                lhs_node = parse_table(parse, next, type, BT_FALSE);
             }
             else
             {

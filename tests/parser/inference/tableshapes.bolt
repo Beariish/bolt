@@ -29,4 +29,18 @@ test("multi-field tableshape type inference", fn {
     expect(t is type({a: number, b: string, c: bool}), "Expected t to be '{a: number, b: string, c: bool}'")
 })
 
+test("unsealed tableshape type inference", fn {
+    let a = unsealed {}
+
+    expect(typeof(a) == type(unsealed {}), "Expected a to be 'unsealed {}'")
+    expect(a is type(unsealed {}), "Expected a to be 'unsealed {}'")
+})
+
+test("unsealed tableshape with field type inference", fn {
+    let a = unsealed { a: 10 }
+
+    expect(typeof(a) == type(unsealed {a: number}), "Expected a to be 'unsealed {a: number}'")
+    expect(a is type(unsealed {a: number}), "Expected a to be 'unsealed {a: number}'")
+})
+
 pop_scope()
