@@ -9,7 +9,6 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
-#include <assert.h>
 
 #include "bt_context.h"
 #include "bt_debug.h"
