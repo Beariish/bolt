@@ -700,6 +700,14 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 
 			type = type->as.table_shape.parent;
 		}
+
+		if (orig_type->as.table_shape.map) {
+			for (uint32_t i = 0; i < as_tbl->length; i++) {
+				bt_TablePair* pair = BT_TABLE_PAIRS(as_tbl) + i;
+				if (!bt_is_type(pair->key, orig_type->as.table_shape.key_type)) return BT_FALSE;
+				if (!bt_is_type(pair->value, orig_type->as.table_shape.value_type)) return BT_FALSE;
+			}
+		}
 			
 		return num_matched == as_tbl->length || !orig_type->as.table_shape.sealed;
 	} break;
@@ -826,7 +834,10 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 		if (a->prototype_values) return a->prototype_values == b->prototype_values;
 		else if (a->as.table_shape.sealed != b->as.table_shape.sealed) return BT_FALSE;
 		else if (a->as.table_shape.parent != b->as.table_shape.parent) return BT_FALSE;
-		else {
+		else if (a->as.table_shape.map != b->as.table_shape.map) return BT_FALSE;
+		else if (a->as.table_shape.map) {
+			return bt_type_is_equal(a->as.table_shape.key_type, b->as.table_shape.key_type) && bt_type_is_equal(a->as.table_shape.value_type, b->as.table_shape.value_type);
+		}else {
 			bt_Table* a_layout = a->as.table_shape.layout;
 			bt_Table* b_layout = b->as.table_shape.layout;
 			if (!a_layout && !b_layout) return BT_TRUE;

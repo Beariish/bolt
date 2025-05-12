@@ -82,4 +82,37 @@ test("strongly typed tables with prototypes have strong identities", fn {
     expect(not (a is B),   "Expected a to not be 'B'")
 })
 
+test("dictionary table type inference", fn {
+    let const a = {
+        1: true,
+        2: false,
+        3: false
+    }
+
+    expect(typeof(a) == type({..number: bool}), "Expected a to be '{..number: bool}'")
+    expect(a is type({..number: bool}),         "Expected a to be '{..number: bool}'")
+})
+
+test("dictionary table with complex values type inference", fn {
+    let const a = {
+        1: true,
+        2: "string",
+        3: 10
+    }
+
+    expect(typeof(a) == type({..number: bool | string | number}), "Expected a to be '{..number: bool | string | number}'")
+    expect(a is type({..number: bool | string | number}),         "Expected a to be '{..number: bool | string | number}'")
+})
+
+test("dictionary table with complex keys type inference", fn {
+    let const a = {
+        1: 1,
+        "string": 2,
+        true: 3
+    }
+
+    expect(typeof(a) == type({..bool | string | number: number}), "Expected a to be '{..bool | string | number: number}'")
+    expect(a is type({..bool | string | number: number}),         "Expected a to be '{..bool | string | number: number}'")
+})
+
 pop_scope()

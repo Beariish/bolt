@@ -370,6 +370,10 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     result->as.table.typed = type ? BT_TRUE : BT_FALSE;
     result->resulting_type = type ? type : bt_make_tableshape(ctx, "<anonymous>", is_sealed);
 
+    bt_bool is_map = BT_TRUE;
+    bt_Type* map_key_type = NULL;
+    bt_Type* map_value_type = NULL;
+    
     uint32_t n_satisfied = 0;
 
     token = bt_tokenizer_peek(parse->tokenizer);
@@ -418,6 +422,19 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         else {
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
             bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, field->as.table_field.value_type);
+
+            bt_Type* value_type = type_check(parse, value_expr)->resulting_type;
+
+            map_key_type = bt_make_or_extend_union(parse->context, map_key_type, key_type);
+            map_value_type = bt_make_or_extend_union(parse->context, map_value_type, value_type);
+
+            if (key_expr->type == BT_AST_NODE_IDENTIFIER) {
+                is_map = BT_FALSE;
+            }
+        }
+
+        if (is_map && !type) {
+            result->resulting_type = bt_make_map(parse->context, map_key_type, bt_make_nullable(parse->context, map_value_type));
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -645,9 +662,9 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         if (token->type == BT_TOKEN_VARARG) {
             bt_tokenizer_emit(tok);
 
-            bt_Type* key_type = parse_type(parse, BT_FALSE, NULL);
+            bt_Type* key_type = parse_type(parse, BT_TRUE, NULL);
             bt_tokenizer_expect(tok, BT_TOKEN_COLON);
-            bt_Type* value_type = parse_type(parse, BT_FALSE, NULL);
+            bt_Type* value_type = parse_type(parse, BT_TRUE, NULL);
 
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
