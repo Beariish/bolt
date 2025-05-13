@@ -262,7 +262,6 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("fn", token, BT_TOKEN_FN)
 		else BT_TEST_KEYWORD("return", token, BT_TOKEN_RETURN)
 		else BT_TEST_KEYWORD("type", token, BT_TOKEN_TYPE)
-		else BT_TEST_KEYWORD("method", token, BT_TOKEN_METHOD)
 		else BT_TEST_KEYWORD("if", token, BT_TOKEN_IF)
 		else BT_TEST_KEYWORD("else", token, BT_TOKEN_ELSE)
 		else BT_TEST_KEYWORD("for", token, BT_TOKEN_FOR)
@@ -441,7 +440,6 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_FN: return "fn";
 	case BT_TOKEN_RETURN: return "return";
 	case BT_TOKEN_TYPE: return "type";
-	case BT_TOKEN_METHOD: return "method";
 	case BT_TOKEN_IF: return "if";
 	case BT_TOKEN_ELSE: return "else";
 	case BT_TOKEN_FOR: return "for";

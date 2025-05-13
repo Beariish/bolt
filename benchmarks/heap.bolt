@@ -18,48 +18,48 @@ fn Node.new(left: Node?, right: Node?, parent: Node?, value: number) {
     }
 }
 
-method Node.get_leftmost: Node {
+fn Node.get_leftmost(this): Node {
     if let left = this.left { return left.get_leftmost() }
     return this 
 }
 
-method Node.get_rightmost: Node {
+fn Node.get_rightmost(this): Node {
     if let right = this.right { return right.get_rightmost() }
     return this 
 }
 
-method Node.get_left_n(n: number): Node {
+fn Node.get_left_n(this, n: number): Node {
     if n == 1 { return this.left! }
     return this.left!.get_left_n(n - 1)
 }
 
-method Node.get_right_n(n: number): Node {
+fn Node.get_right_n(this, n: number): Node {
     if n == 1 { return this.right! }
     return this.right!.get_right_n(n - 1)
 }
 
-method Node.get_left_sibling2(height: number): Node {
+fn Node.get_left_sibling2(this, height: number): Node {
     let parent = this.parent!
 
     if parent.right == this { return parent.left!.get_right_n(height) }
     return parent.get_left_sibling2(height + 1)
 }
 
-method Node.get_right_sibling2(height: number): Node {
+fn Node.get_right_sibling2(this, height: number): Node {
     let parent = this.parent!
 
     if parent.left == this { return parent.right!.get_left_n(height) }
     return parent.get_right_sibling2(height + 1)
 }
 
-method Node.get_left_sibling: Node {
+fn Node.get_left_sibling(this): Node {
     let parent = this.parent!
 
     if parent.right == this { return parent.left! }
     return parent.get_left_sibling2(1)
 }
 
-method Node.get_right_sibling: Node {
+fn Node.get_right_sibling(this): Node {
     let parent = this.parent!
     if parent.left == this { return parent.right! }
     return parent.get_right_sibling2(1)
@@ -80,7 +80,7 @@ fn Heap.new {
     }
 }
 
-method Heap.swap_up(node: Node) {
+fn Heap.swap_up(this, node: Node) {
     if this.last == node {
         this.last = node.parent
     }
@@ -131,7 +131,7 @@ method Heap.swap_up(node: Node) {
     }
 }
 
-method Heap.sift_up(node: Node): ! {
+fn Heap.sift_up(this, node: Node): ! {
     if let p = node.parent {
         if node.value > p.value {
             this.swap_up(node)
@@ -143,7 +143,7 @@ method Heap.sift_up(node: Node): ! {
     }
 }
 
-method Heap.sift_down(node: Node): ! {
+fn Heap.sift_down(this, node: Node): ! {
     if let left = node.left {
         if left.value > node.value {
             this.swap_up(left)
@@ -157,7 +157,7 @@ method Heap.sift_down(node: Node): ! {
     }
 }
 
-method Heap.insert(value: number) {
+fn Heap.insert(this, value: number) {
     if this.root == null {
         this.root = Node.new(null, null, null, value)
         this.last = this.root
@@ -190,7 +190,7 @@ method Heap.insert(value: number) {
     this.sift_up(new_node!)
 }
 
-method Heap.pop: Node {
+fn Heap.pop(this): Node {
     if this.size == 1 {
         let result = this.root!
         this.root = null

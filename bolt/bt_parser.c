@@ -19,6 +19,7 @@ static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power);
 static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
+static bt_StrSlice this_str = { "this", 4 };
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
@@ -1087,7 +1088,7 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
     return expected;
 }
 
-static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier)
+static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier, bt_Type* prototype)
 {
     bt_Tokenizer* tok = parse->tokenizer;
 
@@ -1104,6 +1105,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
     bt_Token* next = bt_tokenizer_peek(tok);
 
     bt_bool has_param_list = BT_FALSE;
+    bt_bool is_methodic = BT_FALSE;
     if (next->type == BT_TOKEN_LEFTPAREN) {
         has_param_list = BT_TRUE;
 
@@ -1126,13 +1128,28 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             }
 
             if (next->type == BT_TOKEN_COLON) {
-                next = bt_tokenizer_emit(tok);
+                bt_tokenizer_emit(tok);
                 this_arg.type = parse_type(parse, BT_TRUE, NULL);
+                if (result->as.fn.args.length == 0 && prototype) {
+                    if (this_arg.type->satisfier(this_arg.type, prototype)) {
+                        is_methodic = BT_TRUE;
+                    }
+                }
             }
             else {
-                this_arg.type = parse->context->types.any;
+                if (result->as.fn.args.length == 0 && prototype) {
+                    if (bt_strslice_compare(this_arg.name, this_str)) {
+                        is_methodic = BT_TRUE;
+                        this_arg.type = prototype;
+                    } else {
+                        parse_error_token(parse, "Expected method-like argument, got '%.*s'. Did you mean 'this'?", next);
+                        return NULL;
+                    }
+                } else {
+                    parse_error_token(parse, "Expected argument type following identifier '%.*s'", next);
+                    return NULL;
+                }
             }
-
 
             bt_buffer_push(parse->context, &result->as.fn.args, this_arg);
 
@@ -1166,14 +1183,22 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
                 args[i] = result->as.fn.args.elements[i].type;
             }
 
-            result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+            if (is_methodic) {
+                // forward-declare fully typed method for recursion in tableshape functions
+                bt_Value name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length));
+                result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+                bt_type_add_field(parse->context, prototype, result->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
+            } else {
+                result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
 
-            bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
-            alias->source = identifier;
-            alias->as.recurse_alias.signature = result->resulting_type;
+                bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
+                alias->source = identifier;
+                alias->as.recurse_alias.signature = result->resulting_type;
 
-            push_local(parse, alias);
+                push_local(parse, alias);
+            }
         }
+
 
         for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
             push_arg(parse, result->as.fn.args.elements + i, result->source);
@@ -1205,6 +1230,11 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
 
     parse->current_fn = parse->current_fn->as.fn.outer;
 
+    if (is_methodic) {
+        result->type = BT_AST_NODE_METHOD;
+        result->resulting_type->as.fn.is_method = BT_TRUE;
+    }
+    
     return result;
 }
 
@@ -1276,7 +1306,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
     bt_AstNode* lhs_node;
 
     if (lhs->type == BT_TOKEN_FN) {
-        lhs_node = parse_function_literal(parse, NULL);
+        lhs_node = parse_function_literal(parse, NULL, NULL);
     }
     else if (lhs->type == BT_TOKEN_LEFTPAREN) {
         lhs_node = parse_expression(parse, 0);
@@ -1344,10 +1374,10 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                 
                 bt_AstNode* lhs = lhs_node;
                 lhs_node = make_node(parse, BT_AST_NODE_BINARY_OP);
-                op->type = BT_TOKEN_PERIOD; // TODO(bearish): this is a workaround as the compiler expects all indexing operators to use this
                 lhs_node->source = op;
                 lhs_node->as.binary_op.left = lhs;
                 lhs_node->as.binary_op.right = rhs;
+                type_check(parse, lhs_node);
             }
             else if (op->type == BT_TOKEN_LEFTPAREN)
             {
@@ -2481,17 +2511,8 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         ident = bt_tokenizer_emit(tok);
         if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
 
-        bt_AstNode* fn = parse_function_literal(parser, NULL);
-        if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
-    
-        bt_StrSlice this_str = { "this", 4 };
-        if (fn->as.fn.args.length) {
-            bt_FnArg* arg = fn->as.fn.args.elements;
-            if (bt_strslice_compare(arg->name, this_str) && arg->type->satisfier(arg->type, type)) {
-                fn->type = BT_AST_NODE_METHOD;
-                fn->resulting_type->as.fn.is_method = BT_TRUE;
-            }
-        }
+        bt_AstNode* fn = parse_function_literal(parser, ident, type);
+        if (fn->type != BT_AST_NODE_FUNCTION && fn->type != BT_AST_NODE_METHOD) parse_error_token(parser, "Expected function literal", fn->source);
 
         bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
         bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
@@ -2504,7 +2525,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         return result;
     }
 
-    bt_AstNode* fn = parse_function_literal(parser, ident);
+    bt_AstNode* fn = parse_function_literal(parser, ident, NULL);
     if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_LET);
@@ -2831,153 +2852,6 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
     return result;
 }
 
-static bt_AstNode* parse_method(bt_Parser* parse)
-{
-    bt_Tokenizer* tok = parse->tokenizer;
-
-    bt_Token* type_name = bt_tokenizer_emit(tok);
-    bt_Type* type = resolve_type_identifier(parse, type_name);
-
-    if (!bt_tokenizer_expect(tok, BT_TOKEN_PERIOD)) {
-        return NULL;
-    }
-
-    bt_Token* method_name = bt_tokenizer_emit(tok);
-    if (method_name->type != BT_TOKEN_IDENTIFIER) {
-        parse_error_token(parse, "Expected identifier for method name, got '%.*s'", method_name);
-        return NULL;
-    }
-
-    bt_AstNode* result = make_node(parse, BT_AST_NODE_FUNCTION);
-    
-    bt_buffer_empty(&result->as.fn.args);
-    bt_buffer_with_capacity(&result->as.fn.body, parse->context, 8);
-    result->as.fn.ret_type = NULL;
-    result->as.fn.outer = parse->current_fn;
-    bt_buffer_empty(&result->as.fn.upvals);
-
-    parse->current_fn = result;
-
-    bt_FnArg this_arg;
-    this_arg.name = (bt_StrSlice) { "this", 4 };
-    this_arg.type = type;
-    bt_buffer_push(parse->context, &result->as.fn.args, this_arg);
-
-    bt_Token* next = bt_tokenizer_peek(tok);
-
-    bt_bool has_param_list = BT_FALSE;
-    if (next->type == BT_TOKEN_LEFTPAREN) {
-        has_param_list = BT_TRUE;
-
-        bt_tokenizer_emit(tok);
-
-        do {
-            next = bt_tokenizer_emit(tok);
-
-            bt_FnArg this_arg;
-            if (next->type == BT_TOKEN_IDENTIFIER) {
-                this_arg.name = next->source;
-                next = bt_tokenizer_peek(tok);
-            }
-            else if (next->type == BT_TOKEN_RIGHTPAREN) {
-                break;
-            }
-            else {
-                parse_error_token(parse, "Unexpected token '%.*s' in parameter list", next);
-            }
-
-            if (next->type == BT_TOKEN_COLON) {
-                next = bt_tokenizer_emit(tok);
-                this_arg.type = parse_type(parse, BT_TRUE, NULL);
-            }
-            else {
-                this_arg.type = parse->context->types.any;
-            }
-
-
-            bt_buffer_push(parse->context, &result->as.fn.args, this_arg);
-
-            next = bt_tokenizer_emit(tok);
-        } while (next && next->type == BT_TOKEN_COMMA);
-    }
-
-    if (has_param_list && next && next->type != BT_TOKEN_RIGHTPAREN) {
-        parse_error_token(parse, "Expected end of parameter list, got '%.*s'", next);
-        return NULL;
-    }
-
-    next = bt_tokenizer_peek(tok);
-
-    bt_bool has_return = BT_FALSE;
-    if (next->type == BT_TOKEN_COLON) {
-        next = bt_tokenizer_emit(tok);
-        result->as.fn.ret_type = parse_type(parse, BT_TRUE, NULL);
-        has_return = BT_TRUE;
-    }
-
-    next = bt_tokenizer_emit(tok);
-
-    bt_bool is_defined = BT_FALSE;
-    bt_String* name_str = bt_make_string_hashed_len(parse->context, method_name->source.source, method_name->source.length);
-
-    if (next->type == BT_TOKEN_LEFTBRACE) {
-        push_scope(parse, BT_TRUE);
-
-        for (uint8_t i = 0; i < result->as.fn.args.length; i++) {
-            push_arg(parse, result->as.fn.args.elements + i, result->source);
-        }
-
-        if (has_return) {
-            is_defined = BT_TRUE;
-
-            bt_Type* args[16];
-
-            for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
-                args[i] = result->as.fn.args.elements[i].type;
-            }
-
-            result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
-            bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
-        }
-
-        parse_block(&result->as.fn.body, parse, NULL);
-
-        pop_scope(parse);
-    }
-    else {
-        parse_error_token(parse, "Expected function body, got '%.*s'", next);
-        return NULL;
-    }
-
-    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, 
-        result->as.fn.ret_type, result->as.fn.ret_type == NULL, 0);
-
-    next = bt_tokenizer_emit(tok);
-    if (next->type != BT_TOKEN_RIGHTBRACE) {
-        parse_error_token(parse, "Expected end of function, got '%.*s'", next);
-        return NULL;
-    }
-
-    if (!is_defined) {
-        bt_Type* args[16];
-
-        for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
-            args[i] = result->as.fn.args.elements[i].type;
-        }
-
-        result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
-        bt_type_add_field(parse->context, type, result->resulting_type, BT_VALUE_OBJECT(name_str), BT_VALUE_NULL);
-    }
-
-    bt_AstNode* method = make_node(parse, BT_AST_NODE_METHOD);
-    method->as.method.containing_type = type;
-    method->as.method.fn = result;
-    method->as.method.name = name_str;
-
-    parse->current_fn = parse->current_fn->as.fn.outer;
-    return method;
-}
-
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -3002,10 +2876,6 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_FN: {
         bt_tokenizer_emit(tok);
         return parse_function_statement(parse);
-    } break;
-    case BT_TOKEN_METHOD: {
-        bt_tokenizer_emit(tok);
-        return parse_method(parse);
     } break;
     case BT_TOKEN_IF: {
         bt_tokenizer_emit(tok);
