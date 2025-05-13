@@ -1,0 +1,73 @@
+import * from "../../test"
+
+push_scope("prototypes")
+
+type T = { a: number }
+
+fn T.new(a: number) { return T => { a: a }}
+fn T.static { return 10 }
+fn T.static_nothing {}
+fn T.static_virtual { return 10 }
+
+fn T.inc(this: T) { this.a += 1 }
+fn T.get(this: T) { return this.a }
+fn T.set(this: T, val: number) { this.a = val }
+fn T.virtual(this: T) { return this.a * 2 }
+
+type T2 = T + { b: number }
+fn T2.static_virtual { return 20 }
+fn T2.virtual(this: T2) { return this.b }
+
+let const instance = T.new(10) 
+let const instance2 = T2 => { a: 5, b: 20 }
+let const instance3: T = instance2
+
+test("static function inference", fn {
+    expect(typeof(T.static_nothing) == type(fn), "Expected 'T.static_nothing' to be 'fn'")
+})
+
+test("static function with return inference", fn {
+    expect(typeof(T.static) == type(fn: number), "Expected 'T.static' to be 'fn: number'")
+})
+
+test("static function constructor inference", fn {
+    expect(typeof(T.new) == type(fn(number): T), "Expected 'T.new' to be 'fn(number): T'")
+})
+
+test("instance function from type inference", fn {
+    expect(typeof(T.get) == type(fn(T): number), "Expected 'T.get' to be 'fn(T): number'")
+})
+
+test("instance function inference", fn {
+    expect(typeof(instance.inc) == type(fn(T)), "Expected 'instance.inc' to be 'fn(T)'")
+})
+
+test("instance function with return inference", fn {
+    expect(typeof(instance.get) == type(fn(T): number), "Expected 'instance.get' to be 'fn(T): number'")
+})
+
+test("instance function with parameter inference", fn {
+    expect(typeof(instance.set) == type(fn(T, number)), "Expected 'instance.set' to be 'fn(T, number)'")
+})
+
+test("static function from instance inference", fn {
+    expect(typeof(instance.new) == type(fn(number): T), "Expected 'instance.new' to be 'fn(number): T'")
+})
+
+test("static virtual function from derived type inference", fn {
+    expect(typeof(T2.static_virtual) == type(fn: number), "Expected 'T2.static_virtual' to be 'fn: number'")
+})
+
+test("virtual function from derived instance inference", fn {
+    expect(typeof(instance2.virtual) == type(fn(T2): number), "Expected 'instance2.virtual' to be 'fn(T2): number'")
+})
+
+test("static virtual function from derived instance inference", fn {
+    expect(typeof(instance2.static_virtual) == type(fn: number), "Expected 'instance2.static_virtual' to be 'fn: number'")
+})
+
+test("virtual function from downcast instance inference", fn {
+    expect(typeof(instance3.virtual) == type(fn(T): number), "Expected 'instance3.virtual' to be 'fn(T): number'")
+})
+
+pop_scope()

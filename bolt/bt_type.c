@@ -857,7 +857,7 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 			return a->as.poly_fn.applicator == b->as.poly_fn.applicator;
 		}
 
-		if (a->as.fn.is_method != b->as.fn.is_method || a->as.fn.is_vararg != b->as.fn.is_vararg) return BT_FALSE;
+		if (a->as.fn.is_vararg != b->as.fn.is_vararg) return BT_FALSE;
 		if (a->as.fn.is_vararg && !bt_type_is_equal(a->as.fn.varargs_type, b->as.fn.varargs_type)) return BT_FALSE;
 		if (!bt_type_is_equal(a->as.fn.return_type, b->as.fn.return_type)) return BT_FALSE;
 
