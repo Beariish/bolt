@@ -134,4 +134,25 @@ test("function with infinite loop signature inference", fn {
     expect(f is type(fn: number | bool), "Expected f to be 'fn: number | bool'")
 })
 
+test("function with explicit recurisve return signature inference", fn {
+    fn f: ! {}
+
+    expect(typeof(f) == type(fn: !), "Expected 'f' to be 'fn: !'")
+    expect(f is type(fn: !),         "Expected 'f' to be 'fn: !'")
+})
+
+test("function with explicit recurisve return and parameter signature inference", fn {
+    fn f(x: number): ! {}
+
+    expect(typeof(f) == type(fn(number): !), "Expected 'f' to be 'fn(number): !'")
+    expect(f is type(fn(number): !),         "Expected 'f' to be 'fn(number): !'")
+})
+
+test("function with implicit no return signature inference", fn {
+    fn f {}
+
+    expect(typeof(f) == type(fn: !), "Expected 'f' to be 'fn: !'")
+    expect(f is type(fn: !),         "Expected 'f' to be 'fn: !'")
+})
+
 pop_scope()
