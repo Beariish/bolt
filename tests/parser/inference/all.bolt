@@ -8,5 +8,6 @@ import "tableshapes"
 import "if-expr"
 import "for-expr"
 import "null-operators"
+import "logical-operators"
 
 pop_scope()
