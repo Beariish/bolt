@@ -734,6 +734,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_MINUS:
             emit_ab(ctx, BT_OP_NEG, result_loc, operand_loc, expr->as.unary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
+        case BT_TOKEN_PLUS:
+            emit_ab(ctx, BT_OP_MOVE, result_loc, operand_loc, BT_FALSE);
+            break;
         case BT_TOKEN_NOT: 
             emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc, BT_FALSE);
             break;

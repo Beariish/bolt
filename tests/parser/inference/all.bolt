@@ -9,5 +9,6 @@ import "if-expr"
 import "for-expr"
 import "null-operators"
 import "logical-operators"
+import "arithmetic-operators"
 
 pop_scope()

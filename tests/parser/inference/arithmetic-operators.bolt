@@ -1,0 +1,40 @@
+import * from "../../test"
+
+push_scope("arithmetic-operators")
+
+test("+ operator inference for strings", fn {
+    expect(typeof("a" + "b") == string, "Expected '\"a\" + \"b\"' to be 'string'")
+    expect(("a" + "b") is string,       "Expected '\"a\" + \"b\"' to be 'string'")
+})
+
+test("+ operator inference", fn {
+    expect(typeof(10 + 10) == number, "Expected '10 + 10' to be 'number'")
+    expect((10 + 10) is number,       "Expected '10 + 10' to be 'number'")
+})
+
+test("- operator inference", fn {
+    expect(typeof(10 - 10) == number, "Expected '10 - 10' to be 'number'")
+    expect((10 - 10) is number,       "Expected '10 - 10' to be 'number'")
+})
+
+test("* operator inference", fn {
+    expect(typeof(10 * 10) == number, "Expected '10 * 10' to be 'number'")
+    expect((10 * 10) is number,       "Expected '10 * 10' to be 'number'")
+})
+
+test("/ operator inference", fn {
+    expect(typeof(10 / 10) == number, "Expected '10 / 10' to be 'number'")
+    expect((10 / 10) is number,       "Expected '10 / 10' to be 'number'")
+})
+
+test("+(unary) operator inference", fn {
+    expect(typeof(+10) == number, "Expected '+10' to be 'number'")
+    expect((+10) is number,       "Expected '+10' to be 'number'")
+})
+
+test("-(unary) operator inference", fn {
+    expect(typeof(-10) == number, "Expected '-10' to be 'number'")
+    expect((-10) is number,       "Expected '-10' to be 'number'")
+})
+
+pop_scope()
