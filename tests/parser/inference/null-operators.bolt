@@ -23,4 +23,12 @@ test("! operator inference", fn {
     expect(x! is number,         "Expected x! to be 'number'")
 })
 
+test("as operator inference", fn {
+    let const x: number | string = 10
+    let const y: number | string = "hello"
+
+    expect(typeof(x as string) == type(string?), "Expected 'x as string' to be 'string?")
+    expect(typeof(y as string) == type(string?), "Expected 'y as string' to be 'string?")
+})
+
 pop_scope()
