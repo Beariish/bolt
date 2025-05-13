@@ -74,7 +74,7 @@ fn run_scope(scope: TestScope): ! {
     }
 }
 
-fn run {
+export fn run {
     run_scope(state.root)
 
     if state.failures.length() > 0 {
@@ -91,7 +91,7 @@ fn run {
     print("DONE: " + to_string(n_passed) + "/" + to_string(state.total_tests) + " tests passed!")
 }
 
-fn push_scope(name: string) {
+export fn push_scope(name: string) {
     let new_name = state.current_scope!.name
 
     if new_name.length() > 0 { new_name += "." }
@@ -108,7 +108,7 @@ fn push_scope(name: string) {
     state.current_scope = new_scope
 } 
 
-fn pop_scope {
+export fn pop_scope {
     state.current_scope = state.current_scope!.parent
 
     if state.current_scope == state.root {
@@ -116,7 +116,7 @@ fn pop_scope {
     }
 }
 
-fn test(name: string, body: fn) {
+export fn test(name: string, body: fn) {
     let scope = state.current_scope!
     scope.tests.push(
         TestCase => {
@@ -131,13 +131,13 @@ fn test(name: string, body: fn) {
     )
 }
 
-fn ensure_branch {
+export fn ensure_branch {
     if let test = state.current_test {
         test.branches_expected += 1
     }
 }
 
-fn expect(condition: bool, message: string) {
+export fn expect(condition: bool, message: string) {
     if not condition {
         if let test = state.current_test {
             test.result = false
@@ -148,17 +148,10 @@ fn expect(condition: bool, message: string) {
     }
 }
 
-fn expect_branched(condition: bool, message: string) {
+export fn expect_branched(condition: bool, message: string) {
     if let test = state.current_test {
         test.branches_taken += 1
     }
 
     expect(condition, message)
 }
-
-export push_scope
-export pop_scope
-export test
-export ensure_branch
-export expect
-export expect_branched

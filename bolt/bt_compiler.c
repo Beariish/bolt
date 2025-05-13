@@ -1301,6 +1301,10 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
         return BT_TRUE;
     } break;
     case BT_AST_NODE_EXPORT: {
+        if (stmt->as.exp.value->type != BT_AST_NODE_IDENTIFIER) {
+            compile_statement(ctx, stmt->as.exp.value);
+        }
+            
         push_registers(ctx);
 
         uint8_t type_lit = push(ctx, BT_VALUE_OBJECT(stmt->resulting_type));
@@ -1314,10 +1318,6 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
         uint8_t name_loc = get_register(ctx);
         emit_ab(ctx, BT_OP_LOAD, name_loc, name_lit, BT_FALSE);
-
-        if (stmt->as.exp.value->type != BT_AST_NODE_IDENTIFIER) {
-            compile_statement(ctx, stmt->as.exp.value);
-        }
 
         if (stmt->as.exp.value->type == BT_AST_NODE_ALIAS) {
             uint8_t alias_loc = find_named(ctx, stmt->as.exp.name);
