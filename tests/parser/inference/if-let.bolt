@@ -1,0 +1,25 @@
+import * from "../../test"
+
+push_scope("if-let")
+
+test("if-let binding type inference", fn {
+    let const x: number | null = 10
+
+    ensure_branch()
+    if let num = x {
+        expect_branched(typeof(num) == number, "Expected 'num' to be 'number'")
+        expect         (num is number,         "Expected 'num' to be 'number'")
+    }
+})
+
+test("if-let binding with union type inference", fn {
+    let const x: number | string | null = 10
+
+    ensure_branch()
+    if let num = x {
+        expect_branched(typeof(num) == type(number | string), "Expected 'num' to be 'type(number | string)'")
+        expect         (num is number,                        "Expected 'num' to be 'number'")
+    }
+})
+
+pop_scope()

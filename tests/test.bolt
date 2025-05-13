@@ -5,7 +5,9 @@ type TestCase = {
     name: string,
     result: bool,
     failures: [string],
-    body: fn
+    body: fn,
+    branches_expected: number,
+    branches_taken: number,
 }
 
 type TestScope = {
@@ -50,7 +52,13 @@ fn run_scope(scope: TestScope): ! {
             test.failures.push(e.what)
             state.failures.push(test)
         }
-        else if test.result {
+        
+        if test.branches_expected != test.branches_taken {
+            test.result = false
+            test.failures.push("Expected branch was not taken!")
+        }
+
+        if test.result {
             n_success += 1
         } else {
             state.failures.push(test)
@@ -116,9 +124,17 @@ fn test(name: string, body: fn) {
             name: name,
             result: true,
             failures: [:string],
-            body: body
+            body: body,
+            branches_expected: 0,
+            branches_taken: 0
         }
     )
+}
+
+fn ensure_branch {
+    if let test = state.current_test {
+        test.branches_expected += 1
+    }
 }
 
 fn expect(condition: bool, message: string) {
@@ -132,7 +148,17 @@ fn expect(condition: bool, message: string) {
     }
 }
 
+fn expect_branched(condition: bool, message: string) {
+    if let test = state.current_test {
+        test.branches_taken += 1
+    }
+
+    expect(condition, message)
+}
+
 export push_scope
 export pop_scope
 export test
+export ensure_branch
 export expect
+export expect_branched
