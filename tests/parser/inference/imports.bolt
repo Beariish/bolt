@@ -1,0 +1,78 @@
+import * from "../../test"
+import * from "_exports"
+
+push_scope("imports")
+
+test("import number type inference", fn {
+    expect(typeof(num) == number, "Expected import 'num' to be 'number'")
+    expect(num is number,         "Expected import 'num' to be 'number'")
+})
+
+test("import string type inference", fn {
+    expect(typeof(str) == string, "Expected import 'str' to be 'string'")
+    expect(str is string,         "Expected import 'str' to be 'string'")
+})
+
+test("import bool type inference", fn {
+    expect(typeof(boolean) == bool, "Expected import 'boolean' to be 'bool'")
+    expect(boolean is bool,         "Expected import 'boolean' to be 'bool'")
+})
+
+test("import null type inference", fn {
+    expect(typeof(nil) == type(null), "Expected import 'nil' to be 'null'")
+    expect(nil is type(null),         "Expected import 'nil' to be 'null'")
+})
+
+test("import array type inference", fn {
+    expect(typeof(arr) == type([number]), "Expected import 'arr' to be '[number]'")
+    expect(arr is type([number]),         "Expected import 'arr' to be '[number]'")
+})
+
+test("import anonymous table type inference", fn {
+    expect(typeof(t) == type({a: number, b: string}), "Expected import 't' to be '{a: number, b: string}'")
+    expect(t is type({a: number, b: string}),         "Expected import 't' to be '{a: number, b: string}'")
+})
+
+test("import function type inference", fn {
+    expect(typeof(f) == type(fn(number): number), "Expected import 'f' to be 'fn(number): number'")
+    expect(f is type(fn(number): number),         "Expected import 'f' to be 'fn(number): number'")
+})
+
+test("import closure type inference", fn {
+    expect(typeof(cl) == type(fn: number), "Expected import 'cl' to be 'fn: number'")
+    expect(cl is type(fn: number),         "Expected import 'cl' to be 'fn: number'")
+})
+
+test("import enum type type inference", fn {
+    expect(typeof(Enum) == Type, "Expected import 'Enum' to be 'Type'")
+    expect(Enum is Type,         "Expected import 'Enum' to be 'Type'")
+})
+
+test("import enum variant type inference", fn {
+    expect(typeof(variant) == Enum, "Expected import 'variant' to be 'Enum'")
+    expect(variant is Enum,         "Expected import 'variant' to be 'Enum'")
+})
+
+test("import tableshape type type inference", fn {
+    expect(typeof(T) == Type, "Expected import 'T' to be 'Type'")
+    expect(T is Type,         "Expected import 'T' to be 'Type'")
+})
+
+test("import tableshape instance type inference", fn {
+    expect(typeof(instance) == T, "Expected import 'instance' to be 'T'")
+    expect(instance is T,         "Expected import 'instance' to be 'T'")
+})
+
+test("import alias type inference", fn {
+    expect(typeof(Alias) == Type, "Expected import 'Alias' to be 'Type'")
+    expect(Alias is Type,         "Expected import 'Alias' to be 'Type'")
+    expect(Alias == number,       "Expected import 'Alias' to be 'number'")
+})
+
+test("import signature type inference", fn {
+    expect(typeof(Signature) == Type,                   "Expected import 'Signature' to be 'Type'")
+    expect(Signature is Type,                           "Expected import 'Signature' to be 'Type'")
+    expect(Signature == type(fn(number, string): bool), "Expected import 'Signature' to be 'fn(number, string): bool'")
+})
+
+pop_scope()

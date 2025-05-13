@@ -1323,6 +1323,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
     }
     else {
         lhs_node = token_to_node(parse, lhs);
+        type_check(parse, lhs_node);
     }
     
     for (;;) {

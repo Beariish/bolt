@@ -1,0 +1,25 @@
+export let num = 10
+export let str = "string"
+export let boolean = false
+export let nil = null
+export let arr = [1, 2, 3]
+export let t = {
+    a: 10, b: "str"
+}
+
+export let f = fn(a: number) { return a * 2 }
+export let cl = fn { num += 1 return num }
+export type Enum = enum { A, B, C }
+export let variant = Enum.A
+
+export type T = {
+    a: string,
+    b: bool
+}
+
+export let instance = T => {
+    a: "hello", b: false
+}
+
+export type Alias = number
+export type Signature = fn(number, string): bool
