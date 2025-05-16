@@ -2500,30 +2500,35 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         return NULL;
     }
 
-    bt_Type* type = find_type_or_shadow(parser, ident);
-
-    if (type) {
+    bt_Token* period = bt_tokenizer_peek(tok);
+    if (period->type == BT_TOKEN_PERIOD) {
         // We are defining a member function
-        if (!bt_tokenizer_expect(tok, BT_TOKEN_PERIOD)) {
-            return NULL;
+        bt_tokenizer_emit(tok);
+
+        bt_Type* type = find_type_or_shadow(parser, ident);
+
+        if (type && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+            ident = bt_tokenizer_emit(tok);
+            if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
+
+            bt_AstNode* fn = parse_function_literal(parser, ident, type);
+            if (fn->type != BT_AST_NODE_FUNCTION && fn->type != BT_AST_NODE_METHOD) parse_error_token(parser, "Expected function literal", fn->source);
+
+            bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
+            bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
+
+            bt_AstNode* result = make_node(parser, BT_AST_NODE_METHOD);
+            result->as.method.containing_type = type;
+            result->as.method.fn = fn;
+            result->as.method.name = name;
+
+            return result;
         }
 
-        ident = bt_tokenizer_emit(tok);
-        if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
-
-        bt_AstNode* fn = parse_function_literal(parser, ident, type);
-        if (fn->type != BT_AST_NODE_FUNCTION && fn->type != BT_AST_NODE_METHOD) parse_error_token(parser, "Expected function literal", fn->source);
-
-        bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
-        bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
-
-        bt_AstNode* result = make_node(parser, BT_AST_NODE_METHOD);
-        result->as.method.containing_type = type;
-        result->as.method.fn = fn;
-        result->as.method.name = name;
-
-        return result;
+        parse_error_token(parser, "Couldn't locate tableshape type '%.*s'", ident);
+        return NULL; 
     }
+
 
     bt_AstNode* fn = parse_function_literal(parser, ident, NULL);
     if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
