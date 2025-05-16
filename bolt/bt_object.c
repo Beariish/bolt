@@ -223,7 +223,7 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 {
     bt_Table* table;
     if (initial_size > 0) {
-        table = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, (sizeof(bt_TablePair) * initial_size) - sizeof(bt_TablePair*));
+        table = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, (sizeof(bt_TablePair) * initial_size) - sizeof(bt_Value));
         table->is_inline = BT_TRUE;
     }
     else {

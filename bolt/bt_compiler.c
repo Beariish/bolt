@@ -976,7 +976,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         bt_AstBuffer* fields = &expr->as.table.fields;
         bt_Type* resulting = expr->resulting_type;
 
-        if (expr->as.table.typed) {
+        if (expr->as.table.typed && expr->resulting_type->as.table_shape.sealed) {
             uint8_t t_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
 
             push_registers(ctx);
@@ -997,7 +997,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             bt_AstNode* entry = fields->elements[i];
             compile_expression(ctx, entry->as.table_field.value_expr, val_loc);
 
-            if (expr->as.table.typed && ctx->compiler->options.predict_hash_slots) {
+            if (expr->as.table.typed && ctx->compiler->options.predict_hash_slots && expr->resulting_type->as.table_shape.sealed) {
                 bt_Table* layout = resulting->as.table_shape.layout;
                 int16_t idx = bt_table_get_idx(layout, entry->as.table_field.key);
                 uint8_t key_idx = push(ctx, entry->as.table_field.key);

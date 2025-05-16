@@ -443,18 +443,14 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
 	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
 	case BT_OBJECT_TYPE_FN: 
-		return sizeof(bt_Fn) 
-			+ ((bt_Fn*)obj)->constants.capacity * sizeof(bt_Value) 
-			+ ((bt_Fn*)obj)->instructions.capacity * sizeof(bt_Op);
+		return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
 	case BT_OBJECT_TYPE_CLOSURE: 
 		return sizeof(bt_Closure)
 			+ ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
 	case BT_OBJECT_TYPE_METHOD: 
-		return sizeof(bt_Fn) 
-			+ ((bt_Fn*)obj)->constants.capacity * sizeof(bt_Value) 
-			+ ((bt_Fn*)obj)->instructions.capacity * sizeof(bt_Op);
-	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array) + sizeof(bt_Value) * ((bt_Array*)obj)->capacity;
+		return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
 	}
@@ -1085,10 +1081,10 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(TABLE): 
 			if (BT_IS_ACCELERATED(op)) {
 				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
-				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, sizeof(bt_TablePair) * BT_GET_B(op));
+				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, (sizeof(bt_TablePair) * BT_GET_B(op)) - sizeof(bt_Value));
 				memcpy((char*)obj2 + sizeof(bt_Object), 
 					((char*)((bt_Type*)obj)->as.table_shape.tmpl) + sizeof(bt_Object),
-					sizeof(bt_Table) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Object));
+					(sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Value));
 				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 			}
 			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
@@ -1334,18 +1330,20 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(ITERFOR):
 			obj = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			thread->top += BT_GET_A(op) + 2;
-			thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
-
+			bt_add_ref(context, obj);
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
+				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
 				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, -2);
 			}
 			else {
+				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
 				thread->native_stack[thread->native_depth].return_loc = -2;
 				thread->native_depth++;
 				((bt_NativeFn*)((bt_Closure*)obj)->fn)->fn(context, thread);
 				thread->native_depth--;
 			}
 
+			bt_remove_ref(context, obj);
 			thread->depth--;
 			thread->top -= BT_GET_A(op) + 2;
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }

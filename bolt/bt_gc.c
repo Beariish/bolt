@@ -98,50 +98,57 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 			break;
 		case BT_TYPE_CATEGORY_NATIVE_FN:
 		case BT_TYPE_CATEGORY_SIGNATURE: {
-			grey(gc, (bt_Object*)as_type->as.fn.return_type);
-			grey(gc, (bt_Object*)as_type->as.fn.varargs_type);
-			for (uint32_t i = 0; i < as_type->as.fn.args.length; ++i) {
-				bt_Type* arg = as_type->as.fn.args.elements[i];
-				grey(gc, (bt_Object*)arg);
-			}
+				grey(gc, (bt_Object*)as_type->as.fn.return_type);
+				grey(gc, (bt_Object*)as_type->as.fn.varargs_type);
+				for (uint32_t i = 0; i < as_type->as.fn.args.length; ++i) {
+					bt_Type* arg = as_type->as.fn.args.elements[i];
+					grey(gc, (bt_Object*)arg);
+				}
 		} break;
 		case BT_TYPE_CATEGORY_TABLESHAPE: {
-			grey(gc, (bt_Object*)as_type->as.table_shape.tmpl);
-			grey(gc, (bt_Object*)as_type->as.table_shape.layout);
-			grey(gc, (bt_Object*)as_type->as.table_shape.key_layout);
-			grey(gc, (bt_Object*)as_type->as.table_shape.parent);
+				grey(gc, (bt_Object*)as_type->as.table_shape.tmpl);
+				grey(gc, (bt_Object*)as_type->as.table_shape.layout);
+				grey(gc, (bt_Object*)as_type->as.table_shape.key_layout);
+				grey(gc, (bt_Object*)as_type->as.table_shape.parent);
+				grey(gc, (bt_Object*)as_type->as.table_shape.key_type);
+				grey(gc, (bt_Object*)as_type->as.table_shape.value_type);
 		} break;
 		case BT_TYPE_CATEGORY_TYPE: {
-			grey(gc, (bt_Object*)as_type->as.type.boxed);
+				grey(gc, (bt_Object*)as_type->as.type.boxed);
 		} break;
 		case BT_TYPE_CATEGORY_USERDATA: {
-			bt_FieldBuffer* fields = &as_type->as.userdata.fields;
-			for (uint32_t i = 0; i < fields->length; i++) {
-				bt_UserdataField* field = fields->elements + i;
-				grey(gc, (bt_Object*)field->bolt_type);
-				grey(gc, (bt_Object*)field->name);
-			}
+				bt_FieldBuffer* fields = &as_type->as.userdata.fields;
+				for (uint32_t i = 0; i < fields->length; i++) {
+					bt_UserdataField* field = fields->elements + i;
+					grey(gc, (bt_Object*)field->bolt_type);
+					grey(gc, (bt_Object*)field->name);
+				}
 
-			bt_MethodBuffer* methods = &as_type->as.userdata.functions;
-			for (uint32_t i = 0; i < methods->length; i++) {
-				bt_UserdataMethod* method = methods->elements + i;
-				grey(gc, (bt_Object*)method->name);
-				grey(gc, (bt_Object*)method->fn);
-			}
+				bt_MethodBuffer* methods = &as_type->as.userdata.functions;
+				for (uint32_t i = 0; i < methods->length; i++) {
+					bt_UserdataMethod* method = methods->elements + i;
+					grey(gc, (bt_Object*)method->name);
+					grey(gc, (bt_Object*)method->fn);
+				}
 		} break;
 		case BT_TYPE_CATEGORY_UNION: {
-			bt_TypeBuffer* entries = &as_type->as.selector.types;
-			for (uint32_t i = 0; i < entries->length; ++i) {
-				bt_Type* type = entries->elements[i];
-				grey(gc, (bt_Object*)type);
-			}
+				bt_TypeBuffer* entries = &as_type->as.selector.types;
+				for (uint32_t i = 0; i < entries->length; ++i) {
+					bt_Type* type = entries->elements[i];
+					grey(gc, (bt_Object*)type);
+				}
 		} break;
-		}
+		case BT_TYPE_CATEGORY_ENUM: {
+				grey(gc, (bt_Object*)as_type->as.enum_.name);
+				grey(gc, (bt_Object*)as_type->as.enum_.options);
+		} break;
+		}	
 	} break;
 	case BT_OBJECT_TYPE_MODULE: {
 		bt_Module* mod = (bt_Module*)obj;
 		grey(gc, (bt_Object*)mod->type);
 		grey(gc, (bt_Object*)mod->exports);
+		grey(gc, (bt_Object*)mod->name);
 		grey(gc, (bt_Object*)mod->path);
 
 		for (uint32_t i = 0; i < mod->imports.length; ++i) {
@@ -198,6 +205,12 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_Userdata* userdata = (bt_Userdata*)obj;
 		grey(gc, (bt_Object*)userdata->type);
 	} break;
+	case BT_OBJECT_TYPE_ARRAY: {
+		bt_Array* arr = (bt_Array*)obj;
+		for (uint32_t i = 0; i < arr->length; i++) {
+			if (BT_IS_OBJECT(arr->items[i])) grey(gc, BT_AS_OBJECT(arr->items[i]));
+		}
+	} break;
 	}
 }
 
@@ -206,21 +219,26 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	bt_Context* ctx = gc->ctx;
 
 	grey(gc, (bt_Object*)ctx->types.any);
-	grey(gc, (bt_Object*)ctx->types.array);
-	grey(gc, (bt_Object*)ctx->types.boolean);
 	grey(gc, (bt_Object*)ctx->types.null);
 	grey(gc, (bt_Object*)ctx->types.number);
+	grey(gc, (bt_Object*)ctx->types.boolean);
 	grey(gc, (bt_Object*)ctx->types.string);
+	grey(gc, (bt_Object*)ctx->types.array);
 	grey(gc, (bt_Object*)ctx->types.table);
+	//grey(gc, (bt_Object*)ctx->types.fn);
 	grey(gc, (bt_Object*)ctx->types.type);
-
+	
 	grey(gc, (bt_Object*)ctx->meta_names.add);
-	grey(gc, (bt_Object*)ctx->meta_names.div);
-	grey(gc, (bt_Object*)ctx->meta_names.mul);
 	grey(gc, (bt_Object*)ctx->meta_names.sub);
+	grey(gc, (bt_Object*)ctx->meta_names.mul);
+	grey(gc, (bt_Object*)ctx->meta_names.div);
+	grey(gc, (bt_Object*)ctx->meta_names.lt);
+	grey(gc, (bt_Object*)ctx->meta_names.lte);
+	grey(gc, (bt_Object*)ctx->meta_names.eq);
+	grey(gc, (bt_Object*)ctx->meta_names.neq);
 	grey(gc, (bt_Object*)ctx->meta_names.format);
 	grey(gc, (bt_Object*)ctx->meta_names.collect);
-
+	
 	grey(gc, (bt_Object*)ctx->root);
 	grey(gc, (bt_Object*)ctx->type_registry);
 	grey(gc, (bt_Object*)ctx->prelude);
@@ -239,9 +257,6 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		for (uint32_t i = 0; i < thr->depth; ++i) {
 			bt_StackFrame stck = thr->callstack[i];
 			grey(gc, (bt_Object*)BT_STACKFRAME_GET_CALLABLE(stck));
-
-			uint32_t ltop = thr->top + BT_STACKFRAME_GET_SIZE(stck) + BT_STACKFRAME_GET_USER_TOP(stck);
-			top = top > ltop ? top : ltop;
 		}
 
 		for (uint32_t i = 0; i < top; ++i) {
@@ -267,7 +282,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	gc_thread.depth++;
 
 	bt_Thread* old_thr = ctx->current_thread;
-	ctx->current_thread = &gc_thread;
+	//ctx->current_thread = &gc_thread;
 
 	while (current) {
 		if (BT_OBJECT_GET_MARK(current)) {
@@ -291,7 +306,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	gc->next_cycle = (gc->byets_allocated * gc->cycle_growth_pct) / 100;
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
 
-	ctx->current_thread = old_thr;
+	//ctx->current_thread = old_thr;
 
 	return n_collected;
 }

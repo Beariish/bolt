@@ -72,11 +72,12 @@ typedef struct bt_Table {
 	bt_Object obj;
 	struct bt_Table* prototype;
 	uint16_t is_inline, length, capacity, inline_capacity;
-	bt_TablePair* outline;
+	union {
+		bt_TablePair* outline; bt_Value inline_first;
+	};
 } bt_Table;
 
-#define BT_TABLE_INLINE_OFFSET ((sizeof(bt_Table) - sizeof(bt_TablePair*)) / sizeof(intptr_t))
-#define BT_TABLE_PAIRS(t) (((bt_Table*)(t))->is_inline ? ((bt_TablePair*)((intptr_t*)(t) + BT_TABLE_INLINE_OFFSET)) : ((bt_Table*)(t))->outline)
+#define BT_TABLE_PAIRS(t) (((bt_Table*)(t))->is_inline ? ((bt_TablePair*)(&((bt_Table*)t)->inline_first)) : ((bt_Table*)(t))->outline)
 
 typedef struct bt_Array {
 	bt_Object obj;
