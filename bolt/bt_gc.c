@@ -282,7 +282,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	gc_thread.depth++;
 
 	bt_Thread* old_thr = ctx->current_thread;
-	//ctx->current_thread = &gc_thread;
+	ctx->current_thread = &gc_thread;
 
 	while (current) {
 		if (BT_OBJECT_GET_MARK(current)) {
@@ -306,7 +306,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	gc->next_cycle = (gc->byets_allocated * gc->cycle_growth_pct) / 100;
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
 
-	//ctx->current_thread = old_thr;
+	ctx->current_thread = old_thr;
 
 	return n_collected;
 }

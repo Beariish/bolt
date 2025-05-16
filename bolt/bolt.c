@@ -1330,7 +1330,6 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(ITERFOR):
 			obj = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
 			thread->top += BT_GET_A(op) + 2;
-			bt_add_ref(context, obj);
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
 				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, -2);
@@ -1343,7 +1342,6 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 				thread->native_depth--;
 			}
 
-			bt_remove_ref(context, obj);
 			thread->depth--;
 			thread->top -= BT_GET_A(op) + 2;
 			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
