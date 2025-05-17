@@ -485,6 +485,23 @@ void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* paren
 	tshp->prototype_values->prototype = parent->prototype_values;
 }
 
+void bt_tableshape_set_field_annotations(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Annotation* annotations)
+{
+	if (!tshp->as.table_shape.field_annotations) {
+		tshp->as.table_shape.field_annotations = bt_make_table(context, 1);
+	}
+
+	bt_table_set(context, tshp->as.table_shape.field_annotations, key, BT_VALUE_OBJECT(annotations));
+}
+
+bt_Annotation* bt_tableshape_get_field_annotations(bt_Type* tshp, bt_Value key)
+{
+	if (!tshp->as.table_shape.field_annotations) return NULL;
+	bt_Value result = bt_table_get(tshp->as.table_shape.field_annotations, key);
+	if (result == BT_VALUE_NULL) return NULL;
+	return (bt_Annotation*)BT_AS_OBJECT(result);
+}
+
 bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value)
 {
 	bt_Type* result = bt_make_type(context, "map", bt_type_satisfier_map, BT_TYPE_CATEGORY_TABLESHAPE);

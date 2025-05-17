@@ -138,6 +138,18 @@ static void btstd_dump(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(bt_debug_dump_fn(ctx, arg)));
 }
 
+static void populate_annotation_array(bt_Context* ctx, bt_Annotation* anno, bt_Array* array) {
+	while (anno) {
+		bt_Table* bt_anno = bt_make_table_from_proto(ctx, annotation_type);
+		bt_table_set(ctx, bt_anno, annotation_name_key, BT_VALUE_OBJECT(anno->name));
+		bt_Array* args = anno->args ? anno->args : bt_make_array(ctx, 0);
+		bt_table_set(ctx, bt_anno, annotation_args_key, BT_VALUE_OBJECT(args));
+		bt_array_push(ctx, array, BT_VALUE_OBJECT(bt_anno));
+
+		anno = anno->next;
+	}
+}
+
 static void btstd_get_annotations(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -153,15 +165,20 @@ static void btstd_get_annotations(bt_Context* ctx, bt_Thread* thread)
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) anno = ((bt_Closure*)as_obj)->fn->signature->annotations;
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE) anno = ((bt_Type*)as_obj)->annotations;
 
-		while (anno) {
-			bt_Table* bt_anno = bt_make_table_from_proto(ctx, annotation_type);
-			bt_table_set(ctx, bt_anno, annotation_name_key, BT_VALUE_OBJECT(anno->name));
-			bt_Array* args = anno->args ? anno->args : bt_make_array(ctx, 0);
-			bt_table_set(ctx, bt_anno, annotation_args_key, BT_VALUE_OBJECT(args));
-			bt_array_push(ctx, ret, BT_VALUE_OBJECT(bt_anno));
+		populate_annotation_array(ctx, anno, ret);
+	}
+}
 
-			anno = anno->next;
-		}
+static void btstd_get_field_annotations(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Type* type = (bt_Type*)BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_Value key = bt_arg(thread, 1);
+	bt_Array* ret = bt_make_array(ctx, 1);
+	bt_return(thread, BT_VALUE_OBJECT(ret));
+
+	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		bt_Annotation* anno = bt_tableshape_get_field_annotations(type, key);
+		populate_annotation_array(ctx, anno, ret);
 	}
 }
 
@@ -184,29 +201,32 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "stack_size"),     bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));
 	bt_module_export(context, module, string, BT_VALUE_CSTRING(context, "version"),        bt_make_object((bt_Object*)bt_make_string(context, BOLT_VERSION)));
-
+	bt_module_export(context, module, type,   BT_VALUE_CSTRING(context, "Annotation"),     bt_make_object((bt_Object*)annotation_type));
+	
 	bt_Type* findtype_ret = bt_make_nullable(context, type);
 	bt_Type* annotation_arr = bt_make_array_type(context, annotation_type);
 	
 	bt_Type* regtype_args[]         = { string, type };
 	bt_Type* getenumname_args[]     = { type,   any };
 	bt_Type* get_union_entry_args[] = { type,   number };
+	bt_Type* field_anno_args[]      = { type,   any };
 
-	bt_module_export_native(context, module, "gc",               btstd_gc,               number,         NULL,                 0);
-	bt_module_export_native(context, module, "grey",             btstd_grey,             NULL,           &any,                 1);
-	bt_module_export_native(context, module, "push_root",        btstd_push_root,        NULL,           &any,                 1);
-	bt_module_export_native(context, module, "pop_root",         btstd_pop_root,         NULL,           NULL,                 0);
-	bt_module_export_native(context, module, "add_reference",    btstd_add_reference,    number,         &any,                 1);
-	bt_module_export_native(context, module, "remove_reference", btstd_remove_reference, number,         &any,                 1);
-	bt_module_export_native(context, module, "mem_size",         btstd_memsize,          number,         NULL,                 0);
-	bt_module_export_native(context, module, "next_cycle",       btstd_nextcycle,        number,         NULL,                 0);
-	bt_module_export_native(context, module, "register_type",    btstd_register_type,    NULL,           regtype_args,         2);
-	bt_module_export_native(context, module, "find_type",        btstd_find_type,        findtype_ret,   &string,              1);
-	bt_module_export_native(context, module, "get_enum_name",    btstd_get_enum_name,    string,         getenumname_args,     2);
-	bt_module_export_native(context, module, "add_module_path",  btstd_add_module_path,  NULL,           &string,              1);
-	bt_module_export_native(context, module, "get_union_size",   btstd_get_union_size,   number,         &type,                1);
-	bt_module_export_native(context, module, "get_union_entry",  btstd_get_union_entry,  type,           get_union_entry_args, 2);
-	bt_module_export_native(context, module, "annotations",      btstd_get_annotations,  annotation_arr, &any,                 1);
+	bt_module_export_native(context, module, "gc",                btstd_gc,                    number,         NULL,                 0);
+	bt_module_export_native(context, module, "grey",              btstd_grey,                  NULL,           &any,                 1);
+	bt_module_export_native(context, module, "push_root",         btstd_push_root,             NULL,           &any,                 1);
+	bt_module_export_native(context, module, "pop_root",          btstd_pop_root,              NULL,           NULL,                 0);
+	bt_module_export_native(context, module, "add_reference",     btstd_add_reference,         number,         &any,                 1);
+	bt_module_export_native(context, module, "remove_reference",  btstd_remove_reference,      number,         &any,                 1);
+	bt_module_export_native(context, module, "mem_size",          btstd_memsize,               number,         NULL,                 0);
+	bt_module_export_native(context, module, "next_cycle",        btstd_nextcycle,             number,         NULL,                 0);
+	bt_module_export_native(context, module, "register_type",     btstd_register_type,         NULL,           regtype_args,         2);
+	bt_module_export_native(context, module, "find_type",         btstd_find_type,             findtype_ret,   &string,              1);
+	bt_module_export_native(context, module, "get_enum_name",     btstd_get_enum_name,         string,         getenumname_args,     2);
+	bt_module_export_native(context, module, "add_module_path",   btstd_add_module_path,       NULL,           &string,              1);
+	bt_module_export_native(context, module, "get_union_size",    btstd_get_union_size,        number,         &type,                1);
+	bt_module_export_native(context, module, "get_union_entry",   btstd_get_union_entry,       type,           get_union_entry_args, 2);
+	bt_module_export_native(context, module, "annotations",       btstd_get_annotations,       annotation_arr, &any,                 1);
+	bt_module_export_native(context, module, "field_annotations", btstd_get_field_annotations, annotation_arr, field_anno_args,      2);
 	
 	bt_Type* dump_sig = bt_make_poly_signature(context, "dump(fn): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(

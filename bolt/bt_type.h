@@ -36,6 +36,7 @@ typedef struct bt_Type {
 
 			bt_Table* layout;
 			bt_Table* key_layout;
+			bt_Table* field_annotations;
 			bt_Type* parent;
 			bt_Type* key_type;
 			bt_Type* value_type;
@@ -127,6 +128,8 @@ BOLT_API bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_b
 BOLT_API void bt_tableshape_add_layout(bt_Context* context, bt_Type* tshp, bt_Type* key_type, bt_Value key, bt_Type* type);
 BOLT_API bt_Type* bt_tableshape_get_layout(bt_Type* tshp, bt_Value key);
 BOLT_API void bt_tableshape_set_parent(bt_Context* context, bt_Type* tshp, bt_Type* parent);
+BOLT_API void bt_tableshape_set_field_annotations(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Annotation* annotations);
+BOLT_API bt_Annotation* bt_tableshape_get_field_annotations(bt_Type* tshp, bt_Value key);
 
 BOLT_API bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value);
 

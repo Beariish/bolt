@@ -715,6 +715,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         }
 
         while (token && token->type != BT_TOKEN_RIGHTBRACE) {
+            try_parse_annotations(parse);
+            
             token = bt_tokenizer_emit(tok);
             if (token->type != BT_TOKEN_IDENTIFIER) {
                 parse_error_token(parse, "Expected identifier name for tableshape field, got '%.*s'", token);
@@ -744,7 +746,11 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             }
 
             bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), (bt_Type*)BT_AS_OBJECT(type));
-
+            if (parse->annotation_base) {
+                bt_tableshape_set_field_annotations(ctx, result, BT_VALUE_OBJECT(name), parse->annotation_base);
+                parse->annotation_base = parse->annotation_tail = 0;
+            }
+            
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COMMA) {
                 bt_tokenizer_emit(tok);
