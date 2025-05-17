@@ -34,12 +34,15 @@ fn test_annotations(name: string, thing: any, expected: { ..string: [any] }) {
     test(name, fn {
         let const annos = annotations(thing)
         expect(tables.length(expected) == annos.length(), "Wrong number of annotations!")
-        for exp in tables.pairs(expected) {
+
+        for const exp in tables.pairs(expected) {
             let found = false
-            for anno in annos.each() {
+            
+            for const anno in annos.each() {
                 if anno.name == exp.key {
-                    found = true
                     expect(anno.args.length() == exp.value.length(), "Wrong number of arguments for annotation " + to_string(anno.name))
+                    found = true
+                    
                     for i in anno.args.length() {
                         expect(exp.value[i] == anno.args[i], "Argument " + to_string(i) + " was not right!")
                     }
@@ -53,10 +56,10 @@ fn test_annotations(name: string, thing: any, expected: { ..string: [any] }) {
     })
 }
 
-test_annotations("single annotation with no args",              with_anno,             { "annotated": [:any] })
-test_annotations("single inline annotation with no args",       also_with_anno,        { "annotated": [:any] })
-test_annotations("multiple annotations with no args",           with_multiple_annos,   { "annotated": [:any], "rpc": [:any] })
-test_annotations("multiple inline annotations with no args",    inline_multiple_annos, { "annotated": [:any], "rpc": [:any] })
+test_annotations("single annotation with no args",              with_anno,             { "annotated": [] })
+test_annotations("single inline annotation with no args",       also_with_anno,        { "annotated": [] })
+test_annotations("multiple annotations with no args",           with_multiple_annos,   { "annotated": [], "rpc": [] })
+test_annotations("multiple inline annotations with no args",    inline_multiple_annos, { "annotated": [], "rpc": [] })
 test_annotations("single annotation with args",                 anno_with_args,        { "args": [10, 20, "hello!"] })
 test_annotations("single inline annotation with args",          inline_with_args,      { "args": [10, 20, "hello!"] })
 test_annotations("multiple annotations with args",              multiple_with_args,    { "args": [10, 20, "hello!"], "even": [true] })

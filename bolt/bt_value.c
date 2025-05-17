@@ -49,7 +49,7 @@ bt_Value bt_default_value(bt_Context* ctx, bt_Type* type) {
 	if (type == ctx->types.number) return bt_make_number(0);
 	if (type == ctx->types.string) return BT_VALUE_OBJECT(bt_make_string_empty(ctx, 0));
 	if (type->category == BT_TYPE_CATEGORY_ENUM) return BT_TABLE_PAIRS(type->as.enum_.options)[0].value;
-	if (type->category == BT_TYPE_CATEGORY_ARRAY) return bt_make_array(ctx, 0);
+	if (type->category == BT_TYPE_CATEGORY_ARRAY) return BT_VALUE_OBJECT(bt_make_array(ctx, 0));
 	if (type->category == BT_TYPE_CATEGORY_UNION) {
 		bt_TypeBuffer* types = &type->as.selector.types;
 		for (uint32_t idx = 0; idx < types->length; ++idx) {
