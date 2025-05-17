@@ -20,6 +20,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power);
 static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 static bt_StrSlice this_str = { "this", 4 };
+static void try_parse_annotations(bt_Parser* parse);
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
@@ -533,6 +534,8 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
 
 static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 {
+    try_parse_annotations(parse);
+    
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_emit(tok);
     bt_Context* ctx = tok->context;
@@ -559,6 +562,10 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         }
         else if (token->type == BT_TOKEN_PLUS) {
             bt_tokenizer_emit(tok);
+
+            bt_Annotation* anno = parse->annotation_base;
+            parse->annotation_base = parse->annotation_tail = 0;
+            
             bt_Type* rhs = parse_type(parse, BT_FALSE, NULL);
 
             if (result->category != BT_TYPE_CATEGORY_TABLESHAPE || rhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
@@ -568,7 +575,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             bt_Type* lhs = result;
             result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
-
+            result->annotations = anno;
+            
             bt_Table* lhs_fields = lhs->as.table_shape.layout;
             bt_Table* lhs_field_types = lhs->as.table_shape.key_layout;
             bt_Table* rhs_fields = rhs->as.table_shape.layout;
@@ -597,6 +605,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         }
         else if (token->type == BT_TOKEN_UNION && recurse) {
             bt_Type* selector = bt_make_union(ctx);
+            selector->annotations = parse->annotation_base;
+            parse->annotation_base = parse->annotation_tail = 0;
 
             if (alias) {
                 alias->as.alias.type = selector;
@@ -675,7 +685,10 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
-            return bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
+            bt_Type* result = bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
+            result->annotations = parse->annotation_base;
+            parse->annotation_base = parse->annotation_tail = 0;
+            return result;
         }
 
         // TODO(bearish): This feels kinda hacky, dislike string allocs like this
@@ -688,6 +701,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         }
 
         bt_Type* result = bt_make_tableshape(ctx, name, is_sealed);
+        result->annotations = parse->annotation_base;
+        parse->annotation_base = parse->annotation_tail = 0;
         result->as.table_shape.final = is_final;
         
         if (alias) {
@@ -749,13 +764,18 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
         bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
-        return bt_make_array_type(parse->context, inner);
+        bt_Type* result = bt_make_array_type(parse->context, inner);
+        result->annotations = parse->annotation_base;
+        parse->annotation_base = parse->annotation_tail = 0;
+        return result;
     } break;
     case BT_TOKEN_ENUM: {
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
 
         bt_Type* result = bt_make_enum(parse->context, (bt_StrSlice) { "<enum>", 6 });
-
+        result->annotations = parse->annotation_base;
+        parse->annotation_base = parse->annotation_tail = 0;
+            
         uint32_t option_idx = 0;
         while (bt_tokenizer_peek(tok)->type == BT_TOKEN_IDENTIFIER) {
             bt_Token* name = bt_tokenizer_emit(tok);

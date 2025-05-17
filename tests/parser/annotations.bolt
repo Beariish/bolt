@@ -1,9 +1,8 @@
 import * from "../test"
-import to_string, print from core
+
+import to_string from core
 import annotations from meta
 import tables
-
-push_scope("annotations")
 
 #annotated
 fn with_anno {}
@@ -29,6 +28,36 @@ let const inline_multiple_args = #[args(10, 20, "hello!"), even(true)] fn {}
 fn multiple_split {}
 
 let const inline_multiple_split = #args(10, 20, "hello!") #even(true) fn {}
+
+#args(10, 20, "hello!") #even(true)
+type Enum = enum { A, B, C }
+
+type InlineEnum = #args(10, 20, "hello!") #even(true) enum { A, B, C }
+
+#args(10, 20, "hello!") #even(true)
+type Array = [number]
+
+type InlineArray = #args(10, 20, "hello!") #even(true) [number]
+
+#args(10, 20, "hello!") #even(true)
+type Union = number | string
+
+type InlineUnion = #args(10, 20, "hello!") #even(true) number | string
+
+#args(10, 20, "hello!") #even(true)
+type T = { a: number, b: string }
+
+type InlineT = #args(10, 20, "hello!") #even(true) { a: number, b: string }
+
+#args(10, 20, "hello!") #even(true)
+type T2 = T + { c: number, d: string }
+
+type InlineT2 = #args(10, 20, "hello!") #even(true) InlineT + { c: number, d: string }
+
+#args(10, 20, "hello!") #even(true)
+type Map = { ..number: string }
+
+type InlineMap = #args(10, 20, "hello!") #even(true) { ..number: string }
 
 fn test_annotations(name: string, thing: any, expected: { ..string: [any] }) {
     test(name, fn {
@@ -56,15 +85,29 @@ fn test_annotations(name: string, thing: any, expected: { ..string: [any] }) {
     })
 }
 
-test_annotations("single annotation with no args",              with_anno,             { "annotated": [] })
-test_annotations("single inline annotation with no args",       also_with_anno,        { "annotated": [] })
-test_annotations("multiple annotations with no args",           with_multiple_annos,   { "annotated": [], "rpc": [] })
-test_annotations("multiple inline annotations with no args",    inline_multiple_annos, { "annotated": [], "rpc": [] })
-test_annotations("single annotation with args",                 anno_with_args,        { "args": [10, 20, "hello!"] })
-test_annotations("single inline annotation with args",          inline_with_args,      { "args": [10, 20, "hello!"] })
-test_annotations("multiple annotations with args",              multiple_with_args,    { "args": [10, 20, "hello!"], "even": [true] })
-test_annotations("multiple inline annotations with args",       inline_multiple_args,  { "args": [10, 20, "hello!"], "even": [true] })
-test_annotations("multiple split annotations with args",        multiple_split,        { "args": [10, 20, "hello!"], "even": [true] })
-test_annotations("multiple split inline annotations with args", inline_multiple_split, { "args": [10, 20, "hello!"], "even": [true] })
+push_scope("annotations")
+
+test_annotations("single annotation with no args",                               with_anno,             { "annotated": [] })
+test_annotations("single inline annotation with no args",                        also_with_anno,        { "annotated": [] })
+test_annotations("multiple annotations with no args",                            with_multiple_annos,   { "annotated": [], "rpc": [] })
+test_annotations("multiple inline annotations with no args",                     inline_multiple_annos, { "annotated": [], "rpc": [] })
+test_annotations("single annotation with args",                                  anno_with_args,        { "args": [10, 20, "hello!"] })
+test_annotations("single inline annotation with args",                           inline_with_args,      { "args": [10, 20, "hello!"] })
+test_annotations("multiple annotations with args",                               multiple_with_args,    { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple inline annotations with args",                        inline_multiple_args,  { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args",                         multiple_split,        { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args",                  inline_multiple_split, { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args on enum",                 Enum,                  { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on enum",          InlineEnum,            { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args on array",                Array,                 { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on array",         InlineArray,           { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args on union",                Union,                 { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on union",         InlineUnion,           { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args on tshp",                 T,                     { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on tshp",          InlineT,               { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args on extended tshp",        T2,                    { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on extended tshp", InlineT2,              { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on map",           Map,                   { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args on map",           InlineMap,             { "args": [10, 20, "hello!"], "even": [true] })
 
 pop_scope()
