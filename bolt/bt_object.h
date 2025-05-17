@@ -21,7 +21,8 @@ typedef enum {
 	BT_OBJECT_TYPE_METHOD,
 	BT_OBJECT_TYPE_ARRAY,
 	BT_OBJECT_TYPE_TABLE,
-	BT_OBJECT_TYPE_USERDATA
+	BT_OBJECT_TYPE_USERDATA,
+	BT_OBJECT_TYPE_ANNOTATION,
 } bt_ObjectType;
 
 typedef bt_Buffer(uint32_t) bt_DebugLocBuffer;
@@ -165,6 +166,13 @@ typedef struct bt_Userdata {
 	uint8_t* data;
 } bt_Userdata;
 
+typedef struct bt_Annotation {
+	bt_Object obj;
+	bt_String* name;
+	bt_Array* args;
+	struct bt_Annotation* next;
+} bt_Annotation;
+
 typedef void (*bt_UserdataFinalizer)(bt_Context* ctx, bt_Userdata* userdata);
 
 #define BT_VALUE_CSTRING(ctx, str) BT_VALUE_OBJECT(bt_make_string_hashed(ctx, str))
@@ -186,6 +194,7 @@ BOLT_API bt_String* bt_concat_strings(bt_Context* ctx, bt_String* a, bt_String* 
 BOLT_API bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b);
 
 BOLT_API bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
+BOLT_API bt_Table* bt_make_table_from_proto(bt_Context* ctx, bt_Type* prototype);
 BOLT_API bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
 BOLT_API bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value);
 BOLT_API bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
@@ -209,6 +218,10 @@ BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_Nat
 BOLT_API bt_Type* bt_get_return_type(bt_Callable* callable);
 
 BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
+
+BOLT_API bt_Annotation* bt_make_annotation(bt_Context* ctx, bt_String* name);
+BOLT_API void bt_annotation_push(bt_Context* ctx, bt_Annotation* annotation, bt_Value value);
+BOLT_API bt_Annotation* bt_annotation_next(bt_Context* ctx, bt_Annotation* annotation, bt_String* next_name);
 
 BOLT_API void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value);
 BOLT_API void bt_module_export_native(bt_Context* ctx, bt_Module* module, const char* name, bt_NativeProc proc, bt_Type* ret_type, bt_Type** args, uint8_t arg_count);

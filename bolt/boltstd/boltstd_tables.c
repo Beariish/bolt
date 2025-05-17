@@ -82,6 +82,12 @@ static void bt_table_delete(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_BOOL(result));
 }
 
+static void bt_table_length(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Table* tbl = (bt_Table*)BT_AS_OBJECT(bt_arg(thread, 0));
+	bt_return(thread, BT_VALUE_NUMBER(tbl->length));
+}
+
 void boltstd_open_tables(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -102,5 +108,8 @@ void boltstd_open_tables(bt_Context* context)
 	fn_ref = bt_make_native(context, table_delete_sig, bt_table_delete);
 	bt_module_export(context, module, table_delete_sig, BT_VALUE_CSTRING(context, "delete"), BT_VALUE_OBJECT(fn_ref));
 
+	bt_Type* table = bt_type_table(context);
+	bt_module_export_native(context, module, "length", bt_table_length, bt_type_number(context), &table, 1);
+	
 	bt_register_module(context, BT_VALUE_CSTRING(context, "tables"), module);
 }

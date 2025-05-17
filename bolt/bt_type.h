@@ -83,7 +83,8 @@ typedef struct bt_Type {
 	bt_Type* prototype;
 	bt_Table* prototype_types;
 	bt_Table* prototype_values;
-
+	bt_Annotation* annotations;
+	
 	uint8_t category : 5;
 	bt_bool is_polymorphic : 1;
 } bt_Type;

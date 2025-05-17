@@ -1,0 +1,6 @@
+Bolt
+    filter call_regexp_common C++
+    filter remove_inline //.*$
+    extension bolt
+    3rd_gen_scale 1.51
+    end_of_line_continuation \\$

@@ -240,6 +240,25 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
     return table;
 }
 
+bt_Table* bt_make_table_from_proto(bt_Context* ctx, bt_Type* prototype)
+{
+    bt_Table* layout = prototype->as.table_shape.layout;
+    bt_Table* result = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, (sizeof(bt_TablePair) * layout->length) - sizeof(bt_Value));
+
+    if (prototype->as.table_shape.tmpl) {
+        memcpy((char*)result + sizeof(bt_Object), 
+            ((char*)prototype->as.table_shape.tmpl) + sizeof(bt_Object),
+            (sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * layout->length) - sizeof(bt_Value));
+    } else {
+        for (uint32_t i = 0; i < layout->length; ++i) {
+            bt_table_set(ctx, result, BT_TABLE_PAIRS(layout)[i].key,
+                bt_default_value(ctx, (bt_Type*)BT_AS_OBJECT(BT_TABLE_PAIRS(layout)[i].value)));
+        }
+    }
+
+    return result;
+}
+
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
     bt_String* as_str = (bt_String*)BT_VALUE_OBJECT(key);
@@ -588,4 +607,29 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
     } break;
     default: bt_runtime_error(ctx->current_thread, "Attempted to set field on fieldless type", NULL);
     }
+}
+
+bt_Annotation* bt_make_annotation(bt_Context* ctx, bt_String* name)
+{
+    bt_Annotation* annotation = BT_ALLOCATE(ctx, ANNOTATION, bt_Annotation);
+    annotation->name = name;
+    annotation->args = NULL;
+    annotation->next = NULL;
+    return annotation;
+}
+
+void bt_annotation_push(bt_Context* ctx, bt_Annotation* annotation, bt_Value value)
+{
+    if (!annotation->args) {
+        annotation->args = bt_make_array(ctx, 1);
+    }
+
+    bt_array_push(ctx, annotation->args, value);
+}
+
+bt_Annotation* bt_annotation_next(bt_Context* ctx, bt_Annotation* annotation, bt_String* next_name)
+{
+    bt_Annotation* next = bt_make_annotation(ctx, next_name);
+    if (annotation) annotation->next = next;
+    return next;
 }

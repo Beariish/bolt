@@ -223,8 +223,8 @@ eat_whitespace:
 
 		BT_SIMPLE_TOKEN(',', BT_TOKEN_COMMA);
 		BT_SIMPLE_TOKEN(';', BT_TOKEN_SEMICOLON);
-
 		BT_SIMPLE_TOKEN('|', BT_TOKEN_UNION);
+		BT_SIMPLE_TOKEN('#', BT_TOKEN_POUND);
 		
 		BT_DOUBLEABLE_TOKEN('.', BT_TOKEN_PERIOD, BT_TOKEN_VARARG);
 		BT_DOUBLEABLE_TOKEN('?', BT_TOKEN_QUESTION, BT_TOKEN_NULLCOALESCE);
@@ -403,7 +403,7 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_FALSE_LITERAL: return "false";
 	case BT_TOKEN_TRUE_LITERAL: return "true";
 	case BT_TOKEN_STRING_LITERAL: return "<string literal>";
-	case BT_TOKEN_IDENTIFER_LITERAL: return "<identifier>";
+	case BT_TOKEN_IDENTIFIER_LITERAL: return "<identifier>";
 	case BT_TOKEN_NUMBER_LITERAL: return "<number literal>";
 	case BT_TOKEN_NULL_LITERAL: return "<null>";
 	case BT_TOKEN_LEFTPAREN: return "(";

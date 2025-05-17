@@ -609,7 +609,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(ctx->context, lit->as_str.source, lit->as_str.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
         } break;
-        case BT_TOKEN_IDENTIFER_LITERAL: {
+        case BT_TOKEN_IDENTIFIER_LITERAL: {
             uint8_t idx = push(ctx,
                 BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, expr->source->source.source, expr->source->source.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
@@ -683,7 +683,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                     emit_aibc(ctx, BT_OP_IDX_EXT, 0, idx);
                 }
             }
-            else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+            else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFIER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
                 bt_Value is_prototypical = get_from_proto(lhs->as.binary_op.from, lhs->as.binary_op.key);
@@ -809,7 +809,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                     goto try_store;
                 }
             }
-            else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+            else if (rhs->type == BT_AST_NODE_LITERAL && rhs->resulting_type == ctx->context->types.string && rhs->source->type == BT_TOKEN_IDENTIFIER_LITERAL) {
                 uint8_t idx = push(ctx,
                     BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, rhs->source->source.source, rhs->source->source.length)));
 
@@ -939,7 +939,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 goto stored_fast;
             }
             else if (lhs->as.binary_op.right->type == BT_AST_NODE_LITERAL && lhs->as.binary_op.right->resulting_type == ctx->context->types.string &&
-                lhs->as.binary_op.right->source->type == BT_TOKEN_IDENTIFER_LITERAL) {
+                lhs->as.binary_op.right->source->type == BT_TOKEN_IDENTIFIER_LITERAL) {
             failed_fast:;
                 bt_Token* source = lhs->as.binary_op.right->source;
                 uint8_t idx = push(ctx,
@@ -1229,7 +1229,7 @@ static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_ex
             compile_expression(ctx, stmt->as.loop_numeric.start, it_loc);
             compile_expression(ctx, stmt->as.loop_numeric.step, step_loc);
             compile_expression(ctx, stmt->as.loop_numeric.stop, stop_loc);
-            emit_aibc(ctx, BT_OP_JMP, 0, 1);
+            emit_abc(ctx, BT_OP_SUB, it_loc, it_loc, step_loc, BT_TRUE);
 
             loop_start = ctx->output.length;
             skip_loc = emit_aibc(ctx, BT_OP_NUMFOR, it_loc, 0);

@@ -42,6 +42,36 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 	return BT_FALSE;
 }
 
+bt_Value bt_default_value(bt_Context* ctx, bt_Type* type) {
+	if (type == ctx->types.any) return BT_VALUE_NULL;
+	if (type == ctx->types.null) return BT_VALUE_NULL;
+	if (type == ctx->types.boolean) return BT_VALUE_FALSE;
+	if (type == ctx->types.number) return bt_make_number(0);
+	if (type == ctx->types.string) return BT_VALUE_OBJECT(bt_make_string_empty(ctx, 0));
+	if (type->category == BT_TYPE_CATEGORY_ENUM) return BT_TABLE_PAIRS(type->as.enum_.options)[0].value;
+	if (type->category == BT_TYPE_CATEGORY_ARRAY) return bt_make_array(ctx, 0);
+	if (type->category == BT_TYPE_CATEGORY_UNION) {
+		bt_TypeBuffer* types = &type->as.selector.types;
+		for (uint32_t idx = 0; idx < types->length; ++idx) {
+			bt_Type* elem = types->elements[idx];
+			if (elem->category == BT_TYPE_CATEGORY_PRIMITIVE ||
+				elem->category == BT_TYPE_CATEGORY_ENUM ||
+				elem->category == BT_TYPE_CATEGORY_ARRAY)
+				return bt_default_value(ctx, elem);
+		}
+
+		return bt_default_value(ctx, types->elements[0]);
+	}
+
+	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		bt_Table* table = bt_make_table_from_proto(ctx, type);
+		return BT_VALUE_OBJECT(table);
+	}
+
+	bt_runtime_error(ctx->current_thread, "Failed to create default value from complex type", 0);
+	return BT_VALUE_NULL;
+}
+
 #if !BOLT_INLINE_HEADER
 bt_Value bt_make_null() { return BT_VALUE_NULL; }
 bt_bool bt_is_null(bt_Value val) { return val == BT_VALUE_NULL; }

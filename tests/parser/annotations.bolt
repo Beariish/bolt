@@ -1,0 +1,67 @@
+import * from "../test"
+import to_string, print from core
+import annotations from meta
+import tables
+
+push_scope("annotations")
+
+#annotated
+fn with_anno {}
+
+let const also_with_anno = #annotated fn {}
+
+#[annotated, rpc]
+fn with_multiple_annos {}
+
+let const inline_multiple_annos = #[annotated, rpc] fn {}
+
+#args(10, 20, "hello!")
+fn anno_with_args {}
+
+let const inline_with_args = #args(10, 20, "hello!") fn {}
+
+#[args(10, 20, "hello!"), even(true)]
+fn multiple_with_args {}
+
+let const inline_multiple_args = #[args(10, 20, "hello!"), even(true)] fn {}
+
+#args(10, 20, "hello!") #even(true)
+fn multiple_split {}
+
+let const inline_multiple_split = #args(10, 20, "hello!") #even(true) fn {}
+
+fn test_annotations(name: string, thing: any, expected: { ..string: [any] }) {
+    test(name, fn {
+        let const annos = annotations(thing)
+        expect(tables.length(expected) == annos.length(), "Wrong number of annotations!")
+        for exp in tables.pairs(expected) {
+            let found = false
+            for anno in annos.each() {
+                if anno.name == exp.key {
+                    found = true
+                    expect(anno.args.length() == exp.value.length(), "Wrong number of arguments for annotation " + to_string(anno.name))
+                    for i in anno.args.length() {
+                        expect(exp.value[i] == anno.args[i], "Argument " + to_string(i) + " was not right!")
+                    }
+                }
+            }
+
+            if not found {
+                expect(false, "Couldn't find annotation " + to_string(exp.key) + " in list!")
+            }
+        }
+    })
+}
+
+test_annotations("single annotation with no args",              with_anno,             { "annotated": [:any] })
+test_annotations("single inline annotation with no args",       also_with_anno,        { "annotated": [:any] })
+test_annotations("multiple annotations with no args",           with_multiple_annos,   { "annotated": [:any], "rpc": [:any] })
+test_annotations("multiple inline annotations with no args",    inline_multiple_annos, { "annotated": [:any], "rpc": [:any] })
+test_annotations("single annotation with args",                 anno_with_args,        { "args": [10, 20, "hello!"] })
+test_annotations("single inline annotation with args",          inline_with_args,      { "args": [10, 20, "hello!"] })
+test_annotations("multiple annotations with args",              multiple_with_args,    { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple inline annotations with args",       inline_multiple_args,  { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split annotations with args",        multiple_split,        { "args": [10, 20, "hello!"], "even": [true] })
+test_annotations("multiple split inline annotations with args", inline_multiple_split, { "args": [10, 20, "hello!"], "even": [true] })
+
+pop_scope()

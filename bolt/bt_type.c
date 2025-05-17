@@ -225,7 +225,8 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	result->prototype = 0;
 	result->prototype_types = 0;
 	result->prototype_values = 0;
-
+	result->annotations = NULL;
+	
 	return result;
 }
 

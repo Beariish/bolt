@@ -4,6 +4,7 @@
 
 typedef uint64_t bt_Value;
 typedef struct bt_Object bt_Object;
+typedef struct bt_Type bt_Type;
 
 // IEEE 756 DOUBLE       S[Exponent-][Mantissa------------------------------------------]
 #define BT_SIGN_BIT   (0b1000000000000000000000000000000000000000000000000000000000000000)
@@ -50,6 +51,9 @@ typedef struct bt_Object bt_Object;
 #define BT_AS_OBJECT(x) ((bt_Object*)(BT_VALUE_MASK & ((bt_Value)x)))
 
 BOLT_API bt_bool bt_value_is_equal(bt_Value a, bt_Value b);
+
+/** Generates a default value fo the supplied `type`, preferring the simplest types in case of unions */
+BOLT_API bt_Value bt_default_value(bt_Context* ctx, bt_Type* type);
 
 #if BOLT_INLINE_HEADER
 static BT_FORCE_INLINE bt_Value bt_make_null() { return BT_VALUE_NULL; }

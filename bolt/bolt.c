@@ -453,6 +453,7 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
+	case BT_OBJECT_TYPE_ANNOTATION: return sizeof(bt_Annotation);
 	}
 
 #ifdef BT_DEBUG

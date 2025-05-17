@@ -30,6 +30,9 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
     result.scope = NULL;
     result.current_pool = NULL;
     result.has_errored = BT_FALSE;
+    result.current_fn = NULL;
+    result.annotation_base = NULL;
+    result.annotation_tail = NULL;
 
     return result;
 }
@@ -333,7 +336,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
     switch (node->type) {
     case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: {
         switch (node->source->type) {
-        case BT_TOKEN_IDENTIFER_LITERAL: case BT_TOKEN_IDENTIFIER: {
+        case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
             result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
         } break;
         case BT_TOKEN_STRING_LITERAL: {
@@ -640,7 +643,10 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             return_type = parse_type(parse, BT_TRUE, NULL);
         }
 
-        return bt_make_signature(ctx, return_type, args, arg_top);
+        bt_Type* sig = bt_make_signature(ctx, return_type, args, arg_top);
+        sig->annotations = parse->annotation_base;
+        parse->annotation_base = parse->annotation_tail = 0;
+        return sig;
     } break;
     case BT_TOKEN_FINAL:
         is_final = BT_TRUE;
@@ -1190,7 +1196,9 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
                 bt_type_add_field(parse->context, prototype, result->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
             } else {
                 result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
-
+                result->resulting_type->annotations = parse->annotation_base;
+                parse->annotation_base = parse->annotation_tail = 0;
+                
                 bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
                 alias->source = identifier;
                 alias->as.recurse_alias.signature = result->resulting_type;
@@ -1226,6 +1234,8 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
         }
 
         result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+        result->resulting_type->annotations = parse->annotation_base;
+        parse->annotation_base = parse->annotation_tail = 0;
     }
 
     parse->current_fn = parse->current_fn->as.fn.outer;
@@ -1298,11 +1308,90 @@ static bt_bool is_recursive_alias(bt_Parser* parse, bt_AstNode* ident)
     return (binding && binding->is_recurse);
 }
 
-static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power)
+static void try_parse_annotations(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
-    bt_Token* lhs = bt_tokenizer_emit(tok);
 
+    bt_Token* next = bt_tokenizer_peek(tok);
+    while (next->type == BT_TOKEN_POUND) {
+        bt_tokenizer_emit(tok);
+        next = bt_tokenizer_peek(tok);
+
+        bt_bool has_multiple = BT_FALSE;
+        if (next->type == BT_TOKEN_LEFTBRACKET) {
+            has_multiple = BT_TRUE;
+            bt_tokenizer_emit(tok);
+            next = bt_tokenizer_peek(tok);
+        }
+
+        do {
+            if (next->type != BT_TOKEN_IDENTIFIER) {
+                parse_error_token(parse, "Expected identifier, got '%.*s'", next);
+                return;
+            }
+
+            bt_tokenizer_emit(tok); // consume identifier
+            bt_String* as_name = bt_make_string_hashed_len(parse->context, next->source.source, next->source.length);
+
+            parse->annotation_tail = bt_annotation_next(parse->context, parse->annotation_tail, as_name);
+            if (!parse->annotation_base) parse->annotation_base = parse->annotation_tail;
+            bt_Annotation* anno = parse->annotation_tail;
+            
+            next = bt_tokenizer_peek(tok);
+            if (next->type == BT_TOKEN_LEFTPAREN) {
+                bt_tokenizer_emit(tok);
+                next = bt_tokenizer_peek(tok);
+
+                while (next->type != BT_TOKEN_RIGHTPAREN) {
+                    switch (next->type) {
+                    case BT_TOKEN_TRUE_LITERAL: bt_annotation_push(parse->context, anno, BT_VALUE_TRUE); break;
+                    case BT_TOKEN_FALSE_LITERAL: bt_annotation_push(parse->context, anno, BT_VALUE_FALSE); break;
+                    case BT_TOKEN_NUMBER_LITERAL: bt_annotation_push(parse->context, anno, BT_VALUE_NUMBER(tok->literals.elements[next->idx].as_num)); break;
+                    case BT_TOKEN_STRING_LITERAL: {
+                        bt_StrSlice slice = tok->literals.elements[next->idx].as_str;
+                        bt_annotation_push(parse->context, anno, BT_VALUE_OBJECT(bt_make_string_len(parse->context, slice.source, slice.length)));
+                    } break;
+                    default:
+                        parse_error_token(parse, "Expected literal, got '%.*s'", next);
+                        return;
+                    }
+
+                    bt_tokenizer_emit(tok); // consume literal
+                    next = bt_tokenizer_peek(tok);
+                    if (next->type == BT_TOKEN_COMMA) {
+                        bt_tokenizer_emit(tok);
+                        next = bt_tokenizer_peek(tok);
+                    }
+                }
+
+                if (!bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN)) {
+                    parse_error_token(tok, "Expected closing parenthesis, got '%.*s'", next);
+                    return;
+                }
+
+                next = bt_tokenizer_peek(tok);    
+            }
+
+            if (next->type == BT_TOKEN_COMMA) {
+                if (!has_multiple) break;
+                bt_tokenizer_emit(tok);
+                next = bt_tokenizer_peek(tok);
+            } else if (next->type == BT_TOKEN_RIGHTBRACKET) {
+                if (has_multiple) has_multiple = BT_FALSE;
+                else break;
+                bt_tokenizer_emit(tok);
+            }
+        } while (has_multiple);
+    }
+}
+
+static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power)
+{
+    try_parse_annotations(parse);
+    
+    bt_Tokenizer* tok = parse->tokenizer;
+    
+    bt_Token* lhs = bt_tokenizer_emit(tok);
     bt_AstNode* lhs_node;
 
     if (lhs->type == BT_TOKEN_FN) {
@@ -1745,7 +1834,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             if (node->as.binary_op.right->type == BT_AST_NODE_IDENTIFIER) {
                 node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
                 node->as.binary_op.right->resulting_type = parse->context->types.string;
-                node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFER_LITERAL;
+                node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFIER_LITERAL;
             }
         }
         case BT_TOKEN_LEFTBRACKET: {
@@ -2215,7 +2304,7 @@ static bt_bool can_start_expression(bt_Token* token)
     case BT_TOKEN_STRING_LITERAL:
     case BT_TOKEN_NUMBER_LITERAL:
     case BT_TOKEN_NULL_LITERAL:
-    case BT_TOKEN_IDENTIFER_LITERAL:
+    case BT_TOKEN_IDENTIFIER_LITERAL:
     case BT_TOKEN_LEFTBRACE:
     case BT_TOKEN_LEFTBRACKET:
     case BT_TOKEN_LEFTPAREN:
@@ -2860,6 +2949,8 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
+    try_parse_annotations(parse);
+
     bt_Token* token = bt_tokenizer_peek(tok);
     switch (token->type) {
     case BT_TOKEN_IMPORT: {

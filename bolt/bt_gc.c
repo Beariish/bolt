@@ -91,6 +91,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		grey(gc, (bt_Object*)as_type->prototype);
 		grey(gc, (bt_Object*)as_type->prototype_types);
 		grey(gc, (bt_Object*)as_type->prototype_values);
+		grey(gc, (bt_Object*)as_type->annotations);
 
 		switch (as_type->category) {
 		case BT_TYPE_CATEGORY_ARRAY:
@@ -210,6 +211,12 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		for (uint32_t i = 0; i < arr->length; i++) {
 			if (BT_IS_OBJECT(arr->items[i])) grey(gc, BT_AS_OBJECT(arr->items[i]));
 		}
+	} break;
+	case BT_OBJECT_TYPE_ANNOTATION: {
+		bt_Annotation* anno = (bt_Annotation*)obj;
+		grey(gc, (bt_Object*)anno->name);
+		grey(gc, (bt_Object*)anno->args);
+		grey(gc, (bt_Object*)anno->next);
 	} break;
 	}
 }

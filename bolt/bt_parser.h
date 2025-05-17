@@ -217,6 +217,9 @@ typedef struct {
 
 	bt_ParseScope* scope;
 
+	bt_Annotation* annotation_base;
+	bt_Annotation* annotation_tail;
+
 	bt_bool has_errored;
 } bt_Parser;
 
