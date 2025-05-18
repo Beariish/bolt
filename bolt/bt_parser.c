@@ -336,32 +336,74 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
 
     switch (node->type) {
     case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: {
-        switch (node->source->type) {
-        case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
-            result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
-        } break;
-        case BT_TOKEN_STRING_LITERAL: {
-            // Cut off the quotes!
-            result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
-        } break;
-        case BT_TOKEN_NUMBER_LITERAL: {
-            bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
-            result = BT_VALUE_NUMBER(lit->as_num);
-        } break;
-        case BT_TOKEN_TRUE_LITERAL: result = BT_VALUE_TRUE; break;
-        case BT_TOKEN_FALSE_LITERAL: result = BT_VALUE_FALSE; break;
-        case BT_TOKEN_NULL_LITERAL: result = BT_VALUE_NULL; break;
-        default: parse_error_token(parse, "Internal parser error: Unhandled token literal type '%.*s'", node->source);
-        }
+            switch (node->source->type) {
+            case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
+                    result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
+            } break;
+            case BT_TOKEN_STRING_LITERAL: {
+                    // Cut off the quotes!
+                    result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
+            } break;
+            case BT_TOKEN_NUMBER_LITERAL: {
+                    bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
+                    result = BT_VALUE_NUMBER(lit->as_num);
+            } break;
+            case BT_TOKEN_TRUE_LITERAL: result = BT_VALUE_TRUE; break;
+            case BT_TOKEN_FALSE_LITERAL: result = BT_VALUE_FALSE; break;
+            case BT_TOKEN_NULL_LITERAL: result = BT_VALUE_NULL; break;
+            default: parse_error_token(parse, "Internal parser error: Unhandled token literal type '%.*s'", node->source);
+            }
     } break;
 
     case BT_AST_NODE_ENUM_LITERAL: {
-        result = node->as.enum_literal.value;
+            result = node->as.enum_literal.value;
     } break;
 
-    default: return 0; // parse_error_token(parse, "Failed to make table key from '%.*s'", node->source);
+    default: parse_error_token(parse, "Failed to make table key from '%.*s'", node->source);
     }
 
+    return result;
+}
+
+static bt_Value node_to_literal_value(bt_Parser* parse, bt_AstNode* node)
+{
+    bt_Value result = BT_VALUE_NULL;
+
+    switch (node->type) {
+    case BT_AST_NODE_LITERAL: {
+            switch (node->source->type) {
+            case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
+                    result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
+            } break;
+            case BT_TOKEN_STRING_LITERAL: {
+                    // Cut off the quotes!
+                    result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
+            } break;
+            case BT_TOKEN_NUMBER_LITERAL: {
+                    bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
+                    result = BT_VALUE_NUMBER(lit->as_num);
+            } break;
+            case BT_TOKEN_TRUE_LITERAL: result = BT_VALUE_TRUE; break;
+            case BT_TOKEN_FALSE_LITERAL: result = BT_VALUE_FALSE; break;
+            case BT_TOKEN_NULL_LITERAL: result = BT_VALUE_NULL; break;
+            default: parse_error_token(parse, "Internal parser error: Unhandled token literal type '%.*s'", node->source);
+            }
+    } break;
+
+    case BT_AST_NODE_ENUM_LITERAL: {
+            result = node->as.enum_literal.value;
+    } break;
+
+    default: parse_error_token(parse, "'%.*s' is not a literal value", node->source);
+    }
+
+    return result;
+}
+
+static bt_AstNode* literal_to_node(bt_Parser* parse, bt_Value literal)
+{
+    bt_AstNode* result = make_node(parse, BT_AST_NODE_VALUE_LITERAL);
+    result->as.value_literal.value = literal;
     return result;
 }
 
@@ -378,8 +420,6 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     bt_bool is_map = BT_TRUE;
     bt_Type* map_key_type = NULL;
     bt_Type* map_value_type = NULL;
-    
-    uint32_t n_satisfied = 0;
 
     token = bt_tokenizer_peek(parse->tokenizer);
     while (token && token->type != BT_TOKEN_RIGHTBRACE) {
@@ -421,8 +461,6 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
                 parse_error_fmt(parse, "Invalid type for field '%.*s': wanted '%s', got '%s'", key_expr->source->line, key_expr->source->col,
                     key_expr->source->source.length, key_expr->source->source.source, expected->name, field->as.table_field.value_type->name);
             }
-
-            n_satisfied++;
         }
         else {
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
@@ -453,10 +491,35 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_RIGHTBRACE);
 
-    if (type && type->as.table_shape.layout && n_satisfied < type->as.table_shape.layout->length) {
-        // TODO: actually list missing fields
-        parse_error_fmt(parse, "Missing %d fields in typed table literal", result->source->line, result->source->col, 
-            type->as.table_shape.layout->length - n_satisfied);
+    if (type && type->as.table_shape.layout) {
+        for (uint32_t field_idx = 0; field_idx < type->as.table_shape.layout->length; field_idx++) {
+            bt_bool found = BT_FALSE;
+            bt_TablePair* field = BT_TABLE_PAIRS(type->as.table_shape.layout) + field_idx;
+            for (uint32_t expr_idx = 0; expr_idx < result->as.table.fields.length; expr_idx++) {
+                bt_AstNode* expr = result->as.table.fields.elements[expr_idx];
+                if (bt_value_is_equal(expr->as.table_field.key, field->key)) {
+                    found = BT_TRUE;
+                    break;
+                }
+            }
+
+            if (!found) {
+                bt_Value literal;
+                if (bt_type_get_field(ctx, type, field->key, &literal)) {
+                    bt_AstNode* default_field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
+                    default_field->source = token;
+                    default_field->as.table_field.key = field->key;
+                    default_field->as.table_field.value_type = (bt_Type*)BT_AS_OBJECT(field->value);
+                    default_field->as.table_field.value_expr = literal_to_node(parse, literal);
+                    bt_buffer_push(ctx, &result->as.table.fields, default_field);
+                } else {
+                    bt_String* field_name = bt_to_string(ctx, field->key);
+                    parse_error_fmt(parse, "Missing field '%.*s' in typed table literal", result->source->line, result->source->col, 
+                        field_name->len, BT_STRING_STR(field_name));                
+                }
+            }
+        }
+
     }
 
     return result;
@@ -735,14 +798,15 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             if (token->type == BT_TOKEN_ASSIGN) {
                 bt_tokenizer_emit(tok);
-                bt_AstNode* expr = parse_expression(parse, 0);
-                if (type && !type_check(parse, expr)->resulting_type->satisfier(expr->resulting_type, type)) {
+                bt_AstNode* literal = parse_expression(parse, 0);
+                bt_Value value = node_to_literal_value(parse, literal);
+                if (type && !type_check(parse, literal)->resulting_type->satisfier(literal->resulting_type, type)) {
                     parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
                     return NULL;
                 }
 
-                type = expr->resulting_type;
-                bt_type_add_field(ctx, result, type, BT_VALUE_OBJECT(name), BT_VALUE_OBJECT(expr));
+                type = literal->resulting_type;
+                bt_type_add_field(ctx, result, type, BT_VALUE_OBJECT(name), value);
             }
 
             bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), (bt_Type*)BT_AS_OBJECT(type));
@@ -1019,6 +1083,8 @@ return (InfixBindingPower) { 4, 3 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
     case BT_TOKEN_PERIOD: return (InfixBindingPower) { 19, 20 };
     }
+
+    return (InfixBindingPower) { 0, 0 };
 }
 
 static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
@@ -2202,6 +2268,11 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
             result = make_node(parse, BT_AST_NODE_LITERAL);
             result->resulting_type = parse->context->types.null;
             result->source = parse->tokenizer->literal_null;
+        } else {
+            for (uint32_t idx = 0; idx < type->as.selector.types.length; idx++) {
+                result = generate_initializer(parse, type->as.selector.types.elements[idx], source);
+                if (result) break;
+            }
         }
     } break;
     case BT_TYPE_CATEGORY_ARRAY: {
@@ -2224,11 +2295,17 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
                 bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
                 entry->as.table_field.value_type = (bt_Type*)BT_AS_OBJECT(pair->value);
                 entry->as.table_field.key = pair->key;
-                entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type, source);
+
+                bt_Value default_value;
+                if (bt_type_get_field(parse->context, type, pair->key, &default_value)) {
+                    entry->as.table_field.value_expr = literal_to_node(parse, default_value);
+                } else {
+                    entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type, source);
+                }
 
                 if (!entry->as.table_field.value_expr) {
                     bt_String* as_str = bt_to_string(parse->context, pair->key);
-                    parse_error_fmt(parse, "Failed to generate intiailzier for table field '%.*s'", source->line, source->col, as_str->len, BT_STRING_STR(as_str));
+                    parse_error_fmt(parse, "Failed to generate initializer for table field '%.*s'", source->line, source->col, as_str->len, BT_STRING_STR(as_str));
                 }
 
                 bt_buffer_push(parse->context, &result->as.table.fields, entry);

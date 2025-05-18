@@ -1,0 +1,119 @@
+import * from "../test"
+
+push_scope("defaults")
+
+test("implicit any default", fn {
+    let x
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("explicit any default", fn {
+    let x: any
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("null default", fn {
+    let x: null
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("bool default", fn {
+    let x: bool
+    expect(x == false, "Expected 'x' to be 'false'")
+})
+
+test("number default", fn {
+    let x: number
+    expect(x == 0, "Expected 'x' to be '0'")
+})
+
+test("string default", fn {
+    let x: string
+    expect(x == "", "Expected 'x' to be ''")
+})
+
+test("optional default", fn {
+    let x: string?
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("union default", fn {
+    let x: string | number
+    expect(x == "", "Expected 'x' to be ''")
+})
+
+test("array default", fn {
+    let x: [number]
+    expect(x.length() == 0, "Expected 'x' to have a length of '0'")
+})
+
+type Enum = enum { A, B, C }
+test("enum default", fn {
+    let x: Enum
+    expect(x == Enum.A, "Expected 'x' to be 'Enum.A'")
+})
+
+type T = { x: number, y: string }
+test("tableshape default", fn {
+    let x: T
+    expect(x.x == 0 and x.y == "", "Expected 'x' to have default fields")
+})
+
+type TT = { a: T, b: T }
+test("nested tableshape default", fn {
+    let x: TT
+    expect(x.a.x == 0 and x.a.y == "" and x.b.x == 0 and x.b.y == "", "Expected 'x' to have default nested fields")
+})
+
+type UTT = unsealed { a: T, b: T }
+test("nested unsealed tableshape default", fn {
+    let x: TT
+    expect(x.a.x == 0 and x.a.y == "" and x.b.x == 0 and x.b.y == "", "Expected 'x' to have default nested fields")
+})
+
+type WithDefaults = {
+    x: number = 10,
+    y: string = "hello!"
+}
+
+test("tableshape with explicit defaults", fn {
+    let x: WithDefaults
+    expect(x.x == 10 and x.y == "hello!", "Expected 'x' to inherit explicit defaults")
+})
+
+test("tableshape constructed with explicit deaults", fn {
+    let x = WithDefaults => {}
+    expect(x.x == 10 and x.y == "hello!", "Expected 'x' to inherit explicit defaults")
+})
+
+type WithPartialDefaults = {
+    x: number = 10,
+    y: number,
+    z: string = "hello!"
+}
+
+test("tableshape with partial explicit defaults", fn {
+    let x: WithPartialDefaults
+    expect(x.x == 10 and x.y == 0 and x.z == "hello!", "Expected 'x' to inherit explicit defaults")
+})
+
+test("tableshape constructed with partial explicit deaults", fn {
+    let x = WithPartialDefaults => { y: 20 }
+    expect(x.x == 10 and x.y == 20 and x.z == "hello!", "Expected 'x' to inherit explicit defaults")
+})
+
+type WithEnumDefault = {
+    x: Enum = Enum.C
+}
+
+test("tableshape with explicit enum defaults", fn {
+    let x: WithEnumDefault
+    expect(x.x == Enum.C, "Expected 'x' to inherit explicit defaults")
+})
+
+test("tableshape constructed with partial explicit deaults", fn {
+    let x = WithEnumDefault => {}
+    expect(x.x == Enum.C, "Expected 'x' to inherit explicit defaults")
+})
+
+pop_scope()

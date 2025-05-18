@@ -6,5 +6,6 @@ import "bindings"
 import "inference/all"
 import "order"
 import "annotations"
+import "defaults"
 
 pop_scope() 
