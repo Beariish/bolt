@@ -11,32 +11,21 @@ type TestCase = {
 }
 
 type TestScope = {
-    name: string,
+    name: string = "",
     tests: [TestCase],
     subscopes: [TestScope],
-    parent: TestScope?
+    parent: TestScope? = null
 }
 
 type TestState = {
     root: TestScope,
-    current_scope: TestScope?,
-    current_test: TestCase?,
+    current_scope: TestScope? = null,
+    current_test: TestCase? = null,
     failures: [TestCase],
-    total_tests: number,
+    total_tests: number = 0,
 }
 
-let state = TestState => {
-    root: TestScope => {
-        name: "",
-        tests: [:TestCase],
-        subscopes: [:TestScope],
-        parent: null,
-    },
-    current_scope: null,
-    current_test: null,
-    failures: [:TestCase],
-    total_tests: 0
-}
+let state: TestState
 
 state.current_scope = state.root
 

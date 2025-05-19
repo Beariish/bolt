@@ -800,12 +800,11 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
                 bt_tokenizer_emit(tok);
                 bt_AstNode* literal = parse_expression(parse, 0);
                 bt_Value value = node_to_literal_value(parse, literal);
-                if (type && !type_check(parse, literal)->resulting_type->satisfier(literal->resulting_type, type)) {
+                if (type && !type->satisfier(type, type_check(parse, literal)->resulting_type)) {
                     parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
                     return NULL;
                 }
 
-                type = literal->resulting_type;
                 bt_type_add_field(ctx, result, type, BT_VALUE_OBJECT(name), value);
             }
 
