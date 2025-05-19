@@ -131,7 +131,6 @@ struct bt_Context {
 		bt_Type* string;
 		bt_Type* array;
 		bt_Type* table;
-		bt_Type* fn;
 		bt_Type* type;
 	} types;
 
@@ -154,15 +153,7 @@ struct bt_Context {
 	bt_Table* native_references;
 
 	struct bt_Thread* current_thread;
-
-	bt_bool is_valid;
 };
-
-BOLT_API void bt_push_root(bt_Context* ctx, bt_Object* root);
-BOLT_API void bt_pop_root(bt_Context* ctx);
-
-BOLT_API uint32_t bt_add_ref(bt_Context* ctx, bt_Object* obj);
-BOLT_API uint32_t bt_remove_ref(bt_Context* ctx, bt_Object* obj);
 
 typedef struct bt_Thread {
 	bt_Value stack[BT_STACK_SIZE];
@@ -181,15 +172,6 @@ typedef struct bt_Thread {
 	
 	bt_bool should_report;
 } bt_Thread;
-
-BOLT_API bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type);
-BOLT_API void bt_free(bt_Context* context, bt_Object* obj);
-
-#define BT_ALLOCATE(ctx, e_type, c_type) \
-	((c_type*)bt_allocate(ctx, sizeof(c_type), (BT_OBJECT_TYPE_##e_type)))
-
-#define BT_ALLOCATE_INLINE_STORAGE(ctx, e_type, c_type, storage) \
-	((c_type*)bt_allocate(ctx, sizeof(c_type) + storage, (BT_OBJECT_TYPE_##e_type)))
 
 BOLT_API void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type);
 BOLT_API bt_Type* bt_find_type(bt_Context* context, bt_Value name);

@@ -195,6 +195,8 @@ static void btio_tell(bt_Context* ctx, bt_Thread* thread)
 
 static void btio_read(bt_Context* ctx, bt_Thread* thread)
 {
+	bt_gc_pause(ctx);
+	
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
 	size_t size = (size_t)BT_AS_NUMBER(bt_arg(thread, 1));
 	btio_FileState* state = (btio_FileState*)file->data;
@@ -207,12 +209,12 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 			fseek(state->handle, (long)pos, SEEK_SET);
 		}
 
-		char* buffer = ctx->alloc(size);
+		char* buffer = bt_gc_alloc(ctx, size);
 
 		size_t n_read = fread(buffer, 1, size, state->handle);
 
-		bt_String* as_string = bt_make_string_len(ctx, buffer, (uint32_t)n_read);
-		ctx->free(buffer);
+		bt_String* as_string = bt_make_string_len(ctx, buffer, n_read);
+		bt_gc_free(ctx, buffer, size);
 
 		if (n_read != size) {
 			if (!feof(state->handle)) {
@@ -236,6 +238,8 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
 		bt_return(thread, BT_VALUE_OBJECT(result));
 	}
+
+	bt_gc_unpause(ctx);
 }
 
 static void btio_write(bt_Context* ctx, bt_Thread* thread)

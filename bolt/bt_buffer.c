@@ -7,8 +7,7 @@
 void bt_buffer_reserve_(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size, size_t new_cap)
 {
     if (*capacity >= new_cap) return;
-    ctx->gc.byets_allocated += (new_cap - *capacity) * element_size;
-    *data = ctx->realloc(*data, element_size * new_cap);
+    *data = bt_gc_realloc(ctx, *data, element_size * (*capacity), element_size * new_cap);
     *capacity = (uint32_t)new_cap;
 }
 
@@ -21,11 +20,9 @@ void bt_buffer_expand(bt_Context* ctx, char** data, uint32_t* length, uint32_t* 
 
 void bt_buffer_free(bt_Context* ctx, char** data, uint32_t* length, uint32_t* capacity, size_t element_size)
 {
-    if (*length > 0)
-    {
-        ctx->gc.byets_allocated -= *capacity * element_size;
-        ctx->free(*data); *data = 0;
-        *length = 0; *capacity = 0;
+    if (*length > 0) {
+        bt_gc_free(ctx, *data, (*capacity) * element_size);
+        *data = 0; *length = 0; *capacity = 0;
     }
 }
 

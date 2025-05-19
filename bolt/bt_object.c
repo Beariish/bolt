@@ -277,17 +277,15 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
 
         if (tbl->is_inline) {
             uint64_t old_start = (uint64_t)tbl->outline;
-            tbl->outline = ctx->alloc(sizeof(bt_TablePair) * tbl->capacity);
+            tbl->outline = bt_gc_alloc(ctx, sizeof(bt_TablePair) * tbl->capacity);
 
             tbl->outline->key = old_start;
             memcpy((uint8_t*)tbl->outline + sizeof(bt_TablePair*), (uint8_t*)BT_TABLE_PAIRS(tbl) + sizeof(bt_TablePair*), sizeof(bt_TablePair) * tbl->length - sizeof(bt_TablePair*));
             tbl->is_inline = BT_FALSE;
         }
         else {
-            tbl->outline = ctx->realloc(tbl->outline, sizeof(bt_TablePair) * tbl->capacity);
+            tbl->outline = bt_gc_realloc(ctx, tbl->outline, old_cap * sizeof(bt_TablePair), sizeof(bt_TablePair) * tbl->capacity);
         }
-
-        ctx->gc.byets_allocated += (tbl->capacity - old_cap) * sizeof(bt_TablePair);
     }
 
     (BT_TABLE_PAIRS(tbl) + tbl->length)->key = key;
@@ -356,11 +354,9 @@ BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key)
 bt_Array* bt_make_array(bt_Context* ctx, uint32_t initial_capacity)
 {
     bt_Array* arr = BT_ALLOCATE(ctx, ARRAY, bt_Array);
-    arr->items = initial_capacity ? ctx->alloc(sizeof(bt_Value) * initial_capacity) : 0;
+    arr->items = initial_capacity ? bt_gc_alloc(ctx, sizeof(bt_Value) * initial_capacity) : 0;
     arr->length = 0;
     arr->capacity = initial_capacity;
-
-    ctx->gc.byets_allocated += initial_capacity * sizeof(bt_Value);
 
     return arr;
 }
@@ -372,8 +368,7 @@ uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value)
 
         arr->capacity *= 2;
         if (arr->capacity == 0) arr->capacity = 4;
-        arr->items = ctx->realloc(arr->items, sizeof(bt_Value) * arr->capacity);
-        ctx->gc.byets_allocated += (arr->capacity - old_cap) * sizeof(bt_Value);
+        arr->items = bt_gc_realloc(ctx, arr->items, sizeof(bt_Value) * old_cap, sizeof(bt_Value) * arr->capacity);
     }
 
     arr->items[arr->length++] = value;
@@ -419,8 +414,6 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Val
 
     bt_buffer_clone(ctx, &result->constants, constants);
     bt_buffer_clone(ctx, &result->instructions, instructions);
-    ctx->gc.byets_allocated += result->constants.capacity * sizeof(bt_Value);
-    ctx->gc.byets_allocated += result->instructions.capacity * sizeof(bt_Op);
 
     return result;
 }
@@ -496,7 +489,8 @@ bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32
     bt_Userdata* result = BT_ALLOCATE(ctx, USERDATA, bt_Userdata);
     
     result->type = type;
-    result->data = ctx->alloc(size);
+    result->data = bt_gc_alloc(ctx, size);
+    result->size = size;
     memcpy(result->data, data, size);
     
     return result;

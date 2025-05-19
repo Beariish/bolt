@@ -1,8 +1,172 @@
 #include "bt_gc.h"
+
+#include <string.h>
+
 #include "bt_type.h"
 #include "bt_context.h"
 #include "bt_compiler.h"
 #include "bt_userdata.h"
+
+void* bt_gc_alloc(bt_Context* ctx, size_t size)
+{
+	ctx->gc.bytes_allocated += size;
+	void* ptr = ctx->alloc(size);
+	return ptr;
+}
+
+void* bt_gc_realloc(bt_Context* ctx, void* ptr, size_t old_size, size_t new_size)
+{
+	if (old_size > ctx->gc.bytes_allocated) {
+		bt_runtime_error(ctx->current_thread, "Attempted to realloc more bytes than GC is tracking!", 0);
+		return NULL;
+	}
+
+	ctx->gc.bytes_allocated -= old_size;
+	void* new_ptr = ctx->realloc(ptr, new_size);
+	ctx->gc.bytes_allocated += new_size;
+
+	return new_ptr;
+}
+
+void bt_gc_free(bt_Context* ctx, void* ptr, size_t size)
+{
+	if (size > ctx->gc.bytes_allocated) {
+		bt_runtime_error(ctx->current_thread, "Attempted to free more bytes than GC is tracking!", 0);
+		return;
+	}
+
+	ctx->gc.bytes_allocated -= size;
+	ctx->free(ptr);
+}
+
+bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
+{
+	bt_Object* obj = bt_gc_alloc(context, full_size);
+	memset(obj, 0, full_size);
+
+	BT_OBJECT_SET_TYPE(obj, type);
+	if (context->next) BT_OBJECT_SET_NEXT(context->next, obj);
+	context->next = obj;
+
+	if (context->gc.bytes_allocated >= context->gc.next_cycle) {
+		bt_push_root(context, obj);
+		bt_collect(&context->gc, 0);
+		bt_pop_root(context);
+	}
+
+	return obj;
+}
+
+/** Free all owned allocations in obj */
+static void free_subobjects(bt_Context* context, bt_Object* obj)
+{
+	switch (BT_OBJECT_GET_TYPE(obj)) {
+	case BT_OBJECT_TYPE_TYPE: {
+		bt_Type* type = (bt_Type*)obj;
+		if (type->name) {
+			switch (type->category) {
+			case BT_TYPE_CATEGORY_SIGNATURE:
+				bt_buffer_destroy(context, &type->as.fn.args);
+				break;
+			case BT_TYPE_CATEGORY_UNION:
+				bt_buffer_destroy(context, &type->as.selector.types);
+				break;
+			case BT_TYPE_CATEGORY_USERDATA:
+				bt_buffer_destroy(context, &type->as.userdata.fields);
+				bt_buffer_destroy(context, &type->as.userdata.functions);
+				break;
+			}
+			bt_gc_free(context, type->name, 0); // Length is not tracked
+		}
+	} break;
+	case BT_OBJECT_TYPE_MODULE: {
+		bt_Module* mod = (bt_Module*)obj;
+		bt_buffer_destroy(context, &mod->constants);
+		bt_buffer_destroy(context, &mod->instructions);
+		bt_buffer_destroy(context, &mod->imports);
+
+		if (mod->debug_locs) {
+			bt_buffer_destroy(context, mod->debug_locs);
+
+			for (uint32_t i = 0; i < mod->debug_tokens.length; i++) {
+				bt_gc_free(context, mod->debug_tokens.elements[i], sizeof(bt_Token));
+			}
+
+			bt_buffer_destroy(context, &mod->debug_tokens);
+			bt_gc_free(context, mod->debug_locs, sizeof(bt_DebugLocBuffer));
+			context->free(mod->debug_source); // FIXME: Size of this is not tracked
+		}
+	} break;
+	case BT_OBJECT_TYPE_FN: {
+		bt_Fn* fn = (bt_Fn*)obj;
+		bt_buffer_destroy(context, &fn->constants);
+		bt_buffer_destroy(context, &fn->instructions);
+		if (fn->debug) {
+			bt_buffer_destroy(context, fn->debug);
+			bt_gc_free(context, fn->debug, sizeof(bt_DebugLocBuffer));
+		}
+	} break;
+	case BT_OBJECT_TYPE_TABLE: {
+		bt_Table* tbl = (bt_Table*)obj;
+		if (!tbl->is_inline) {
+			bt_gc_free(context, tbl->outline, tbl->capacity * sizeof(bt_TablePair));
+		}
+	} break;
+	case BT_OBJECT_TYPE_STRING: {
+		bt_String* str = (bt_String*)obj;
+		if (str->len <= BT_STRINGTABLE_MAX_LEN) {
+			bt_remove_interned(context, str);
+		}
+	} break;
+	case BT_OBJECT_TYPE_ARRAY: {
+		bt_Array* arr = (bt_Array*)obj;
+		bt_gc_free(context, arr->items, arr->capacity * sizeof(bt_Value));
+	} break;
+	case BT_OBJECT_TYPE_USERDATA: {
+		bt_Userdata* userdata = (bt_Userdata*)obj;
+		if (userdata->type->as.userdata.finalizer) {
+			userdata->type->as.userdata.finalizer(context, userdata);
+		}
+		bt_gc_free(context, userdata->data, userdata->size); // The size of userdata is not tracked
+	} break;
+	}
+}
+
+/** Specifically returns the inline allocation size of the object, not that of owned allocations */
+static uint32_t get_object_size(bt_Object* obj)
+{
+	switch (BT_OBJECT_GET_TYPE(obj)) {
+	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
+	case BT_OBJECT_TYPE_TYPE: return sizeof(bt_Type);
+	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->len;
+	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
+	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
+	case BT_OBJECT_TYPE_FN: 
+		return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
+	case BT_OBJECT_TYPE_CLOSURE: 
+		return sizeof(bt_Closure)
+			+ ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
+	case BT_OBJECT_TYPE_METHOD: 
+		return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
+	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity - sizeof(bt_Value);
+	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
+	case BT_OBJECT_TYPE_ANNOTATION: return sizeof(bt_Annotation);
+	default:
+#ifdef BT_DEBUG
+		assert(0 && "Attempted to get size of unrecognized type!");
+#endif
+		return 0;
+	}
+
+}
+
+void bt_free(bt_Context* context, bt_Object* obj)
+{
+	free_subobjects(context, obj);
+	bt_gc_free(context, obj, get_object_size(obj));
+}
 
 void bt_make_gc(bt_Context* ctx)
 {
@@ -10,16 +174,16 @@ void bt_make_gc(bt_Context* ctx)
 	result.ctx = ctx;
 	ctx->gc = result;
 
-	bt_gc_unpause(ctx);
-	bt_gc_set_grey_cap(ctx, 32);
-	bt_gc_set_next_cycle(ctx, 1024 * 1024 * 10); // 10mb
+	bt_gc_set_grey_cap(ctx, 256);
+	bt_gc_set_next_cycle(ctx, 1024 * 1024 * 32); // 32mb
 	bt_gc_set_min_size(ctx, ctx->gc.next_cycle);
-	bt_gc_set_growth_pct(ctx, 175);
+	bt_gc_set_growth_pct(ctx, 150);
+	bt_gc_set_pause_growth_pct(ctx, 115);
 }
 
 void bt_destroy_gc(bt_Context* ctx, bt_GC* gc)
 {
-	ctx->free(gc->greys);
+	bt_gc_free(ctx, gc->greys, gc->grey_cap * sizeof(bt_Object*));
 }
 
 size_t bt_gc_get_next_cycle(bt_Context* ctx)
@@ -49,8 +213,9 @@ uint32_t bt_gc_get_grey_cap(bt_Context* ctx)
 
 void bt_gc_set_grey_cap(bt_Context* ctx, uint32_t grey_cap)
 {
+	uint32_t old_cap = ctx->gc.grey_cap;
 	ctx->gc.grey_cap = grey_cap;
-	ctx->gc.greys = ctx->realloc(ctx->gc.greys, ctx->gc.grey_cap * sizeof(bt_Object*));
+	ctx->gc.greys = (bt_Object**)bt_gc_realloc(ctx, ctx->gc.greys, old_cap * sizeof(bt_Object*), ctx->gc.grey_cap * sizeof(bt_Object*));
 }
 
 size_t bt_gc_get_growth_pct(bt_Context* ctx)
@@ -61,6 +226,16 @@ size_t bt_gc_get_growth_pct(bt_Context* ctx)
 void bt_gc_set_growth_pct(bt_Context* ctx, size_t growth_pct)
 {
 	ctx->gc.cycle_growth_pct = growth_pct;
+}
+
+size_t bt_gc_get_pause_growth_pct(bt_Context* ctx)
+{
+	return ctx->gc.pause_growth_pct;
+}
+
+void bt_gc_set_pause_growth_pct(bt_Context* ctx, size_t growth_pct)
+{
+	ctx->gc.pause_growth_pct = growth_pct;
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
@@ -221,8 +396,19 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 	}
 }
 
+static void calc_next_cycle(bt_GC* gc, size_t growth_factor)
+{
+	gc->next_cycle = (gc->bytes_allocated * growth_factor) / 100;
+	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
+}
+
 uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 {
+	if (gc->pause_count > 0) {
+		calc_next_cycle(gc, gc->pause_growth_pct);
+		return 0;
+	}
+	
 	bt_Context* ctx = gc->ctx;
 
 	grey(gc, (bt_Object*)ctx->types.any);
@@ -232,7 +418,6 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	grey(gc, (bt_Object*)ctx->types.string);
 	grey(gc, (bt_Object*)ctx->types.array);
 	grey(gc, (bt_Object*)ctx->types.table);
-	//grey(gc, (bt_Object*)ctx->types.fn);
 	grey(gc, (bt_Object*)ctx->types.type);
 	
 	grey(gc, (bt_Object*)ctx->meta_names.add);
@@ -310,9 +495,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		}
 	}
 
-	gc->next_cycle = (gc->byets_allocated * gc->cycle_growth_pct) / 100;
-	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
-
+	calc_next_cycle(gc, gc->cycle_growth_pct);
 	ctx->current_thread = old_thr;
 
 	return n_collected;
@@ -320,10 +503,14 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 
 void bt_gc_pause(bt_Context* ctx)
 {
-	ctx->gc.is_paused = BT_TRUE;
+	ctx->gc.pause_count += 1;
 }
 
 BOLT_API void bt_gc_unpause(bt_Context* ctx)
 {
-	ctx->gc.is_paused = BT_FALSE;
+	if (ctx->gc.pause_count > 0) {
+		ctx->gc.pause_count -= 1;
+	} else {
+		bt_runtime_error(ctx->current_thread, "GC unpause requested with zero pending pauses!", 0);
+	}
 }

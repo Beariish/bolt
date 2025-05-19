@@ -215,7 +215,7 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	result->ctx = context;
 	
 	if (name) {
-		result->name = context->alloc(strlen(name) + 1);
+		result->name = bt_gc_alloc(context, strlen(name) + 1);
 		strcpy(result->name, name);
 	}
 
@@ -236,7 +236,7 @@ bt_Type* bt_derive_type(bt_Context* context, bt_Type* original)
 	memcpy((char*)promoted + sizeof(bt_Object), (char*)original + sizeof(bt_Object), sizeof(bt_Type) - sizeof(bt_Object));
 	
 	const char* old_name = promoted->name;
-	promoted->name = context->alloc(strlen(old_name) + 1);
+	promoted->name = bt_gc_alloc(context, strlen(old_name) + 1);
 	strcpy(promoted->name, old_name);
 
 	return promoted;
@@ -331,9 +331,9 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 		name_buf_cur += strlen(fn->as.fn.return_type->name);
 	}
 
-	if (fn->name) ctx->free(fn->name);
+	if (fn->name) bt_gc_free(ctx, fn->name, strlen(fn->name) + 1);
 
-	char* new_name = ctx->alloc(name_buf_cur - name_buf_base + 1);
+	char* new_name = bt_gc_alloc(ctx, name_buf_cur - name_buf_base + 1);
 	memcpy(new_name, name_buf_base, name_buf_cur - name_buf_base);
 	new_name[name_buf_cur - name_buf_base] = 0;
 
@@ -589,7 +589,7 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 		else new_length += 1; // "?";
 	}
 
-	uni->name = context->realloc(uni->name, new_length + 1);
+	uni->name = bt_gc_realloc(context, uni->name, uni->name ? strlen(uni->name) + 1 : 0, new_length + 1);
 
 	uint32_t written_length = 0;
 
@@ -931,5 +931,4 @@ bt_Type* bt_type_boolean(bt_Context* context) { return context->types.boolean; }
 bt_Type* bt_type_string(bt_Context* context) { return context->types.string; }
 bt_Type* bt_type_array(bt_Context* context) { return context->types.array; }
 bt_Type* bt_type_table(bt_Context* context) { return context->types.table; }
-bt_Type* bt_type_fn(bt_Context* context) { return context->types.fn; }
 bt_Type* bt_type_type(bt_Context* context) { return context->types.type; }

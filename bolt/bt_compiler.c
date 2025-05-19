@@ -1402,7 +1402,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
 
     if (compiler->options.generate_debug_info) {
         bt_module_set_debug_info(result, compiler->input->tokenizer);
-        result->debug_locs = compiler->context->alloc(sizeof(bt_DebugLocBuffer));
+        result->debug_locs = bt_gc_alloc(compiler->context, sizeof(bt_DebugLocBuffer));
         bt_buffer_move(result->debug_locs, &fn.debug);
     }
 
@@ -1457,7 +1457,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
     
     if (compiler->options.generate_debug_info) {
-        result->debug = compiler->context->alloc(sizeof(bt_DebugLocBuffer));
+        result->debug = bt_gc_alloc(compiler->context, sizeof(bt_DebugLocBuffer));
         bt_buffer_move(result->debug, &ctx.debug);
     }
 

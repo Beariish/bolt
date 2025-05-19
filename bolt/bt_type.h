@@ -108,7 +108,6 @@ BOLT_API bt_Type* bt_type_boolean(bt_Context* context);
 BOLT_API bt_Type* bt_type_string(bt_Context* context);
 BOLT_API bt_Type* bt_type_array(bt_Context* context);
 BOLT_API bt_Type* bt_type_table(bt_Context* context);
-BOLT_API bt_Type* bt_type_fn(bt_Context* context);
 BOLT_API bt_Type* bt_type_type(bt_Context* context);
 
 BOLT_API bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category);

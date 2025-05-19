@@ -76,6 +76,7 @@ typedef struct {
 
 	const char* source_name;
 	const char* source;
+	size_t source_len, source_name_len;
 	char* current;
 
 	bt_Token* literal_zero;

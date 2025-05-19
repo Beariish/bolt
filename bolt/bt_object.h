@@ -36,7 +36,7 @@ typedef struct bt_Object {
 
 #define BT_OBJ_PTR_BITS 0b0000000000000000111111111111111111111111111111111111111111111100ull
 
-#define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->mask &= (BT_OBJ_PTR_BITS | 1ull); ((bt_Object*)(__obj))->mask |= (uint64_t)(__type) << 56ull;
+#define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->mask &= (BT_OBJ_PTR_BITS | 1ull); ((bt_Object*)(__obj))->mask |= (uint64_t)(__type) << 56ull
 #define BT_OBJECT_GET_TYPE(__obj) ((((bt_Object*)(__obj))->mask) >> 56)
 
 #define BT_OBJECT_NEXT(__obj) (((bt_Object*)(__obj))->mask & BT_OBJ_PTR_BITS)
@@ -164,6 +164,7 @@ typedef struct bt_Userdata {
 	bt_Object obj;
 	bt_Type* type;
 	uint8_t* data;
+	size_t size;
 } bt_Userdata;
 
 typedef struct bt_Annotation {

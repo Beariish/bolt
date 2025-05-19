@@ -76,13 +76,13 @@ void bt_close_parser(bt_Parser* parse)
 
         bt_AstNodePool* tmp = pool;
         pool = tmp->prev;
-        parse->context->free(tmp);
+        bt_gc_free(parse->context, tmp, sizeof(bt_AstNodePool));
     }
 }
 
 static void push_scope(bt_Parser* parser, bt_bool is_fn_boundary)
 {
-    bt_ParseScope* new_scope = parser->context->alloc(sizeof(bt_ParseScope));
+    bt_ParseScope* new_scope = bt_gc_alloc(parser->context, sizeof(bt_ParseScope));
     new_scope->last = parser->scope;
     new_scope->is_fn_boundary = is_fn_boundary;
 
@@ -97,7 +97,7 @@ static void pop_scope(bt_Parser* parser)
     parser->scope = old_scope->last;
 
     bt_buffer_destroy(parser->context, &old_scope->bindings);
-    parser->context->free(old_scope);
+    bt_gc_free(parser->context, old_scope, sizeof(bt_ParseScope));
 }
 
 static void push_local(bt_Parser* parse, bt_AstNode* node) 
@@ -119,7 +119,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         new_binding.is_recurse = BT_FALSE;
         new_binding.is_const = BT_TRUE;
         new_binding.name = node->source->source;
-        char* name = parse->context->alloc(node->source->source.length + 1);
+        char* name = bt_gc_alloc(parse->context, node->source->source.length + 1);
         memcpy(name, node->source->source.source, node->source->source.length);
         name[node->source->source.length] = 0;
         new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);
@@ -267,7 +267,7 @@ static bt_ModuleImport* find_import_fast(bt_Parser* parser, bt_StrSlice identifi
 static void next_pool(bt_Parser* parse)
 {
     bt_AstNodePool* prev = parse->current_pool;
-    parse->current_pool = parse->context->alloc(sizeof(bt_AstNodePool));
+    parse->current_pool = bt_gc_alloc(parse->context, sizeof(bt_AstNodePool));
     parse->current_pool->prev = prev;
     parse->current_pool->count = 0;
 }
@@ -758,7 +758,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         char* name = "<tableshape>";
 
         if (alias && alias->as.alias.name.length > 0) {
-            name = ctx->alloc(alias->as.alias.name.length + 1);
+            name = bt_gc_alloc(ctx, alias->as.alias.name.length + 1);
             memcpy(name, alias->as.alias.name.source, alias->as.alias.name.length);
             name[alias->as.alias.name.length] = 0;
         }
@@ -770,7 +770,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         
         if (alias) {
             if (alias && alias->as.alias.name.length > 0) {
-                ctx->free(name);
+                bt_gc_free(ctx, name, alias->as.alias.name.length + 1);
             }
 
             alias->as.alias.type = result;
@@ -3108,7 +3108,7 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
 
 bt_bool bt_parse(bt_Parser* parser)
 {
-    parser->root = (bt_AstNode*)parser->context->alloc(sizeof(bt_AstNode));
+    parser->root = (bt_AstNode*)bt_gc_alloc(parser->context, sizeof(bt_AstNode));
     parser->root->type = BT_AST_NODE_MODULE;
     bt_buffer_empty(&parser->root->as.module.body);
     bt_buffer_empty(&parser->root->as.module.imports);

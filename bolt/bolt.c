@@ -51,16 +51,13 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 
 	ctx->current_thread = 0;
 
+	ctx->types.null = make_primitive_type(ctx, "null", bt_type_satisfier_null);
+	ctx->types.any = make_primitive_type(ctx, "any", bt_type_satisfier_any);
 	ctx->types.number = make_primitive_type(ctx, "number", bt_type_satisfier_same);
 	ctx->types.boolean = make_primitive_type(ctx, "bool", bt_type_satisfier_same);
 	ctx->types.string = make_primitive_type(ctx, "string", bt_type_satisfier_same);
-	ctx->types.table = 0;
-	ctx->types.table = bt_make_tableshape(ctx, "table", BT_FALSE);
-
-	ctx->types.any = make_primitive_type(ctx, "any", bt_type_satisfier_any);
-	ctx->types.null = make_primitive_type(ctx, "null", bt_type_satisfier_null);
 	
-	ctx->types.array = 0;
+	ctx->types.table = bt_make_tableshape(ctx, "table", BT_FALSE);
 	ctx->types.array = bt_make_array_type(ctx, ctx->types.any);
 
 	ctx->types.type = bt_make_fundamental(ctx);
@@ -100,8 +97,6 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->module_paths = NULL;
 	bt_append_module_path(ctx, "%s.bolt");
 	bt_append_module_path(ctx, "%s/module.bolt");
-
-	ctx->is_valid = BT_TRUE;
 }
 
 #ifdef BOLT_ALLOW_PRINTF
@@ -190,8 +185,6 @@ bt_Handlers bt_default_handlers()
 
 void bt_close(bt_Context* context)
 {
-	bt_Object* obj = context->root;
-
 	context->types.any = 0;
 	context->types.array = 0;
 	context->types.boolean = 0;
@@ -222,8 +215,8 @@ void bt_close(bt_Context* context)
 	bt_Path* path = context->module_paths;
 	while (path) {
 		bt_Path* next = path->next;
-		context->free(path->spec);
-		context->free(path);
+		bt_gc_free(context, path->spec, strlen(path->spec) + 1);
+		bt_gc_free(context, path, sizeof(bt_Path));
 		path = next;
 	}
 
@@ -243,46 +236,28 @@ bt_Module* bt_compile_module(bt_Context* context, const char* source, const char
 	printf("%s\n", source);
 	printf("-----------------------------------------------------\n");
 #endif
+	
+	bt_Tokenizer tok = bt_open_tokenizer(context);
+	bt_tokenizer_set_source(&tok, source);
+	bt_tokenizer_set_source_name(&tok, mod_name);
 
-	bt_Tokenizer* tok = context->alloc(sizeof(bt_Tokenizer));
-	*tok = bt_open_tokenizer(context);
-	bt_tokenizer_set_source(tok, source);
-	bt_tokenizer_set_source_name(tok, mod_name);
-
-	bt_Parser* parser = context->alloc(sizeof(bt_Parser));
-	*parser = bt_open_parser(tok);
-	if (bt_parse(parser) == BT_FALSE) {
-		bt_close_parser(parser);
-		bt_close_tokenizer(tok);
-		context->free(parser);
-		context->free(tok);
-		return NULL;
-	}
+	bt_Parser parser = bt_open_parser(&tok);
+	bt_bool parse_result = bt_parse(&parser);
 
 #ifdef BOLT_PRINT_DEBUG
 	printf("-----------------------------------------------------\n");
 #endif 
 
-	bt_Compiler* compiler = context->alloc(sizeof(bt_Compiler));
-	*compiler = bt_open_compiler(parser, context->compiler_options);
-	bt_Module* result = bt_compile(compiler);
-	if (result == 0) {
-		bt_close_compiler(compiler);
-		bt_close_parser(parser);
-		bt_close_tokenizer(tok);
-		context->free(compiler);
-		context->free(parser);
-		context->free(tok);
-		return NULL;
+	bt_Module* result = 0;
+
+	if (parse_result) {
+		bt_Compiler compiler = bt_open_compiler(&parser, context->compiler_options);
+		result = bt_compile(&compiler);
+		bt_close_compiler(&compiler);
 	}
 
-	bt_close_compiler(compiler);
-	bt_close_parser(parser);
-	bt_close_tokenizer(tok);
-
-	context->free(compiler);
-	context->free(parser);
-	context->free(tok);
+	bt_close_parser(&parser);
+	bt_close_tokenizer(&tok);
 
 	return result;
 }
@@ -318,8 +293,7 @@ uint32_t bt_add_ref(bt_Context* ctx, bt_Object* obj)
 	return (uint32_t)BT_AS_NUMBER(num_refs);
 }
 
-uint32_t bt_remove_ref(bt_Context* ctx, bt_Object* obj)
-{
+uint32_t bt_remove_ref(bt_Context* ctx, bt_Object* obj) {
 	bt_Value num_refs = bt_table_get(ctx->native_references, BT_VALUE_OBJECT(obj));
 	if (num_refs == BT_VALUE_NULL) {
 		return 0;
@@ -333,140 +307,6 @@ uint32_t bt_remove_ref(bt_Context* ctx, bt_Object* obj)
 	}
 
 	return (uint32_t)BT_AS_NUMBER(num_refs);
-}
-
-bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
-{
-	bt_Object* obj = context->alloc(full_size);
-	memset(obj, 0, full_size);
-
-	BT_OBJECT_SET_TYPE(obj, type);
-
-	bt_ObjectType g_type = BT_OBJECT_GET_TYPE(obj);
-
-	if (context->next) {
-		BT_OBJECT_SET_NEXT(context->next, obj);
-	}
-	context->next = obj;
-
-	context->gc.byets_allocated += full_size;
-	if (context->gc.byets_allocated >= context->gc.next_cycle) {
-		bt_push_root(context, obj);
-		bt_collect(&context->gc, 0);
-		bt_pop_root(context);
-	}
-
-	return obj;
-}
-
-static void free_subobjects(bt_Context* context, bt_Object* obj)
-{
-	switch (BT_OBJECT_GET_TYPE(obj)) {
-	case BT_OBJECT_TYPE_TYPE: {
-		bt_Type* type = (bt_Type*)obj;
-		if (type->name) {
-			switch (type->category) {
-			case BT_TYPE_CATEGORY_SIGNATURE:
-				bt_buffer_destroy(context, &type->as.fn.args);
-				break;
-			case BT_TYPE_CATEGORY_UNION:
-				bt_buffer_destroy(context, &type->as.selector.types);
-				break;
-			case BT_TYPE_CATEGORY_USERDATA:
-				bt_buffer_destroy(context, &type->as.userdata.fields);
-				bt_buffer_destroy(context, &type->as.userdata.functions);
-				break;
-			}
-			context->free(type->name);
-		}
-	} break;
-	case BT_OBJECT_TYPE_MODULE: {
-		bt_Module* mod = (bt_Module*)obj;
-		bt_buffer_destroy(context, &mod->constants);
-		bt_buffer_destroy(context, &mod->instructions);
-		bt_buffer_destroy(context, &mod->imports);
-
-		if (mod->debug_locs) {
-			bt_buffer_destroy(context, mod->debug_locs);
-
-			for (uint32_t i = 0; i < mod->debug_tokens.length; i++) {
-				context->free(mod->debug_tokens.elements[i]);
-			}
-
-			bt_buffer_destroy(context, &mod->debug_tokens);
-			context->free(mod->debug_locs);
-			context->free(mod->debug_source);
-		}
-	} break;
-	case BT_OBJECT_TYPE_FN: {
-		bt_Fn* fn = (bt_Fn*)obj;
-		bt_buffer_destroy(context, &fn->constants);
-		bt_buffer_destroy(context, &fn->instructions);
-		if (fn->debug) {
-			bt_buffer_destroy(context, fn->debug);
-			context->free(fn->debug);
-		}
-	} break;
-	case BT_OBJECT_TYPE_TABLE: {
-		bt_Table* tbl = (bt_Table*)obj;
-		if (!tbl->is_inline) {
-			context->gc.byets_allocated -= tbl->capacity * sizeof(bt_TablePair);
-			context->free(tbl->outline);
-		}
-	} break;
-	case BT_OBJECT_TYPE_STRING: {
-		bt_String* str = (bt_String*)obj;
-		if (str->len <= BT_STRINGTABLE_MAX_LEN) {
-			bt_remove_interned(context, str);
-		}
-	} break;
-	case BT_OBJECT_TYPE_ARRAY: {
-		bt_Array* arr = (bt_Array*)obj;
-		context->free(arr->items);
-	} break;
-	case BT_OBJECT_TYPE_USERDATA: {
-		bt_Userdata* userdata = (bt_Userdata*)obj;
-		if (userdata->type->as.userdata.finalizer) {
-			userdata->type->as.userdata.finalizer(context, userdata);
-		}
-		context->free(userdata->data);
-	} break;
-	}
-}
-
-static uint32_t get_object_size(bt_Object* obj)
-{
-	switch (BT_OBJECT_GET_TYPE(obj)) {
-	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
-	case BT_OBJECT_TYPE_TYPE: return sizeof(bt_Type);
-	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->len;
-	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
-	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
-	case BT_OBJECT_TYPE_FN: 
-		return sizeof(bt_Fn);
-	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
-	case BT_OBJECT_TYPE_CLOSURE: 
-		return sizeof(bt_Closure)
-			+ ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
-	case BT_OBJECT_TYPE_METHOD: 
-		return sizeof(bt_Fn);
-	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
-	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity;
-	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
-	case BT_OBJECT_TYPE_ANNOTATION: return sizeof(bt_Annotation);
-	}
-
-#ifdef BT_DEBUG
-	assert(0 && "Attempted to get size of unrecognized type!");
-#endif
-	return 0;
-}
-
-void bt_free(bt_Context* context, bt_Object* obj)
-{
-	context->gc.byets_allocated -= get_object_size(obj);
-	free_subobjects(context, obj);
-	context->free(obj);
 }
 
 void bt_register_type(bt_Context* context, bt_Value name, bt_Type* type)
@@ -502,8 +342,8 @@ void bt_append_module_path(bt_Context* context, const char* spec)
 		ptr_next = &(*ptr_next)->next;
 	}
 
-	bt_Path* actual_next = context->alloc(sizeof(bt_Path));
-	actual_next->spec = context->alloc(strlen(spec) + 1);
+	bt_Path* actual_next = bt_gc_alloc(context, sizeof(bt_Path));
+	actual_next->spec = bt_gc_alloc(context, strlen(spec) + 1);
 	strcpy(actual_next->spec, spec);
 	actual_next->next = NULL;
 
@@ -607,7 +447,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 
 bt_Thread* bt_make_thread(bt_Context* context)
 {
-	bt_Thread* result = context->alloc(sizeof(bt_Thread));
+	bt_Thread* result = bt_gc_alloc(context, sizeof(bt_Thread));
 	result->depth = 0;
 	result->native_depth = 0;
 	result->top = 0;
@@ -625,7 +465,7 @@ bt_Thread* bt_make_thread(bt_Context* context)
 
 void bt_destroy_thread(bt_Context* context, bt_Thread* thread)
 {
-	context->free(thread);
+	bt_gc_free(context, thread, sizeof(bt_Thread));
 }
 
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc);

@@ -16,7 +16,7 @@ static void btstd_gc(bt_Context* ctx, bt_Thread* thread)
 
 static void btstd_memsize(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_return(thread, bt_make_number((bt_number)ctx->gc.byets_allocated));
+	bt_return(thread, bt_make_number((bt_number)ctx->gc.bytes_allocated));
 }
 
 static void btstd_nextcycle(bt_Context* ctx, bt_Thread* thread)

@@ -22,7 +22,7 @@ static bt_Token BT_TOKEN_EOF = {
 
 static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
 {
-	bt_Token* new_token = ctx->alloc(sizeof(bt_Token));
+	bt_Token* new_token = bt_gc_alloc(ctx,sizeof(bt_Token));
 	new_token->source = source;
 	new_token->line = line;
 	new_token->col = col;
@@ -73,25 +73,27 @@ void bt_close_tokenizer(bt_Tokenizer* tok)
 
 	for (uint32_t i = 0; i < tok->tokens.length; i++)
 	{
-		tok->context->free(tok->tokens.elements[i]);
+		bt_gc_free(tok->context, tok->tokens.elements[i], sizeof(bt_Token));
 	}
 
 	bt_buffer_destroy(tok->context, &tok->tokens);
 	bt_buffer_destroy(tok->context, &tok->literals);
 
-	tok->context->free(tok->literal_zero);
-	tok->context->free(tok->literal_one);
-	tok->context->free((char*)tok->source);
-	if(tok->source_name) tok->context->free((char*)tok->source_name);
+	bt_gc_free(tok->context, tok->literal_zero, sizeof(bt_Token));
+	bt_gc_free(tok->context, tok->literal_one, sizeof(bt_Token));
+
+	bt_gc_free(tok->context, (char*)tok->source, tok->source_len + 1);
+	if(tok->source_name) bt_gc_free(tok->context, (char*)tok->source_name, tok->source_name_len + 1);
+
 	tok->source = tok->current = 0;
 }
 
 void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
 {
-	size_t source_len = strlen(source);
-	char* new_source = tok->context->alloc(source_len + 1);
-	memcpy(new_source, source, source_len);
-	new_source[source_len] = 0;
+	tok->source_len = strlen(source);
+	char* new_source = bt_gc_alloc(tok->context, tok->source_len + 1);
+	memcpy(new_source, source, tok->source_len);
+	new_source[tok->source_len] = 0;
 
 	tok->source = tok->current = new_source;
 	tok->line = tok->col = 1;
@@ -100,15 +102,15 @@ void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source)
 void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name)
 {
 	if (!source_name) {
-		if (tok->source_name) tok->context->free((char*)tok->source_name);
+		if (tok->source_name) bt_gc_free(tok->context, (char*)tok->source_name, tok->source_name_len + 1);
 		tok->source_name = NULL;
 		return;
 	}
 
-	size_t source_len = strlen(source_name);
-	char* new_source = tok->context->alloc(source_len + 1);
-	memcpy(new_source, source_name, source_len);
-	new_source[source_len] = 0;
+	tok->source_name_len = strlen(source_name);
+	char* new_source = bt_gc_alloc(tok->context, tok->source_name_len + 1);
+	memcpy(new_source, source_name, tok->source_name_len);
+	new_source[tok->source_name_len] = 0;
 
 	tok->source_name = new_source;
 }
