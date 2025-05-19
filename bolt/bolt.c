@@ -186,27 +186,31 @@ bt_Handlers bt_default_handlers()
 void bt_close(bt_Context* context)
 {
 	context->types.any = 0;
-	context->types.array = 0;
-	context->types.boolean = 0;
 	context->types.null = 0;
 	context->types.number = 0;
+	context->types.boolean = 0;
 	context->types.string = 0;
+	context->types.array = 0;
 	context->types.table = 0;
+	context->types.type = 0;
 	
 	context->meta_names.add = 0;
 	context->meta_names.div = 0;
 	context->meta_names.mul = 0;
 	context->meta_names.sub = 0;
+	context->meta_names.lt = 0;
+	context->meta_names.lte = 0;
+	context->meta_names.eq = 0;
+	context->meta_names.neq = 0;
 	context->meta_names.format = 0;
+	context->meta_names.collect = 0;
 	
 	context->type_registry = 0;
 	context->prelude = 0;
 	context->loaded_modules = 0;
 	context->troot_top = 0;
 	context->current_thread = 0;
-
-	while (bt_collect(&context->gc, 0));
-
+	
 	context->native_references = 0;
 	while (bt_collect(&context->gc, 0));
 
