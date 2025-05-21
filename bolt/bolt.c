@@ -1054,11 +1054,11 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TSATIS): stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TCAST):
-			if (bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
-				stack[BT_GET_A(op)] = stack[BT_GET_B(op)];
-
-				if (BT_IS_OBJECT(stack[BT_GET_A(op)])) {
-					stack[BT_GET_A(op)] = BT_MAKE_SLOW(stack[BT_GET_A(op)]);
+			if (bt_can_cast(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
+				if (BT_IS_OBJECT(stack[BT_GET_B(op)])) {
+					stack[BT_GET_A(op)] = BT_MAKE_SLOW(stack[BT_GET_B(op)]);
+				} else {
+					stack[BT_GET_A(op)] = bt_value_cast(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
 				}
 			} else {
 				stack[BT_GET_A(op)] = BT_VALUE_NULL;

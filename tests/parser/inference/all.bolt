@@ -14,5 +14,6 @@ import "null-operators"
 import "logical-operators"
 import "arithmetic-operators"
 import "imports"
+import "casting"
 
 pop_scope()

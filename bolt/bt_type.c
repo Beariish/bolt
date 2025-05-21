@@ -244,6 +244,10 @@ bt_Type* bt_derive_type(bt_Context* context, bt_Type* original)
 
 bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
 {
+	// Special casing for nullable null to avoid redundant unions
+	if (to_nullable == context->types.null) return to_nullable;
+	if (to_nullable == context->types.any) return to_nullable;
+	
 	bt_Type* new_type = bt_make_union(context);
 	bt_push_union_variant(context, new_type, to_nullable);
 	bt_push_union_variant(context, new_type, context->types.null);
@@ -577,6 +581,12 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 			}
 		}
 	} else {
+		// Stop us from adding duplicates
+		for (uint32_t i = 0; i < uni->as.selector.types.length; ++i) {
+			bt_Type* other_variant = uni->as.selector.types.elements[i];
+			if (other_variant == variant) return;
+		}
+		
 		bt_buffer_push(context, &uni->as.selector.types, variant);
 	}
 
@@ -617,11 +627,12 @@ BOLT_API bt_bool bt_union_has_variant(bt_Type* uni, bt_Type* variant)
 	return BT_FALSE;
 }
 
-bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name)
+bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name, bt_bool is_sealed)
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
 	bt_Type* result = bt_make_type(context, BT_STRING_STR(owned_name), bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM);
 	result->as.enum_.name = owned_name;
+	result->as.enum_.is_sealed = is_sealed;
 	result->as.enum_.options = bt_make_table(context, 0);
 
 	return result;
@@ -660,6 +671,44 @@ bt_Type* bt_type_dealias(bt_Type* type)
 bt_bool bt_is_alias(bt_Type* type)
 {
 	return type->satisfier == type_satisfier_alias;
+}
+
+bt_bool bt_can_cast(bt_Value value, bt_Type* type)
+{
+	if (bt_is_type(value, type)) return BT_TRUE;
+
+	if (type->category == BT_TYPE_CATEGORY_ENUM && !type->as.enum_.is_sealed) {
+		return BT_IS_NUMBER(value) || BT_IS_ENUM(value);
+	}
+
+	if (type == type->ctx->types.number && BT_IS_ENUM(value)) return BT_TRUE;
+
+	return BT_FALSE;
+}
+
+bt_Value bt_value_cast(bt_Value value, bt_Type* type)
+{
+	if (BT_IS_OBJECT(value)) return BT_VALUE_NULL;
+	if (type == type->ctx->types.any) return value;
+	if (type == type->ctx->types.null) return BT_VALUE_NULL;
+	if (type == type->ctx->types.number) {
+		if (BT_IS_ENUM(value)) {
+			uint32_t val = bt_get_enum_val(value);
+			return bt_make_number((bt_number)val);
+		}
+		if (BT_IS_NUMBER(value)) return value;
+		return BT_VALUE_NULL;
+	}
+
+	if (type->category == BT_TYPE_CATEGORY_ENUM && !type->as.enum_.is_sealed) {
+		if (BT_IS_NUMBER(value)) {
+			uint32_t val = (uint32_t)bt_get_number(value);
+			return bt_make_enum_val(val);
+		}
+		if (BT_IS_ENUM(value)) return value;
+	}
+	
+	return BT_VALUE_NULL;
 }
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
@@ -795,7 +844,7 @@ bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
 	return bt_is_type(value, type);
 }
 
-bt_Value bt_cast_type(bt_Value value, bt_Type* type)
+bt_Value bt_transmute_type(bt_Value value, bt_Type* type)
 {
 	type = bt_type_dealias(type);
 
@@ -858,7 +907,19 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	a = bt_type_dealias(a); b = bt_type_dealias(b);
 
 	if (a == b) return BT_TRUE;
-	if (a->category != b->category) return BT_FALSE;
+	
+	// Unions of size one should be treated like their contained type
+	if (a->category != b->category) {
+		if (a->category == BT_TYPE_CATEGORY_UNION && a->as.selector.types.length == 1) {
+			return bt_type_is_equal(a->as.selector.types.elements[0], b);
+		}
+
+		if (b->category == BT_TYPE_CATEGORY_UNION && b->as.selector.types.length == 1) {
+			return bt_type_is_equal(a, b->as.selector.types.elements[0]);
+		}
+		
+		return BT_FALSE;
+	}
 
 	switch (a->category) {
 	case BT_TYPE_CATEGORY_ARRAY: return bt_type_is_equal(a->as.array.inner, b->as.array.inner);

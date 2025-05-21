@@ -1,0 +1,88 @@
+import * from "../../test"
+
+push_scope("casting")
+
+test("as-casting primitive types", fn {
+    let x = 10 as number
+    let y = false as bool
+    let z = null as type(null)
+
+    expect(typeof(x) == type(number?), "Expeced 'as' to cast to 'number?'")
+    expect(typeof(y) == type(bool?), "Expeced 'as' to cast to 'bool?'")
+    expect(typeof(z) == type(null), "Expeced 'as' to cast to 'null'")
+})
+
+test("as-casting to any", fn {
+    let x = 10 as any
+    expect(typeof(x) == any, "Expected 'as' to cast to 'any'")
+})
+
+type Enum = enum { A, B, C }
+
+test("as-casting to enum", fn {
+    let x = 1 as Enum
+    expect(typeof(x) == type(Enum?), "Expected 'as' to cast to 'Enum?'")
+    expect(x is type(null), "Expeted 'as' to cast to 'null'")
+})
+
+test("as-casting from enum", fn {
+    let x = Enum.B as number
+    expect(typeof(x) == type(number?), "Expected 'as' to cast to 'number?'")
+    expect(x is number, "Expeted 'as' to cast to 'number'")
+    expect(x == 1, "Expeted 'as' to cast to '1'")
+})
+
+type UEnum = unsealed enum { A, B, C }
+
+test("as-casting to unsealed enum", fn {
+    let x = 1 as UEnum
+    expect(typeof(x) == type(UEnum?), "Expected 'as' to cast to 'UEnum?'")
+    expect(x is UEnum, "Expected 'as' to cast to 'UEnum'")
+    expect(x == UEnum.B, "Expected 'as' to cast to 'UEnum.B'")
+})
+
+test("as-casting from unsealed enum", fn {
+    let x = UEnum.B as number
+    expect(typeof(x) == type(number?), "Expected 'as' to cast to 'number?'")
+    expect(x is number, "Expeted 'as' to cast to 'number'")
+    expect(x == 1, "Expeted 'as' to cast to '1'")
+})
+
+test("as-casting to tableshape", fn {
+    type T = { x: number, y: string }
+    let x = { x: 10, y: "hello" } as T
+
+    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
+    expect(x is T, "Expected 'as' to cast to 'T'")
+})
+
+test("as-casting to slow tableshape", fn {
+    type T = { x: number, y: string }
+    let x = { y: "hello", x: 10 } as T
+
+    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
+    expect(x is T, "Expected 'as' to cast to 'T'")
+})
+
+test("as-casting to unsealed tableshape", fn {
+    type T = unsealed { x: number, y: string }
+    let x = { x: 10, y: "hello" } as T
+
+    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
+    expect(x is T, "Expected 'as' to cast to 'T'")
+})
+
+test("as-casting to prototypical tableshape", fn {
+    type T = { x: number, y: string }
+    fn T.f {}
+    let x = { x: 10, y: "hello" } as T
+
+    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
+    expect(x is type(null), "Expected 'as' to cast to 'null'")
+})
+
+// TODO: array casting
+// TODO: union casting
+// TODO: signature casting
+
+pop_scope()

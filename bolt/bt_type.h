@@ -74,6 +74,7 @@ typedef struct bt_Type {
 		struct {
 			bt_String* name;
 			bt_Table* options;
+			bt_bool is_sealed;
 		} enum_;
 	} as;
 
@@ -145,14 +146,20 @@ BOLT_API bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_
 BOLT_API void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
 BOLT_API bt_bool bt_union_has_variant(bt_Type* uni, bt_Type* variant);
 
-BOLT_API bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name);
+/** Creates a new enum type with alias `name`. `is_sealed` determines whether numeric values can be cast to/from this type. */
+BOLT_API bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name, bt_bool is_sealed);
+/** Creates a new enum option inside the type. If `name` is already present, the value is overridden */
 BOLT_API void bt_enum_push_option(bt_Context* context, bt_Type* enum_, bt_StrSlice name, bt_Value value);
+/** Returns whether the enum contains an option that maps to `value` */
 BOLT_API bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value value);
+/** Get the value mapped to the option named `name`, or `null` if it doesn't exist */
 BOLT_API bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name);
 
 BOLT_API bt_Type* bt_type_dealias(bt_Type* type);
 BOLT_API bt_bool bt_is_alias(bt_Type* type);
+BOLT_API bt_bool bt_can_cast(bt_Value value, bt_Type* type);
+BOLT_API bt_Value bt_value_cast(bt_Value value, bt_Type* type);
 BOLT_API bt_bool bt_is_type(bt_Value value, bt_Type* type);
 BOLT_API bt_bool bt_satisfies_type(bt_Value value, bt_Type* type);
-BOLT_API bt_Value bt_cast_type(bt_Value value, bt_Type* type);
+BOLT_API bt_Value bt_transmute_type(bt_Value value, bt_Type* type);
 BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b);

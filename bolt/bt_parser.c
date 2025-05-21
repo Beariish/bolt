@@ -729,8 +729,14 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         goto parse_table;
     case BT_TOKEN_UNSEALED:
         is_sealed = BT_FALSE;
-        if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
-            return NULL;
+        token = bt_tokenizer_peek(tok);
+        if (token->type == BT_TOKEN_LEFTBRACE) {
+            bt_tokenizer_emit(tok);
+        } else if (token->type == BT_TOKEN_ENUM) {
+            bt_tokenizer_emit(tok);
+            goto parse_enum;
+        } else {
+            parse_error_token(parse, "Invalid token after 'unsealed' type specifier: '%.*s'", token);
         }
     case BT_TOKEN_LEFTBRACE: parse_table: {
         token = bt_tokenizer_peek(tok);
@@ -838,10 +844,16 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         parse->annotation_base = parse->annotation_tail = 0;
         return result;
     } break;
-    case BT_TOKEN_ENUM: {
+    case BT_TOKEN_ENUM: parse_enum: {
         bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE);
 
-        bt_Type* result = bt_make_enum(parse->context, (bt_StrSlice) { "<enum>", 6 });
+        bt_StrSlice name = (bt_StrSlice) { "<enum>", 6 };
+
+        if (alias && alias->as.alias.name.length > 0) {
+            name = alias->as.alias.name;
+        }
+            
+        bt_Type* result = bt_make_enum(parse->context, name, is_sealed);
         result->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
             
@@ -2133,7 +2145,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
             }
 
-            node->resulting_type = bt_make_nullable(parse->context, type);
+            node->resulting_type = bt_make_nullable(parse->context, bt_type_dealias(type));
         } break;
 #define XSTR(x) #x
 #define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                     \
