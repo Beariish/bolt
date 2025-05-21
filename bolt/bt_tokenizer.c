@@ -281,7 +281,6 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("as", token, BT_TOKEN_AS)
 		else BT_TEST_KEYWORD("from", token, BT_TOKEN_FROM)
 		else BT_TEST_KEYWORD("is", token, BT_TOKEN_IS)
-		else BT_TEST_KEYWORD("satisfies", token, BT_TOKEN_SATISFIES)
 		else BT_TEST_KEYWORD("final", token, BT_TOKEN_FINAL)
 		else BT_TEST_KEYWORD("unsealed", token, BT_TOKEN_UNSEALED)
 		else BT_TEST_KEYWORD("typeof", token, BT_TOKEN_TYPEOF)
@@ -461,7 +460,6 @@ static const char* get_tok_name(bt_TokenType type)
 	case BT_TOKEN_OR: return "or";
 	case BT_TOKEN_AND: return "and";
 	case BT_TOKEN_NOT: return "not";
-	case BT_TOKEN_SATISFIES: return "satisfies";
 	case BT_TOKEN_UNION: return "|";
 	case BT_TOKEN_TYPEOF: return "typeof";
 	case BT_TOKEN_IMPORT: return "import";

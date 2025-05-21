@@ -68,13 +68,4 @@ test("as-ordering", fn {
     expect(t as T is T, "as binds left to right with is")
 })
 
-test("satisfies-ordering", fn {
-    type T = { x: number }
-
-    let t = { x: 10 }
-    
-    expect(t satisfies T or false, "satisfies binds tighter than logic")
-    expect(t satisfies T == true, "satisfies binds tighter than comparison")
-})
-
 pop_scope()

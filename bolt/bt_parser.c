@@ -1037,7 +1037,7 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_LT: case BT_TOKEN_LTE:
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
     case BT_TOKEN_IS: case BT_TOKEN_AS:
-    case BT_TOKEN_FATARROW: case BT_TOKEN_SATISFIES:
+    case BT_TOKEN_FATARROW:
         return BT_TRUE;
     default:
         return BT_FALSE;
@@ -1089,7 +1089,7 @@ return (InfixBindingPower) { 4, 3 };
         return (InfixBindingPower) { 9, 10 };
 
     case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 11, 12 };
-    case BT_TOKEN_IS: case BT_TOKEN_AS: case BT_TOKEN_SATISFIES: return (InfixBindingPower) { 13, 14 };
+    case BT_TOKEN_IS: case BT_TOKEN_AS: return (InfixBindingPower) { 13, 14 };
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
     case BT_TOKEN_PERIOD: return (InfixBindingPower) { 19, 20 };
@@ -2080,11 +2080,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         case BT_TOKEN_IS: {
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
                 parse_error(parse, "Expected right hand of 'is' to be Type", node->source->line, node->source->col);
-            node->resulting_type = parse->context->types.boolean;
-        } break;
-        case BT_TOKEN_SATISFIES: {
-            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
-                parse_error(parse, "Expected right hand of 'satisfies' to be Type", node->source->line, node->source->col);
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_AS: {

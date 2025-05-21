@@ -30,7 +30,7 @@ bench("1m array index", 50, fn {
 })
 
 bench("1m untyped array index", 50, fn {
-    let idx = 1 as any!
+    let idx = 1 as any
     for i in to_probe.length() { 
         let item = to_probe[idx]
     }
@@ -44,7 +44,7 @@ bench("1m array assignment", 50, fn {
 })
 
 bench("1m untyped array assignment", 50, fn {
-    let idx = 1 as any!
+    let idx = 1 as any
     let arr = [1, 2, 3]
     for i in 1000000 {
         arr[idx] = i

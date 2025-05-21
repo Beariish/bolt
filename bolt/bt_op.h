@@ -41,10 +41,8 @@
     X(EXISTS)      /*  R(a) = R(b) != null                           */             \
     X(COALESCE)    /*  R(a) = R(b) == null ? R(c) : R(b)             */             \
     X(TCHECK)      /*  R(a) = R(b) is Type(c)                        */             \
-    X(TSATIS)      /*  R(a) = R(b) satisfies Type(c)                 */             \
     X(TCAST)       /*  R(a) = R(b) as Type(c)                        */             \
     X(TSET)        /*  (R(a) as Type)[R(b)]: R(c+1) = R(c)           */             \
-    X(COMPOSE)     /*  R(a) = fieldsof(b) + fieldsof(c)              */             \
     X(CALL)        /*  R(a) = R(b)(R(b + 1) .. R(b + c))             */             \
     X(REC_CALL)    /*  R(a) = cur_fn((R(b) .. R(b + c))              */             \
     X(JMP)         /*  pc += ibc                                     */             \

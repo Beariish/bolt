@@ -817,33 +817,6 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	return BT_FALSE;
 }
 
-bt_bool bt_satisfies_type(bt_Value value, bt_Type* type)
-{
-	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-		bt_Object* obj = BT_AS_OBJECT(value);
-		if (BT_OBJECT_GET_TYPE(obj) != BT_OBJECT_TYPE_TABLE) {
-			return BT_FALSE;
-		}
-
-		bt_Table* src = (bt_Table*)obj;
-		bt_Table* layout = type->as.table_shape.layout;
-
-		for (uint32_t i = 0; i < layout->length; ++i) {
-			bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
-
-			bt_Value val = bt_table_get(src, pair->key);
-
-			if (val == BT_VALUE_NULL && bt_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
-				return BT_FALSE;
-			}
-		}
-
-		return BT_TRUE;
-	}
-
-	return bt_is_type(value, type);
-}
-
 bt_Value bt_transmute_type(bt_Value value, bt_Type* type)
 {
 	type = bt_type_dealias(type);

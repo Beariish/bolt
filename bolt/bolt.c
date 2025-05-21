@@ -805,16 +805,6 @@ static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* __restrict resul
 	bt_runtime_error(thread, "Cannot negate non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_not(bt_Thread* thread, bt_Value* __restrict result, bt_Value rhs, bt_Op* ip)
-{
-	if (BT_IS_BOOL(rhs)) {
-		*result = BT_VALUE_BOOL(BT_IS_FALSE(rhs));
-		return;
-	}
-
-	bt_runtime_error(thread, "Cannot 'not' non-bool value!", ip);
-}
-
 static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
@@ -1004,7 +994,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			else bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
 		NEXT;
 
-		CASE(NOT): bt_not(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip); NEXT;
+		CASE(NOT): stack[BT_GET_A(op)] = BT_VALUE_BOOL(BT_IS_FALSE(stack[BT_GET_B(op)])); NEXT;
 
 		CASE(TEST):
 			if (stack[BT_GET_A(op)] == BT_VALUE_BOOL(BT_IS_ACCELERATED(op))) {
@@ -1049,10 +1039,9 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
 		CASE(EXISTS):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
-		CASE(COALESCE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)];   NEXT;
+		CASE(COALESCE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)]; NEXT;
 
 		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
-		CASE(TSATIS): stack[BT_GET_A(op)] = bt_satisfies_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TCAST):
 			if (bt_can_cast(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
 				if (BT_IS_OBJECT(stack[BT_GET_B(op)])) {
@@ -1067,14 +1056,6 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(TSET):
 			bt_type_set_field(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
-		NEXT;
-
-		CASE(COMPOSE):
-			obj  = BT_AS_OBJECT(stack[BT_GET_B(op)]);
-			obj2 = BT_AS_OBJECT(stack[BT_GET_C(op)]);
-			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, ((bt_Table*)obj)->length + ((bt_Table*)obj2)->length));
-			for (uint32_t i = 0; i < ((bt_Table*)obj)->length; ++i) *(BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + i) = *(BT_TABLE_PAIRS(obj) + i);
-			for (uint32_t i = 0; i < ((bt_Table*)obj2)->length; ++i) *(BT_TABLE_PAIRS(BT_AS_OBJECT(stack[BT_GET_A(op)])) + i + ((bt_Table*)obj)->length) = *(BT_TABLE_PAIRS(obj2) + i);
 		NEXT;
 
 		CASE(CALL):

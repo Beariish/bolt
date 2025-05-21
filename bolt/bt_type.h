@@ -160,6 +160,5 @@ BOLT_API bt_bool bt_is_alias(bt_Type* type);
 BOLT_API bt_bool bt_can_cast(bt_Value value, bt_Type* type);
 BOLT_API bt_Value bt_value_cast(bt_Value value, bt_Type* type);
 BOLT_API bt_bool bt_is_type(bt_Value value, bt_Type* type);
-BOLT_API bt_bool bt_satisfies_type(bt_Value value, bt_Type* type);
 BOLT_API bt_Value bt_transmute_type(bt_Value value, bt_Type* type);
 BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b);

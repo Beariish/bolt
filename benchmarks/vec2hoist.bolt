@@ -2,7 +2,7 @@ import Vec2 from "vec2"
 import print from core
 import bench from "bench"
 
-bench("hoisted 100k vec2 create, create, add", 35, fn {
+bench("hoisted 100k vec2 create, create, add", 100, fn {
     for i in 100000 {
         let a = Vec2.new(5, 5)
         let b = Vec2.new(10, 10)   
@@ -10,7 +10,7 @@ bench("hoisted 100k vec2 create, create, add", 35, fn {
     }
 })
 
-bench("hoisted 100k vec2 add", 80, fn {
+bench("hoisted 100k vec2 add", 500, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 100000 {

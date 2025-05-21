@@ -4,7 +4,3 @@ import "loops"
 import "array"
 import "heap"
 import "recursion"
-
-let arr = [1, 2, 3]
-let idx = 1
-let x = arr[1]
