@@ -38,7 +38,6 @@
     X(STORE_IDX_K) /*  R(b).[L(c)] = R(a)                            */             \
     X(LOAD_PROTO)  /*  R(a) = R(b).prototype[L(c)]                   */             \
     X(EXPECT)      /*  R(a) = R(b) ? FAIL                            */             \
-    X(EXISTS)      /*  R(a) = R(b) != null                           */             \
     X(COALESCE)    /*  R(a) = R(b) == null ? R(c) : R(b)             */             \
     X(TCHECK)      /*  R(a) = R(b) is Type(c)                        */             \
     X(TCAST)       /*  R(a) = R(b) as Type(c)                        */             \

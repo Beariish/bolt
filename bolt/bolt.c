@@ -913,39 +913,8 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(LOAD_BOOL):   stack[BT_GET_A(op)] = BT_GET_B(op) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(LOAD_IMPORT): stack[BT_GET_A(op)] = module->imports.elements[BT_GET_B(op)]->value; NEXT;
 
-		CASE(TABLE): 
-			if (BT_IS_ACCELERATED(op)) {
-				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
-				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, (sizeof(bt_TablePair) * BT_GET_B(op)) - sizeof(bt_Value));
-				memcpy((char*)obj2 + sizeof(bt_Object), 
-					((char*)((bt_Type*)obj)->as.table_shape.tmpl) + sizeof(bt_Object),
-					(sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Value));
-				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
-			}
-			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
-		NEXT;
-
-		CASE(ARRAY):
-			obj = (bt_Object*)bt_make_array(context, BT_GET_IBC(op));
-			((bt_Array*)obj)->length = BT_GET_IBC(op);
-			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
-		NEXT;
-
 		CASE(MOVE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
-
-		CASE(EXPORT): bt_module_export(context, module, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
-
-		CASE(CLOSE):
-			obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * BT_GET_C(op));
-			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
-			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
-				BT_CLOSURE_UPVALS(obj2)[i] = stack[BT_GET_B(op) + 1 + i];
-			}
-			((bt_Closure*)obj2)->fn = (bt_Fn*)obj;
-			((bt_Closure*)obj2)->num_upv = BT_GET_C(op);
-			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
-		NEXT;
-
+			
 		CASE(LOADUP):  BT_ASSUME(upv); stack[BT_GET_A(op)] = upv[BT_GET_B(op)]; NEXT;
 		CASE(STOREUP): BT_ASSUME(upv); upv[BT_GET_A(op)] = stack[BT_GET_B(op)]; NEXT;
 
@@ -1031,6 +1000,37 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			}
 			else bt_set(context, obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
 		NEXT;
+			
+		CASE(TABLE): 
+			if (BT_IS_ACCELERATED(op)) {
+				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
+				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, (sizeof(bt_TablePair) * BT_GET_B(op)) - sizeof(bt_Value));
+				memcpy((char*)obj2 + sizeof(bt_Object), 
+					((char*)((bt_Type*)obj)->as.table_shape.tmpl) + sizeof(bt_Object),
+					(sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Value));
+				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
+			}
+			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
+		NEXT;
+
+		CASE(ARRAY):
+			obj = (bt_Object*)bt_make_array(context, BT_GET_IBC(op));
+			((bt_Array*)obj)->length = BT_GET_IBC(op);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
+		NEXT;
+
+		CASE(EXPORT): bt_module_export(context, module, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
+
+		CASE(CLOSE):
+			obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * BT_GET_C(op));
+			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
+				BT_CLOSURE_UPVALS(obj2)[i] = stack[BT_GET_B(op) + 1 + i];
+			}
+			((bt_Closure*)obj2)->fn = (bt_Fn*)obj;
+			((bt_Closure*)obj2)->num_upv = BT_GET_C(op);
+			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
+		NEXT;
 
 		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
 		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
@@ -1038,7 +1038,6 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(LOAD_PROTO): stack[BT_GET_A(op)] = bt_table_get(((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->prototype, constants[BT_GET_C(op)]); NEXT;
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
-		CASE(EXISTS):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? BT_VALUE_FALSE : BT_VALUE_TRUE; NEXT;
 		CASE(COALESCE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)]; NEXT;
 
 		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
@@ -1177,12 +1176,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		CASE(STORE_SUB_F): bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
 		CASE(APPEND_F): bt_array_push(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)]); NEXT;
 
-		CASE(IDX_EXT):
-#ifdef BT_DEBUG
-			assert(0 && "Opcode should be unreachable!");
-#endif
-			NEXT;
-			
+		CASE(IDX_EXT):;
 #ifndef BOLT_USE_INLINE_THREADING
 #ifdef BT_DEBUG
 		default: assert(0 && "Unimplemented opcode!");

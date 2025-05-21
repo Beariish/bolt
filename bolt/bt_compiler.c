@@ -730,7 +730,8 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         switch (expr->source->type) {
         case BT_TOKEN_QUESTION:
-            emit_ab(ctx, BT_OP_EXISTS, result_loc, operand_loc, BT_FALSE);
+            emit_a(ctx, BT_OP_LOAD_NULL, result_loc);
+            emit_abc(ctx, BT_OP_NEQ, result_loc, operand_loc, result_loc, BT_FALSE);
             break;
         case BT_TOKEN_BANG:
             emit_ab(ctx, BT_OP_EXPECT, result_loc, operand_loc, BT_FALSE);
@@ -1157,7 +1158,8 @@ static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_exp
             compile_expression(ctx, current->as.branch.condition, bind_loc);
             uint8_t test_loc = get_register(ctx);
 
-            emit_ab(ctx, BT_OP_EXISTS, test_loc, bind_loc, BT_FALSE);
+            emit_a(ctx, BT_OP_LOAD_NULL, test_loc);
+            emit_abc(ctx, BT_OP_NEQ, test_loc, bind_loc, test_loc, BT_FALSE);
             jump_loc = emit_a(ctx, BT_OP_JMPF, test_loc);
         }
         else if (current->as.branch.condition) {
