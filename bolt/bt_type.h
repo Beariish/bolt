@@ -144,7 +144,12 @@ BOLT_API bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 BOLT_API bt_Type* bt_make_union(bt_Context* context);
 BOLT_API bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* variant);
 BOLT_API void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
-BOLT_API bt_bool bt_union_has_variant(bt_Type* uni, bt_Type* variant);
+/** Returns the number of variants in union type `uni`, or 0 if it is not a union */
+BOLT_API int32_t bt_get_union_length(bt_Type* uni);
+/** Returns the variants in union type `uni` at `index`, or NULL */
+BOLT_API bt_Type* bt_get_union_variant(bt_Type* uni, uint32_t index);
+/** Find `variant` in union type `uni`, returning the index or `-1` on failure */
+BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant);
 
 /** Creates a new enum type with alias `name`. `is_sealed` determines whether numeric values can be cast to/from this type. */
 BOLT_API bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name, bt_bool is_sealed);

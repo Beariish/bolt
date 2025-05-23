@@ -21,6 +21,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
 static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 static bt_StrSlice this_str = { "this", 4 };
 static void try_parse_annotations(bt_Parser* parse);
+static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node);
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
@@ -63,6 +64,128 @@ static void parse_error_fmt(bt_Parser* parse, const char* format, uint16_t line,
 static void parse_error_token(bt_Parser* parse, const char* format, bt_Token* source)
 {
     parse_error_fmt(parse, format, source->line, source->col, source->source.length, source->source.source);
+}
+
+static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* node, bt_AstNode* rhs)
+{
+     if (lhs->category == BT_TYPE_CATEGORY_ARRAY && node->source->type != BT_TOKEN_PERIOD) {
+        bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
+        if (!(rhs == parse->context->types.number || rhs == parse->context->types.any)) {
+            parse_error(parse, "Expected numeric index for array subscript", node->source->line, node->source->col);
+            return NULL;
+        }
+
+        if (rhs == parse->context->types.number) {
+            node->as.binary_op.accelerated = BT_TRUE;
+        }
+
+        return lhs->as.array.inner;
+    }
+
+    // TODO(bearish): Make a smarter check than just comparing against literal table type
+    if (lhs == parse->context->types.table) {
+        return parse->context->types.any;
+    }
+
+    bt_Value rhs_key = node_to_key(parse, node->as.binary_op.right);
+
+    bt_Table* proto = lhs->prototype_types;
+    if (!proto && lhs->prototype) proto = lhs->prototype->prototype_types;
+    if (proto) {
+        bt_Value proto_entry = bt_table_get(proto, rhs_key);
+        if (proto_entry != BT_VALUE_NULL) {
+            bt_Type* entry = (bt_Type*)BT_AS_OBJECT(proto_entry);
+
+            if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
+                node->as.binary_op.hoistable = BT_TRUE;
+                node->as.binary_op.from = lhs;
+                node->as.binary_op.key = rhs_key;
+            } else if (lhs->as.table_shape.final) {
+                node->as.binary_op.hoistable = BT_TRUE;
+                node->as.binary_op.from = lhs;
+                node->as.binary_op.key = rhs_key;
+            }
+
+            return entry;
+        }
+    }
+
+    if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+        if (lhs->as.table_shape.map) {
+            if (!lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
+                parse_error(parse, "Invalid key type", node->source->line, node->source->col);
+            }
+
+            return lhs->as.table_shape.value_type;
+        }
+
+        bt_Table* layout = lhs->as.table_shape.layout;
+
+        if (!layout) {
+            parse_error_token(parse, "Attempted to get field, but table has none", node->source);
+            return NULL;
+        }
+
+        bt_Value table_entry = bt_table_get(layout, rhs_key);
+        if (table_entry != BT_VALUE_NULL) {
+            bt_Type* type = (bt_Type*)BT_AS_OBJECT(table_entry);
+
+            if (lhs->as.table_shape.sealed) {
+                int16_t as_idx = bt_table_get_idx(layout, rhs_key);
+                if (as_idx != -1 && as_idx < UINT8_MAX) {
+                    node->as.binary_op.accelerated = BT_TRUE;
+                    node->as.binary_op.idx = (uint8_t)as_idx;
+                }
+            }
+
+            return type;
+        }
+
+        if (lhs->as.table_shape.sealed) {
+            bt_String* key = bt_to_string(parse->context, rhs_key);
+            parse_error_fmt(parse, "No key '%.*s' in tableshape", node->source->line, node->source->col, key->len, BT_STRING_STR(key));
+        }
+
+        return parse->context->types.any;
+    }
+    else if (lhs->category == BT_TYPE_CATEGORY_USERDATA) {
+        bt_FieldBuffer* fields = &lhs->as.userdata.fields;
+
+        for (uint32_t i = 0; i < fields->length; i++) {
+            bt_UserdataField* field = fields->elements + i;
+            if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), rhs_key)) {
+                return field->bolt_type;
+            }
+        }
+
+        bt_MethodBuffer* methods = &lhs->as.userdata.functions;
+
+        for (uint32_t i = 0; i < methods->length; i++) {
+            bt_UserdataMethod* method = methods->elements + i;
+            if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), rhs_key)) {
+                return method->fn->type;
+            }
+        }
+
+        bt_String* as_str = bt_to_string(parse->context, rhs_key);
+        parse_error_fmt(parse, "Failed to find key '%.*s' in userdata type", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
+    }
+    else if (lhs->category == BT_TYPE_CATEGORY_ENUM) {
+        bt_String* as_str = (bt_String*)BT_AS_OBJECT(rhs_key);
+        bt_Value result = bt_enum_get(parse->context, lhs, as_str);
+        
+        if (result == BT_VALUE_NULL) {
+            parse_error_fmt(parse, "Invalid enum option '%.*s'", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
+        }
+
+        node->type = BT_AST_NODE_ENUM_LITERAL;
+        node->as.enum_literal.value = result;
+        return lhs;
+    }
+    else {
+        parse_error_token(parse, "Unindexable type: '%.*s'", node->source);
+        return NULL;
+    }   
 }
 
 void bt_close_parser(bt_Parser* parse)
@@ -1033,6 +1156,7 @@ static bt_bool is_operator(bt_Token* token)
     case BT_TOKEN_PLUSEQ: case BT_TOKEN_MINUSEQ:
     case BT_TOKEN_MULEQ: case BT_TOKEN_DIVEQ:
     case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTION: case BT_TOKEN_BANG:
+    case BT_TOKEN_QUESTIONPERIOD:
     case BT_TOKEN_LEFTBRACKET: case BT_TOKEN_LEFTPAREN:
     case BT_TOKEN_LT: case BT_TOKEN_LTE:
     case BT_TOKEN_GT: case BT_TOKEN_GTE:
@@ -1092,7 +1216,7 @@ return (InfixBindingPower) { 4, 3 };
     case BT_TOKEN_IS: case BT_TOKEN_AS: return (InfixBindingPower) { 13, 14 };
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
-    case BT_TOKEN_PERIOD: return (InfixBindingPower) { 19, 20 };
+    case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTIONPERIOD: return (InfixBindingPower) { 19, 20 };
     }
 
     return (InfixBindingPower) { 0, 0 };
@@ -1946,136 +2070,26 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 parse_error(parse, "Lhs has no discernable type", node->source->line, node->source->col);
                 return node;
             }
-
-            if (lhs->category == BT_TYPE_CATEGORY_ARRAY && node->source->type != BT_TOKEN_PERIOD) {
-                node->source->type = BT_TOKEN_PERIOD;
-
-                bt_Type* rhs = type_check(parse, node->as.binary_op.right)->resulting_type;
-                if (!(rhs == parse->context->types.number || rhs == parse->context->types.any)) {
-                    parse_error(parse, "Expected numeric index for array subscript", node->source->line, node->source->col);
-                    return node;
-                }
-
-                node->resulting_type = lhs->as.array.inner;
-                if (rhs == parse->context->types.number) {
-                    node->as.binary_op.accelerated = BT_TRUE;
-                }
-
-                return node;
-            }
-        
+            node->resulting_type = resolve_index_type(parse, lhs, node, node->as.binary_op.right);
             node->source->type = BT_TOKEN_PERIOD;
-            // TODO(bearish): Make a smarter check than just comparing against literal table type
-            if (lhs == parse->context->types.table) {
-                node->resulting_type = parse->context->types.any;
+        } break;
+        case BT_TOKEN_QUESTIONPERIOD: {
+            bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
+            if (!lhs) {
+                parse_error(parse, "Lhs has no discernable type", node->source->line, node->source->col);
                 return node;
             }
 
-            bt_Value rhs_key = node_to_key(parse, node->as.binary_op.right);
-
-            bt_Table* proto = lhs->prototype_types;
-            if (!proto && lhs->prototype) proto = lhs->prototype->prototype_types;
-            if (proto) {
-                bt_Value proto_entry = bt_table_get(proto, rhs_key);
-                if (proto_entry != BT_VALUE_NULL) {
-                    bt_Type* entry = (bt_Type*)BT_AS_OBJECT(proto_entry);
-                    node->resulting_type = entry;
-
-                    if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
-                        node->as.binary_op.hoistable = BT_TRUE;
-                        node->as.binary_op.from = lhs;
-                        node->as.binary_op.key = rhs_key;
-                    } else if (lhs->as.table_shape.final) {
-                        node->as.binary_op.hoistable = BT_TRUE;
-                        node->as.binary_op.from = lhs;
-                        node->as.binary_op.key = rhs_key;
-                    }
-
-                    return node;
-                }
-            }
-
-            if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                if (lhs->as.table_shape.map) {
-                    if (!lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
-                        parse_error(parse, "Invalid key type", node->source->line, node->source->col);
-                    }
-
-                    node->resulting_type = lhs->as.table_shape.value_type;
-                    return node;
-                }
-
-                bt_Table* layout = lhs->as.table_shape.layout;
-
-                if (!layout) {
-                    parse_error_token(parse, "Attempted to get field, but table has none", node->source);
-                    return node;
-                }
-
-                bt_Value table_entry = bt_table_get(layout, rhs_key);
-                if (table_entry != BT_VALUE_NULL) {
-                    bt_Type* type = (bt_Type*)BT_AS_OBJECT(table_entry);
-                    node->resulting_type = type;
-
-                    if (lhs->as.table_shape.sealed) {
-                        int16_t as_idx = bt_table_get_idx(layout, rhs_key);
-                        if (as_idx != -1 && as_idx < UINT8_MAX) {
-                            node->as.binary_op.accelerated = BT_TRUE;
-                            node->as.binary_op.idx = (uint8_t)as_idx;
-                        }
-                    }
-
-                    return node;
-                }
-
-                if (lhs->as.table_shape.sealed) {
-                    bt_String* key = bt_to_string(parse->context, rhs_key);
-                    parse_error_fmt(parse, "No key '%.*s' in tableshape", node->source->line, node->source->col, key->len, BT_STRING_STR(key));
-                }
-
-                node->resulting_type = parse->context->types.any;
+            int32_t null_idx = bt_union_has_variant(lhs, parse->context->types.null);
+            if (null_idx == -1 || bt_get_union_length(lhs) != 2) {
+                parse_error(parse, "Expected left hand of `?.` operator to be union of indexable type and null.", node->source->line, node->source->col);
+                node->resulting_type = parse->context->types.null;
                 return node;
             }
-            else if (lhs->category == BT_TYPE_CATEGORY_USERDATA) {
-                bt_FieldBuffer* fields = &lhs->as.userdata.fields;
 
-                for (uint32_t i = 0; i < fields->length; i++) {
-                    bt_UserdataField* field = fields->elements + i;
-                    if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), rhs_key)) {
-                        node->resulting_type = field->bolt_type;
-                        return node;
-                    }
-                }
-
-                bt_MethodBuffer* methods = &lhs->as.userdata.functions;
-
-                for (uint32_t i = 0; i < methods->length; i++) {
-                    bt_UserdataMethod* method = methods->elements + i;
-                    if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), rhs_key)) {
-                        node->resulting_type = method->fn->type;
-                        return node;
-                    }
-                }
-
-                bt_String* as_str = bt_to_string(parse->context, rhs_key);
-                parse_error_fmt(parse, "Failed to find key '%.*s' in userdata type", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
-            }
-            else if (lhs->category == BT_TYPE_CATEGORY_ENUM) {
-                bt_String* as_str = (bt_String*)BT_AS_OBJECT(rhs_key);
-                bt_Value result = bt_enum_get(parse->context, lhs, as_str);
-                
-                if (result == BT_VALUE_NULL) {
-                    parse_error_fmt(parse, "Invalid enum option '%.*s'", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
-                }
-
-                node->type = BT_AST_NODE_ENUM_LITERAL;
-                node->as.enum_literal.value = result;
-                node->resulting_type = lhs;
-                return node;
-            }
-            else {
-                parse_error_token(parse, "Unindexable type: '%.*s'", node->source);
-            }
+            bt_Type* nonnull_type = bt_get_union_variant(lhs, null_idx == 0 ? 1 : 0);
+            bt_Type* indexed_type = resolve_index_type(parse, nonnull_type, node, node->as.binary_op.right);
+            node->resulting_type = bt_make_nullable(parse->context, indexed_type);
         } break;
         case BT_TOKEN_IS: {
             if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)

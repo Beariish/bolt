@@ -618,13 +618,28 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 	uni->name[written_length] = 0;
 }
 
-BOLT_API bt_bool bt_union_has_variant(bt_Type* uni, bt_Type* variant)
+int32_t bt_get_union_length(bt_Type* uni)
 {
+	if (uni->category != BT_TYPE_CATEGORY_UNION) return 0;
+	return uni->as.selector.types.length;
+}
+
+bt_Type* bt_get_union_variant(bt_Type* uni, uint32_t index)
+{
+	if (uni->category != BT_TYPE_CATEGORY_UNION) return NULL;
+	if (index >= uni->as.selector.types.length) return NULL;
+	return uni->as.selector.types.elements[index];
+}
+
+BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant)
+{
+	if (uni->category != BT_TYPE_CATEGORY_UNION) return -1;
+	
 	for (uint32_t i = 0; i < uni->as.selector.types.length; ++i) {
-		if (uni->as.selector.types.elements[i] == variant) return BT_TRUE;
+		if (uni->as.selector.types.elements[i] == variant) return i;
 	}
 
-	return BT_FALSE;
+	return -1;
 }
 
 bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name, bt_bool is_sealed)

@@ -31,4 +31,52 @@ test("as operator inference", fn {
     expect(typeof(y as string) == type(string?), "Expected 'y as string' to be 'string?")
 })
 
+test("?. operator inference", fn {
+    type T = { a: number }
+    let t: T | null = { a: 10 }
+
+    expect(typeof(t?.a) == type(number?), "Expected 't?.a' to be 'number?'")
+    expect(t?.a == 10, "Expected 't?.a' to be '10'")
+})
+
+test("?. operator inference when null", fn {
+    type T = { a: number }
+    let t: T | null = null
+
+    expect(typeof(t?.a) == type(number?), "Expected 't?.a' to be 'number?'")
+    expect(t?.a == null, "Expected 't?.a' to be 'null'")
+})
+
+test("?. operator inference when nested", fn {
+    type T = { a: number, b: { c: number } }
+    let t: T | null = { a: 10, b: { c: 20 } }
+
+    expect(typeof(t?.b?.c) == type(number?), "Expected 't?.b?.c' to be 'number?'")
+    expect(t?.b?.c == 20, "Expected 't?.b?.c' to be '20'")
+})
+
+test("?. operator inference when nested is nullable", fn {
+    type T = { a: number, b: null | { c: number } }
+    let t: T | null = { a: 10, b: { c: 20 } }
+
+    expect(typeof(t?.b?.c) == type(number?), "Expected 't?.b?.c' to be 'number?'")
+    expect(t?.b?.c == 20, "Expected 't?.b?.c' to be '20'")
+})
+
+test("?. operator inference when nested is null", fn {
+    type T = { a: number, b: null | { c: number } }
+    let t: T | null = { a: 10, b: null }
+
+    expect(typeof(t?.b?.c) == type(number?), "Expected 't?.b?.c' to be 'number?'")
+    expect(t?.b?.c == null, "Expected 't?.b?.c' to be '20'")
+})
+
+test("?. operator inference when nested and null", fn {
+    type T = { a: number, b: null | { c: number } }
+    let t: T | null = null
+
+    expect(typeof(t?.b?.c) == type(number?), "Expected 't?.b?.c' to be 'number?'")
+    expect(t?.b?.c == null, "Expected 't?.b?.c' to be '20'")
+})
+
 pop_scope()

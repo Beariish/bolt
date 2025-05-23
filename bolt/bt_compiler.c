@@ -791,7 +791,16 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
         }
 
-        if (expr->source->type == BT_TOKEN_PERIOD) {
+
+        uint32_t question_loc = 0;
+        if (expr->source->type == BT_TOKEN_QUESTIONPERIOD) {
+            uint8_t test_loc = get_register(ctx);
+            emit_a(ctx, BT_OP_LOAD_NULL, test_loc);
+            emit_abc(ctx, BT_OP_EQ, test_loc, lhs_loc, test_loc, BT_FALSE);
+            question_loc = emit_aibc(ctx, BT_OP_TEST, test_loc, 0);
+        }
+            
+        if (expr->source->type == BT_TOKEN_PERIOD || expr->source->type == BT_TOKEN_QUESTIONPERIOD) {    
         hoist_fail:
             if (expr->as.binary_op.hoistable && ctx->compiler->options.allow_method_hoisting) {
                 bt_StrSlice name = { expr->as.binary_op.from->name, (uint16_t)strlen(expr->as.binary_op.from->name) };
@@ -824,7 +833,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 goto try_store;
             }
         }
-
+            
         uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
 
 #define HOISTABLE_OP(unhoisted) \
@@ -913,6 +922,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         }
 
     try_store:
+        if (expr->source->type == BT_TOKEN_QUESTIONPERIOD) {
+            emit_aibc(ctx, BT_OP_JMP, 0, 1);
+        
+            bt_Op* test_op = op_at(ctx, question_loc);
+            uint32_t jmp_loc = op_count(ctx);
+
+            uint8_t test_loc = BT_GET_A(*test_op);
+            *test_op = BT_MAKE_OP_AIBC(BT_OP_TEST, test_loc, jmp_loc - question_loc - 1);
+            *test_op = BT_ACCELERATE_OP(*test_op);
+
+            emit_a(ctx, BT_OP_LOAD_NULL, result_loc);
+        }
+            
         if (storage == STORAGE_UPVAL) {
             uint8_t upval_idx = find_upval(ctx, lhs->source->source);
             emit_ab(ctx, BT_OP_STOREUP, upval_idx, result_loc, BT_FALSE);
