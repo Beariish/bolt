@@ -20,6 +20,17 @@ static bt_Token BT_TOKEN_EOF = {
 	BT_TOKEN_EOS
 };
 
+static void tokenizer_error_unrecognized(bt_Tokenizer* tok, char got, int16_t line, int16_t col)
+{
+	char buffer[1024];
+#ifdef _MSC_VER
+	buffer[sprintf_s(buffer, sizeof(buffer), "Unrecognized character '%d'", got)] = 0;
+#else
+	buffer[sprintf(buffer, "Unrecognized character '%d'", got)] = 0;
+#endif
+	tok->context->on_error(BT_ERROR_PARSE, tok->source_name, buffer, line, col);
+}
+
 static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
 {
 	bt_Token* new_token = bt_gc_alloc(ctx,sizeof(bt_Token));
@@ -296,6 +307,12 @@ eat_whitespace:
 		return bt_buffer_last(&tok->tokens);					  
 	}
 
+	if (*tok->current < 0) {
+		tokenizer_error_unrecognized(tok, *tok->current, tok->line, tok->col);
+		tok->current++;
+		return &BT_TOKEN_EOF;
+	}
+	
 	if (isdigit(*tok->current)) {
 		char* end = NULL;
 		bt_number num = strtod(tok->current, &end);
