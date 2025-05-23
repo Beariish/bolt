@@ -185,7 +185,9 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
     else {
         parse_error_token(parse, "Unindexable type: '%.*s'", node->source);
         return NULL;
-    }   
+    }
+
+    return NULL;
 }
 
 void bt_close_parser(bt_Parser* parse)
@@ -1592,7 +1594,7 @@ static void try_parse_annotations(bt_Parser* parse)
                 }
 
                 if (!bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN)) {
-                    parse_error_token(tok, "Expected closing parenthesis, got '%.*s'", next);
+                    parse_error_token(parse, "Expected closing parenthesis, got '%.*s'", next);
                     return;
                 }
 

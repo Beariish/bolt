@@ -213,7 +213,7 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 
 		size_t n_read = fread(buffer, 1, size, state->handle);
 
-		bt_String* as_string = bt_make_string_len(ctx, buffer, n_read);
+		bt_String* as_string = bt_make_string_len(ctx, buffer, (uint32_t)n_read);
 		bt_gc_free(ctx, buffer, size);
 
 		if (n_read != size) {

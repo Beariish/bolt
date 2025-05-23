@@ -475,7 +475,7 @@ bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_V
 	bt_Value type_value = bt_table_get(tshp->prototype_types, key);
 	if (type_value == BT_VALUE_NULL) return BT_FALSE;
 
-	bt_Type* type = BT_AS_OBJECT(type_value);
+	bt_Type* type = (bt_Type*)BT_AS_OBJECT(type_value);
 	bt_Value result = bt_table_get(tshp->prototype_values, key);
 	if (!bt_is_type(result, type)) return BT_FALSE;
 

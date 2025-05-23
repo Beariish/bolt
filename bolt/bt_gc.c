@@ -225,7 +225,7 @@ size_t bt_gc_get_growth_pct(bt_Context* ctx)
 
 void bt_gc_set_growth_pct(bt_Context* ctx, size_t growth_pct)
 {
-	ctx->gc.cycle_growth_pct = growth_pct;
+	ctx->gc.cycle_growth_pct = (uint32_t)growth_pct;
 }
 
 size_t bt_gc_get_pause_growth_pct(bt_Context* ctx)
@@ -235,7 +235,7 @@ size_t bt_gc_get_pause_growth_pct(bt_Context* ctx)
 
 void bt_gc_set_pause_growth_pct(bt_Context* ctx, size_t growth_pct)
 {
-	ctx->gc.pause_growth_pct = growth_pct;
+	ctx->gc.pause_growth_pct = (uint32_t)growth_pct;
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
