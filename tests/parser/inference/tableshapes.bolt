@@ -147,4 +147,13 @@ test("bracket access tableshape inference", fn {
     expect(a["a"] is number,         "Expected a[\"a\"] to be 'number'")
 })
 
+test("expression access tableshape", fn {
+    let elements: { ..string: bool } = {}
+    let key = { x: "hello!" }
+
+    elements[key.x] = true
+    expect(elements[key.x] == true, "Expected 'elements[key.x] to be 'true'")
+    expect(elements["hello!"] == true, "Expected 'elements[\"hello!\"] to be 'true'")
+})
+
 pop_scope()

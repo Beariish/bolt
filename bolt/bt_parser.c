@@ -7,6 +7,7 @@
 
 #include <memory.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -82,9 +83,23 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
         return lhs->as.array.inner;
     }
 
-    // TODO(bearish): Make a smarter check than just comparing against literal table type
-    if (lhs == parse->context->types.table) {
-        return parse->context->types.any;
+    if (rhs->type != BT_AST_NODE_LITERAL) {
+        bt_Type* indexing_type = type_check(parse, rhs)->resulting_type;
+        if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
+            parse_error(parse, "Illegal non-literal index expression", node->source->line, node->source->col);
+            return NULL;
+        }
+
+        if (lhs->as.table_shape.map) {
+            if (lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, indexing_type)) {
+                return bt_make_nullable(parse->context, lhs->as.table_shape.value_type);
+            } else {
+                parse_error_token(parse, "Invalid index type for map table", node->source);
+                return NULL;
+            }
+        } else {
+            return parse->context->types.any;
+        }
     }
 
     bt_Value rhs_key = node_to_key(parse, node->as.binary_op.right);
@@ -462,7 +477,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
     switch (node->type) {
     case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: {
             switch (node->source->type) {
-            case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
+            case BT_TOKEN_IDENTIFIER_LITERAL: {
                     result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
             } break;
             case BT_TOKEN_STRING_LITERAL: {
@@ -555,6 +570,13 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             return NULL;
         }
 
+        if (key_expr->type == BT_AST_NODE_IDENTIFIER) {
+            key_expr->type = BT_AST_NODE_LITERAL;
+            key_expr->source->type = BT_TOKEN_IDENTIFIER_LITERAL;
+            key_expr->resulting_type = parse->context->types.string;
+            is_map = BT_FALSE;
+        }
+        
         bt_AstNode* field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
 
         bt_Value key = node_to_key(parse, key_expr);
@@ -2090,6 +2112,13 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             bt_Type* nonnull_type = bt_get_union_variant(lhs, null_idx == 0 ? 1 : 0);
+
+            if (node->as.binary_op.right->type == BT_AST_NODE_IDENTIFIER) {
+                node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
+                node->as.binary_op.right->resulting_type = parse->context->types.string;
+                node->as.binary_op.right->source->type = BT_TOKEN_IDENTIFIER_LITERAL;
+            }
+                
             bt_Type* indexed_type = resolve_index_type(parse, nonnull_type, node, node->as.binary_op.right);
             node->resulting_type = bt_make_nullable(parse->context, indexed_type);
         } break;
