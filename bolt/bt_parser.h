@@ -43,6 +43,7 @@ typedef struct bt_AstNode bt_AstNode;
 
 typedef struct bt_FnArg {
 	bt_StrSlice name;
+	bt_Token* source;
 	bt_Type* type;
 } bt_FnArg;
 

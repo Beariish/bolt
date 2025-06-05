@@ -1374,6 +1374,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             bt_FnArg this_arg;
             if (next->type == BT_TOKEN_IDENTIFIER) {
                 this_arg.name = next->source;
+                this_arg.source = next;
                 next = bt_tokenizer_peek(tok);
             }
             else if (next->type == BT_TOKEN_RIGHTPAREN) {
@@ -1399,11 +1400,11 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
                         is_methodic = BT_TRUE;
                         this_arg.type = prototype;
                     } else {
-                        parse_error_token(parse, "Expected method-like argument, got '%.*s'. Did you mean 'this'?", next);
+                        parse_error_token(parse, "Expected method-like argument, got '%.*s'. Did you mean 'this'?", this_arg.source);
                         return NULL;
                     }
                 } else {
-                    parse_error_token(parse, "Expected argument type following identifier '%.*s'", next);
+                    parse_error_token(parse, "Expected argument type following identifier '%.*s'", this_arg.source);
                     return NULL;
                 }
             }
@@ -2771,10 +2772,12 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         parse_error_token(parser, "Couldn't locate tableshape type '%.*s'", ident);
         return NULL; 
     }
-
-
+    
     bt_AstNode* fn = parse_function_literal(parser, ident, NULL);
-    if (fn->type != BT_AST_NODE_FUNCTION) parse_error_token(parser, "Expected function literal", fn->source);
+    if (fn == NULL || fn->type != BT_AST_NODE_FUNCTION) {
+        parse_error_token(parser, "Expected function literal for binding '%.*s'", ident);
+        return NULL;
+    }
 
     bt_AstNode* result = make_node(parser, BT_AST_NODE_LET);
     result->source = ident;
