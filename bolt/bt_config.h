@@ -3,6 +3,9 @@
 // This header exists in order to configure some parts of bolts functionality, it is included in the relevant places
 // Whether or not these are enabled shouldn't intergere with ABI boundary, but behvaiour may vary between compilers
 
+// Enabling this dots a lot of the bolt internals with assertions, useful to hunt down unwanted behavour
+//#define BT_DEBUG
+
 // Use explicit butmasking in order to utilize otherwise-zero'd bits inside the GC next pointer
 // This reduces the size of ALL BOLT OBJECTS by 8 bytes, but does make debugging more challenging
 // as it's impossible to really inspect the GC state

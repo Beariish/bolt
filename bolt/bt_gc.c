@@ -1,5 +1,9 @@
 #include "bt_gc.h"
 
+#ifdef BT_DEBUG
+#include <assert.h>
+#endif
+
 #include <string.h>
 
 #include "bt_type.h"
