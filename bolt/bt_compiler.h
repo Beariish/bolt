@@ -23,11 +23,6 @@ typedef struct bt_Compiler {
 	bt_bool has_errored;
 } bt_Compiler;
 
-typedef struct bt_Constant {
-	bt_StrSlice name;
-	bt_Value value;
-} bt_Constant;
-
 BOLT_API bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions options);
 BOLT_API void bt_close_compiler(bt_Compiler* compiler);
 

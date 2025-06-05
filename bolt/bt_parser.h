@@ -200,8 +200,6 @@ typedef struct bt_ParseScope {
 	bt_bool is_fn_boundary;
 } bt_ParseScope;
 
-#define BT_AST_NODE_POOL_SIZE 256
-
 typedef struct bt_AstNodePool {
 	bt_AstNode nodes[BT_AST_NODE_POOL_SIZE];
 	struct bt_AstNodePool* prev;
@@ -209,7 +207,7 @@ typedef struct bt_AstNodePool {
 	uint16_t count;
 } bt_AstNodePool;
 
-typedef struct {
+typedef struct bt_Parser {
 	bt_Context* context;
 	bt_Tokenizer* tokenizer;
 	bt_AstNode* root;

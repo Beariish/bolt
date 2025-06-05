@@ -16,6 +16,11 @@
 
 static const uint8_t INVALID_BINDING = 255;
 
+typedef struct Constant {
+    bt_StrSlice name;
+    bt_Value value;
+} Constant;
+
 typedef struct CompilerBinding {
     bt_StrSlice name;
     uint8_t loc;
@@ -43,7 +48,7 @@ typedef struct FunctionContext {
     uint16_t pending_breaks[16][16];
     uint8_t break_counts[16];
 
-    bt_Buffer(bt_Constant) constants;
+    bt_Buffer(Constant) constants;
     bt_InstructionBuffer output;
     bt_DebugLocBuffer debug;
 
@@ -346,7 +351,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Constant* constant = ctx->constants.elements + idx;
+        Constant* constant = ctx->constants.elements + idx;
         if (constant->value == value) {
             return idx;
         }
@@ -362,7 +367,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value)
         }
     }
 
-    bt_Constant con;
+    Constant con;
     con.name.length = 0;
     con.value = value;
 
@@ -382,11 +387,11 @@ static uint8_t push_named(FunctionContext* ctx, bt_StrSlice name, bt_Value value
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Constant* constant = ctx->constants.elements + idx;
+        Constant* constant = ctx->constants.elements + idx;
         if (bt_strslice_compare(constant->name, name)) { return idx; }
     }
 
-    bt_Constant con;
+    Constant con;
     con.value = value;
     con.name = name;
 
@@ -400,7 +405,7 @@ static uint8_t find_named(FunctionContext* ctx, bt_StrSlice name)
 {
     for (uint8_t idx = 0; idx < ctx->constants.length; idx++)
     {
-        bt_Constant* constant = ctx->constants.elements + idx;
+        Constant* constant = ctx->constants.elements + idx;
         if (bt_strslice_compare(constant->name, name)) return idx;
     }
 

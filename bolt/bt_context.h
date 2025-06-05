@@ -20,30 +20,6 @@ typedef void (*bt_CloseFile)(bt_Context* ctx, const char* path, void*  in_handle
 typedef void (*bt_FreeSource)(bt_Context* ctx, char* source);
 typedef void (*bt_Write)(bt_Context* ctx, const char* msg);
 
-#ifndef BT_STACK_SIZE
-#define BT_STACK_SIZE 1024
-#endif
-
-#ifndef BT_CALLSTACK_SIZE
-#define BT_CALLSTACK_SIZE 128
-#endif
-
-#ifndef BT_STRINGTABLE_SIZE
-#define BT_STRINGTABLE_SIZE 255
-#endif
-
-#ifndef BT_STRINGTABLE_MAX_LEN
-#define BT_STRINGTABLE_MAX_LEN 24
-#endif
-
-#ifndef BT_TEMPROOTS_SIZE
-#define BT_TEMPROOTS_SIZE 16
-#endif
-
-#ifndef BT_MODULE_PATH_SIZE
-#define BT_MODULE_PATH_SIZE 512
-#endif
-
 typedef struct bt_StringTableEntry {
 	uint64_t hash;
 	bt_String* string;
