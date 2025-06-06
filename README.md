@@ -20,7 +20,7 @@ for const animal in animals.each() {
 
 ## Features
 * [Lightning-fast performance](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Performance.md), outperforming other languages in its class
-* Compact implementation, entire library <10kloc and compiles to <200kb
+* Compact implementation, leaving a minimal impact on build size while remaining consise enough to browse. 
 * Blazingly quick compilation, plow through code at over 500kloc/thread/second. That's 50'000 lines in the blink of an eye.
 * Ease of embedding, only a handful of lines to get going
 * Rich type system to catch errors before code is ran, with plenty of support for extending it from native code
@@ -34,7 +34,7 @@ for const animal in animals.each() {
 * **[Notable Bolt users](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Users.md)**
 
 ## Dependencies 
-Bolt only depends on the C standard library as well as `libm`.
+Bolt only depends on the C standard library as well as `libm` on Unix-based ssytems.
 Some standard library modules include things like file and system IO, but these can be disabled easily.
 By default, Bolt sets up an environment that uses `malloc`/`realloc`/`free`, but this is also easy to configure.
 
@@ -51,24 +51,17 @@ Please note that Bolt is **not** yet stable, expect to encounter compiler bugs a
 | Compiler | Status | Reason |
 | -------- | ------ | ------ |
 | MSVC     | ✅     | no issues |
-| GCC      | ✅🟨  | all functional, but some warnings |
-| Clang    | ⚙️     | compiles, but runtime is fishy. would appreciate help. |
+| GCC      | ✅🟨  | all functional, some warnings |
+| Clang    | ✅🟨  | all functional, some warnings |
 
 ## Contributing
-Bug reports and fixes are of course welcome, and changes/improvements to the embedding side and C api will generally be considered. Performance improvements are likely to be accepted as long as they're repeatable in a case defined in the `benchmarks/` directory, and don't come at some other significant cost.
+Bolt is a very opinionated project, and any contributions should take the vision into account.
 
-Actual language features and extensions will require a lot more consideration, discussion, and revision before any real work should be started. There is a farily clear vision and roadmap for the language, and I explicitly want to avoid bloating it with features that don't further its' goals. 
+Bugfixes are likely to be accepted as long as they're within reason and don't change any expected behaviour. Adding tests in case of regression is very much appreciated as well. A clean run of `/tests/all` is expected of course.
 
-Standard library improvements and extensions are accepted as long as they don't bring in an external dependency, and aren't too niche/overlapping not to make sense.
+Optimizations may also be accepted for minor versions under similar criteria. A before/after run of `/benchmarks/all` is expected to evaluate the impact and make sure nothing else regresses. If the specific optimization isn't captured in any existing benchmark, adding one is required.
 
-## Roadmap
-* 0.1.x - Bugfixing and stabilization, debugability *[we are here]*
-* 1. Focus on improving code quality, reducing duplication and some loving comments
-* 2. Locate and fix compiler bugs, patch up any holes in the runtime.
-* 0.2.x - Compile to bytecode and bytecode bundles
-* 0.3.x - Generics and arrow functions
-* 0.4.x - Fibres and coroutines
-* 0.5.x and beyond - ? 
+Feature additions will need a lot of consideration, Bolt is very intentionally minimal in its' design and featureset. I highly suggest you submit some kind of proposal or plan before starting any significant work on a feature to review. Use cases, performance, and implementation cost will all be expected to be justified.
 
 ## License
 Bolt is licensed under MIT. See LICENSE for more information.
