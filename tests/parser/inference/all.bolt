@@ -15,5 +15,6 @@ import "logical-operators"
 import "arithmetic-operators"
 import "imports"
 import "casting"
+import "type-narrowing"
 
 pop_scope()

@@ -2474,6 +2474,30 @@ static bt_bool can_start_expression(bt_Token* token)
     return BT_FALSE;
 }
 
+static bt_AstNode* attempt_narrowing(bt_Parser* parser, bt_AstNode* condition)
+{
+    if (!condition) return NULL;
+    if (condition->type != BT_AST_NODE_BINARY_OP) return NULL;
+
+    if (condition->source->type == BT_TOKEN_IS) {
+        bt_AstNode* lhs = condition->as.binary_op.left;
+        if (lhs->type != BT_AST_NODE_IDENTIFIER) return NULL;
+
+        bt_AstNode* rhs = condition->as.binary_op.right;
+        bt_Type* rhs_type = resolve_to_type(parser, rhs);
+        if (!rhs_type) return NULL;
+
+        bt_AstNode* shadow = make_node(parser, BT_AST_NODE_LET);
+        shadow->source = lhs->source;
+        shadow->as.let.is_const = BT_FALSE;
+        shadow->as.let.name = lhs->source->source;
+        shadow->resulting_type = bt_type_dealias(rhs_type);
+        return shadow;
+    } else {
+        return NULL;
+    }
+}
+
 static bt_AstNode* parse_return(bt_Parser* parse)
 {
     bt_AstNode* node = make_node(parse, BT_AST_NODE_RETURN);
@@ -2846,10 +2870,12 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             return NULL;
         }
 
+        bt_AstNode* narrowing = attempt_narrowing(parser, condition);
+
         result->source = condition->source;
         result->as.branch.condition = condition;
         result->as.branch.is_let = BT_FALSE;
-        result->as.branch.body = parse_block_or_single(parser, BT_TOKEN_THEN, NULL);
+        result->as.branch.body = parse_block_or_single(parser, BT_TOKEN_THEN, narrowing);
     }
 
     next = bt_tokenizer_peek(tok);

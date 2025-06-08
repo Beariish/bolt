@@ -1,0 +1,62 @@
+import * from "../../test"
+
+push_scope("type-narrowing")
+
+test("'is' narrows to single type", fn {
+    let x: any = 10
+    if x is number {
+        expect(typeof(x) == number, "Expected 'x' to narrow into 'number'")
+    }
+})
+
+test("'is' narrows to union type", fn {
+    let x: any = 10
+    let y: any = "str"
+
+    if x is type(number | string) {
+        expect(typeof(x) == type(number | string), "Expected 'x' to narrow into 'number | string'")
+    }
+
+    if y is type(number | string) {
+        expect(typeof(y) == type(number | string), "Expected 'y' to narrow into 'number | string'")
+    }
+})
+
+test("'is' widens to single type", fn {
+    let x = 10
+    if x is any {
+        expect(typeof(x) == any, "Expected 'x' to be 'any'")
+    }
+})
+
+test("'is' widens into union type", fn {
+    let x = 10
+
+    if x is type(number | string) {
+        expect(typeof(x) == type(number | string), "Expected 'x' to widen into 'number | string'")
+    }
+})
+
+test("'is' re-widens after scope is closed", fn {
+    let x: any = 10
+
+    if x is number {
+        expect(typeof(x) == number, "Expected 'x' to narrow into 'number'")
+    }
+
+    expect(typeof(x) == any, "Expected 'x' to re-widen into 'any'")
+})
+
+type T = { x: number, y: number }
+fn T.sum(this) { return this.x + this.y }
+
+test("'is' narrows into tableshape type", fn {
+    let t: any = T => { x: 10, y: 20 }
+
+    if t is T {
+        expect(typeof(t) == T, "Expected 't' to narrow into 'T'")
+        expect(t.sum() == 30, "Expected 't' to narrow into 'T'")
+    }
+})
+
+pop_scope()
