@@ -909,10 +909,6 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         }
     case BT_TOKEN_LEFTBRACE: parse_table: {
         token = bt_tokenizer_peek(tok);
-        if (token->type == BT_TOKEN_RIGHTBRACE && !is_final) {
-            bt_tokenizer_emit(tok);
-            return ctx->types.table;
-        }
 
         if (token->type == BT_TOKEN_VARARG) {
             bt_tokenizer_emit(tok);
@@ -3166,7 +3162,8 @@ static bt_AstNode* parse_match(bt_Parser* parse)
     bt_Tokenizer* tok = parse->tokenizer;
 
     bt_StrSlice ident_name;
-    bt_Token* ident_tok;
+    bt_Token* ident_tok = NULL;
+    bt_bool is_inline_ident = BT_FALSE;
     
     bt_Token* next = bt_tokenizer_peek(tok);    
     if (next->type == BT_TOKEN_LET) {
@@ -3183,14 +3180,22 @@ static bt_AstNode* parse_match(bt_Parser* parse)
 
         ident_name = ident->source;
         ident_tok = ident;
-    } else {
-        ident_name = next_temp_name(parse);
-        ident_tok = bt_tokenizer_make_identifier(parse->tokenizer, ident_name);
     }
 
     bt_AstNode* match_on_expr = parse_expression(parse, 0, NULL);
     type_check(parse, match_on_expr);
 
+    if (match_on_expr->type == BT_AST_NODE_IDENTIFIER && !ident_tok) {
+        ident_name = match_on_expr->source->source;
+        ident_tok = match_on_expr->source;
+        is_inline_ident = BT_TRUE;
+    }
+    
+    if (!ident_tok) {
+        ident_name = next_temp_name(parse);
+        ident_tok = bt_tokenizer_make_identifier(parse->tokenizer, ident_name);
+    }
+    
     bt_AstNode* match_on = make_node(parse, BT_AST_NODE_LET);
     match_on->as.let.initializer = match_on_expr;
     match_on->as.let.is_const = BT_FALSE;
@@ -3206,7 +3211,7 @@ static bt_AstNode* parse_match(bt_Parser* parse)
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_MATCH);
     result->as.match.is_expr = BT_FALSE;
-    result->as.match.condition = match_on;
+    result->as.match.condition = is_inline_ident ? match_on_expr : match_on;
     bt_buffer_empty(&result->as.match.branches);
     bt_buffer_empty(&result->as.match.else_branch);
     

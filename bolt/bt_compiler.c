@@ -1176,11 +1176,15 @@ static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_
     uint32_t end_jumps[64];
     uint8_t end_top = 0;
 
-    push_registers(ctx);
-
     compile_statement(ctx, stmt->as.match.condition);
-
+    
+    push_scope(ctx);
+    push_registers(ctx);
+    
     for (uint32_t i = 0; i < stmt->as.match.branches.length; ++i) {
+        push_scope(ctx);
+        push_registers(ctx);
+        
         bt_AstNode* branch = stmt->as.match.branches.elements[i];
         uint8_t condition_loc = find_binding_or_compile_temp(ctx, branch->as.match_branch.condition);
         uint32_t jmp_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
@@ -1199,6 +1203,9 @@ static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_
 
         bt_Op* jmpf = op_at(ctx, jmp_loc);
         BT_SET_IBC(*jmpf, ctx->output.length - jmp_loc - 1);
+
+        restore_registers(ctx);
+        pop_scope(ctx);
     }
 
     if (stmt->as.match.else_branch.length > 0) {
@@ -1219,6 +1226,7 @@ static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_
     }
     
     restore_registers(ctx);
+    pop_scope(ctx);
 
     return BT_TRUE;
 }

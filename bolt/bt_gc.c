@@ -112,7 +112,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_TABLE: {
 		bt_Table* tbl = (bt_Table*)obj;
-		if (!tbl->is_inline) {
+		if (!tbl->is_inline && tbl->capacity > 0) {
 			bt_gc_free(context, tbl->outline, tbl->capacity * sizeof(bt_TablePair));
 		}
 	} break;
