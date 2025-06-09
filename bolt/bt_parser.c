@@ -23,6 +23,8 @@ static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 static bt_StrSlice this_str = { "this", 4 };
 static void try_parse_annotations(bt_Parser* parse);
 static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node);
+static bt_AstNode* parse_match(bt_Parser* parse);
+static bt_AstNode* parse_match_expression(bt_Parser* parse);
 
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
@@ -36,6 +38,8 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
     result.current_fn = NULL;
     result.annotation_base = NULL;
     result.annotation_tail = NULL;
+    result.temp_name_counter = 0;
+    bt_buffer_empty(&result.temp_names);
 
     return result;
 }
@@ -65,6 +69,24 @@ static void parse_error_fmt(bt_Parser* parse, const char* format, uint16_t line,
 static void parse_error_token(bt_Parser* parse, const char* format, bt_Token* source)
 {
     parse_error_fmt(parse, format, source->line, source->col, source->source.length, source->source.source);
+}
+
+static bt_StrSlice next_temp_name(bt_Parser* parse)
+{
+    char name_temp[8];
+    #ifdef _MSC_VER
+        name_temp[sprintf_s(name_temp, sizeof(name_temp) - 1, "%%%%%d", parse->temp_name_counter)] = 0;
+    #else
+        name_temp[sprintf(name_temp, "%%%%%d", parse->temp_name_counter)] = 0;
+    #endif
+
+    parse->temp_name_counter++;
+
+    char* new_name = bt_gc_alloc(parse->context, strlen(name_temp) + 1);
+    strcpy(new_name, name_temp);
+
+    bt_buffer_push(parse->context, &parse->temp_names, new_name);
+    return (bt_StrSlice) { .source = new_name, .length = strlen(name_temp) };
 }
 
 static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* node, bt_AstNode* rhs)
@@ -3129,6 +3151,103 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
     return result;
 }
 
+static bt_AstNode* parse_match(bt_Parser* parse)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+    bt_AstNode* match_on_expr = parse_expression(parse, 0);
+    type_check(parse, match_on_expr);
+
+    bt_AstNode* match_on = make_node(parse, BT_AST_NODE_LET);
+    match_on->as.let.initializer = match_on_expr;
+    match_on->as.let.name = next_temp_name(parse);
+    match_on->as.let.is_const = BT_TRUE;
+    match_on->resulting_type = match_on_expr->resulting_type;
+
+    bt_AstNode* match_on_ident = make_node(parse, BT_AST_NODE_IDENTIFIER);
+    match_on_ident->source = bt_tokenizer_make_identifier(parse->tokenizer, match_on->as.let.name);
+    match_on_ident->resulting_type = match_on_expr->resulting_type;
+    
+    push_scope(parse, BT_FALSE);
+    push_local(parse, match_on);
+
+    bt_AstNode* result = make_node(parse, BT_AST_NODE_MATCH);
+    result->as.match.is_expr = BT_FALSE;
+    result->as.match.condition = match_on;
+    bt_buffer_empty(&result->as.match.branches);
+    bt_buffer_empty(&result->as.match.else_branch);
+    
+    if (!bt_tokenizer_expect(tok, BT_TOKEN_LEFTBRACE)) {
+        return NULL;
+    }
+
+    bt_Token* next = bt_tokenizer_peek(tok);
+    while (next && next->type != BT_TOKEN_RIGHTBRACE && next->type != BT_TOKEN_EOS) {
+        bt_AstNode* current_condition = NULL;
+
+        do {
+            if (next->type == BT_TOKEN_COMMA) {
+                bt_tokenizer_emit(tok);
+                next = bt_tokenizer_peek(tok);
+            }
+            
+            bt_AstNode* iter_condition = NULL;
+            
+            if (infix_binding_power(next).left != 0) {
+                // TODO: handle extracting lhs for expression parsing
+            } else if (next->type == BT_TOKEN_ELSE) {
+                bt_tokenizer_emit(parse->tokenizer);
+            } else {
+                bt_AstNode* compare_against = parse_expression(parse, 0);
+                bt_AstNode* compare_op = make_node(parse, BT_AST_NODE_BINARY_OP);
+                compare_op->as.binary_op.left = match_on_ident;
+                compare_op->as.binary_op.right = compare_against;
+                compare_op->source = bt_tokenizer_make_operator(parse->tokenizer, BT_TOKEN_EQUALS);
+
+                if (!type_check(parse, compare_op)->resulting_type) {
+                    parse_error_token(parse, "Failed to type-check branch in match statement: '%.*s'", compare_against->source);
+                    return NULL;
+                }
+                
+                iter_condition = compare_op;
+            }
+
+            if (current_condition) {
+                bt_AstNode* or_op = make_node(parse, BT_AST_NODE_BINARY_OP);
+                or_op->as.binary_op.left = current_condition;
+                or_op->as.binary_op.right = iter_condition;
+                or_op->source = bt_tokenizer_make_operator(parse->tokenizer, BT_TOKEN_OR);
+
+                current_condition = or_op;
+            } else {
+                current_condition = iter_condition;
+            }
+            
+            next = bt_tokenizer_peek(tok);
+        } while (next && next->type == BT_TOKEN_COMMA);
+
+        if (current_condition) {
+            bt_AstNode* branch = make_node(parse, BT_AST_NODE_MATCH_BRANCH);
+            branch->as.match_branch.condition = current_condition;
+            branch->as.match_branch.body = parse_block_or_single(parse, BT_TOKEN_DO, NULL);
+
+            bt_buffer_push(parse->context, &result->as.match.branches, branch);
+        } else {
+            result->as.match.else_branch = parse_block_or_single(parse, 0, NULL);
+        }
+        
+        next = bt_tokenizer_peek(tok);
+    }
+
+    if (!bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE)) {
+        return NULL;
+    }
+
+    pop_scope(parse);
+
+    return result;
+}
+
+
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -3178,6 +3297,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         result->source = bt_tokenizer_emit(tok);
         return result;
     }
+    case BT_TOKEN_MATCH: {
+        bt_tokenizer_emit(tok);
+        return parse_match(parse);
+    } break;
     case BT_TOKEN_EOS: {
         return NULL;
     }

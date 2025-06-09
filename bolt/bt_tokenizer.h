@@ -41,7 +41,7 @@ typedef enum {
 	BT_TOKEN_TO, BT_TOKEN_BY, BT_TOKEN_IS, BT_TOKEN_AS,
 	BT_TOKEN_FINAL, BT_TOKEN_UNSEALED, BT_TOKEN_FATARROW,
 	BT_TOKEN_ENUM, BT_TOKEN_BREAK, BT_TOKEN_CONTINUE,
-	BT_TOKEN_DO, BT_TOKEN_THEN,
+	BT_TOKEN_DO, BT_TOKEN_THEN, BT_TOKEN_MATCH,
 
 	BT_TOKEN_OR, BT_TOKEN_AND, BT_TOKEN_NOT,
 
@@ -72,6 +72,7 @@ typedef struct {
 	bt_Context* context;
 
 	bt_TokenBuffer tokens;
+	bt_TokenBuffer temp_tokens;
 	bt_Buffer(bt_Literal) literals;
 	int32_t last_consumed;
 
@@ -99,3 +100,6 @@ BOLT_API bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
 
 BOLT_API bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok);
 BOLT_API bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type);
+
+BOLT_API bt_Token* bt_tokenizer_make_identifier(bt_Tokenizer* tok, bt_StrSlice name);
+BOLT_API bt_Token* bt_tokenizer_make_operator(bt_Tokenizer* tok, bt_TokenType op);

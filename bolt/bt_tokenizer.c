@@ -52,6 +52,7 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 	tok.last_consumed = tok.line = tok.col = 0;
 
 	bt_buffer_with_capacity(&tok.tokens, context, 32);
+	bt_buffer_empty(&tok.temp_tokens);
 	bt_buffer_with_capacity(&tok.literals, context, 4);
 	
 	bt_Literal lit = {
@@ -87,7 +88,13 @@ void bt_close_tokenizer(bt_Tokenizer* tok)
 		bt_gc_free(tok->context, tok->tokens.elements[i], sizeof(bt_Token));
 	}
 
+	for (uint32_t i = 0; i < tok->temp_tokens.length; i++)
+	{
+		bt_gc_free(tok->context, tok->temp_tokens.elements[i], sizeof(bt_Token));
+	}
+
 	bt_buffer_destroy(tok->context, &tok->tokens);
+	bt_buffer_destroy(tok->context, &tok->temp_tokens);
 	bt_buffer_destroy(tok->context, &tok->literals);
 
 	bt_gc_free(tok->context, tok->literal_zero, sizeof(bt_Token));
@@ -300,6 +307,7 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("continue", token, BT_TOKEN_CONTINUE)
 		else BT_TEST_KEYWORD("do", token, BT_TOKEN_DO)
 		else BT_TEST_KEYWORD("then", token, BT_TOKEN_THEN)
+		else BT_TEST_KEYWORD("match", token, BT_TOKEN_MATCH)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, token);
@@ -507,4 +515,18 @@ bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type)
 	}
 	
 	return result;
+}
+
+bt_Token* bt_tokenizer_make_identifier(bt_Tokenizer* tok, bt_StrSlice name)
+{
+	bt_Token* token = make_token(tok->context, name, 0, 0, 0, BT_TOKEN_IDENTIFIER);
+	bt_buffer_push(tok->context, &tok->temp_tokens, token);
+	return token;
+}
+
+bt_Token* bt_tokenizer_make_operator(bt_Tokenizer* tok, bt_TokenType op)
+{
+	bt_Token* token = make_token(tok->context, (bt_StrSlice) { .source = 0, .length = 0 }, 0, 0, 0, op);
+	bt_buffer_push(tok->context, &tok->temp_tokens, token);
+	return token;
 }

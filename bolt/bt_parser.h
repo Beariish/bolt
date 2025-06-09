@@ -34,6 +34,8 @@ typedef enum {
 	BT_AST_NODE_CALL,
 	BT_AST_NODE_RECURSIVE_CALL,
 	BT_AST_NODE_ALIAS,
+	BT_AST_NODE_MATCH,
+	BT_AST_NODE_MATCH_BRANCH,
 
 	BT_AST_NODE_BREAK,
 	BT_AST_NODE_CONTINUE,
@@ -186,6 +188,18 @@ typedef struct bt_AstNode {
 		struct {
 			bt_Value value;
 		} enum_literal, value_literal;
+
+		struct {
+			bt_AstNode* condition;
+			bt_AstBuffer branches;
+			bt_AstBuffer else_branch;
+			bt_bool is_expr;
+		} match;
+
+		struct {
+			bt_AstNode* condition;
+			bt_AstBuffer body;
+		} match_branch;
 	} as; 
 
 	bt_Token* source;
@@ -220,7 +234,9 @@ typedef struct bt_Parser {
 	bt_Annotation* annotation_base;
 	bt_Annotation* annotation_tail;
 
+	bt_Buffer(char*) temp_names;
 	bt_bool has_errored;
+	int32_t temp_name_counter;
 } bt_Parser;
 
 BOLT_API bt_Parser bt_open_parser(bt_Tokenizer* tkn);

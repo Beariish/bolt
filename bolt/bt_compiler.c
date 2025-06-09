@@ -1162,6 +1162,47 @@ static void resolve_breaks(FunctionContext* ctx)
     }
 }
 
+static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc)
+{
+    if (is_expr && !stmt->as.match.is_expr) {
+        compile_error_token(ctx->compiler, "Expected 'match' expression, but got statement", stmt->source);
+        return BT_FALSE;
+    }
+    
+    uint32_t end_jumps[64];
+    uint8_t end_top = 0;
+
+    push_registers(ctx);
+
+    compile_statement(ctx, stmt->as.match.condition);
+
+    for (uint32_t i = 0; i < stmt->as.match.branches.length; ++i) {
+        bt_AstNode* branch = stmt->as.match.branches.elements[i];
+        uint8_t condition_loc = find_binding_or_compile_temp(ctx, branch->as.match_branch.condition);
+        uint32_t jmp_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
+
+        compile_body(ctx, &branch->as.match_branch.body);
+
+        end_jumps[end_top++] = emit(ctx, BT_OP_JMP);
+
+        bt_Op* jmpf = op_at(ctx, jmp_loc);
+        BT_SET_IBC(*jmpf, ctx->output.length - jmp_loc - 1);
+    }
+
+    if (stmt->as.match.else_branch.length > 0) {
+        compile_body(ctx, &stmt->as.match.else_branch);
+    }
+
+    for (uint32_t i = 0; i < end_top; ++i) {
+        bt_Op* jmp = op_at(ctx, end_jumps[i]);
+        BT_SET_IBC(*jmp, ctx->output.length - end_jumps[i] - 1);
+    }
+    
+    restore_registers(ctx);
+
+    return BT_TRUE;
+}
+
 static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc)
 {
     uint32_t end_points[64];
@@ -1379,6 +1420,9 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
     } break;
     case BT_AST_NODE_IF: {
             compile_if(ctx, stmt, BT_FALSE, 0);
+    } break;
+    case BT_AST_NODE_MATCH: {
+            compile_match(ctx, stmt, BT_FALSE, 0);
     } break;
     case BT_AST_NODE_LOOP_ITERATOR:
     case BT_AST_NODE_LOOP_NUMERIC:
