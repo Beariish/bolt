@@ -923,7 +923,8 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
-            bt_Type* result = bt_make_map(parse->context, key_type, bt_make_nullable(parse->context, value_type));
+            bt_Type* nullable_value = bt_make_nullable(parse->context, value_type);
+            bt_Type* result = bt_make_map(parse->context, key_type, nullable_value);
             result->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
             return result;
@@ -2496,6 +2497,9 @@ static bt_bool can_start_expression(bt_Token* token)
     case BT_TOKEN_FN:
     case BT_TOKEN_TYPE:
     case BT_TOKEN_NOT:
+    case BT_TOKEN_IF:
+    case BT_TOKEN_FOR:
+    case BT_TOKEN_MATCH:
         return BT_TRUE;
     }
 
@@ -3160,18 +3164,42 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
 static bt_AstNode* parse_match(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
+
+    bt_StrSlice ident_name;
+    bt_Token* ident_tok;
+    
+    bt_Token* next = bt_tokenizer_peek(tok);    
+    if (next->type == BT_TOKEN_LET) {
+        bt_tokenizer_emit(tok);
+        bt_Token* ident = bt_tokenizer_emit(tok);
+        if (ident->type != BT_TOKEN_IDENTIFIER) {
+            parse_error_token(parse, "Expected identifier after 'as', got '%.*s'", ident);
+            return NULL;
+        }
+
+        if (!bt_tokenizer_expect(tok, BT_TOKEN_ASSIGN)) {
+            return NULL;
+        }
+
+        ident_name = ident->source;
+        ident_tok = ident;
+    } else {
+        ident_name = next_temp_name(parse);
+        ident_tok = bt_tokenizer_make_identifier(parse->tokenizer, ident_name);
+    }
+
     bt_AstNode* match_on_expr = parse_expression(parse, 0, NULL);
     type_check(parse, match_on_expr);
 
     bt_AstNode* match_on = make_node(parse, BT_AST_NODE_LET);
     match_on->as.let.initializer = match_on_expr;
-    match_on->as.let.name = next_temp_name(parse);
-    match_on->as.let.is_const = BT_TRUE;
+    match_on->as.let.is_const = BT_FALSE;
     match_on->resulting_type = match_on_expr->resulting_type;
+    match_on->as.let.name = ident_name;
 
     bt_AstNode* match_on_ident = make_node(parse, BT_AST_NODE_IDENTIFIER);
-    match_on_ident->source = bt_tokenizer_make_identifier(parse->tokenizer, match_on->as.let.name);
     match_on_ident->resulting_type = match_on_expr->resulting_type;
+    match_on_ident->source = ident_tok;
     
     push_scope(parse, BT_FALSE);
     push_local(parse, match_on);
@@ -3186,7 +3214,7 @@ static bt_AstNode* parse_match(bt_Parser* parse)
         return NULL;
     }
 
-    bt_Token* next = bt_tokenizer_peek(tok);
+    next = bt_tokenizer_peek(tok);
     while (next && next->type != BT_TOKEN_RIGHTBRACE && next->type != BT_TOKEN_EOS) {
         bt_AstNode* current_condition = NULL;
 
@@ -3200,6 +3228,13 @@ static bt_AstNode* parse_match(bt_Parser* parse)
             
             if (infix_binding_power(next).left != 0) {
                 iter_condition = parse_expression(parse, 0, match_on_ident);
+                
+                if (!type_check(parse, iter_condition)->resulting_type) {
+                    parse_error_token(parse, "Failed to type-check branch in match statement: '%.*s'", iter_condition->source);
+                    return NULL;
+                }
+            } else if (next->type == BT_TOKEN_LEFTPAREN) {
+                iter_condition = parse_expression(parse, 0, NULL);
                 
                 if (!type_check(parse, iter_condition)->resulting_type) {
                     parse_error_token(parse, "Failed to type-check branch in match statement: '%.*s'", iter_condition->source);
@@ -3239,7 +3274,8 @@ static bt_AstNode* parse_match(bt_Parser* parse)
         if (current_condition) {
             bt_AstNode* branch = make_node(parse, BT_AST_NODE_MATCH_BRANCH);
             branch->as.match_branch.condition = current_condition;
-            branch->as.match_branch.body = parse_block_or_single(parse, BT_TOKEN_DO, NULL);
+            bt_AstNode* narrowed = attempt_narrowing(parse, current_condition);
+            branch->as.match_branch.body = parse_block_or_single(parse, BT_TOKEN_DO, narrowed);
 
             bt_buffer_push(parse->context, &result->as.match.branches, branch);
         } else {

@@ -248,6 +248,9 @@ bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
 	// Special casing for nullable null to avoid redundant unions
 	if (to_nullable == context->types.null) return to_nullable;
 	if (to_nullable == context->types.any) return to_nullable;
+	if (to_nullable->category == BT_TYPE_CATEGORY_UNION) {
+		if (bt_union_has_variant(to_nullable, context->types.null) != -1) return to_nullable;
+	}
 	
 	bt_Type* new_type = bt_make_union(context);
 	bt_push_union_variant(context, new_type, to_nullable);

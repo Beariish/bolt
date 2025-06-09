@@ -128,10 +128,10 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
 		bt_Userdata* userdata = (bt_Userdata*)obj;
-		if (userdata->type->as.userdata.finalizer) {
+		/*if (userdata->type->as.userdata.finalizer) {
 			userdata->type->as.userdata.finalizer(context, userdata);
-		}
-		bt_gc_free(context, userdata->data, userdata->size); // The size of userdata is not tracked
+		}*/
+		bt_gc_free(context, userdata->data, userdata->size);
 	} break;
 	}
 }
@@ -243,7 +243,6 @@ void bt_gc_set_pause_growth_pct(bt_Context* ctx, size_t growth_pct)
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
-	bt_ObjectType type = obj ? BT_OBJECT_GET_TYPE(obj) :  0;
 	if (!obj || BT_OBJECT_GET_MARK(obj)) return;
 
 	BT_OBJECT_MARK(obj);

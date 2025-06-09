@@ -58,6 +58,8 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->types.string = make_primitive_type(ctx, "string", bt_type_satisfier_same);
 	
 	ctx->types.table = bt_make_tableshape(ctx, "table", BT_FALSE);
+	//ctx->types.table->prototype = 0;
+	
 	ctx->types.array = bt_make_array_type(ctx, ctx->types.any);
 
 	ctx->types.type = bt_make_fundamental(ctx);
@@ -185,6 +187,7 @@ bt_Handlers bt_default_handlers()
 
 void bt_close(bt_Context* context)
 {
+	
 	context->types.any = 0;
 	context->types.null = 0;
 	context->types.number = 0;
@@ -193,6 +196,8 @@ void bt_close(bt_Context* context)
 	context->types.array = 0;
 	context->types.table = 0;
 	context->types.type = 0;
+	
+	//while (bt_collect(&context->gc, 0));
 	
 	context->meta_names.add = 0;
 	context->meta_names.div = 0;
@@ -210,7 +215,6 @@ void bt_close(bt_Context* context)
 	context->loaded_modules = 0;
 	context->troot_top = 0;
 	context->current_thread = 0;
-	
 	context->native_references = 0;
 	while (bt_collect(&context->gc, 0));
 
