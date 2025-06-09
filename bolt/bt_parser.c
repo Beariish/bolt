@@ -18,7 +18,7 @@ static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_
 static void destroy_subobj(bt_Context* ctx, bt_AstNode* node);
 static bt_AstNode* parse_statement(bt_Parser* parse);
 static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node);
-static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power);
+static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power, bt_AstNode* with_lhs);
 static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 static bt_StrSlice this_str = { "this", 4 };
 static void try_parse_annotations(bt_Parser* parse);
@@ -585,7 +585,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
     token = bt_tokenizer_peek(parse->tokenizer);
     while (token && token->type != BT_TOKEN_RIGHTBRACE) {
-        bt_AstNode* key_expr = parse_expression(parse, 0);
+        bt_AstNode* key_expr = parse_expression(parse, 0, NULL);
 
         if (!key_expr) {
             parse_error_token(parse, "Missing key expression for table literal", result->source);
@@ -610,7 +610,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             parse_error_token(parse, "Expected colon after table field name, got '%.*s'", token);
         }
 
-        bt_AstNode* value_expr = parse_expression(parse, 0);
+        bt_AstNode* value_expr = parse_expression(parse, 0, NULL);
 
         if (!value_expr) {
             parse_error_token(parse, "Missing value expression for key '%.*s'", key_expr->source);
@@ -973,7 +973,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             if (token->type == BT_TOKEN_ASSIGN) {
                 bt_tokenizer_emit(tok);
-                bt_AstNode* literal = parse_expression(parse, 0);
+                bt_AstNode* literal = parse_expression(parse, 0, NULL);
                 bt_Value value = node_to_literal_value(parse, literal);
                 if (type && !type->satisfier(type, type_check(parse, literal)->resulting_type)) {
                     parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
@@ -1043,7 +1043,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         return result;
     } break;
     case BT_TOKEN_TYPEOF: {
-        bt_AstNode* inner = parse_expression(parse, 0);
+        bt_AstNode* inner = parse_expression(parse, 0, NULL);
         bt_Type* result = type_check(parse, inner)->resulting_type;
 
         if (!result) {
@@ -1082,7 +1082,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
             break;
         }
 
-        bt_AstNode* expr = parse_expression(parse, 0);
+        bt_AstNode* expr = parse_expression(parse, 0, NULL);
         bt_buffer_push(parse->context, &result->as.arr.items, expr);
 
         next = bt_tokenizer_peek(tok);
@@ -1566,7 +1566,7 @@ static bt_AstBuffer parse_block_or_single(bt_Parser* parse, bt_TokenType single_
         if (single_tok) bt_tokenizer_emit(tok); // skip single tok
         push_scope(parse, BT_FALSE);
         if (scoped_ident) push_local(parse, scoped_ident);
-        bt_AstNode* expr = parse_expression(parse, 0);
+        bt_AstNode* expr = parse_expression(parse, 0, NULL);
         type_check(parse, expr);
         bt_buffer_push(parse->context, &body, expr);
         pop_scope(parse);
@@ -1659,64 +1659,70 @@ static void try_parse_annotations(bt_Parser* parse)
     }
 }
 
-static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power)
+static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power, bt_AstNode* with_lhs)
 {
     try_parse_annotations(parse);
     
     bt_Tokenizer* tok = parse->tokenizer;
     
-    bt_Token* lhs = bt_tokenizer_emit(tok);
-    bt_AstNode* lhs_node;
+    bt_AstNode* lhs_node = with_lhs;
 
-    if (lhs->type == BT_TOKEN_FN) {
-        lhs_node = parse_function_literal(parse, NULL, NULL);
-    }
-    else if (lhs->type == BT_TOKEN_LEFTPAREN) {
-        lhs_node = parse_expression(parse, 0);
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
-    }
-    else if (lhs->type == BT_TOKEN_TYPEOF) {
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
-        bt_AstNode* inner = parse_expression(parse, 0);
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
-
-        bt_Type* result = type_check(parse, inner)->resulting_type;
-
-        if (!result) {
-            parse_error(parse, "Expression did not evaluate to type", inner->source->line, inner->source->col);
-            return NULL;
+    if (lhs_node == NULL) {
+        bt_Token* lhs = bt_tokenizer_emit(tok);
+        if (lhs->type == BT_TOKEN_FN) {
+            lhs_node = parse_function_literal(parse, NULL, NULL);
         }
+        else if (lhs->type == BT_TOKEN_LEFTPAREN) {
+            lhs_node = parse_expression(parse, 0, NULL);
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+        }
+        else if (lhs->type == BT_TOKEN_TYPEOF) {
+            bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
+            bt_AstNode* inner = parse_expression(parse, 0, NULL);
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
 
-        lhs_node = make_node(parse, BT_AST_NODE_TYPE);
-        lhs_node->source = inner->source;
-        lhs_node->resulting_type = bt_make_alias(parse->context, result->name, result);
-    }
-    else if (lhs->type == BT_TOKEN_TYPE) {
-        bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
-        bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
-        bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+            bt_Type* result = type_check(parse, inner)->resulting_type;
 
-        lhs_node = make_node(parse, BT_AST_NODE_TYPE);
-        lhs_node->source = lhs;
-        lhs_node->resulting_type = bt_make_alias(parse->context, inner->name, inner);
-    }
-    else if (lhs->type == BT_TOKEN_IF) {
-        lhs_node = parse_if_expression(parse);
-        type_check(parse, lhs_node);
-    }
-    else if (lhs->type == BT_TOKEN_FOR) {
-        lhs_node = parse_for_expression(parse);
-        type_check(parse, lhs_node);
-    }
-    else if (prefix_binding_power(lhs)) {
-        lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
-        lhs_node->source = lhs;
-        lhs_node->as.unary_op.accelerated = BT_FALSE;
-        lhs_node->as.unary_op.operand = parse_expression(parse, prefix_binding_power(lhs));
-    }
-    else {
-        lhs_node = token_to_node(parse, lhs);
-        type_check(parse, lhs_node);
+            if (!result) {
+                parse_error(parse, "Expression did not evaluate to type", inner->source->line, inner->source->col);
+                return NULL;
+            }
+
+            lhs_node = make_node(parse, BT_AST_NODE_TYPE);
+            lhs_node->source = inner->source;
+            lhs_node->resulting_type = bt_make_alias(parse->context, result->name, result);
+        }
+        else if (lhs->type == BT_TOKEN_TYPE) {
+            bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
+            bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+
+            lhs_node = make_node(parse, BT_AST_NODE_TYPE);
+            lhs_node->source = lhs;
+            lhs_node->resulting_type = bt_make_alias(parse->context, inner->name, inner);
+        }
+        else if (lhs->type == BT_TOKEN_IF) {
+            lhs_node = parse_if_expression(parse);
+            type_check(parse, lhs_node);
+        }
+        else if (lhs->type == BT_TOKEN_MATCH) {
+            lhs_node = parse_match_expression(parse);
+            type_check(parse, lhs_node);
+        }
+        else if (lhs->type == BT_TOKEN_FOR) {
+            lhs_node = parse_for_expression(parse);
+            type_check(parse, lhs_node);
+        }
+        else if (prefix_binding_power(lhs)) {
+            lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
+            lhs_node->source = lhs;
+            lhs_node->as.unary_op.accelerated = BT_FALSE;
+            lhs_node->as.unary_op.operand = parse_expression(parse, prefix_binding_power(lhs), NULL);
+        }
+        else {
+            lhs_node = token_to_node(parse, lhs);
+            type_check(parse, lhs_node);
+        }
     }
     
     for (;;) {
@@ -1732,7 +1738,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
 
             if (op->type == BT_TOKEN_LEFTBRACKET)
             {
-                bt_AstNode* rhs = parse_expression(parse, 0);
+                bt_AstNode* rhs = parse_expression(parse, 0, NULL);
                 bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
                 
                 bt_AstNode* lhs = lhs_node;
@@ -1776,7 +1782,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
 
                 bt_Token* next = bt_tokenizer_peek(tok);
                 while (next && next->type != BT_TOKEN_RIGHTPAREN) {
-                    args[max_arg++] = parse_expression(parse, 0);
+                    args[max_arg++] = parse_expression(parse, 0, NULL);
                     next = bt_tokenizer_emit(tok);
 
                     if (!next || (next->type != BT_TOKEN_COMMA && next->type != BT_TOKEN_RIGHTPAREN)) {
@@ -1909,7 +1915,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             if (infix_bp.left < min_binding_power) break;
             bt_tokenizer_emit(tok); // consume peeked operator
             
-            bt_AstNode* rhs = parse_expression(parse, infix_bp.right);
+            bt_AstNode* rhs = parse_expression(parse, infix_bp.right, NULL);
 
             bt_AstNode* lhs = lhs_node;
             lhs_node = make_node(parse, BT_AST_NODE_BINARY_OP);
@@ -2435,7 +2441,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
 
     if (type_or_expr->type == BT_TOKEN_ASSIGN) {
         bt_tokenizer_emit(tok); // eat assignment operator
-        bt_AstNode* rhs = parse_expression(parse, 0);
+        bt_AstNode* rhs = parse_expression(parse, 0, NULL);
         node->as.let.initializer = rhs;
 
         if (node->resulting_type) {
@@ -2528,7 +2534,7 @@ static bt_AstNode* parse_return(bt_Parser* parse)
     node->resulting_type = NULL;
 
     if (can_start_expression(node->source)) {
-        node->as.ret.expr = parse_expression(parse, 0);
+        node->as.ret.expr = parse_expression(parse, 0, NULL);
         node->resulting_type = node->as.ret.expr ? type_check(parse, node->as.ret.expr)->resulting_type : NULL;
     }
     
@@ -2862,7 +2868,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
             return NULL;
         }
 
-        bt_AstNode* expr = parse_expression(parser, 0);
+        bt_AstNode* expr = parse_expression(parser, 0, NULL);
         bt_Type* result_type = type_check(parser, expr)->resulting_type;
         if (!bt_is_optional(result_type)) {
             parse_error_token(parser, "Type must be optional", expr->source);
@@ -2880,7 +2886,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         result->as.branch.body = parse_block_or_single(parser, BT_TOKEN_THEN, result);
     }
     else {
-        bt_AstNode* condition = parse_expression(parser, 0);
+        bt_AstNode* condition = parse_expression(parser, 0, NULL);
         
         if (!condition) {
             parse_error(parser, "Failed to parse condition for if statement", next->line, next->col);
@@ -2990,7 +2996,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     bt_AstNode* identifier;
     if (token->type == BT_TOKEN_LEFTBRACE || token->type == BT_TOKEN_DO) identifier = token_to_node(parse, tok->literal_true);
-    else identifier = parse_expression(parse, 0);
+    else identifier = parse_expression(parse, 0, NULL);
 
     if (identifier->type != BT_AST_NODE_IDENTIFIER || type_check(parse, identifier)->resulting_type == parse->context->types.boolean)
     {
@@ -3015,7 +3021,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     if (!bt_tokenizer_expect(tok, BT_TOKEN_IN)) return NULL;
 
-    bt_AstNode* iterator = parse_expression(parse, 0);
+    bt_AstNode* iterator = parse_expression(parse, 0, NULL);
 
     if (!iterator) {
         parse_error_token(parse, "Failed to evaluate iterator '%.*s'", identifier->source);
@@ -3039,7 +3045,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         if (token->type == BT_TOKEN_TO) {
             bt_tokenizer_emit(tok);
             start = stop;
-            stop = parse_expression(parse, 0);
+            stop = parse_expression(parse, 0, NULL);
         }
         else {
             start = token_to_node(parse, tok->literal_zero);
@@ -3048,7 +3054,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_BY) {
             bt_tokenizer_emit(tok);
-            step = parse_expression(parse, 0);
+            step = parse_expression(parse, 0, NULL);
         }
         else {
             step = token_to_node(parse, tok->literal_one);
@@ -3154,7 +3160,7 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
 static bt_AstNode* parse_match(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
-    bt_AstNode* match_on_expr = parse_expression(parse, 0);
+    bt_AstNode* match_on_expr = parse_expression(parse, 0, NULL);
     type_check(parse, match_on_expr);
 
     bt_AstNode* match_on = make_node(parse, BT_AST_NODE_LET);
@@ -3193,11 +3199,16 @@ static bt_AstNode* parse_match(bt_Parser* parse)
             bt_AstNode* iter_condition = NULL;
             
             if (infix_binding_power(next).left != 0) {
-                // TODO: handle extracting lhs for expression parsing
+                iter_condition = parse_expression(parse, 0, match_on_ident);
+                
+                if (!type_check(parse, iter_condition)->resulting_type) {
+                    parse_error_token(parse, "Failed to type-check branch in match statement: '%.*s'", iter_condition->source);
+                    return NULL;
+                }
             } else if (next->type == BT_TOKEN_ELSE) {
                 bt_tokenizer_emit(parse->tokenizer);
             } else {
-                bt_AstNode* compare_against = parse_expression(parse, 0);
+                bt_AstNode* compare_against = parse_expression(parse, 0, NULL);
                 bt_AstNode* compare_op = make_node(parse, BT_AST_NODE_BINARY_OP);
                 compare_op->as.binary_op.left = match_on_ident;
                 compare_op->as.binary_op.right = compare_against;
@@ -3236,6 +3247,11 @@ static bt_AstNode* parse_match(bt_Parser* parse)
         }
         
         next = bt_tokenizer_peek(tok);
+
+        if (next->type == BT_TOKEN_COMMA) {
+            bt_tokenizer_emit(tok);
+            next = bt_tokenizer_peek(tok);
+        }
     }
 
     if (!bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE)) {
@@ -3247,6 +3263,42 @@ static bt_AstNode* parse_match(bt_Parser* parse)
     return result;
 }
 
+
+static bt_AstNode* parse_match_expression(bt_Parser* parse)
+{
+    bt_AstNode* match = parse_match(parse);
+    match->as.match.is_expr = BT_TRUE;
+
+    bt_Type* aggregate_type = NULL;
+
+    for (uint32_t i = 0; i < match->as.match.branches.length; i++) {
+        bt_AstNode* current = match->as.match.branches.elements[i];
+        bt_AstNode* last = get_last_expr(&current->as.match_branch.body);
+        bt_Type* branch_type = last ? type_check(parse, last)->resulting_type : NULL;
+
+        if (!branch_type) {
+            bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
+            bt_buffer_push(parse->context, &current->as.branch.body, new_last);
+            branch_type = type_check(parse, new_last)->resulting_type;
+        }
+
+        aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, branch_type);
+    }
+    
+    bt_AstNode* last = get_last_expr(&match->as.match.else_branch);
+    bt_Type* branch_type = last ? type_check(parse, last)->resulting_type : NULL;
+
+    if (!branch_type) {
+        bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
+        bt_buffer_push(parse->context, &match->as.match.else_branch, new_last);
+        branch_type = type_check(parse, new_last)->resulting_type;
+    }
+
+    aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, branch_type);
+
+    match->resulting_type = aggregate_type;
+    return match;
+}
 
 static bt_AstNode* parse_statement(bt_Parser* parse)
 {
@@ -3305,7 +3357,7 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
         return NULL;
     }
     default: // no statment structure found, assume expression
-        return parse_expression(parse, 0);
+        return parse_expression(parse, 0, NULL);
     }
 }
 

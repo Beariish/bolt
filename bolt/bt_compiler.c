@@ -77,6 +77,7 @@ static uint8_t push(FunctionContext* ctx, bt_Value value);
 static uint8_t push_load(FunctionContext* ctx, bt_Value value);
 static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
+static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 
 // ffsll intrinsic isn't on all platforms. some complicated platform defines could speed this up
 // but it's good enough for now
@@ -1083,6 +1084,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     case BT_AST_NODE_IF: {
             compile_if(ctx, expr, BT_TRUE, result_loc);
     } break;
+    case BT_AST_NODE_MATCH: {
+            compile_match(ctx, expr, BT_TRUE, result_loc);
+    } break;
     case BT_AST_NODE_LOOP_ITERATOR:
     case BT_AST_NODE_LOOP_NUMERIC:
     case BT_AST_NODE_LOOP_WHILE: {
@@ -1181,7 +1185,15 @@ static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_
         uint8_t condition_loc = find_binding_or_compile_temp(ctx, branch->as.match_branch.condition);
         uint32_t jmp_loc = emit_a(ctx, BT_OP_JMPF, condition_loc);
 
-        compile_body(ctx, &branch->as.match_branch.body);
+        if (is_expr) {
+            uint8_t result_loc = expr_loc;
+            compile_expression_body(ctx, &branch->as.match_branch.body, BT_TRUE, &result_loc);
+            if (result_loc != expr_loc) {
+                emit_ab(ctx, BT_OP_MOVE, expr_loc, result_loc, BT_FALSE);
+            }
+        } else {
+            compile_body(ctx, &branch->as.match_branch.body);
+        }
 
         end_jumps[end_top++] = emit(ctx, BT_OP_JMP);
 
@@ -1190,7 +1202,15 @@ static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_
     }
 
     if (stmt->as.match.else_branch.length > 0) {
-        compile_body(ctx, &stmt->as.match.else_branch);
+        if (is_expr) {
+            uint8_t result_loc = expr_loc;
+            compile_expression_body(ctx, &stmt->as.match.else_branch, BT_TRUE, &result_loc);
+            if (result_loc != expr_loc) {
+                emit_ab(ctx, BT_OP_MOVE, expr_loc, result_loc, BT_FALSE);
+            }
+        } else {
+            compile_body(ctx, &stmt->as.match.else_branch);
+        }
     }
 
     for (uint32_t i = 0; i < end_top; ++i) {
