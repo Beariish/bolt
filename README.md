@@ -5,11 +5,12 @@ A *lightweight*, **lightning-fast**, type-safe embeddable language for real-time
 import print from core
 
 fn speak(animal: string) {
-	if animal == "cat" { return "meow" }
-	else if animal == "dog" { return "woof" }
-	else if animal == "mouse" { return "squeak" }
-	
-	return "nothing!"
+	return match animal {
+		"cat" do "meow",
+		"dog" do "woof",
+		"mouse" do "squeak",
+		else "nothing!"
+	}
 }
 
 let const animals = [ "cat", "dog", "mouse", "monkey" ]
