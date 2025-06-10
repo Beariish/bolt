@@ -3319,7 +3319,7 @@ static bt_AstNode* parse_match_expression(bt_Parser* parse)
 
         if (!branch_type) {
             bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
-            bt_buffer_push(parse->context, &current->as.branch.body, new_last);
+            bt_buffer_push(parse->context, &current->as.match_branch.body, new_last);
             branch_type = type_check(parse, new_last)->resulting_type;
         }
 

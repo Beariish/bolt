@@ -56,6 +56,7 @@ bt_bool bt_is_optional(bt_Type* type)
 {
 	if (!type) return BT_FALSE;
 	if (type == type->ctx->types.null) return BT_TRUE;
+	if (type == type->ctx->types.any) return BT_TRUE;
 
 	if (type->category == BT_TYPE_CATEGORY_UNION) {
 		bt_TypeBuffer* types = &type->as.selector.types;

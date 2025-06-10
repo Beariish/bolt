@@ -1,6 +1,20 @@
-import "mandel"
+/*import "mandel"
 import "vec2hoist"
 import "loops"
 import "array"
 import "heap"
 import "recursion"
+import "parsing"
+*/
+
+import * from "../examples/pretty_print"
+
+let x = {
+    nested: {
+        x: 10, y: "hello!"
+    },
+    arr: [1, 2, 3, 4],
+    b: true
+}
+
+pretty_print(x)

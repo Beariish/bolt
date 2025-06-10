@@ -2,31 +2,31 @@ import print, to_string, write from core
 import pairs from tables
 
 fn pretty_print_internal(x: any, indent: string, indent_single: bool): ! {
-    if let t = x as table {
-        if indent_single {
-            print(indent + "{")
-        } else {
-            print("{")
+    let indent_this = if indent_single then indent else ""
+    match x {
+        is table {
+            print(indent_this + "{")
+            for pair in pairs(x) {
+                write(indent + "   " + to_string(pair.key) + ": ") 
+                pretty_print_internal(pair.value, indent + "   ", false)
+            }
+            print(indent + "}")
         }
-        for pair in pairs(t) {
-            write(indent + "   " + to_string(pair.key) + ": ") 
-            pretty_print_internal(pair.value, indent + "   ", false)
-        }
-        print(indent + "}")
-    } else if let a = x as type([any]) {
-        print("[")
-        for item in a.each() {
-            pretty_print_internal(item, indent + "   ", true)
-        }
-        print(indent + "]")
-    } else {
-        let to_print = to_string(x)
-        if x is string { to_print = "\"" + to_print + "\"" }
 
-        if indent_single {
-            print(indent + to_print)
-        } else {
-            print(to_print)
+        is type([any]) {
+            print("[")
+            for item in x.each() {
+                pretty_print_internal(item, indent + "   ", true)
+            }
+            print(indent + "]")
+        }
+
+        is string {
+            print(indent_this + "\"" + x + "\"")
+        }
+
+        else {
+            print(indent_this + to_string(x))
         }
     }
 }

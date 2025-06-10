@@ -58,9 +58,10 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->types.string = make_primitive_type(ctx, "string", bt_type_satisfier_same);
 	
 	ctx->types.table = bt_make_tableshape(ctx, "table", BT_FALSE);
-	//ctx->types.table->prototype = 0;
+	ctx->types.table->prototype = ctx->types.table;
 	
 	ctx->types.array = bt_make_array_type(ctx, ctx->types.any);
+	ctx->types.array->prototype = ctx->types.array;
 
 	ctx->types.type = bt_make_fundamental(ctx);
 	ctx->types.type->as.type.boxed = ctx->types.any;

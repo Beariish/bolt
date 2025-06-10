@@ -1,7 +1,8 @@
 import to_number, error, Error, print from core
 import min from math
 
-export type JsonValue = null 
+export type JsonValue = 
+                 null 
                | number 
                | bool 
                | string 

@@ -1,0 +1,20 @@
+import * from "bench"
+import JsonValue, parse from "../examples/json"
+import print, assert, Error from core
+import open, get_size, read, close from io
+
+bench_with_pre_work("Parse 1MB json", 25, fn {
+    let file = assert(open("examples/1MB.json", "r"), "Can't open file!")
+    let length = assert(get_size(file), "Can't seek to end of file!")
+    let content = assert(read(file, length), "Failed to read file!")
+    close(file)
+
+    return fn {
+        let result = match let p = parse(content) {
+            is JsonValue do p,
+            is Error {
+                print("Failed to parse json!")
+            }
+        }
+    }
+})
