@@ -1,6 +1,27 @@
 import strings as s
 import write, error, Error from core
 
+fn do_loop(program: string, pc: number, start: string, end: string, dir: number): number {
+    let nested = 0
+    let search_pc = pc + dir
+    for search_pc < program.length() {
+        match let sp = program.substring(search_pc, 1) {
+            start { nested += 1 }
+            end {
+                if nested == 0 {
+                    return search_pc
+                } else {
+                    nested -= 1
+                }
+            }
+        }
+
+        search_pc += dir
+    }
+
+    return 0
+}
+
 export fn interpret(program: string, input: string) {
     // Standard bf cells
     let cells = for i in 30000 do 0
@@ -11,17 +32,13 @@ export fn interpret(program: string, input: string) {
     let pc = 0
     for pc < program.length() {
         match let p = program.substring(pc, 1) {
-            "." {
-                let to_print = s.from_byte(cells[cell_idx])
-                write(to_print)
-            }
+            "." { write(s.from_byte(cells[cell_idx])) }
             "," {
                 let in_byte = if input_idx >= input.length()
                     then -1
                     else input.byte_at(input_idx)
                 
                 input_idx += 1
-
                 cells[cell_idx] = in_byte
             }
             "+" { cells[cell_idx] += 1 }
@@ -40,44 +57,12 @@ export fn interpret(program: string, input: string) {
             }
             "[" {
                 if cells[cell_idx] == 0 {
-                    let nested = 0
-                    let search_pc = pc + 1
-                    for search_pc < program.length() {
-                        match let sp = program.substring(search_pc, 1) {
-                            "[" { nested += 1}
-                            "]" {
-                                if nested == 0 {
-                                    pc = search_pc
-                                    break
-                                } else {
-                                    nested -= 1
-                                }
-                            }
-                        }
-
-                        search_pc += 1
-                    }
+                    pc = do_loop(program, pc, "[", "]", 1)
                 }
             }
             "]" {
                 if cells[cell_idx] != 0 {
-                    let nested = 0
-                    let search_pc = pc - 1
-                    for search_pc > 0 {
-                        match let sp = program.substring(search_pc, 1) {
-                            "]" { nested += 1}
-                            "[" {
-                                if nested == 0 {
-                                    pc = search_pc
-                                    break
-                                } else {
-                                    nested -= 1
-                                }
-                            }
-                        }
-
-                        search_pc -= 1
-                    }
+                    pc = do_loop(program, pc, "]", "[", -1)
                 }
             }
         }
