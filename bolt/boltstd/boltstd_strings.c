@@ -242,32 +242,52 @@ static void bt_string_reverse(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
 
+static void bt_string_byte_at(bt_Context* ctx, bt_Thread* thread) {
+	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_number idx = bt_get_number(bt_arg(thread, 1));
+
+	unsigned char byte = BT_STRING_STR(arg)[(size_t)idx];
+
+	bt_return(thread, bt_make_number(byte));
+}
+
+static void bt_string_from_byte(bt_Context* ctx, bt_Thread* thread) {
+	bt_number byte_num = bt_get_number(bt_arg(thread, 0));
+
+	char byte = (char)byte_num;
+
+	bt_String* result = bt_make_string_len(ctx, &byte ,1);
+	
+	bt_return(thread, bt_make_object((bt_Object*)result));
+}
+
 void boltstd_open_strings(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
-	bt_Type* string = context->types.string;
+	bt_Type* string = bt_type_string(context);
+	bt_Type* number = bt_type_number(context);
+	bt_Type* any = bt_type_any(context);
 
-	bt_Type* length_sig = bt_make_method(context, context->types.number, &context->types.string, 1);
+	bt_Type* length_sig = bt_make_method(context, number, &string, 1);
 	bt_NativeFn* fn_ref = bt_make_native(context, length_sig, bt_str_length);
 
 	bt_type_add_field(context, string, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
 
-	bt_Type* substring_args[] = { context->types.string, context->types.number, context->types.number };
-	bt_Type* substring_sig = bt_make_method(context, context->types.string, substring_args, 3);
+	bt_Type* substring_args[] = { string, number, number };
+	bt_Type* substring_sig = bt_make_method(context, string, substring_args, 3);
 	bt_NativeFn* substring_ref = bt_make_native(context, substring_sig, bt_str_substring);
 
 	bt_type_add_field(context, string, substring_sig, BT_VALUE_CSTRING(context, "substring"), BT_VALUE_OBJECT(substring_ref));
 	bt_module_export(context, module, substring_sig, BT_VALUE_CSTRING(context, "substring"), BT_VALUE_OBJECT(substring_ref));
 
-	bt_Type* remainder_args[] = { context->types.string, context->types.number };
-	bt_Type* remainder_sig = bt_make_method(context, context->types.string, remainder_args, 2);
+	bt_Type* remainder_args[] = { string, number };
+	bt_Type* remainder_sig = bt_make_method(context, string, remainder_args, 2);
 	bt_NativeFn* remainder_ref = bt_make_native(context, remainder_sig, bt_str_remainder);
 
 	bt_type_add_field(context, string, remainder_sig, BT_VALUE_CSTRING(context, "remainder"), BT_VALUE_OBJECT(remainder_ref));
 	bt_module_export(context, module, remainder_sig, BT_VALUE_CSTRING(context, "remainder"), BT_VALUE_OBJECT(remainder_ref));
-
 
 	bt_Type* concat_sig = bt_make_vararg(context, bt_make_method(context, string, &string, 1), string);
 	fn_ref = bt_make_native(context, concat_sig, bt_string_concat);
@@ -275,14 +295,14 @@ void boltstd_open_strings(bt_Context* context)
 	bt_type_add_field(context, string, concat_sig, BT_VALUE_CSTRING(context, "concat"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, concat_sig, BT_VALUE_CSTRING(context, "concat"), BT_VALUE_OBJECT(fn_ref));
 
-	bt_Type* format_sig = bt_make_vararg(context, bt_make_method(context, string, &string, 1), context->types.any);
+	bt_Type* format_sig = bt_make_vararg(context, bt_make_method(context, string, &string, 1), any);
 	fn_ref = bt_make_native(context, format_sig, bt_string_format);
 
 	bt_type_add_field(context, string, format_sig, BT_VALUE_CSTRING(context, "format"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, format_sig, BT_VALUE_CSTRING(context, "format"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* find_args[] = { string, string };
-	bt_Type* find_sig = bt_make_method(context, context->types.number, find_args, 2);
+	bt_Type* find_sig = bt_make_method(context, number, find_args, 2);
 	fn_ref = bt_make_native(context, find_sig, bt_string_find);
 
 	bt_type_add_field(context, string, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
@@ -300,6 +320,17 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* byte_at_args[] = { string, number };
+	bt_Type* byte_at_sig = bt_make_method(context, number, byte_at_args, 2);
+	fn_ref = bt_make_native(context, byte_at_sig, bt_string_byte_at);
+
+	bt_type_add_field(context, string, byte_at_sig, BT_VALUE_CSTRING(context, "byte_at"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, byte_at_sig, BT_VALUE_CSTRING(context, "byte_at"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* from_byte_sig = bt_make_method(context, string, &number, 1);
+	fn_ref = bt_make_native(context, from_byte_sig, bt_string_from_byte);
+	bt_module_export(context, module, from_byte_sig, BT_VALUE_CSTRING(context, "from_byte"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }
