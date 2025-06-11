@@ -16,5 +16,8 @@ import "arithmetic-operators"
 import "imports"
 import "casting"
 import "type-narrowing"
+import "match"
+import "match-expr"
+import "match-let"
 
 pop_scope()

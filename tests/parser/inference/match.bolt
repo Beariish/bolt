@@ -1,0 +1,94 @@
+import * from "../../test"
+
+push_scope("match")
+
+test("match branches infer literal type", fn {
+    ensure_branch()
+
+    match 5 {
+        1 { expect(false, "This branch should never be taken") }
+        5 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer identifer type", fn {
+    ensure_branch()
+
+    let x = 5
+    match x {
+        1 { expect(false, "This branch should never be taken") }
+        5 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer expression type", fn {
+    ensure_branch()
+
+    fn x { return 5 }
+    match x() {
+        1 { expect(false, "This branch should never be taken") }
+        5 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer type with multiple options", fn {
+    ensure_branch()
+
+    match 15 {
+        1, 2, 3, 4 { expect(false, "This branch should never be taken") }
+        5, 10, 15 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer type with implicit binary ops", fn {
+    ensure_branch()
+
+    match 15 {
+        < 1, == 2, < 3, < 4 { expect(false, "This branch should never be taken") }
+        == 5, != 10, > 15 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer type with expression condition", fn {
+    ensure_branch()
+
+    fn get_num { return 15 }
+    match 15 {
+        1 { expect(false, "This branch should never be taken") }
+        get_num() { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer type with implicit binary op expression condition", fn {
+    ensure_branch()
+
+    fn get_num { return 15 }
+    match 15 {
+        1 { expect(false, "This branch should never be taken") }
+        == get_num() { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer type with excluded match value", fn {
+    ensure_branch()
+
+    fn get_num { return 15 }
+    fn is_num(n: number) { return n == get_num() }
+
+    let n = get_num()
+    match n {
+        1 { expect(false, "This branch should never be taken") }
+        (is_num(n)) { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match branches infer type with default branch", fn {
+    ensure_branch()
+
+    match 15 {
+        1 { expect(false, "This branch should never be taken") }
+        else { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+pop_scope()

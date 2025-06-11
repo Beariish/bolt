@@ -1,0 +1,57 @@
+import * from "../../test"
+
+push_scope("match-expr")
+
+test("match expr inference with single branch", fn {
+    let x = match 1 {
+        else { "hello!" }
+    }
+
+    expect(typeof(x) == string, "Expected 'x' to be 'string'")
+    expect(x is string, "Expected 'x' to be 'string'")
+})
+
+test("match expr inference with multiple branches", fn {
+    let x = match 1 {
+        1, 2, 3 { "bye!" }
+        4, 5, 6 { "dunno!" }
+        else { "hello!" }
+    }
+
+    expect(typeof(x) == string, "Expected 'x' to be 'string'")
+    expect(x is string, "Expected 'x' to be 'string'")
+})
+
+test("match expr inference with multiple branches and types", fn {
+    let x = match 1 {
+        1, 2, 3 { 10 }
+        4, 5, 6 { false }
+        else { "hello!" }
+    }
+
+    expect(typeof(x) == type(number | bool | string), "Expected 'x' to be 'number | bool | string'")
+    expect(x is number, "Expected 'x' to be 'number'")
+})
+
+test("match expr inference with expression blocks", fn {
+    let x = match 1 {
+        1, 2, 3 do 10,
+        4, 5, 6 do false,
+        else "hello!"
+    }
+
+    expect(typeof(x) == type(number | bool | string), "Expected 'x' to be 'number | bool | string'")
+    expect(x is number, "Expected 'x' to be 'number'")
+})
+
+test("match expr inference with implicit else", fn {
+    let x = match 1 {
+        1, 2, 3 do 10,
+        4, 5, 6 do false,
+    }
+
+    expect(typeof(x) == type(number | bool | null), "Expected 'x' to be 'number | bool | null'")
+    expect(x is number, "Expected 'x' to be 'number'")
+})
+
+pop_scope()

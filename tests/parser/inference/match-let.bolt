@@ -1,0 +1,45 @@
+import * from "../../test"
+
+push_scope("match-let")
+
+test("match let infers type", fn {
+    ensure_branch()
+    
+    match let x = 10 {
+        5  { expect(false, "This branch should never be taken") }
+        10 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match let infers type from expression", fn {
+    ensure_branch()
+    
+    fn get_num { return 10 }
+    match let x = get_num() {
+        5  { expect(false, "This branch should never be taken") }
+        10 { expect_branched(true, "This branch should never be missed") }
+    }
+})
+
+test("match let narrows union type", fn {
+    ensure_branch()
+    
+    fn get_num: number | string { return 10 }
+    match let x = get_num() {
+        is string { expect(false, "This branch should never be taken") }
+        is number { expect_branched(x == 10, "This branch should never be missed") }
+    }
+})
+
+test("match with implicit let narrows union type", fn {
+    ensure_branch()
+    
+    fn get_num: number | string { return 10 }
+    let x = get_num()
+    match x {
+        is string { expect(false, "This branch should never be taken") }
+        is number { expect_branched(x == 10, "This branch should never be missed") }
+    }
+})
+
+pop_scope()
