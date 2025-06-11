@@ -25,8 +25,8 @@ fn do_loop(program: string, pc: number, start: string, end: string, dir: number)
 export fn interpret(program: string, input: string) {
     // Standard bf cells
     let cells = for i in 30000 do 0
+    
     let cell_idx = 0
-
     let input_idx = 0
 
     let pc = 0
@@ -34,26 +34,21 @@ export fn interpret(program: string, input: string) {
         match let p = program.substring(pc, 1) {
             "." { write(s.from_byte(cells[cell_idx])) }
             "," {
-                let in_byte = if input_idx >= input.length()
+                cells[cell_idx] = if input_idx >= input.length()
                     then -1
                     else input.byte_at(input_idx)
                 
                 input_idx += 1
-                cells[cell_idx] = in_byte
             }
             "+" { cells[cell_idx] += 1 }
             "-" { cells[cell_idx] -= 1 }
             "<" {
                 cell_idx -= 1
-                if cell_idx < 0 {
-                    return error("Cell index out of bounds!")
-                }
+                if cell_idx < 0 { return error("Cell index out of bounds!") }
             }
             ">" {
                 cell_idx += 1
-                if cell_idx >= cells.length() {
-                    return error("Cell index out of bounds!")
-                }
+                if cell_idx >= cells.length() { return error("Cell index out of bounds!") }
             }
             "[" {
                 if cells[cell_idx] == 0 {
