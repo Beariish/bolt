@@ -697,7 +697,7 @@ bt_bool bt_can_cast(bt_Value value, bt_Type* type)
 {
 	if (bt_is_type(value, type)) return BT_TRUE;
 
-	if (type->category == BT_TYPE_CATEGORY_ENUM && !type->as.enum_.is_sealed) {
+	if (type->category == BT_TYPE_CATEGORY_ENUM) {
 		return BT_IS_NUMBER(value) || BT_IS_ENUM(value);
 	}
 
@@ -720,10 +720,22 @@ bt_Value bt_value_cast(bt_Value value, bt_Type* type)
 		return BT_VALUE_NULL;
 	}
 
-	if (type->category == BT_TYPE_CATEGORY_ENUM && !type->as.enum_.is_sealed) {
+	if (type->category == BT_TYPE_CATEGORY_ENUM) {
+		uint32_t num_val;
 		if (BT_IS_NUMBER(value)) {
-			uint32_t val = (uint32_t)bt_get_number(value);
-			return bt_make_enum_val(val);
+			num_val = (uint32_t)bt_get_number(value);
+		} else if (BT_IS_ENUM(value)) {
+			num_val = bt_get_enum_val(value);			
+		}
+		
+		if (type->as.enum_.is_sealed) {
+			if (num_val < 0 || num_val >= type->as.enum_.options->length) {
+				return BT_VALUE_NULL;
+			}
+		}
+		
+		if (BT_IS_NUMBER(value)) {
+			return bt_make_enum_val(num_val);
 		}
 		if (BT_IS_ENUM(value)) return value;
 	}

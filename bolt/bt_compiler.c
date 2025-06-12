@@ -23,6 +23,7 @@ typedef struct Constant {
 
 typedef struct CompilerBinding {
     bt_StrSlice name;
+    bt_Token* source;
     uint8_t loc;
 } CompilerBinding;
 
@@ -254,27 +255,28 @@ static void pop_scope(FunctionContext* ctx)
     ctx->binding_top = ctx->binding_tops[--ctx->scope_depth];
 }
 
-static uint8_t make_binding_at_loc(FunctionContext* ctx, bt_StrSlice name, uint8_t loc)
+static uint8_t make_binding_at_loc(FunctionContext* ctx, bt_StrSlice name, uint8_t loc, bt_Token* source)
 {
     for (uint32_t i = ctx->binding_tops[ctx->scope_depth - 1]; i < ctx->binding_top; ++i) {
         CompilerBinding* binding = ctx->bindnings + i;
         if (bt_strslice_compare(binding->name, name)) {
-            compile_error(ctx->compiler, "Binding '%.*s' already exists in this scope", 0, 0);
+            compile_error_fmt(ctx->compiler, "Binding '%.*s' already exists in this scope", source->line, source->col, name.length, name.source);
         }
     }
 
     CompilerBinding new_binding;
     new_binding.loc = loc;
     new_binding.name = name;
+    new_binding.source = source;
 
     ctx->bindnings[ctx->binding_top++] = new_binding;
     
     return new_binding.loc;
 }
 
-static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name) 
+static uint8_t make_binding(FunctionContext* ctx, bt_StrSlice name, bt_Token* source) 
 {
-    return make_binding_at_loc(ctx, name, get_register(ctx));
+    return make_binding_at_loc(ctx, name, get_register(ctx), source);
 }
 
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name)
@@ -1250,7 +1252,7 @@ static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_exp
 
         if (current->as.branch.is_let) {
             push_scope(ctx);
-            uint8_t bind_loc = make_binding(ctx, current->as.branch.identifier->source);
+            uint8_t bind_loc = make_binding(ctx, current->as.branch.identifier->source, current->as.branch.identifier);
             compile_expression(ctx, current->as.branch.condition, bind_loc);
             uint8_t test_loc = get_register(ctx);
 
@@ -1311,7 +1313,7 @@ static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_ex
     case BT_AST_NODE_LOOP_ITERATOR: {
             uint8_t base_loc = get_registers(ctx, 2);
             // we can never refer to this, but we make a binding to make sure it stays in active gc
-            uint8_t _it_loc = make_binding_at_loc(ctx, stmt->as.loop_iterator.identifier->source->source, base_loc);
+            uint8_t _it_loc = make_binding_at_loc(ctx, stmt->as.loop_iterator.identifier->source->source, base_loc, stmt->as.loop_iterator.identifier->source);
             uint8_t closure_loc = base_loc + 1;
             compile_expression(ctx, stmt->as.loop_iterator.iterator, closure_loc);
 
@@ -1321,7 +1323,7 @@ static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_ex
     case BT_AST_NODE_LOOP_NUMERIC: {
             uint8_t base_loc = get_registers(ctx, 3);
 
-            uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_numeric.identifier->source->source, base_loc);
+            uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_numeric.identifier->source->source, base_loc, stmt->as.loop_numeric.identifier->source);
             uint8_t step_loc = base_loc + 1;
             uint8_t stop_loc = base_loc + 2;
 
@@ -1371,7 +1373,7 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
 
     switch (stmt->type) {
     case BT_AST_NODE_LET: {
-        uint8_t new_loc = make_binding(ctx, stmt->as.let.name);
+        uint8_t new_loc = make_binding(ctx, stmt->as.let.name, stmt->source);
         if (new_loc == INVALID_BINDING) compile_error_token(ctx->compiler, "Failed to make binding for '%.*s'", stmt->source);
         if (stmt->as.let.initializer) {
             if (ctx->compiler->options.generate_debug_info) {
@@ -1534,7 +1536,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     bt_ArgBuffer* args = &fn->as.fn.args;
     for (uint8_t i = 0; i < args->length; i++) {
         bt_FnArg* arg = args->elements + i;
-        make_binding(&ctx, arg->name);
+        make_binding(&ctx, arg->name, arg->source);
     }
 
     bt_AstBuffer* body = &fn->as.fn.body;

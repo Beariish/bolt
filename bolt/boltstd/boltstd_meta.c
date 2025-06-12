@@ -186,6 +186,7 @@ void boltstd_open_meta(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 	bt_Type* any = bt_type_any(context);
+	
 	bt_Type* number = bt_type_number(context);
 	bt_Type* string = bt_type_string(context);
 	bt_Type* type = bt_type_type(context);

@@ -54,6 +54,21 @@ static void bt_write(bt_Context* ctx, bt_Thread* thread)
 	bt_cout(ctx, thread);
 }
 
+static void bt_readline(bt_Context* ctx, bt_Thread* thread)
+{
+	char line[256];
+	int matched = scanf("%255[^\n]%*c", line);
+
+	// We got an empty line
+	if (matched == 0) { 
+		scanf("%*c", line);
+		line[0] = 0;
+	}
+	
+	bt_String* result = bt_make_string(ctx, line);
+	bt_return(thread, bt_make_object((bt_Object*)result));
+}
+
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -203,6 +218,8 @@ void boltstd_open_core(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
+	bt_Type* string = bt_type_string(context);
+	
 	bt_Type* noargs_sig = bt_make_signature(context, NULL, NULL, 0);
 	bt_Type* printable_sig = bt_make_vararg(context, noargs_sig, context->types.any);
 
@@ -214,21 +231,22 @@ void boltstd_open_core(bt_Context* context)
 		BT_VALUE_CSTRING(context, "write"),
 		BT_VALUE_OBJECT(bt_make_native(context, printable_sig, bt_write)));
 
-	bt_module_export_native(context, module, "sameline",  bt_sameline, NULL,                  NULL,                   0);
-	bt_module_export_native(context, module, "throw",     bt_throw,    NULL,                  &context->types.string, 1);
-	bt_module_export_native(context, module, "to_string", bt_tostring, context->types.string, &context->types.any,    1);
+	bt_module_export_native(context, module, "sameline",  bt_sameline, NULL,   NULL,                0);
+	bt_module_export_native(context, module, "throw",     bt_throw,    NULL,   &string,             1);
+	bt_module_export_native(context, module, "to_string", bt_tostring, string, &context->types.any, 1);
+	bt_module_export_native(context, module, "read_line", bt_readline, string, NULL,                0);
 
 	bt_Type* tonumber_ret = bt_make_nullable(context, context->types.number);
-	bt_module_export_native(context, module, "to_number", bt_tonumber, tonumber_ret, &context->types.string, 1);
+	bt_module_export_native(context, module, "to_number", bt_tonumber, tonumber_ret, &string, 1);
 
 	bt_module_export_native(context, module, "time", bt_time, context->types.number, NULL, 0);
 
 	bt_error_type = bt_make_tableshape(context, "Error", BT_FALSE);
 	bt_error_what_key = BT_VALUE_CSTRING(context, "what");
-	bt_tableshape_add_layout(context, bt_error_type, context->types.string, bt_error_what_key, context->types.string);
+	bt_tableshape_add_layout(context, bt_error_type, string, bt_error_what_key, string);
 	bt_module_export(context, module, bt_make_alias(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
 
-	bt_module_export_native(context, module, "error", bt_error, bt_error_type, &context->types.string, 1);
+	bt_module_export_native(context, module, "error", bt_error, bt_error_type, &string, 1);
 
 	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn(..T): R, ..T): R | Error", bt_protect_type);
 	bt_module_export(context, module, protect_sig,

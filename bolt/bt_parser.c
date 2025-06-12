@@ -2985,7 +2985,8 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
     bt_Token* token = bt_tokenizer_peek(tok);
-
+    bt_Token* start = token;
+    
     bt_bool needs_const = BT_FALSE;
 
     if (token->type == BT_TOKEN_CONST) {
@@ -3012,6 +3013,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         }
 
         bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_WHILE);
+        result->source = start;
         result->as.loop_while.is_expr = BT_FALSE;
         result->as.loop_while.condition = identifier;
         result->as.loop_while.body = parse_block_or_single(parse, BT_TOKEN_DO, NULL);
@@ -3061,6 +3063,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         }
 
         bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_NUMERIC);
+        result->source = start;
         result->as.loop_numeric.start = start;
         result->as.loop_numeric.stop = stop;
         result->as.loop_numeric.step = step;
@@ -3070,6 +3073,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         result->as.loop_numeric.identifier = identifier;
 
         bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
+        ident_as_let->source = identifier->source;
         ident_as_let->as.let.initializer = NULL;
         ident_as_let->as.let.is_const = needs_const;
         ident_as_let->as.let.name = identifier->source->source;
@@ -3096,12 +3100,14 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     identifier->resulting_type = it_type;
 
     bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
+    ident_as_let->source = identifier->source;
     ident_as_let->as.let.initializer = NULL;
     ident_as_let->as.let.is_const = needs_const;
     ident_as_let->as.let.name = identifier->source->source;
     ident_as_let->resulting_type = identifier->resulting_type;
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_ITERATOR);
+    result->source = start;
     result->as.loop_iterator.body = parse_block_or_single(parse, BT_TOKEN_DO, ident_as_let);
     result->as.loop_iterator.identifier = identifier;
     result->as.loop_iterator.iterator = iterator;
@@ -3197,6 +3203,7 @@ static bt_AstNode* parse_match(bt_Parser* parse)
     }
     
     bt_AstNode* match_on = make_node(parse, BT_AST_NODE_LET);
+    match_on->source = ident_tok;
     match_on->as.let.initializer = match_on_expr;
     match_on->as.let.is_const = BT_FALSE;
     match_on->resulting_type = match_on_expr->resulting_type;

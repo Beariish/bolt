@@ -4,6 +4,7 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <stdlib.h>
 
 static void bt_max(bt_Context* ctx, bt_Thread* thread)
 {
@@ -27,6 +28,12 @@ static void bt_min(bt_Context* ctx, bt_Thread* thread)
 	}
 
 	bt_return(thread, BT_VALUE_NUMBER(min));
+}
+
+static void bt_random(bt_Context* ctx, bt_Thread* thread)
+{
+	double val = (double)rand() / (double)RAND_MAX;
+	bt_return(thread, bt_make_number(val));
 }
 
 static double deg(double x) { return (x * 180.0) / M_PI; }
@@ -172,6 +179,7 @@ bt_module_export(context, module, two_num_to_num_sig, BT_VALUE_CSTRING(context, 
 	IMPL_COMPLEX_OP(atan2);
 
 	bt_module_export_native(context, module, "ispow2", bt_ispow2, context->types.boolean, &context->types.number, 1);
+	bt_module_export_native(context, module, "random", bt_random, context->types.number, NULL, 0); 
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "math"), module);
 }

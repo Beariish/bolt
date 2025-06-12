@@ -1,0 +1,251 @@
+import print, write, read_line, to_string, to_number from core
+import random, floor, min, max from math
+import strings as str
+
+type Suit = enum {
+    Hearts, Diamonds, Spades, Clubs
+}
+
+let const suit_symbols: { ..Suit: string } = {
+    Suit.Hearts: "H"//"♥"
+    Suit.Diamonds: "D"//"♦"
+    Suit.Spades: "S"//"♠"
+    Suit.Clubs: "C"//"♣"
+}
+
+type Card = {
+    suit: Suit,
+    value: number,
+    representation: string
+}
+
+fn shuffle(deck: [Card]) {
+    for pass in 5 {
+        for i in deck.length() {
+            let idx = floor(random() * (deck.length() - 1))
+            let temp = deck[i]
+            deck[i] = deck[idx]
+            deck[idx] = temp
+        }
+    }
+}
+
+fn make_deck: [Card] {
+    let result = [:Card]
+    for suit in 4 {
+        for rank in 9 {
+            result.push(Card => { suit: suit as Suit!, value: rank + 2, representation: to_string(rank + 2) })
+        }
+
+        result.push(Card => { suit: suit as Suit!, value: 10, representation: "J" })
+        result.push(Card => { suit: suit as Suit!, value: 10, representation: "Q" })
+        result.push(Card => { suit: suit as Suit!, value: 10, representation: "K" })
+        result.push(Card => { suit: suit as Suit!, value: 1, representation: "A" })
+    }
+
+    shuffle(result)
+
+    return result
+}
+
+fn get_bet(max: number): number? {
+    for {
+        print("How much would you like to bet? (1-" + to_string(max) + ", or 'quit')")
+        write("> ")
+        let input = read_line()
+        print(input)
+        print("")
+
+        if input == "quit" { return null }
+
+        match let bet = to_number(input) {
+            is number {
+                if bet > 0 and bet <= max {
+                    return bet
+                }
+            }
+        }
+    }
+
+    return null
+}
+
+fn get_hand_value(cards: [Card]): number {
+    let total_value = 0
+    let num_aces = 0
+
+    for card in cards.each() {
+        if card.representation == "A" {
+            num_aces += 1
+        } else {
+            total_value += card.value
+        }
+
+    }
+
+    total_value += num_aces
+    for i in num_aces {
+        if total_value < 12 {
+            total_value += 10
+        }
+    }
+
+    return total_value
+}
+
+fn print_cards(cards: [Card], flip_first: bool) {
+    let rows = for i in 5 do ""
+
+    for card in cards.each() {
+        rows[0] += " ___  "
+        if flip_first {
+            rows[1] += "|## | "
+            rows[2] += "|###| "
+            rows[3] += "|_##| "
+            flip_first = false
+        } else {
+            rows[1] += "|" + card.representation + if card.representation == "10" then "" else " " + " | "
+            rows[2] += "| " + (suit_symbols[card.suit]!) + " | "
+            rows[3] += "|_" + if card.representation == "10" then "" else "_" + card.representation + "| "
+        }
+    }
+
+
+    for row in rows.each() {
+        print(row)
+    }
+}
+
+fn print_hands(player: [Card], dealer: [Card], show_dealer: bool) {
+    let dealer_value = if show_dealer then to_string(get_hand_value(dealer)) else "???"
+    print("DEALER: " + dealer_value)
+    print_cards(dealer, not show_dealer)
+
+    print("PLAYER: " + to_string(get_hand_value(player)))
+    print_cards(player, false)
+}
+
+fn get_move(hand: [Card], money: number): string {
+    for {
+        let can_double = false
+        let moves = "(H)it, (S)tand"
+        if hand.length() == 2 and money > 0 {
+            moves += ", (D)ouble down"
+            can_double = true
+        }
+        moves += " > "
+
+        write(moves)
+        match let move = read_line() {
+            "H", "h" { return "h" }
+            "S", "s" { return "s" }
+            "D", "d" {
+                if can_double { return "d" }
+            }
+        }
+    }
+
+    return ""
+}
+
+print("Blackjack
+
+    Rules:
+       Try to get as close to 21 without going over.
+       Kings, Queens, and Jacks are worth 10 points.
+       Aces are worth 1 or 11 points.
+       Cards 2 through 10 are worth their face value.
+       (H)it to take another card.
+       (S)tand to stop taking cards.
+       On your first play, you can (D)ouble down to increase your bet
+       but must hit exactly one more time before standing.
+       In case of a tie, the bet is returned to the player.
+       The dealer stops hitting at 17.
+       ")
+
+let money = 100
+let highest_money = money
+
+for {
+    let play = true
+
+    if money <= 0 {
+        print("You're broke!")
+        print("Hiscore:", highest_money)
+        print("Thanks for playing!")
+        break
+    }
+
+    print("Money:", money)
+    let bet = match let in_bet = get_bet(money) {
+        is number { in_bet }
+        else { break 0 }
+    }
+
+    let deck = make_deck()
+    let player_hand = [deck.pop()!, deck.pop()!]
+    let dealer_hand = [deck.pop()!, deck.pop()!]
+
+    print("Bet:", bet)
+    for {
+        print_hands(player_hand, dealer_hand, false)
+
+        if get_hand_value(player_hand) > 21 { break }
+
+        let move = get_move(player_hand, money - bet)
+        if move == "d" {
+            bet += match let add = get_bet(min(bet, money - bet)) {
+                is number { add }
+                else { play = false break 0 }
+            }
+            print("Bet increased to:", bet)
+        }
+
+        if move == "d" or move == "h" {
+            let card = deck.pop()!
+            print("Drew a", card.representation, "of", suit_symbols[card.suit]!)
+            player_hand.push(card)
+            if get_hand_value(player_hand) > 21 { break }
+        }
+
+        if move == "d" or move == "s" {
+            break
+        }
+    }
+
+    if not play { break }
+
+    let p_value = get_hand_value(player_hand)
+    if p_value <= 21 {
+        for get_hand_value(dealer_hand) < 17 {
+            print("The dealer hits...")
+            dealer_hand.push(deck.pop()!)
+            print_hands(player_hand, dealer_hand, false)
+
+            print("Press enter to continue...")
+            read_line()
+        }
+    }
+
+    print_hands(player_hand, dealer_hand, true)
+
+    let d_value = get_hand_value(dealer_hand)
+    if d_value > 21 {
+        print("Dealer busts! You win $" + to_string(bet) + "!")
+        money += bet
+    } else if p_value > 21 or p_value < d_value {
+        print("You lost!")
+        money -= bet
+    } else if p_value > d_value {
+        print("You won $" + to_string(bet) + "!")
+        money += bet
+    } else {
+        print("It's a tie.")
+    }
+
+    highest_money = max(highest_money, money)
+
+    print("Press enter to continue...")
+    read_line()
+    print("\n")
+}
