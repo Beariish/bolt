@@ -22,6 +22,12 @@ type Enum = enum { A, B, C }
 test("as-casting to enum", fn {
     let x = 1 as Enum
     expect(typeof(x) == type(Enum?), "Expected 'as' to cast to 'Enum?'")
+    expect(x is Enum, "Expeted 'as' to cast to 'Enum'")
+})
+
+test("as-casting to enum out of range", fn {
+    let x = 10 as Enum
+    expect(typeof(x) == type(Enum?), "Expected 'as' to cast to 'Enum?'")
     expect(x is type(null), "Expeted 'as' to cast to 'null'")
 })
 
@@ -79,6 +85,20 @@ test("as-casting to prototypical tableshape", fn {
 
     expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
     expect(x is type(null), "Expected 'as' to cast to 'null'")
+})
+
+test("as-casting array types", fn {
+    let x = [1, 2, 3 : any]
+    let y = x as type([number])
+    expect(typeof(y) == type(null | [number]), "Expected 'as' to cast to '[number]?'")
+    expect(y is type([number]), "Expected 'as' to cast to '[number]'")
+})
+
+test("as-casting invalid array types", fn {
+    let x = [1, 2, 3 : any]
+    let y = x as type([number])
+    expect(typeof(y) == type(null | [number]), "Expected 'as' to cast to '[number]?'")
+    expect(y is type([number]), "Expected 'as' to cast to '[number]'")
 })
 
 // TODO: array casting
