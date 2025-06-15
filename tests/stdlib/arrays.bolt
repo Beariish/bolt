@@ -1,0 +1,164 @@
+import * from "../test"
+
+import arrays
+import core
+
+push_scope("arrays")
+
+test("length as freestanding", fn {
+    expect(arrays.length([1, 2, 3]) == 3, "Expected length to be '3'")
+    expect(arrays.length([1, true, "str"]) == 3, "Expected length to be '3'")
+    expect(arrays.length([]) == 0, "Expected length to be '0'")
+})
+
+test("length as prototype", fn {
+    let const arr = [1, 2, 3]
+    expect(arr.length() == 3, "Expected length to be '3'")
+
+    expect([1, 2, 3].length() == 3, "Expected length to be '3'")
+    expect([1, true, "str"].length() == 3, "Expected length to be '3'")
+    expect([].length() == 0, "Expected length to be '0'")
+})
+
+test("pop as freestanding", fn {
+    expect(arrays.pop([1, 2, 3]) == 3, "Expected last element to be '3'")
+    expect(arrays.pop([1, true, "str"]) == "str", "Expected last element to be 'str'")
+    expect(arrays.pop([]) == null, "Expected last element to be 'null'")
+    expect(typeof(arrays.pop([1, true, "str"])) == type(number | bool | string | null), "Expected correct monomorphisation")
+})
+
+test("pop as prototype", fn {
+    let const arr = [1, 2, 3]
+    expect(arr.pop() == 3, "Expected last element to be '3'")
+
+    expect([1, 2, 3].pop() == 3, "Expected last element to be '3'")
+    expect([1, true, "str"].pop() == "str", "Expected last element to be 'str'")
+    expect([].pop() == null, "Expected last element to be 'null'")
+    expect(typeof([1, true, "str"].pop()) == type(number | bool | string | null), "Expected correct monomorphisation")
+})
+
+test("push as freestanding", fn {
+    let arr = [:number]
+    arrays.push(arr, 1)
+    arrays.push(arr, 2)
+    arrays.push(arr, 3)
+    expect(arr.length() == 3, "Expected elements to have been pushed")
+    expect(arr.pop() == 3, "Expected last element to be the last pushed")
+    expect(arr[0] == 1, "Expected first element to be the first pushed")
+})
+
+test("push as prototype", fn {
+    let arr = [:number]
+    arr.push(1)
+    arr.push(2)
+    arr.push(3)
+    expect(arr.length() == 3, "Expected elements to have been pushed")
+    expect(arr.pop() == 3, "Expected last element to be the last pushed")
+    expect(arr[0] == 1, "Expected first element to be the first pushed")
+})
+
+test("each as freestanding", fn {
+    let const arr1 = [1, 2, 3]
+    let iter1 = arrays.each(arr1)
+    expect(typeof(iter1) == type(fn: number?), "Expected type of iter to be 'fn: number?'")
+    expect(iter1() == 1, "Expected first iteration to be '1'")
+    expect(iter1() == 2, "Expected second iteration to be '2'")
+    expect(iter1() == 3, "Expected third iteration to be '3'")
+    expect(iter1() == null, "Expected fourth iteration to be 'null'")
+    expect(iter1() == null, "Expected fifth iteration to be 'null'")
+
+    let const arr2 = [1, true, "str"]
+    let iter2 = arrays.each(arr2)
+    expect(typeof(iter2) == type(fn: number | bool | string | null), "Expected type of iter to be 'fn: number | bool | string | null'")
+    expect(iter2() == 1, "Expected first iteration to be '1'")
+    expect(iter2() == true, "Expected second iteration to be 'true'")
+    expect(iter2() == "str", "Expected third iteration to be 'str'")
+    expect(iter2() == null, "Expected fourth iteration to be 'null'")
+    expect(iter2() == null, "Expected fifth iteration to be 'null'")
+})
+
+test("each as prototype", fn {
+    let const arr1 = [1, 2, 3]
+    let iter1 = arr1.each()
+    expect(typeof(iter1) == type(fn: number?), "Expected type of iter to be 'fn: number?'")
+    expect(iter1() == 1, "Expected first iteration to be '1'")
+    expect(iter1() == 2, "Expected second iteration to be '2'")
+    expect(iter1() == 3, "Expected third iteration to be '3'")
+    expect(iter1() == null, "Expected fourth iteration to be 'null'")
+    expect(iter1() == null, "Expected fifth iteration to be 'null'")
+
+    let const arr2 = [1, true, "str"]
+    let iter2 = arr2.each()
+    expect(typeof(iter2) == type(fn: number | bool | string | null), "Expected type of iter to be 'fn: number | bool | string | null'")
+    expect(iter2() == 1, "Expected first iteration to be '1'")
+    expect(iter2() == true, "Expected second iteration to be 'true'")
+    expect(iter2() == "str", "Expected third iteration to be 'str'")
+    expect(iter2() == null, "Expected fourth iteration to be 'null'")
+    expect(iter2() == null, "Expected fifth iteration to be 'null'")
+})
+
+test("clone as freestanding", fn {
+    let const arr = [1, 2, 3]
+    let const copy = arrays.clone(arr)
+
+    expect(arr != copy, "Expected arrays to be separate instances")
+    expect(arr.length() == copy.length(), "Expected arrays to have equal length")
+    for i in arr.length() {
+        expect(arr.pop() == copy.pop(), "Expected arrays to have equal elements")
+    }
+})
+
+test("clone as prototype", fn {
+    let const arr = [1, 2, 3]
+    let const copy = arr.clone()
+
+    expect(arr != copy, "Expected arrays to be separate instances")
+    expect(arr.length() == copy.length(), "Expected arrays to have equal length")
+    for i in arr.length() {
+        expect(arr.pop() == copy.pop(), "Expected arrays to have equal elements")
+    }
+})
+
+test("reverse as freestanding", fn {
+    let const arr = arrays.reverse([1, 2, 3])
+    expect(arr.pop() == 1, "Expected last element to be '1'")
+    expect(arr.pop() == 2, "Expected second element to be '2'")
+    expect(arr.pop() == 3, "Expected first element to be '3'")
+})
+
+test("reverse as prototype", fn {
+    let const arr = [1, 2, 3].reverse()
+    expect(arr.pop() == 1, "Expected last element to be '1'")
+    expect(arr.pop() == 2, "Expected second element to be '2'")
+    expect(arr.pop() == 3, "Expected first element to be '3'")
+})
+
+test("map as freestanding", fn {
+    let const arr1 = arrays.map([1, 2, 3], fn (x: number) { return x * 2 })
+    expect(typeof(arr1) == type([number]), "Expected 'arr1' to be '[number]")
+    expect(arr1.pop() == 6, "Expected last element to be '6'")
+    expect(arr1.pop() == 4, "Expected second element to be '4'")
+    expect(arr1.pop() == 2, "Expected first element to be '2'")
+
+    let const arr2 = arrays.map([1, 2, 3], fn (x: number) { return core.to_string(x) })
+    expect(typeof(arr2) == type([string]), "Expected 'arr2' to be '[string]")
+    expect(arr2.pop() == "3", "Expected last element to be '3'")
+    expect(arr2.pop() == "2", "Expected last element to be '2'")
+    expect(arr2.pop() == "1", "Expected last element to be '1'")
+})
+
+test("map as prototype", fn {
+    let const arr1 = [1, 2, 3].map(fn (x: number) { return x * 2 })
+    expect(typeof(arr1) == type([number]), "Expected 'arr1' to be '[number]")
+    expect(arr1.pop() == 6, "Expected last element to be '6'")
+    expect(arr1.pop() == 4, "Expected second element to be '4'")
+    expect(arr1.pop() == 2, "Expected first element to be '2'")
+
+    let const arr2 = [1, 2, 3].map(fn (x: number) { return core.to_string(x) })
+    expect(typeof(arr2) == type([string]), "Expected 'arr2' to be '[string]")
+    expect(arr2.pop() == "3", "Expected last element to be '3'")
+    expect(arr2.pop() == "2", "Expected last element to be '2'")
+    expect(arr2.pop() == "1", "Expected last element to be '1'")
+})
+
+pop_scope()
