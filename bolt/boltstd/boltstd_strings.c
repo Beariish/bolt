@@ -261,6 +261,44 @@ static void bt_string_from_byte(bt_Context* ctx, bt_Thread* thread) {
 	bt_return(thread, bt_make_object((bt_Object*)result));
 }
 
+static void bt_string_starts_with(bt_Context* ctx, bt_Thread* thread) {
+	bt_String* self = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 1));
+
+	if (bt_string_length(self) < bt_string_length(arg)) {
+		bt_return(thread, bt_make_bool(0));
+		return;
+	}
+
+	bt_return(thread, bt_make_bool(strncmp(bt_get_string(self), bt_get_string(arg), bt_string_length(arg)) == 0));
+}
+
+static void bt_string_ends_with(bt_Context* ctx, bt_Thread* thread) {
+	bt_String* self = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 1));
+
+	if (bt_string_length(self) < bt_string_length(arg)) {
+		bt_return(thread, bt_make_bool(0));
+		return;
+	}
+
+	bt_return(thread, bt_make_bool(strncmp(bt_get_string(self) + bt_string_length(self) - 1 - bt_string_length(arg), bt_get_string(arg), bt_string_length(arg)) == 0));
+}
+
+static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
+	bt_String* self = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 1));
+	bt_number fidx = bt_get_number(bt_arg(thread, 2));
+	uint32_t idx = (uint32_t)fidx;
+	
+	if (bt_string_length(self) < bt_string_length(arg) + idx) {
+		bt_return(thread, bt_make_bool(0));
+		return;
+	}
+
+	bt_return(thread, bt_make_bool(strncmp(bt_get_string(self) + idx, bt_get_string(arg), bt_string_length(arg)) == 0));
+}
+
 void boltstd_open_strings(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
@@ -268,7 +306,8 @@ void boltstd_open_strings(bt_Context* context)
 	bt_Type* string = bt_type_string(context);
 	bt_Type* number = bt_type_number(context);
 	bt_Type* any = bt_type_any(context);
-
+	bt_Type* boolean = bt_type_boolean(context);
+	
 	bt_Type* length_sig = bt_make_method(context, number, &string, 1);
 	bt_NativeFn* fn_ref = bt_make_native(context, length_sig, bt_str_length);
 
@@ -332,5 +371,20 @@ void boltstd_open_strings(bt_Context* context)
 	fn_ref = bt_make_native(context, from_byte_sig, bt_string_from_byte);
 	bt_module_export(context, module, from_byte_sig, BT_VALUE_CSTRING(context, "from_byte"), BT_VALUE_OBJECT(fn_ref));
 
+	bt_Type* x_with_sig = bt_make_method(context, boolean, find_args, 2);
+	fn_ref = bt_make_native(context, x_with_sig, bt_string_starts_with);
+	bt_type_add_field(context, string, x_with_sig, BT_VALUE_CSTRING(context, "starts_with"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, x_with_sig, BT_VALUE_CSTRING(context, "starts_with"), BT_VALUE_OBJECT(fn_ref));
+
+	fn_ref = bt_make_native(context, x_with_sig, bt_string_ends_with);
+	bt_type_add_field(context, string, x_with_sig, BT_VALUE_CSTRING(context, "ends_with"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, x_with_sig, BT_VALUE_CSTRING(context, "ends_with"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* compare_at_args[] = { string, string, number };
+	bt_Type* compare_at_sig = bt_make_method(context, boolean, compare_at_args, 3);
+	fn_ref = bt_make_native(context, compare_at_sig, bt_string_compare_at);
+	bt_type_add_field(context, string, compare_at_sig, BT_VALUE_CSTRING(context, "compare_at"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, compare_at_sig, BT_VALUE_CSTRING(context, "compare_at"), BT_VALUE_OBJECT(fn_ref));
+	
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }

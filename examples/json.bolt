@@ -9,42 +9,6 @@ export type JsonValue =
                | [JsonValue] 
                | { ..string: JsonValue }
 
-fn json_parse_null(content: string, idx: number) {
-    if content.length() < idx + 4 { return null }
-
-    let start = content.substring(idx, 4)
-
-    if start == "null" {
-        return idx + 4
-    }
-
-    return null
-}
-
-fn json_parse_true(content: string, idx: number) {
-    if content.length() < idx + 4 { return null }
-
-    let start = content.substring(idx, 4)
-
-    if start == "true" {
-        return idx + 4
-    }
-
-    return null
-}
-
-fn json_parse_false(content: string, idx: number) {
-    if content.length() < idx + 5 { return null }
-
-    let start = content.substring(idx, 5)
-
-    if start == "false" {
-        return idx + 5
-    }
-
-    return null
-}
-
 type ParseSuccess = {
     remainder: number,
     result: JsonValue
@@ -52,13 +16,23 @@ type ParseSuccess = {
 
 type ParseResult = ParseSuccess | Error
 
-let whitespace: { ..string: bool } = {
+let const whitespace: { ..string: bool } = {
     " ": true, "\n": true, "\t": true, "\r": true
 }
 
-let numchars: { ..string: bool } = {
+let const numchars: { ..string: bool } = {
     "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true,
 }
+
+fn json_parse_word(content: string, idx: number, word: string) {
+    return if content.compare_at(word, idx) 
+            then idx + word.length()
+            else null
+}
+
+fn json_parse_null (content: string, idx: number) { return json_parse_word(content, idx, "null")  }
+fn json_parse_true (content: string, idx: number) { return json_parse_word(content, idx, "true")  }
+fn json_parse_false(content: string, idx: number) { return json_parse_word(content, idx, "false") }
 
 fn eat_whitespace(s: string, idx: number) {
     let first_idx = idx - 1

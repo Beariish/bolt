@@ -193,6 +193,7 @@ BOLT_API bt_StrSlice bt_as_strslice(bt_String* str);
 BOLT_API const char* const bt_get_string(bt_String* str);
 BOLT_API bt_String* bt_concat_strings(bt_Context* ctx, bt_String* a, bt_String* b);
 BOLT_API bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b);
+BOLT_API uint64_t bt_string_length(bt_String* str);
 
 BOLT_API bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size);
 BOLT_API bt_Table* bt_make_table_from_proto(bt_Context* ctx, bt_Type* prototype);

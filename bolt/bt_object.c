@@ -219,6 +219,10 @@ bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b)
     return result;
 }
 
+uint64_t bt_string_length(bt_String* str) {
+    return str->len;
+}
+
 bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
 {
     bt_Table* table;

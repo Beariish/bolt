@@ -745,7 +745,6 @@ bt_String* bt_get_or_make_interned(bt_Context* ctx, const char* str, uint32_t le
 
 void bt_remove_interned(bt_Context* ctx, bt_String* str)
 {
-	const char* source = BT_STRING_STR(str);
 	uint64_t bucket_idx = str->hash % BT_STRINGTABLE_SIZE;
 
 	bt_StringTableBucket* bucket = ctx->string_table + bucket_idx;
