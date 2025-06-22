@@ -7,6 +7,7 @@
 #include "boltstd_strings.h"
 #include "boltstd_io.h"
 #include "boltstd_tables.h"
+#include "boltstd_regex.h"
 
 void boltstd_open_all(bt_Context* context)
 {
@@ -17,4 +18,5 @@ void boltstd_open_all(bt_Context* context)
 	boltstd_open_tables(context);
 	boltstd_open_strings(context);
 	boltstd_open_io(context);
+	boltstd_open_regex(context);
 }

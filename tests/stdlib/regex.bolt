@@ -1,0 +1,113 @@
+import * from "../test"
+
+import regex
+import core
+
+// HACK: Workaround for https://github.com/Beariish/bolt/issues/1
+type Regex = regex.Regex
+type Error = core.Error
+
+push_scope("regex")
+
+let const email_regex = "([\\w.\\-]{0,25})@(yahoo|hotmail|gmail)\\.com"
+let const invalid_regex = "([\\w.\\-{0,25})@(yahoo|hotmail|gmail)\\.com"
+
+test("valid regex compiles", fn {
+    let const expr = regex.compile(email_regex)
+    expect(expr is Regex, "Regex should have compiled!")
+})
+
+test("invalid regex fails to compile", fn {
+    let const expr = regex.compile(invalid_regex)
+    expect(expr is Error, "Regex should have compiled!")
+})
+
+test("prototype .size() gives reasonable size", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    expect(expr.size() > 50, "Regex should have compiled to a reasonable size!")
+})
+
+test("freestanding size() gives reasonable size", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    expect(regex.size(expr) > 50, "Regex should have compiled to a reasonable size!")
+})
+
+test("prototype .groups() gives correct count", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    expect(expr.groups() == 3, "Regex should have `3` groups!")
+})
+
+test("freestanding groups() gives correct count", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    expect(regex.groups(expr) == 3, "Regex should have `3` groups!")
+})
+
+test("prototype .eval() gives correct match", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    let const groups = expr.eval("guy@gmail.com")
+    expect(groups is type([string]), "Expected expression to match!")
+
+    if groups is type([string]) {
+        expect(groups.length() == 3, "Expected groups to be `3` elements long!")
+        expect(groups[0] == "guy@gmail.com", "Unexpected match 0!")
+        expect(groups[1] == "guy", "Unexpected match 1!")
+        expect(groups[2] == "gmail", "Unexpected match 2!")
+    }
+})
+
+test("freestanding eval() gives correct match", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    let const groups = regex.eval(expr, "guy@gmail.com")
+    expect(groups is type([string]), "Expected expression to match!")
+
+    if groups is type([string]) {
+        expect(groups.length() == 3, "Expected groups to be `3` elements long!")
+        expect(groups[0] == "guy@gmail.com", "Unexpected match 0!")
+        expect(groups[1] == "guy", "Unexpected match 1!")
+        expect(groups[2] == "gmail", "Unexpected match 2!")
+    }
+})
+
+test("eval() fails to match incorrect string", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    let const groups = expr.eval("g#uy@gmai#l.com")
+    expect(groups is type(null), "Expected expression not to match!")
+})
+
+test("prototype .all() gives all correct matches", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    let const matches = for m in expr.all("guy@gmail.com dude@yahoo.com") do m
+    expect(matches.length() == 2, "Expected 2 matches!")
+
+    let const first = matches[0]
+    expect(first.length() == 3, "Expected groups to be `3` elements long!")
+    expect(first[0] == "guy@gmail.com", "Unexpected match 0!")
+    expect(first[1] == "guy", "Unexpected match 1!")
+    expect(first[2] == "gmail", "Unexpected match 2!")
+
+    let const second = matches[1]
+    expect(second.length() == 3, "Expected groups to be `3` elements long!")
+    expect(second[0] == "dude@yahoo.com", "Unexpected match 0!")
+    expect(second[1] == "dude", "Unexpected match 1!")
+    expect(second[2] == "yahoo", "Unexpected match 2!")
+})
+
+test("freestanding all() gives all correct matches", fn {
+    let const expr = regex.compile(email_regex) as Regex!
+    let const matches = for m in regex.all(expr, "guy@gmail.com dude@yahoo.com") do m
+    expect(matches.length() == 2, "Expected 2 matches!")
+
+    let const first = matches[0]
+    expect(first.length() == 3, "Expected groups to be `3` elements long!")
+    expect(first[0] == "guy@gmail.com", "Unexpected match 0!")
+    expect(first[1] == "guy", "Unexpected match 1!")
+    expect(first[2] == "gmail", "Unexpected match 2!")
+
+    let const second = matches[1]
+    expect(second.length() == 3, "Expected groups to be `3` elements long!")
+    expect(second[0] == "dude@yahoo.com", "Unexpected match 0!")
+    expect(second[1] == "dude", "Unexpected match 1!")
+    expect(second[2] == "yahoo", "Unexpected match 2!")
+})
+
+pop_scope()

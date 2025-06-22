@@ -260,3 +260,11 @@ void boltstd_open_core(bt_Context* context)
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "core"), module);
 }
+
+bt_Value boltstd_make_error(bt_Context* context, const char* message)
+{
+	bt_String* what = bt_make_string(context, message);
+	bt_Table* result = bt_make_table_from_proto(context, bt_error_type);
+	bt_table_set(context, result, bt_error_what_key, BT_VALUE_OBJECT(what));
+	return BT_VALUE_OBJECT(result);
+}

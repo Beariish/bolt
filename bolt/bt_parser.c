@@ -105,6 +105,8 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
         return lhs->as.array.inner;
     }
 
+    if (rhs->type == BT_AST_NODE_IMPORT_REFERENCE) rhs->type = BT_AST_NODE_LITERAL;
+    
     if (rhs->type != BT_AST_NODE_LITERAL) {
         bt_Type* indexing_type = type_check(parse, rhs)->resulting_type;
         if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
@@ -499,7 +501,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
     switch (node->type) {
     case BT_AST_NODE_LITERAL: case BT_AST_NODE_IDENTIFIER: {
             switch (node->source->type) {
-            case BT_TOKEN_IDENTIFIER_LITERAL: {
+            case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
                     result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
             } break;
             case BT_TOKEN_STRING_LITERAL: {
@@ -694,7 +696,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     return result;
 }
 
-static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
+static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier, bt_bool should_error)
 {
     // null is special, being both a value and a type, so we special-case it here
     if (identifier->type == BT_TOKEN_NULL_LITERAL) {
@@ -702,16 +704,16 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
     }
 
     if (identifier->type != BT_TOKEN_IDENTIFIER) {
-        parse_error_token(parse, "Invalid identifier: '%.*s'", identifier);
+        if (should_error) parse_error_token(parse, "Invalid identifier: '%.*s'", identifier);
         return NULL;
     }
 
     bt_ParseBinding* binding = find_local_exhaustive(parse, identifier->source);
 
     bt_Type* result = 0;
-    if (binding) {
+    if (binding && binding->source) {
         if (binding->source->resulting_type != parse->context->types.type) {
-            parse_error_token(parse, "Identifier '%.*s' didn't resolve to type", identifier);
+            if (should_error) parse_error_token(parse, "Identifier '%.*s' didn't resolve to type", identifier);
             return NULL;
         }
 
@@ -724,14 +726,14 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
             // Module reference
             if (import->type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 if (!bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_PERIOD)) {
-                    parse_error_token(parse, "Expected subscript after module rference '%.*s'", identifier);
+                    if (should_error) parse_error_token(parse, "Expected subscript after module rference '%.*s'", identifier);
                     return NULL;
                 }
 
                 bt_Token* name = bt_tokenizer_emit(parse->tokenizer);
 
                 if (name->type != BT_TOKEN_IDENTIFIER) {
-                    parse_error_token(parse, "Expected identifier after module reference, got '%.*s'", name);
+                    if (should_error) parse_error_token(parse, "Expected identifier after module reference, got '%.*s'", name);
                     return NULL;
                 }
 
@@ -741,14 +743,14 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier)
                 bt_Value found_type = bt_table_get(exports, as_key);
 
                 if (!BT_IS_OBJECT(found_type) || BT_OBJECT_GET_TYPE(BT_AS_OBJECT(found_type)) != BT_OBJECT_TYPE_TYPE) {
-                    parse_error_token(parse, "Import '%.*s' is not a Type", name);
+                    if (should_error) parse_error_token(parse, "Import '%.*s' is not a Type", name);
                     return NULL;
                 }
 
                 return (bt_Type*)BT_AS_OBJECT(found_type);
             }
             else if (import->type->category != BT_TYPE_CATEGORY_TYPE) {
-                parse_error_token(parse, "Import '%.*s' didn't resolve to type", identifier);
+                if (should_error) parse_error_token(parse, "Import '%.*s' didn't resolve to type", identifier);
                 return NULL;
             }
 
@@ -780,7 +782,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
     }
     case BT_TOKEN_NULL_LITERAL:
     case BT_TOKEN_IDENTIFIER: {
-        bt_Type* result = resolve_type_identifier(parse, token);
+        bt_Type* result = resolve_type_identifier(parse, token, BT_TRUE);
 
         if (!result) {
             parse_error_token(parse, "Failed to resolve type identifier '%.*s'", token);
@@ -2149,7 +2151,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = bt_make_nullable(parse->context, indexed_type);
         } break;
         case BT_TOKEN_IS: {
-            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE)
+            if (!resolve_to_type(parse, node->as.binary_op.right))
                 parse_error(parse, "Expected right hand of 'is' to be Type", node->source->line, node->source->col);
             node->resulting_type = parse->context->types.boolean;
         } break;

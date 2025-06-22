@@ -5,6 +5,7 @@ set(PROJECT_NAME bolt)
 ################################################################################
 set(Header_Files
     "bolt.h"
+    "boltstd/picomatch/picomatch.h"
     "boltstd/boltstd.h"
     "boltstd/boltstd_arrays.h"
     "boltstd/boltstd_core.h"
@@ -13,6 +14,7 @@ set(Header_Files
     "boltstd/boltstd_strings.h"
     "boltstd/boltstd_tables.h"
     "boltstd/boltstd_io.h"
+    "boltstd/boltstd_regex.h"
     "bt_buffer.h"
     "bt_compiler.h"
     "bt_config.h"
@@ -33,6 +35,7 @@ source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
     "bolt.c"
+    "boltstd/picomatch/picomatch.c"
     "boltstd/boltstd.c"
     "boltstd/boltstd_arrays.c"
     "boltstd/boltstd_core.c"
@@ -41,6 +44,7 @@ set(Source_Files
     "boltstd/boltstd_strings.c"
     "boltstd/boltstd_tables.c"
     "boltstd/boltstd_io.c"
+    "boltstd/boltstd_regex.c"
     "bt_buffer.c"
     "bt_compiler.c"
     "bt_debug.c"
