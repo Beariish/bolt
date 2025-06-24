@@ -306,52 +306,48 @@ void boltstd_open_io(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
-	bt_close_error_reason = BT_VALUE_OBJECT(bt_make_string_hashed(context, "File already closed"));
-	bt_add_ref(context, BT_AS_OBJECT(bt_close_error_reason));
+	bt_Type* string = bt_type_string(context);
+	bt_Type* number = bt_type_number(context);
+	bt_Type* boolean = bt_type_boolean(context);
+	
+	bt_close_error_reason = bt_make_object(bt_make_string_hashed(context, "File already closed"));
+	bt_add_ref(context, bt_get_object(bt_close_error_reason));
 
 	io_file_type = bt_make_userdata_type(context, "File");
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
 	bt_module_export(context, module, bt_make_alias(context, "File", io_file_type),
-		BT_VALUE_CSTRING(context, "File"), BT_VALUE_OBJECT(io_file_type));
+		BT_VALUE_CSTRING(context, "File"), bt_make_object(io_file_type));
 	bt_add_ref(context, (bt_Object*)io_file_type);
 
-	bt_Type* open_args[] = { context->types.string, context->types.string };
-	bt_Type* open_return_type = bt_make_union(context);
-	bt_push_union_variant(context, open_return_type, io_file_type);
-	bt_push_union_variant(context, open_return_type, bt_error_type);
+	bt_Type* open_args[] = { string, string };
+	bt_Type* open_returns[] = { io_file_type, bt_error_type };
+	bt_Type* open_return_type = bt_make_union_from(context, open_returns, 2);
 	bt_module_export_native(context, module, "open", btio_open, open_return_type, open_args, 2);
 
-	bt_Type* optional_error = bt_make_nullable(context, bt_error_type);
+	bt_Type* optional_error = bt_type_make_nullable(context, bt_error_type);
 	bt_module_export_native(context, module, "close", btio_close, optional_error, &io_file_type, 1);
 
-	bt_Type* get_size_return_type = bt_make_union(context);
-	bt_push_union_variant(context, get_size_return_type, context->types.number);
-	bt_push_union_variant(context, get_size_return_type, bt_error_type);
-	bt_module_export_native(context, module, "get_size", btio_get_size, get_size_return_type, &io_file_type, 1);
+	bt_Type* number_or_error_types[] = { number, bt_error_type };
+	bt_Type* number_or_error = bt_make_union_from(context, number_or_error_types, 2);
+	bt_module_export_native(context, module, "get_size", btio_get_size, number_or_error, &io_file_type, 1);
 
-	bt_Type* seek_args[] = { io_file_type, context->types.number };
+	bt_Type* seek_args[] = { io_file_type, number };
 	bt_module_export_native(context, module, "seek_set", btio_seek_set, optional_error, seek_args, 2);
 	bt_module_export_native(context, module, "seek_relative", btio_seek_relative, optional_error, seek_args, 2);
 	bt_module_export_native(context, module, "seek_end", btio_seek_end, optional_error, &io_file_type, 1);
-
-	bt_Type* number_or_error = bt_make_union(context);
-	bt_push_union_variant(context, number_or_error, context->types.number);
-	bt_push_union_variant(context, number_or_error, bt_error_type);
-
 	bt_module_export_native(context, module, "tell", btio_tell, number_or_error, &io_file_type, 1);
 
-	bt_Type* string_or_error = bt_make_union(context);
-	bt_push_union_variant(context, string_or_error, context->types.string);
-	bt_push_union_variant(context, string_or_error, bt_error_type);
+	bt_Type* string_or_error_types[] = { string, bt_error_type };
+	bt_Type* string_or_error = bt_make_union_from(context, string_or_error_types, 2);
 
-	bt_Type* read_args[] = { io_file_type, context->types.number };
+	bt_Type* read_args[] = { io_file_type, number };
 	bt_module_export_native(context, module, "read", btio_read, string_or_error, read_args, 2);
 
-	bt_Type* write_args[] = { io_file_type, context->types.string };
+	bt_Type* write_args[] = { io_file_type, string };
 	bt_module_export_native(context, module, "write", btio_write, optional_error, write_args, 2);
 
-	bt_module_export_native(context, module, "is_eof", btio_iseof, context->types.boolean, &io_file_type, 1);
-	bt_module_export_native(context, module, "delete", btio_delete, optional_error, &context->types.string, 1);
+	bt_module_export_native(context, module, "is_eof", btio_iseof, boolean, &io_file_type, 1);
+	bt_module_export_native(context, module, "delete", btio_delete, optional_error, &string, 1);
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "io"), module);
 }

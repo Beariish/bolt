@@ -129,10 +129,8 @@ static bt_Type* bt_protect_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 		new_args[i + 1] = arg->as.fn.args.elements[i];
 	}
 
-	bt_Type* compound_return = bt_make_union(ctx);
-	bt_push_union_variant(ctx, compound_return, return_type);
-	bt_push_union_variant(ctx, compound_return, bt_error_type);
-
+	bt_Type* options[] = { return_type, bt_error_type };
+	bt_Type* compound_return = bt_make_union_from(ctx, options, 2);
 	return bt_make_signature(ctx, compound_return, new_args, 1 + arg->as.fn.args.length);
 }
 
@@ -182,7 +180,7 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 			bt_Type* next = arg->as.selector.types.elements[i];
 			if (next == bt_error_type) continue;
 
-			bt_push_union_variant(ctx, return_type, next);
+			bt_union_push_variant(ctx, return_type, next);
 		}
 	}
 	else {
@@ -236,7 +234,7 @@ void boltstd_open_core(bt_Context* context)
 	bt_module_export_native(context, module, "to_string", bt_tostring, string, &context->types.any, 1);
 	bt_module_export_native(context, module, "read_line", bt_readline, string, NULL,                0);
 
-	bt_Type* tonumber_ret = bt_make_nullable(context, context->types.number);
+	bt_Type* tonumber_ret = bt_type_make_nullable(context, context->types.number);
 	bt_module_export_native(context, module, "to_number", bt_tonumber, tonumber_ret, &string, 1);
 
 	bt_module_export_native(context, module, "time", bt_time, context->types.number, NULL, 0);

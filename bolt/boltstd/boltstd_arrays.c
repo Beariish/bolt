@@ -24,7 +24,7 @@ static bt_Type* bt_arr_pop_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	bt_Type* arg = args[0];
 	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
 
-	bt_Type* sig = bt_make_method(ctx, bt_make_nullable(ctx, arg->as.array.inner), args, 1);
+	bt_Type* sig = bt_make_method(ctx, bt_type_make_nullable(ctx, arg->as.array.inner), args, 1);
 
 	return sig;
 }
@@ -80,7 +80,7 @@ static bt_Type* bt_arr_each_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 	if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
 
-	bt_Type* iter_sig = bt_make_signature(ctx, bt_make_nullable(ctx, arg->as.array.inner), NULL, 0);
+	bt_Type* iter_sig = bt_make_signature(ctx, bt_type_make_nullable(ctx, arg->as.array.inner), NULL, 0);
 
 	bt_Type* sig = bt_make_method(ctx, iter_sig, &arg, 1);
 

@@ -91,11 +91,9 @@ typedef struct bt_Type {
 	bt_bool is_polymorphic : 1;
 } bt_Type;
 
-BOLT_API bt_bool bt_is_optional(bt_Type* type);
 
 static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
 static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
-static inline bt_bool bt_type_satisfier_null(bt_Type* left, bt_Type* right) { return bt_type_satisfier_same(left, right); }
 
 BOLT_API bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
 BOLT_API bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
@@ -113,8 +111,6 @@ BOLT_API bt_Type* bt_type_type(bt_Context* context);
 
 BOLT_API bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category);
 BOLT_API bt_Type* bt_derive_type(bt_Context* context, bt_Type* original);
-BOLT_API bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable);
-BOLT_API bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull);
 BOLT_API bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 BOLT_API bt_Type* bt_make_method(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 BOLT_API bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
@@ -141,15 +137,32 @@ BOLT_API bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value 
 
 BOLT_API bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 
+/********************************************************************************************************************************
+ * 
+ * UNION TYPES
+ * 
+ *******************************************************************************************************************************/
+
+/** Creates a new empty union type */
 BOLT_API bt_Type* bt_make_union(bt_Context* context);
+/** Extends `uni` with a new subtype, or allocates a new union if `NULL` is passed */
 BOLT_API bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* variant);
-BOLT_API void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
+/** Create a union type of `types` */
+BOLT_API bt_Type* bt_make_union_from(bt_Context* context, bt_Type** types, size_t type_count);
+/** Adds a new variant to union `uni` */
+BOLT_API void bt_union_push_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
 /** Returns the number of variants in union type `uni`, or 0 if it is not a union */
-BOLT_API int32_t bt_get_union_length(bt_Type* uni);
+BOLT_API int32_t bt_union_get_length(bt_Type* uni);
 /** Returns the variants in union type `uni` at `index`, or NULL */
-BOLT_API bt_Type* bt_get_union_variant(bt_Type* uni, uint32_t index);
+BOLT_API bt_Type* bt_union_get_variant(bt_Type* uni, uint32_t index);
 /** Find `variant` in union type `uni`, returning the index or `-1` on failure */
 BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant);
+/** Convenience function to determine whether a union type contains `null` or `any` */
+BOLT_API bt_bool bt_type_is_optional(bt_Type* type);
+/** Creates a union type of `null` and `to_nullable` if `to_nullable` isn't nullable already */
+BOLT_API bt_Type* bt_type_make_nullable(bt_Context* context, bt_Type* to_nullable);
+/** Returns a new union type containing all variants of `to_unnull` except `null` */
+BOLT_API bt_Type* bt_type_remove_nullable(bt_Context* context, bt_Type* to_unnull);
 
 /** Creates a new enum type with alias `name`. `is_sealed` determines whether numeric values can be cast to/from this type. */
 BOLT_API bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name, bt_bool is_sealed);

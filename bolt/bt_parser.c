@@ -116,7 +116,7 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
 
         if (lhs->as.table_shape.map) {
             if (lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, indexing_type)) {
-                return bt_make_nullable(parse->context, lhs->as.table_shape.value_type);
+                return bt_type_make_nullable(parse->context, lhs->as.table_shape.value_type);
             } else {
                 parse_error_token(parse, "Invalid index type for map table", node->source);
                 return NULL;
@@ -648,7 +648,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
 
         if (is_map && !type) {
-            result->resulting_type = bt_make_map(parse->context, map_key_type, bt_make_nullable(parse->context, map_value_type));
+            result->resulting_type = bt_make_map(parse->context, map_key_type, bt_type_make_nullable(parse->context, map_value_type));
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -792,7 +792,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_QUESTION) {
             bt_tokenizer_emit(tok);
-            result = bt_make_nullable(ctx, result);
+            result = bt_type_make_nullable(ctx, result);
         }
         else if (token->type == BT_TOKEN_PLUS) {
             bt_tokenizer_emit(tok);
@@ -847,11 +847,11 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
                 push_local(parse, alias);
             }
 
-            bt_push_union_variant(ctx, selector, result);
+            bt_union_push_variant(ctx, selector, result);
 
             while (token->type == BT_TOKEN_UNION) {
                 bt_tokenizer_emit(tok);
-                bt_push_union_variant(ctx, selector, parse_type(parse, BT_FALSE, NULL));
+                bt_union_push_variant(ctx, selector, parse_type(parse, BT_FALSE, NULL));
 
                 token = bt_tokenizer_peek(tok);
             }
@@ -921,7 +921,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
-            bt_Type* nullable_value = bt_make_nullable(parse->context, value_type);
+            bt_Type* nullable_value = bt_type_make_nullable(parse->context, value_type);
             bt_Type* result = bt_make_map(parse->context, key_type, nullable_value);
             result->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
@@ -1107,13 +1107,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
             bt_Type* item_type = type_check(parse, item)->resulting_type;
             if (result->as.arr.inner_type) {
                 if (!result->as.arr.inner_type->satisfier(result->as.arr.inner_type, item_type)) {
-                    if (result->as.arr.inner_type->category != BT_TYPE_CATEGORY_UNION) {
-                        bt_Type* old = result->as.arr.inner_type;
-                        result->as.arr.inner_type = bt_make_union(parse->context);
-                        bt_push_union_variant(parse->context, result->as.arr.inner_type, old);
-                    }
-
-                    bt_push_union_variant(parse->context, result->as.arr.inner_type, item_type);
+                    result->as.arr.inner_type = bt_make_or_extend_union(parse->context, result->as.arr.inner_type, item_type);
                 }
             }
             else {
@@ -1323,13 +1317,7 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
 
             if (expected && !expected->satisfier(expected, expr->resulting_type)) {
                 if (is_inferable) {
-                    if (expected->category != BT_TYPE_CATEGORY_UNION) {
-                        bt_Type* new_union = bt_make_union(ctx);
-                        bt_push_union_variant(ctx, new_union, expected);
-                        expected = new_union;
-                    }
-
-                    bt_push_union_variant(ctx, expected, expr->resulting_type);
+                    expected = bt_make_or_extend_union(ctx, expected, expr->resulting_type);
                 }
                 else {
                     parse_error(parse, "Invalid return type for uninferable function type", expr->source->line, expr->source->col);
@@ -2060,16 +2048,16 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
     case BT_AST_NODE_UNARY_OP: {
         switch (node->source->type) {
         case BT_TOKEN_QUESTION:
-            if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
+            if (!bt_type_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 parse_error(parse, "Unary operator ? can only be applied to nullable types", node->source->line, node->source->col);
             }
             node->resulting_type = parse->context->types.boolean;
             break;
         case BT_TOKEN_BANG:
-            if (!bt_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
+            if (!bt_type_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 parse_error(parse, "Unary operator ! can only be applied to nullable types", node->source->line, node->source->col);
             }
-            node->resulting_type = bt_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
+            node->resulting_type = bt_type_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
             break;
         case BT_TOKEN_MINUS:
             if (type_check(parse, node->as.unary_op.operand)->resulting_type == parse->context->types.number) {
@@ -2098,11 +2086,11 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = type_check(parse, node->as.binary_op.right)->resulting_type;
             bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
 
-            if (!bt_is_optional(lhs)) {
+            if (!bt_type_is_optional(lhs)) {
                 parse_error(parse, "Lhs is non-optional, cannot coalesce", node->source->line, node->source->col);
             }
 
-            lhs = bt_remove_nullable(parse->context, lhs);
+            lhs = bt_type_remove_nullable(parse->context, lhs);
 
             if(!lhs->satisfier(node->resulting_type, lhs)) {
                 parse_error(parse, "Unable to coalesce rhs into lhs", node->source->line, node->source->col);
@@ -2133,13 +2121,13 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             int32_t null_idx = bt_union_has_variant(lhs, parse->context->types.null);
-            if (null_idx == -1 || bt_get_union_length(lhs) != 2) {
+            if (null_idx == -1 || bt_union_get_length(lhs) != 2) {
                 parse_error(parse, "Expected left hand of `?.` operator to be union of indexable type and null.", node->source->line, node->source->col);
                 node->resulting_type = parse->context->types.null;
                 return node;
             }
 
-            bt_Type* nonnull_type = bt_get_union_variant(lhs, null_idx == 0 ? 1 : 0);
+            bt_Type* nonnull_type = bt_union_get_variant(lhs, null_idx == 0 ? 1 : 0);
 
             if (node->as.binary_op.right->type == BT_AST_NODE_IDENTIFIER) {
                 node->as.binary_op.right->type = BT_AST_NODE_LITERAL;
@@ -2148,7 +2136,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
                 
             bt_Type* indexed_type = resolve_index_type(parse, nonnull_type, node, node->as.binary_op.right);
-            node->resulting_type = bt_make_nullable(parse->context, indexed_type);
+            node->resulting_type = bt_type_make_nullable(parse->context, indexed_type);
         } break;
         case BT_TOKEN_IS: {
             if (!resolve_to_type(parse, node->as.binary_op.right))
@@ -2213,7 +2201,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
             }
 
-            node->resulting_type = bt_make_nullable(parse->context, bt_type_dealias(type));
+            node->resulting_type = bt_type_make_nullable(parse->context, bt_type_dealias(type));
         } break;
 #define XSTR(x) #x
 #define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                     \
@@ -2338,12 +2326,12 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
         else if (type == parse->context->types.string) {
             result->source = parse->tokenizer->literal_empty_string;
         }
-        else if (bt_is_optional(type) || type == parse->context->types.any) {
+        else if (bt_type_is_optional(type) || type == parse->context->types.any) {
             result->source = parse->tokenizer->literal_null;
         }
     } break;
     case BT_TYPE_CATEGORY_UNION: {
-        if (bt_is_optional(type)) {
+        if (bt_type_is_optional(type)) {
             result = make_node(parse, BT_AST_NODE_LITERAL);
             result->resulting_type = parse->context->types.null;
             result->source = parse->tokenizer->literal_null;
@@ -2872,12 +2860,12 @@ static bt_AstNode* parse_if(bt_Parser* parser)
 
         bt_AstNode* expr = parse_expression(parser, 0, NULL);
         bt_Type* result_type = type_check(parser, expr)->resulting_type;
-        if (!bt_is_optional(result_type)) {
+        if (!bt_type_is_optional(result_type)) {
             parse_error_token(parser, "Type must be optional", expr->source);
             return NULL;
         }
 
-        bt_Type* binding_type = bt_remove_nullable(parser->context, result_type);
+        bt_Type* binding_type = bt_type_remove_nullable(parser->context, result_type);
 
         result->source = ident;
         result->as.branch.is_let = BT_TRUE;
@@ -3092,13 +3080,13 @@ static bt_AstNode* parse_for(bt_Parser* parse)
     }
 
     bt_Type* generated_type = generator_type->as.fn.return_type;
-    if (!bt_is_optional(generated_type)) {
+    if (!bt_type_is_optional(generated_type)) {
         parse_error_fmt(parse, "Iterator return type must be optional, got %s", iterator->source->line, iterator->source->col, 
             generated_type->name);
         return NULL;
     }
 
-    bt_Type* it_type = bt_remove_nullable(parse->context, generated_type);
+    bt_Type* it_type = bt_type_remove_nullable(parse->context, generated_type);
     identifier->resulting_type = it_type;
 
     bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);

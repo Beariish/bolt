@@ -10,7 +10,7 @@ static bt_Type* make_table_pair_type(bt_Context* ctx, bt_Type* tbl)
 {
 	bt_Type* return_type = bt_make_tableshape(ctx, "Pair", BT_TRUE);
 	bt_Type* key_type = tbl->as.table_shape.key_type ? tbl->as.table_shape.key_type : ctx->types.any;
-	bt_Type* value_type = tbl->as.table_shape.value_type ? bt_remove_nullable(ctx, tbl->as.table_shape.value_type) : ctx->types.any;
+	bt_Type* value_type = tbl->as.table_shape.value_type ? bt_type_remove_nullable(ctx, tbl->as.table_shape.value_type) : ctx->types.any;
 	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, bt_pair_key_key, key_type);
 	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, bt_pair_value_key, value_type);
 
@@ -25,7 +25,7 @@ static bt_Type* bt_table_pairs_type(bt_Context* ctx, bt_Type** args, uint8_t arg
 	if (arg->category != BT_TYPE_CATEGORY_TABLESHAPE) return NULL;
 
 	bt_Type* return_type = make_table_pair_type(ctx, arg);
-	bt_Type* iter_sig = bt_make_signature(ctx, bt_make_nullable(ctx, return_type), NULL, 0);
+	bt_Type* iter_sig = bt_make_signature(ctx, bt_type_make_nullable(ctx, return_type), NULL, 0);
 
 	return bt_make_signature(ctx, iter_sig, args, argc);
 }

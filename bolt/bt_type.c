@@ -52,22 +52,13 @@ bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 	return BT_TRUE;
 }
 
-bt_bool bt_is_optional(bt_Type* type)
+bt_bool bt_type_is_optional(bt_Type* type)
 {
 	if (!type) return BT_FALSE;
 	if (type == type->ctx->types.null) return BT_TRUE;
 	if (type == type->ctx->types.any) return BT_TRUE;
-
-	if (type->category == BT_TYPE_CATEGORY_UNION) {
-		bt_TypeBuffer* types = &type->as.selector.types;
 	
-		for (uint32_t i = 0; i < types->length; ++i) {
-			bt_Type* inner = types->elements[i];
-			if (inner == type->ctx->types.null) return BT_TRUE;
-		}
-	}
-
-	return BT_FALSE;
+	return bt_union_has_variant(type, bt_type_null(type->ctx)) != -1;
 }
 
 bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
@@ -244,23 +235,17 @@ bt_Type* bt_derive_type(bt_Context* context, bt_Type* original)
 	return promoted;
 }
 
-bt_Type* bt_make_nullable(bt_Context* context, bt_Type* to_nullable)
+bt_Type* bt_type_make_nullable(bt_Context* context, bt_Type* to_nullable)
 {
 	// Special casing for nullable null to avoid redundant unions
 	if (to_nullable == context->types.null) return to_nullable;
 	if (to_nullable == context->types.any) return to_nullable;
-	if (to_nullable->category == BT_TYPE_CATEGORY_UNION) {
-		if (bt_union_has_variant(to_nullable, context->types.null) != -1) return to_nullable;
-	}
-	
-	bt_Type* new_type = bt_make_union(context);
-	bt_push_union_variant(context, new_type, to_nullable);
-	bt_push_union_variant(context, new_type, context->types.null);
+	if (bt_type_is_optional(to_nullable)) return to_nullable;
 
-	return new_type;
+	return bt_make_or_extend_union(context, to_nullable, bt_type_null(context));
 }
 
-bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
+bt_Type* bt_type_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
 	if (to_unnull->category != BT_TYPE_CATEGORY_UNION) return to_unnull;
 
 	int32_t found_idx = -1;
@@ -272,8 +257,7 @@ bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
 		}
 	}
 
-	assert(found_idx >= 0);
-	assert(types->length > 1);
+	if (found_idx < 0 || types->length <= 1) return  to_unnull;
 
 	// fast path for regular optionals!
 	if (types->length == 2) {
@@ -284,7 +268,7 @@ bt_Type* bt_remove_nullable(bt_Context* context, bt_Type* to_unnull) {
 	for (uint32_t i = 0; i < types->length; i++) {
 		if (i == found_idx) continue;
 
-		bt_push_union_variant(context, result, types->elements[i]);
+		bt_union_push_variant(context, result, types->elements[i]);
 	}
 
 	return result;
@@ -568,15 +552,24 @@ bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* var
 	if (uni->category != BT_TYPE_CATEGORY_UNION) {
 		bt_Type* first = uni;
 		uni = bt_make_union(context);
-		bt_push_union_variant(context, uni, first);
+		bt_union_push_variant(context, uni, first);
 	}
 
-	bt_push_union_variant(context, uni, variant);
+	bt_union_push_variant(context, uni, variant);
 	return uni;
 }
 
+bt_Type* bt_make_union_from(bt_Context* context, bt_Type** types, size_t type_count) {
+	bt_Type* result = NULL;
+	for (size_t i = 0; i < type_count; i++) {
+		result = bt_make_or_extend_union(context, result, types[i]);
+	}
 
-void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
+	return result;
+}
+
+
+void bt_union_push_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
 	if (variant->category == BT_TYPE_CATEGORY_UNION) {
 		for (uint32_t i = 0; i < variant->as.selector.types.length; ++i) {
@@ -623,13 +616,13 @@ void bt_push_union_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 	uni->name[written_length] = 0;
 }
 
-int32_t bt_get_union_length(bt_Type* uni)
+int32_t bt_union_get_length(bt_Type* uni)
 {
 	if (uni->category != BT_TYPE_CATEGORY_UNION) return 0;
 	return uni->as.selector.types.length;
 }
 
-bt_Type* bt_get_union_variant(bt_Type* uni, uint32_t index)
+bt_Type* bt_union_get_variant(bt_Type* uni, uint32_t index)
 {
 	if (uni->category != BT_TYPE_CATEGORY_UNION) return NULL;
 	if (index >= uni->as.selector.types.length) return NULL;
@@ -881,7 +874,7 @@ bt_Value bt_transmute_type(bt_Value value, bt_Type* type)
 
 				bt_Value val = bt_table_get(src, pair->key);
 
-				if (val == BT_VALUE_NULL && bt_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
+				if (val == BT_VALUE_NULL && bt_type_is_optional((bt_Type*)BT_AS_OBJECT(pair->value)) == BT_FALSE) {
 					bt_runtime_error(type->ctx->current_thread, "Missing field in table type!", NULL);
 				}
 

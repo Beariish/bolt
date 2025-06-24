@@ -51,7 +51,7 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 
 	ctx->current_thread = 0;
 
-	ctx->types.null = make_primitive_type(ctx, "null", bt_type_satisfier_null);
+	ctx->types.null = make_primitive_type(ctx, "null", bt_type_satisfier_same);
 	ctx->types.any = make_primitive_type(ctx, "any", bt_type_satisfier_any);
 	ctx->types.number = make_primitive_type(ctx, "number", bt_type_satisfier_same);
 	ctx->types.boolean = make_primitive_type(ctx, "bool", bt_type_satisfier_same);

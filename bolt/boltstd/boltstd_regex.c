@@ -155,7 +155,7 @@ void boltstd_open_regex(bt_Context* context)
     bt_type_add_field(context, regex_type, groups_sig, BT_VALUE_CSTRING(context, "groups"), BT_VALUE_OBJECT(groups_ref));
     bt_module_export(context, module, groups_sig, BT_VALUE_CSTRING(context, "groups"), BT_VALUE_OBJECT(groups_ref));
 
-    bt_Type* match_return = bt_make_nullable(context, bt_make_array_type(context, string));
+    bt_Type* match_return = bt_type_make_nullable(context, bt_make_array_type(context, string));
     bt_Type* match_args[] = { regex_type, string };
     bt_Type* match_sig = bt_make_method(context, match_return, match_args, 2);
     bt_NativeFn* match_ref = bt_make_native(context, match_sig, btregex_match);
