@@ -491,11 +491,12 @@ bt_Type* bt_get_return_type(bt_Callable* callable)
 bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size)
 {
     bt_Userdata* result = BT_ALLOCATE(ctx, USERDATA, bt_Userdata);
-    
+
     result->type = type;
     result->data = bt_gc_alloc(ctx, size);
     result->size = size;
     memcpy(result->data, data, size);
+    result->finalizer = type->as.userdata.finalizer;
     
     return result;
 }

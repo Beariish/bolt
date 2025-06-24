@@ -3191,6 +3191,12 @@ static bt_AstNode* parse_match(bt_Parser* parse)
     }
 
     bt_AstNode* match_on_expr = parse_expression(parse, 0, NULL);
+
+    if (!match_on_expr) {
+        parse_error_token(parse, "Failed to parse match expression", next);
+        return NULL;
+    }
+    
     type_check(parse, match_on_expr);
 
     if (match_on_expr->type == BT_AST_NODE_IDENTIFIER && !ident_tok) {

@@ -128,9 +128,9 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
 		bt_Userdata* userdata = (bt_Userdata*)obj;
-		/*if (userdata->type->as.userdata.finalizer) {
-			userdata->type->as.userdata.finalizer(context, userdata);
-		}*/
+		if (userdata->finalizer) {
+			userdata->finalizer(context, userdata);
+		}
 		bt_gc_free(context, userdata->data, userdata->size);
 	} break;
 	}
