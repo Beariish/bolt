@@ -72,7 +72,6 @@ bt_Value bt_default_value(bt_Context* ctx, bt_Type* type) {
 	return BT_VALUE_NULL;
 }
 
-#if !BOLT_INLINE_HEADER
 bt_Value bt_make_null() { return BT_VALUE_NULL; }
 bt_bool bt_is_null(bt_Value val) { return val == BT_VALUE_NULL; }
 
@@ -91,4 +90,3 @@ uint32_t bt_get_enum_val(bt_Value val) { return BT_AS_ENUM(val); }
 bt_Value bt_make_object(bt_Object* obj) { return BT_VALUE_OBJECT(obj); }
 bt_bool bt_is_object(bt_Value val) { return BT_IS_OBJECT(val); }
 bt_Object* bt_get_object(bt_Value val) { return BT_AS_OBJECT(val); }
-#endif

@@ -1,7 +1,6 @@
 #include "bt_embedding.h"
 #include "bt_context.h"
 
-#if !BOLT_INLINE_HEADER
 BOLT_API uint8_t bt_argc(bt_Thread* thread)
 {
 	return thread->native_stack[thread->native_depth - 1].argc;
@@ -31,4 +30,3 @@ BOLT_API void bt_setup(bt_Thread* thread, uint8_t idx, bt_Value value)
 {
 	BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]))[idx] = value;
 }
-#endif
