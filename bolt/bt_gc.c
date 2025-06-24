@@ -131,13 +131,12 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		if (userdata->finalizer) {
 			userdata->finalizer(context, userdata);
 		}
-		bt_gc_free(context, userdata->data, userdata->size);
 	} break;
 	}
 }
 
 /** Specifically returns the inline allocation size of the object, not that of owned allocations */
-static uint32_t get_object_size(bt_Object* obj)
+static size_t get_object_size(bt_Object* obj)
 {
 	switch (BT_OBJECT_GET_TYPE(obj)) {
 	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
@@ -145,17 +144,13 @@ static uint32_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->len;
 	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
 	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
-	case BT_OBJECT_TYPE_FN: 
-		return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
-	case BT_OBJECT_TYPE_CLOSURE: 
-		return sizeof(bt_Closure)
-			+ ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
-	case BT_OBJECT_TYPE_METHOD: 
-		return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
+	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity - sizeof(bt_Value);
-	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata);
+	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata) + ((bt_Userdata*)obj)->size;
 	case BT_OBJECT_TYPE_ANNOTATION: return sizeof(bt_Annotation);
 	default:
 #ifdef BT_DEBUG

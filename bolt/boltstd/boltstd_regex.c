@@ -44,7 +44,7 @@ static void btregex_compile(bt_Context* ctx, bt_Thread* thread)
 
 static void btregex_regex_finalizer(bt_Context* ctx, bt_Userdata* userdata)
 {
-    btregex_Regex* regex = (btregex_Regex*)userdata->data;
+    btregex_Regex* regex = bt_userdata_get(userdata);
     if (regex->regex) {
         bt_gc_free(ctx, regex->regex, regex->regex_size);
         bt_gc_free(ctx, regex->capture_groups, sizeof(pm_Group) * regex->group_count);
@@ -58,21 +58,21 @@ static void btregex_regex_finalizer(bt_Context* ctx, bt_Userdata* userdata)
 static void btregex_size(bt_Context* ctx, bt_Thread* thread)
 {
     bt_Userdata* userdata = (bt_Userdata*)bt_get_object(bt_arg(thread, 0));
-    btregex_Regex* regex = (btregex_Regex*)userdata->data;
+    btregex_Regex* regex = bt_userdata_get(userdata);
     bt_return(thread, bt_make_number((bt_number)regex->regex_size));
 }
 
 static void btregex_groups(bt_Context* ctx, bt_Thread* thread)
 {
     bt_Userdata* userdata = (bt_Userdata*)bt_get_object(bt_arg(thread, 0));
-    btregex_Regex* regex = (btregex_Regex*)userdata->data;
+    btregex_Regex* regex = bt_userdata_get(userdata);
     bt_return(thread, bt_make_number((bt_number)regex->group_count));
 }
 
 static void btregex_match(bt_Context* ctx, bt_Thread* thread)
 {
     bt_Userdata* userdata = (bt_Userdata*)bt_get_object(bt_arg(thread, 0));
-    btregex_Regex* regex = (btregex_Regex*)userdata->data;
+    btregex_Regex* regex = bt_userdata_get(userdata);
     bt_String* pattern = (bt_String*)bt_get_object(bt_arg(thread, 1));
     
     if (pm_match(regex->regex, bt_get_string(pattern), bt_string_length(pattern), regex->capture_groups, regex->group_count, 0)) {
@@ -106,7 +106,7 @@ static void btregex_all(bt_Context* ctx, bt_Thread* thread)
 static void bt_regex_all_iter(bt_Context* ctx, bt_Thread* thread)
 {
     bt_Userdata* userdata = (bt_Userdata*)bt_get_object(bt_getup(thread, 0));
-    btregex_Regex* regex = (btregex_Regex*)userdata->data;
+    btregex_Regex* regex = bt_userdata_get(userdata);
     bt_String* pattern = (bt_String*)bt_get_object(bt_getup(thread, 1));
     bt_number remainder_num = bt_get_number(bt_getup(thread, 2));
     

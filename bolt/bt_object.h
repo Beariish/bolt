@@ -167,9 +167,10 @@ typedef struct bt_Userdata {
 	bt_Object obj;
 	bt_Type* type;
 	bt_UserdataFinalizer finalizer;
-	uint8_t* data;
 	size_t size;
 } bt_Userdata;
+
+#define BT_USERDATA_VALUE(ud) ((void*)((uint8_t*)(ud) + sizeof(bt_Userdata)))
 
 typedef struct bt_Annotation {
 	bt_Object obj;
@@ -223,6 +224,7 @@ BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_Nat
 BOLT_API bt_Type* bt_get_return_type(bt_Callable* callable);
 
 BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
+BOLT_API void* bt_userdata_get(bt_Userdata* userdata);
 
 BOLT_API bt_Annotation* bt_make_annotation(bt_Context* ctx, bt_String* name);
 BOLT_API void bt_annotation_push(bt_Context* ctx, bt_Annotation* annotation, bt_Value value);

@@ -490,15 +490,19 @@ bt_Type* bt_get_return_type(bt_Callable* callable)
 
 bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size)
 {
-    bt_Userdata* result = BT_ALLOCATE(ctx, USERDATA, bt_Userdata);
+    bt_Userdata* result = BT_ALLOCATE_INLINE_STORAGE(ctx, USERDATA, bt_Userdata, size);
 
     result->type = type;
-    result->data = bt_gc_alloc(ctx, size);
     result->size = size;
-    memcpy(result->data, data, size);
     result->finalizer = type->as.userdata.finalizer;
+
+    memcpy(BT_USERDATA_VALUE(result), data, size);
     
     return result;
+}
+
+void* bt_userdata_get(bt_Userdata* userdata) {
+    return BT_USERDATA_VALUE(userdata);
 }
 
 void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Value key, bt_Value value)
@@ -551,7 +555,7 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         for (uint32_t i = 0; i < fields->length; i++) {
             bt_UserdataField* field = fields->elements + i;
             if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), key)) {
-                return field->getter(ctx, userdata->data, field->offset);
+                return field->getter(ctx, bt_userdata_get(userdata), field->offset);
             }
         }
 
@@ -597,7 +601,7 @@ void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value)
         for (uint32_t i = 0; i < fields->length; i++) {
             bt_UserdataField* field = fields->elements + i;
             if (bt_value_is_equal(BT_VALUE_OBJECT(field->name), key)) {
-                field->setter(ctx, userdata->data, field->offset, value);
+                field->setter(ctx, bt_userdata_get(userdata), field->offset, value);
                 return;
             }
         }

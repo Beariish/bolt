@@ -48,7 +48,7 @@ static const char* error_to_desc(int32_t error)
 
 static void btio_file_finalizer(bt_Context* ctx, bt_Userdata* userdata)
 {
-	btio_FileState* state = (btio_FileState*)userdata->data;
+	btio_FileState* state = bt_userdata_get(userdata);
 	if (state->is_open) {
 		fclose(state->handle);
 		state->handle = 0;
@@ -86,7 +86,7 @@ static bt_Value bt_close_error_reason;
 static void btio_close(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 	
 	if (state->is_open) {
 		fclose(state->handle);
@@ -105,7 +105,7 @@ static void btio_close(bt_Context* ctx, bt_Thread* thread)
 static void btio_get_size(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		int64_t pos = ftell(state->handle);
@@ -127,7 +127,7 @@ static void btio_seek_set(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_number pos = BT_AS_NUMBER(bt_arg(thread, 1));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		fseek(state->handle, (long)pos, SEEK_SET);
@@ -145,7 +145,7 @@ static void btio_seek_relative(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_number pos = BT_AS_NUMBER(bt_arg(thread, 1));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		fseek(state->handle, (long)pos, SEEK_CUR);
@@ -162,7 +162,7 @@ static void btio_seek_relative(bt_Context* ctx, bt_Thread* thread)
 static void btio_seek_end(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		fseek(state->handle, 0, SEEK_END);
@@ -179,7 +179,7 @@ static void btio_seek_end(bt_Context* ctx, bt_Thread* thread)
 static void btio_tell(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		int64_t pos = ftell(state->handle);
@@ -199,7 +199,7 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 	
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
 	size_t size = (size_t)BT_AS_NUMBER(bt_arg(thread, 1));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		if (size == 0) {
@@ -246,7 +246,7 @@ static void btio_write(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
 	bt_String* content = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 1));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		size_t n_written = fwrite(BT_STRING_STR(content), 1, content->len, state->handle);
@@ -273,7 +273,7 @@ static void btio_write(bt_Context* ctx, bt_Thread* thread)
 static void btio_iseof(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Userdata* file = (bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, 0));
-	btio_FileState* state = (btio_FileState*)file->data;
+	btio_FileState* state = bt_userdata_get(file);
 
 	if (state->is_open) {
 		int32_t result = feof(state->handle);
