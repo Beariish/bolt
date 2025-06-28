@@ -201,8 +201,8 @@ void boltstd_open_meta(bt_Context* context)
 	
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "stack_size"),     bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));
-	bt_module_export(context, module, string, BT_VALUE_CSTRING(context, "version"),        bt_make_object((bt_Object*)bt_make_string(context, BOLT_VERSION)));
-	bt_module_export(context, module, type,   BT_VALUE_CSTRING(context, "Annotation"),     bt_make_object((bt_Object*)annotation_type));
+	bt_module_export(context, module, string, BT_VALUE_CSTRING(context, "version"),        bt_value((bt_Object*)bt_make_string(context, BOLT_VERSION)));
+	bt_module_export(context, module, type,   BT_VALUE_CSTRING(context, "Annotation"),     bt_value((bt_Object*)annotation_type));
 	
 	bt_Type* findtype_ret = bt_type_make_nullable(context, type);
 	bt_Type* annotation_arr = bt_make_array_type(context, annotation_type);

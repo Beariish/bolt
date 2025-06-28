@@ -70,6 +70,6 @@ BOLT_API bt_Value bt_make_enum_val(uint32_t val);
 BOLT_API bt_bool bt_is_enum_val(bt_Value val);
 BOLT_API uint32_t bt_get_enum_val(bt_Value val);
 
-BOLT_API bt_Value bt_make_object(bt_Object* obj);
+BOLT_API bt_Value bt_value(bt_Object* obj);
 BOLT_API bt_bool bt_is_object(bt_Value val);
-BOLT_API bt_Object* bt_get_object(bt_Value val);
+BOLT_API bt_Object* bt_object(bt_Value val);

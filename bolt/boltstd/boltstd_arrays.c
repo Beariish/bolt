@@ -109,7 +109,7 @@ static bt_Type* bt_arr_clone_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 static void bt_arr_reverse(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Array* arr = (bt_Array*)bt_object(bt_arg(thread, 0));
 
 	uint32_t i = arr->length - 1;
 	uint32_t j = 0;
@@ -127,7 +127,7 @@ static void bt_arr_reverse(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_arr_clone(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Array* arr = (bt_Array*)bt_object(bt_arg(thread, 0));
 
 	bt_Array* clone = bt_make_array(ctx, arr->length);
 	clone->length = arr->length;
@@ -159,7 +159,7 @@ static bt_Type* bt_arr_map_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 static void bt_arr_map(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Array* arg = (bt_Array*)bt_object(bt_arg(thread, 0));
 	bt_Value applicator = bt_arg(thread, 1);
 
 	bt_Array* result = bt_make_array(ctx, arg->length);
@@ -201,7 +201,7 @@ static bt_Type* bt_arr_filter_type(bt_Context* ctx, bt_Type** args, uint8_t argc
 
 static void bt_arr_filter(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Array* arg = (bt_Array*)bt_object(bt_arg(thread, 0));
 	bt_Value filter = bt_arg(thread, 1);
 
 	bt_Array* result = bt_make_array(ctx, arg->length / 2);
@@ -236,7 +236,7 @@ static bt_Type* bt_arr_slice_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 static void bt_arr_slice(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* arr = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Array* arr = (bt_Array*)bt_object(bt_arg(thread, 0));
 	uint32_t start = (uint32_t)bt_get_number(bt_arg(thread, 1));
 	uint32_t length = (uint32_t)bt_get_number(bt_arg(thread, 2));
 
@@ -321,7 +321,7 @@ static bt_Type* bt_arr_sort_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Array* arg = (bt_Array*)bt_get_object(bt_arg(thread, 0));
+	bt_Array* arg = (bt_Array*)bt_object(bt_arg(thread, 0));
 	bt_Value sorter = bt_argc(thread) == 2 ? bt_arg(thread, 1) : BT_VALUE_NULL;
 
 	// only allowed for number fast case

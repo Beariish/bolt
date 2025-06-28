@@ -43,7 +43,7 @@ static void bt_string_concat(bt_Context* ctx, bt_Thread* thread)
 
 	uint32_t total_len = 0;
 	for (uint8_t i = 0; i < argc; i++) {
-		bt_String* str = (bt_String*)bt_get_object(bt_arg(thread, i));
+		bt_String* str = (bt_String*)bt_object(bt_arg(thread, i));
 		total_len += str->len;
 	}
 
@@ -51,7 +51,7 @@ static void bt_string_concat(bt_Context* ctx, bt_Thread* thread)
 
 	uint32_t progress = 0;
 	for (uint8_t i = 0; i < argc; i++) {
-		bt_String* str = (bt_String*)bt_get_object(bt_arg(thread, i));
+		bt_String* str = (bt_String*)bt_object(bt_arg(thread, i));
 		memcpy(BT_STRING_STR(result) + progress, BT_STRING_STR(str), str->len);
 		progress += str->len;
 	}
@@ -121,7 +121,7 @@ static void bt_string_format(bt_Context* ctx, bt_Thread* thread)
 {
 	uint8_t argc = bt_argc(thread);
 
-	bt_String* format = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* format = (bt_String*)bt_object(bt_arg(thread, 0));
 
 	bt_StringBuffer output;
 	bt_buffer_empty(&output);
@@ -168,8 +168,8 @@ static void bt_string_format(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_String* source = (bt_String*)bt_get_object(bt_arg(thread, 0));
-	bt_String* needle = (bt_String*)bt_get_object(bt_arg(thread, 1));
+	bt_String* source = (bt_String*)bt_object(bt_arg(thread, 0));
+	bt_String* needle = (bt_String*)bt_object(bt_arg(thread, 1));
 
 	for (uint32_t i = 0; i < source->len - needle->len; ++i) {
 		const char* start = BT_STRING_STR(source) + i;
@@ -193,9 +193,9 @@ static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_string_replace(bt_Context* ctx, bt_Thread* thread) 
 {
-	bt_String* orig_str = (bt_String*)bt_get_object(bt_arg(thread, 0));
-	bt_String* rep_str = (bt_String*)bt_get_object(bt_arg(thread, 1));
-	bt_String* with_str = (bt_String*)bt_get_object(bt_arg(thread, 2));
+	bt_String* orig_str = (bt_String*)bt_object(bt_arg(thread, 0));
+	bt_String* rep_str = (bt_String*)bt_object(bt_arg(thread, 1));
+	bt_String* with_str = (bt_String*)bt_object(bt_arg(thread, 2));
 
 	char* orig = BT_STRING_STR(orig_str);
 	char* rep = BT_STRING_STR(rep_str);
@@ -230,7 +230,7 @@ static void bt_string_replace(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_string_reverse(bt_Context* ctx, bt_Thread* thread) 
 {
-	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 0));
 
 	bt_String* result = bt_make_string_empty(ctx, arg->len);
 	BT_STRING_STR(result)[arg->len] = 0;
@@ -243,7 +243,7 @@ static void bt_string_reverse(bt_Context* ctx, bt_Thread* thread)
 }
 
 static void bt_string_byte_at(bt_Context* ctx, bt_Thread* thread) {
-	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 0));
 	bt_number idx = bt_get_number(bt_arg(thread, 1));
 
 	unsigned char byte = BT_STRING_STR(arg)[(size_t)idx];
@@ -258,12 +258,12 @@ static void bt_string_from_byte(bt_Context* ctx, bt_Thread* thread) {
 
 	bt_String* result = bt_make_string_len(ctx, &byte ,1);
 	
-	bt_return(thread, bt_make_object((bt_Object*)result));
+	bt_return(thread, bt_value((bt_Object*)result));
 }
 
 static void bt_string_starts_with(bt_Context* ctx, bt_Thread* thread) {
-	bt_String* self = (bt_String*)bt_get_object(bt_arg(thread, 0));
-	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 1));
+	bt_String* self = (bt_String*)bt_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 1));
 
 	if (bt_string_length(self) < bt_string_length(arg)) {
 		bt_return(thread, bt_make_bool(0));
@@ -274,8 +274,8 @@ static void bt_string_starts_with(bt_Context* ctx, bt_Thread* thread) {
 }
 
 static void bt_string_ends_with(bt_Context* ctx, bt_Thread* thread) {
-	bt_String* self = (bt_String*)bt_get_object(bt_arg(thread, 0));
-	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 1));
+	bt_String* self = (bt_String*)bt_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 1));
 
 	if (bt_string_length(self) < bt_string_length(arg)) {
 		bt_return(thread, bt_make_bool(0));
@@ -286,8 +286,8 @@ static void bt_string_ends_with(bt_Context* ctx, bt_Thread* thread) {
 }
 
 static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
-	bt_String* self = (bt_String*)bt_get_object(bt_arg(thread, 0));
-	bt_String* arg = (bt_String*)bt_get_object(bt_arg(thread, 1));
+	bt_String* self = (bt_String*)bt_object(bt_arg(thread, 0));
+	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 1));
 	bt_number fidx = bt_get_number(bt_arg(thread, 2));
 	uint32_t idx = (uint32_t)fidx;
 	

@@ -66,7 +66,7 @@ static void bt_readline(bt_Context* ctx, bt_Thread* thread)
 	}
 	
 	bt_String* result = bt_make_string(ctx, line);
-	bt_return(thread, bt_make_object((bt_Object*)result));
+	bt_return(thread, bt_value((bt_Object*)result));
 }
 
 static void bt_tostring(bt_Context* ctx, bt_Thread* thread)

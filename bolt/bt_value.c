@@ -87,6 +87,6 @@ bt_Value bt_make_enum_val(uint32_t val) { return BT_VALUE_ENUM(val); }
 bt_bool bt_is_enum_val(bt_Value val) { return BT_IS_ENUM(val); }
 uint32_t bt_get_enum_val(bt_Value val) { return BT_AS_ENUM(val); }
 
-bt_Value bt_make_object(bt_Object* obj) { return BT_VALUE_OBJECT(obj); }
+bt_Value bt_value(bt_Object* obj) { return BT_VALUE_OBJECT(obj); }
 bt_bool bt_is_object(bt_Value val) { return BT_IS_OBJECT(val); }
-bt_Object* bt_get_object(bt_Value val) { return BT_AS_OBJECT(val); }
+bt_Object* bt_object(bt_Value val) { return BT_AS_OBJECT(val); }
