@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 
-bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
+static bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 {
 	if (left->category != BT_TYPE_CATEGORY_SIGNATURE || right->category != BT_TYPE_CATEGORY_SIGNATURE)
 		return BT_FALSE;
@@ -61,7 +61,7 @@ bt_bool bt_type_is_optional(bt_Type* type)
 	return bt_union_has_variant(type, bt_type_null(type->ctx)) != -1;
 }
 
-bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
+static bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 {
 	return bt_type_satisfier_same(left, right) || (
 		(left->category == BT_TYPE_CATEGORY_ARRAY && left->category == right->category) &&
@@ -70,7 +70,7 @@ bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 			right->as.array.inner));
 }
 
-bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
+static bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 {
 	if (left == right) return BT_TRUE;
 
@@ -146,7 +146,7 @@ static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 	return l_key->satisfier(l_key, right->as.table_shape.key_type) && l_val->satisfier(l_val, right->as.table_shape.value_type);
 }
 
-bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
+static bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 {
 	if (!left || !right) return BT_FALSE;
 	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
@@ -188,7 +188,7 @@ bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 	return BT_FALSE;
 }
 
-bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
+static bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
 {
 	if (right->category == BT_TYPE_CATEGORY_TYPE) {
 		return left->as.type.boxed->satisfier(left->as.type.boxed, right->as.type.boxed);
@@ -197,7 +197,7 @@ bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
 	return left->as.type.boxed->satisfier(left->as.type.boxed, right);
 }
 
-bt_bool type_satisfier_type(bt_Type* left, bt_Type* right)
+static bt_bool type_satisfier_type(bt_Type* left, bt_Type* right)
 {
 	return right->category == BT_TYPE_CATEGORY_TYPE;
 }

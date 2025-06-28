@@ -153,10 +153,6 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b);
 static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
 static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
 
-BOLT_API bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right);
-BOLT_API bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right);
-BOLT_API bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right);
-
 typedef enum {
     BT_TYPE_CATEGORY_TYPE,
     BT_TYPE_CATEGORY_PRIMITIVE,
