@@ -127,13 +127,13 @@ void boltstd_open_math(bt_Context* context)
 
 	bt_Type* double_num_arg[] = { context->types.number, context->types.number };
 
-	bt_Type* min_max_sig = bt_make_vararg(context, bt_make_signature(context, context->types.number, &context->types.number, 1), context->types.number);
+	bt_Type* min_max_sig = bt_make_signature_vararg(context, bt_make_signature_type(context, context->types.number, &context->types.number, 1), context->types.number);
 
 	bt_module_export(context, module, min_max_sig, BT_VALUE_CSTRING(context, "min"), BT_VALUE_OBJECT(bt_make_native(context, min_max_sig, bt_min)));
 	bt_module_export(context, module, min_max_sig, BT_VALUE_CSTRING(context, "max"), BT_VALUE_OBJECT(bt_make_native(context, min_max_sig, bt_max)));
 
-	bt_Type* num_to_num_sig = bt_make_signature(context, context->types.number, &context->types.number, 1);
-	bt_Type* two_num_to_num_sig = bt_make_signature(context, context->types.number, double_num_arg, 2);
+	bt_Type* num_to_num_sig = bt_make_signature_type(context, context->types.number, &context->types.number, 1);
+	bt_Type* two_num_to_num_sig = bt_make_signature_type(context, context->types.number, double_num_arg, 2);
 
 #define IMPL_SIMPLE_OP(name) \
 bt_module_export(context, module, num_to_num_sig, BT_VALUE_CSTRING(context, #name), BT_VALUE_OBJECT(bt_make_native(context, num_to_num_sig, bt_##name)));

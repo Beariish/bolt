@@ -145,28 +145,28 @@ void boltstd_open_regex(bt_Context* context)
     compile_return = bt_make_or_extend_union(context, compile_return, bt_error_type);
     bt_module_export_native(context, module, "compile", btregex_compile, compile_return, &string, 1);
 
-    bt_Type* size_sig = bt_make_method(context, number, &regex_type, 1);
+    bt_Type* size_sig = bt_make_method_type(context, number, &regex_type, 1);
     bt_NativeFn* size_ref = bt_make_native(context, size_sig, btregex_size);
     bt_type_add_field(context, regex_type, size_sig, BT_VALUE_CSTRING(context, "size"), BT_VALUE_OBJECT(size_ref));
     bt_module_export(context, module, size_sig, BT_VALUE_CSTRING(context, "size"), BT_VALUE_OBJECT(size_ref));
 
-    bt_Type* groups_sig = bt_make_method(context, number, &regex_type, 1);
+    bt_Type* groups_sig = bt_make_method_type(context, number, &regex_type, 1);
     bt_NativeFn* groups_ref = bt_make_native(context, groups_sig, btregex_groups);
     bt_type_add_field(context, regex_type, groups_sig, BT_VALUE_CSTRING(context, "groups"), BT_VALUE_OBJECT(groups_ref));
     bt_module_export(context, module, groups_sig, BT_VALUE_CSTRING(context, "groups"), BT_VALUE_OBJECT(groups_ref));
 
     bt_Type* match_return = bt_type_make_nullable(context, bt_make_array_type(context, string));
     bt_Type* match_args[] = { regex_type, string };
-    bt_Type* match_sig = bt_make_method(context, match_return, match_args, 2);
+    bt_Type* match_sig = bt_make_method_type(context, match_return, match_args, 2);
     bt_NativeFn* match_ref = bt_make_native(context, match_sig, btregex_match);
     bt_type_add_field(context, regex_type, match_sig, BT_VALUE_CSTRING(context, "eval"), BT_VALUE_OBJECT(match_ref));
     bt_module_export(context, module, match_sig, BT_VALUE_CSTRING(context, "eval"), BT_VALUE_OBJECT(match_ref));
 
-    bt_Type* all_iter_sig = bt_make_signature(context, match_return, NULL, 0);
+    bt_Type* all_iter_sig = bt_make_signature_type(context, match_return, NULL, 0);
     bt_regex_all_iter_fn = bt_value(bt_make_native(context, all_iter_sig, bt_regex_all_iter));
     bt_type_add_field(context, regex_type, all_iter_sig, BT_VALUE_CSTRING(context, "$_all_iter"), bt_regex_all_iter_fn);
     
-    bt_Type* all_sig = bt_make_method(context, all_iter_sig, match_args, 2);
+    bt_Type* all_sig = bt_make_method_type(context, all_iter_sig, match_args, 2);
     bt_NativeFn* all_ref = bt_make_native(context, all_sig, btregex_all);
     bt_type_add_field(context, regex_type, all_sig, BT_VALUE_CSTRING(context, "all"), BT_VALUE_OBJECT(all_ref));
     bt_module_export(context, module, all_sig, BT_VALUE_CSTRING(context, "all"), BT_VALUE_OBJECT(all_ref));

@@ -16,11 +16,6 @@
 #include "bt_debug.h"
 #include "bt_gc.h"
 
-static bt_Type* make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
-{
-	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE);
-}
-
 void bt_open(bt_Context** context, bt_Handlers* handlers)
 {
 	*context = handlers->alloc(sizeof(bt_Context));
@@ -51,19 +46,19 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 
 	ctx->current_thread = 0;
 
-	ctx->types.null = make_primitive_type(ctx, "null", bt_type_satisfier_same);
-	ctx->types.any = make_primitive_type(ctx, "any", bt_type_satisfier_any);
-	ctx->types.number = make_primitive_type(ctx, "number", bt_type_satisfier_same);
-	ctx->types.boolean = make_primitive_type(ctx, "bool", bt_type_satisfier_same);
-	ctx->types.string = make_primitive_type(ctx, "string", bt_type_satisfier_same);
+	ctx->types.null = bt_make_primitive_type(ctx, "null", bt_type_satisfier_same);
+	ctx->types.any = bt_make_primitive_type(ctx, "any", bt_type_satisfier_any);
+	ctx->types.number = bt_make_primitive_type(ctx, "number", bt_type_satisfier_same);
+	ctx->types.boolean = bt_make_primitive_type(ctx, "bool", bt_type_satisfier_same);
+	ctx->types.string = bt_make_primitive_type(ctx, "string", bt_type_satisfier_same);
 	
-	ctx->types.table = bt_make_tableshape(ctx, "table", BT_FALSE);
+	ctx->types.table = bt_make_tableshape_type(ctx, "table", BT_FALSE);
 	ctx->types.table->prototype = ctx->types.table;
 	
 	ctx->types.array = bt_make_array_type(ctx, ctx->types.any);
 	ctx->types.array->prototype = ctx->types.array;
 
-	ctx->types.type = bt_make_fundamental(ctx);
+	ctx->types.type = bt_make_fundamental_type(ctx);
 	ctx->types.type->as.type.boxed = ctx->types.any;
 
 	ctx->loaded_modules = bt_make_table(ctx, 1);

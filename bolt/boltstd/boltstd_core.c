@@ -131,7 +131,7 @@ static bt_Type* bt_protect_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 	bt_Type* options[] = { return_type, bt_error_type };
 	bt_Type* compound_return = bt_make_union_from(ctx, options, 2);
-	return bt_make_signature(ctx, compound_return, new_args, 1 + arg->as.fn.args.length);
+	return bt_make_signature_type(ctx, compound_return, new_args, 1 + arg->as.fn.args.length);
 }
 
 static void bt_protect(bt_Context* ctx, bt_Thread* thread)
@@ -190,7 +190,7 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 		}
 	}
 
-	return bt_make_signature(ctx, return_type, args, argc);
+	return bt_make_signature_type(ctx, return_type, args, argc);
 }
 
 static void bt_assert(bt_Context* ctx, bt_Thread* thread)
@@ -218,8 +218,8 @@ void boltstd_open_core(bt_Context* context)
 
 	bt_Type* string = bt_type_string(context);
 	
-	bt_Type* noargs_sig = bt_make_signature(context, NULL, NULL, 0);
-	bt_Type* printable_sig = bt_make_vararg(context, noargs_sig, context->types.any);
+	bt_Type* noargs_sig = bt_make_signature_type(context, NULL, NULL, 0);
+	bt_Type* printable_sig = bt_make_signature_vararg(context, noargs_sig, context->types.any);
 
 	bt_module_export(context, module, printable_sig,
 		BT_VALUE_CSTRING(context, "print"),
@@ -239,19 +239,19 @@ void boltstd_open_core(bt_Context* context)
 
 	bt_module_export_native(context, module, "time", bt_time, context->types.number, NULL, 0);
 
-	bt_error_type = bt_make_tableshape(context, "Error", BT_FALSE);
+	bt_error_type = bt_make_tableshape_type(context, "Error", BT_FALSE);
 	bt_error_what_key = BT_VALUE_CSTRING(context, "what");
 	bt_tableshape_add_layout(context, bt_error_type, string, bt_error_what_key, string);
-	bt_module_export(context, module, bt_make_alias(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
+	bt_module_export(context, module, bt_make_alias_type(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
 
 	bt_module_export_native(context, module, "error", bt_error, bt_error_type, &string, 1);
 
-	bt_Type* protect_sig = bt_make_poly_signature(context, "protect(fn(..T): R, ..T): R | Error", bt_protect_type);
+	bt_Type* protect_sig = bt_make_poly_signature_type(context, "protect(fn(..T): R, ..T): R | Error", bt_protect_type);
 	bt_module_export(context, module, protect_sig,
 		BT_VALUE_CSTRING(context, "protect"),
 		BT_VALUE_OBJECT(bt_make_native(context, protect_sig, bt_protect)));
 
-	bt_Type* assert_sig = bt_make_poly_signature(context, "assert(T | Error, string): T", bt_assert_type);
+	bt_Type* assert_sig = bt_make_poly_signature_type(context, "assert(T | Error, string): T", bt_assert_type);
 	bt_module_export(context, module, assert_sig,
 		BT_VALUE_CSTRING(context, "assert"),
 		BT_VALUE_OBJECT(bt_make_native(context, assert_sig, bt_assert)));

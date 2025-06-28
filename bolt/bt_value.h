@@ -50,26 +50,41 @@ typedef struct bt_Type bt_Type;
 #define BT_AS_ENUM(x)   (((bt_Value)x) & 0xFFFFFFFFu)
 #define BT_AS_OBJECT(x) ((bt_Object*)(BT_VALUE_MASK & ((bt_Value)x)))
 
+/** Compare two bt_Value's, returning whether they're equal */
 BOLT_API bt_bool bt_value_is_equal(bt_Value a, bt_Value b);
 
 /** Generates a default value fo the supplied `type`, preferring the simplest types in case of unions */
 BOLT_API bt_Value bt_default_value(bt_Context* ctx, bt_Type* type);
 
+/** Creates the bt_Value representation of `null` */
 BOLT_API bt_Value bt_make_null();
+/** Returns whether a bt_Value is exactly equal to `null` */
 BOLT_API bt_bool bt_is_null(bt_Value val);
 
+/** Creates a boxed number value */
 BOLT_API bt_Value bt_make_number(bt_number num);
+/** Returns whether the bt_Value contains a number value */
 BOLT_API bt_bool bt_is_number(bt_Value val);
+/** Get the boxed number value from the bt_Value, assumes type is correct */
 BOLT_API bt_number bt_get_number(bt_Value val);
 
+/** Creates a boxed boolean value */
 BOLT_API bt_Value bt_make_bool(bt_bool cond);
+/** Returns whether the bt_Value contains a boolean */
 BOLT_API bt_bool bt_is_bool(bt_Value val);
+/** Get the boxed boolean from the bt_Value, assumes type is correct */
 BOLT_API bt_bool bt_get_bool(bt_Value val);
 
+/** Creates a weakly typed enum value (32-bit integer) */
 BOLT_API bt_Value bt_make_enum_val(uint32_t val);
+/** Returns whether the bt_Value contains a boxed enum */
 BOLT_API bt_bool bt_is_enum_val(bt_Value val);
+/** Get the boxed enum value from the bt_Value, assumes type is correct */
 BOLT_API uint32_t bt_get_enum_val(bt_Value val);
 
+/** Box a bt_object pointer into a bt_Value stack value */
 BOLT_API bt_Value bt_value(bt_Object* obj);
+/** Returns whether the bt_Value contains a masked bt_Object */
 BOLT_API bt_bool bt_is_object(bt_Value val);
+/** Get the boxed object pointer from the bt_Value, assumes type is correct */
 BOLT_API bt_Object* bt_object(bt_Value val);

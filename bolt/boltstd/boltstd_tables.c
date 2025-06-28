@@ -8,7 +8,7 @@ static bt_Value bt_pair_value_key;
 
 static bt_Type* make_table_pair_type(bt_Context* ctx, bt_Type* tbl)
 {
-	bt_Type* return_type = bt_make_tableshape(ctx, "Pair", BT_TRUE);
+	bt_Type* return_type = bt_make_tableshape_type(ctx, "Pair", BT_TRUE);
 	bt_Type* key_type = tbl->as.table_shape.key_type ? tbl->as.table_shape.key_type : ctx->types.any;
 	bt_Type* value_type = tbl->as.table_shape.value_type ? bt_type_remove_nullable(ctx, tbl->as.table_shape.value_type) : ctx->types.any;
 	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, bt_pair_key_key, key_type);
@@ -25,9 +25,9 @@ static bt_Type* bt_table_pairs_type(bt_Context* ctx, bt_Type** args, uint8_t arg
 	if (arg->category != BT_TYPE_CATEGORY_TABLESHAPE) return NULL;
 
 	bt_Type* return_type = make_table_pair_type(ctx, arg);
-	bt_Type* iter_sig = bt_make_signature(ctx, bt_type_make_nullable(ctx, return_type), NULL, 0);
+	bt_Type* iter_sig = bt_make_signature_type(ctx, bt_type_make_nullable(ctx, return_type), NULL, 0);
 
-	return bt_make_signature(ctx, iter_sig, args, argc);
+	return bt_make_signature_type(ctx, iter_sig, args, argc);
 }
 
 static void bt_table_pairs(bt_Context* ctx, bt_Thread* thread)
@@ -69,7 +69,7 @@ static bt_Type* bt_table_delete_type(bt_Context* ctx, bt_Type** args, uint8_t ar
 	if (tbl->as.table_shape.sealed) return NULL;
 	if (tbl->as.table_shape.key_type && !key->satisfier(tbl->as.table_shape.key_type, key)) return NULL;
 
-	return bt_make_signature(ctx, ctx->types.boolean, args, argc);
+	return bt_make_signature_type(ctx, ctx->types.boolean, args, argc);
 }
 
 static void bt_table_delete(bt_Context* ctx, bt_Thread* thread)
@@ -100,11 +100,11 @@ void boltstd_open_tables(bt_Context* context)
 	bt_add_ref(context, BT_AS_OBJECT(bt_pair_key_key));
 	bt_add_ref(context, BT_AS_OBJECT(bt_pair_value_key));
 
-	bt_Type* table_pairs_sig = bt_make_poly_signature(context, "pairs({}): fn: Pair?", bt_table_pairs_type);
+	bt_Type* table_pairs_sig = bt_make_poly_signature_type(context, "pairs({}): fn: Pair?", bt_table_pairs_type);
 	bt_NativeFn* fn_ref = bt_make_native(context, table_pairs_sig, bt_table_pairs);
 	bt_module_export(context, module, table_pairs_sig, BT_VALUE_CSTRING(context, "pairs"), BT_VALUE_OBJECT(fn_ref));
 
-	bt_Type* table_delete_sig = bt_make_poly_signature(context, "delete({}, any): bool", bt_table_delete_type);
+	bt_Type* table_delete_sig = bt_make_poly_signature_type(context, "delete({}, any): bool", bt_table_delete_type);
 	fn_ref = bt_make_native(context, table_delete_sig, bt_table_delete);
 	bt_module_export(context, module, table_delete_sig, BT_VALUE_CSTRING(context, "delete"), BT_VALUE_OBJECT(fn_ref));
 

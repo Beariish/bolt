@@ -286,7 +286,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         char* name = bt_gc_alloc(parse->context, node->source->source.length + 1);
         memcpy(name, node->source->source.source, node->source->source.length);
         name[node->source->source.length] = 0;
-        new_binding.type = bt_make_alias(parse->context, name, node->as.alias.type);
+        new_binding.type = bt_make_alias_type(parse->context, name, node->as.alias.type);
     } break;
     case BT_AST_NODE_IF: {
         if (!node->as.branch.is_let) {
@@ -579,7 +579,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     result->source = token;
     bt_buffer_empty(&result->as.table.fields);
     result->as.table.typed = type ? BT_TRUE : BT_FALSE;
-    result->resulting_type = type ? type : bt_make_tableshape(ctx, "<anonymous>", is_sealed);
+    result->resulting_type = type ? type : bt_make_tableshape_type(ctx, "<anonymous>", is_sealed);
 
     bt_bool is_map = BT_TRUE;
     bt_Type* map_key_type = NULL;
@@ -808,7 +808,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             }
 
             bt_Type* lhs = result;
-            result = bt_make_tableshape(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
+            result = bt_make_tableshape_type(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
             result->annotations = anno;
             
             bt_Table* lhs_fields = lhs->as.table_shape.layout;
@@ -887,7 +887,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             return_type = parse_type(parse, BT_TRUE, NULL);
         }
 
-        bt_Type* sig = bt_make_signature(ctx, return_type, args, arg_top);
+        bt_Type* sig = bt_make_signature_type(ctx, return_type, args, arg_top);
         sig->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
         return sig;
@@ -937,7 +937,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             name[alias->as.alias.name.length] = 0;
         }
 
-        bt_Type* result = bt_make_tableshape(ctx, name, is_sealed);
+        bt_Type* result = bt_make_tableshape_type(ctx, name, is_sealed);
         result->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
         result->as.table_shape.final = is_final;
@@ -1021,7 +1021,7 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
             name = alias->as.alias.name;
         }
             
-        bt_Type* result = bt_make_enum(parse->context, name, is_sealed);
+        bt_Type* result = bt_make_enum_type(parse->context, name, is_sealed);
         result->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
             
@@ -1453,10 +1453,10 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             if (is_methodic) {
                 // forward-declare fully typed method for recursion in tableshape functions
                 bt_Value name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length));
-                result->resulting_type = bt_make_method(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+                result->resulting_type = bt_make_method_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
                 bt_type_add_field(parse->context, prototype, result->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
             } else {
-                result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+                result->resulting_type = bt_make_signature_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
                 result->resulting_type->annotations = parse->annotation_base;
                 parse->annotation_base = parse->annotation_tail = 0;
                 
@@ -1494,7 +1494,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             args[i] = result->as.fn.args.elements[i].type;
         }
 
-        result->resulting_type = bt_make_signature(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+        result->resulting_type = bt_make_signature_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
         result->resulting_type->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
     }
@@ -1677,7 +1677,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
 
             lhs_node = make_node(parse, BT_AST_NODE_TYPE);
             lhs_node->source = inner->source;
-            lhs_node->resulting_type = bt_make_alias(parse->context, result->name, result);
+            lhs_node->resulting_type = bt_make_alias_type(parse->context, result->name, result);
         }
         else if (lhs->type == BT_TOKEN_TYPE) {
             bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
@@ -1686,7 +1686,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
 
             lhs_node = make_node(parse, BT_AST_NODE_TYPE);
             lhs_node->source = lhs;
-            lhs_node->resulting_type = bt_make_alias(parse->context, inner->name, inner);
+            lhs_node->resulting_type = bt_make_alias_type(parse->context, inner->name, inner);
         }
         else if (lhs->type == BT_TOKEN_IF) {
             lhs_node = parse_if_expression(parse);

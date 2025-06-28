@@ -127,7 +127,7 @@ static bt_Type* btstd_dump_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	bt_Type* fn = args[0];
 	if (fn->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
 
-	bt_Type* sig = bt_make_signature(ctx, ctx->types.string, args, 1);
+	bt_Type* sig = bt_make_signature_type(ctx, ctx->types.string, args, 1);
 
 	return sig;
 }
@@ -194,7 +194,7 @@ void boltstd_open_meta(bt_Context* context)
 	annotation_name_key = BT_VALUE_OBJECT(bt_make_string(context, "name"));
 	annotation_args_key = BT_VALUE_OBJECT(bt_make_string(context, "args"));
 
-	annotation_type = bt_make_tableshape(context, "Annotation", BT_TRUE);
+	annotation_type = bt_make_tableshape_type(context, "Annotation", BT_TRUE);
 	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), annotation_name_key, bt_type_string(context));
 	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), annotation_args_key, bt_make_array_type(context, any));
 	bt_add_ref(context, (bt_Object*)annotation_type);
@@ -229,7 +229,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export_native(context, module, "annotations",       btstd_get_annotations,       annotation_arr, &any,                 1);
 	bt_module_export_native(context, module, "field_annotations", btstd_get_field_annotations, annotation_arr, field_anno_args,      2);
 	
-	bt_Type* dump_sig = bt_make_poly_signature(context, "dump(fn): string", btstd_dump_type);
+	bt_Type* dump_sig = bt_make_poly_signature_type(context, "dump(fn): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(
 		bt_make_native(context, dump_sig, btstd_dump)));
 

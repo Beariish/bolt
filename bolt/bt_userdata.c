@@ -115,7 +115,7 @@ void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
 		
 	bt_MethodBuffer* methods = &type->as.userdata.functions;														  
 
-	bt_Type* signature = bt_make_signature(ctx, ret, args, arg_count);
+	bt_Type* signature = bt_make_signature_type(ctx, ret, args, arg_count);
 	if (arg_count > 0 && args[0] == type) signature->as.fn.is_method = BT_TRUE;
 
 	bt_NativeFn* fn = bt_make_native(ctx, signature, method);

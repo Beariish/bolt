@@ -428,7 +428,7 @@ bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
 
     bt_buffer_clone(ctx, &result->imports, imports);
     result->exports = bt_make_table(ctx, 0);
-    result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
+    result->type = bt_make_tableshape_type(ctx, "<module>", BT_TRUE);
     
     result->debug_source = 0;
     result->stack_size = 0;
@@ -453,7 +453,7 @@ bt_Module* bt_make_user_module(bt_Context* ctx)
     bt_buffer_empty(&result->constants);
     bt_buffer_empty(&result->debug_tokens);
     result->exports = bt_make_table(ctx, 0);
-    result->type = bt_make_tableshape(ctx, "<module>", BT_TRUE);
+    result->type = bt_make_tableshape_type(ctx, "<module>", BT_TRUE);
 
     return result;
 }
@@ -513,7 +513,7 @@ void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Valu
 
 void bt_module_export_native(bt_Context* ctx, bt_Module* module, const char* name, bt_NativeProc proc, bt_Type* ret_type, bt_Type** args, uint8_t arg_count)
 {
-    bt_Type* sig = bt_make_signature(ctx, ret_type, args, arg_count);
+    bt_Type* sig = bt_make_signature_type(ctx, ret_type, args, arg_count);
     bt_NativeFn* fn = bt_make_native(ctx, sig, proc);
     bt_module_export(ctx, module, sig, BT_VALUE_CSTRING(ctx, name), BT_VALUE_OBJECT(fn));
 }

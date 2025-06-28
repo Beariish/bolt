@@ -202,7 +202,7 @@ bt_bool type_satisfier_type(bt_Type* left, bt_Type* right)
 	return right->category == BT_TYPE_CATEGORY_TYPE;
 }
 
-bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category)
+static bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category)
 {
 	bt_Type* result = BT_ALLOCATE(context, TYPE, bt_Type);
 	result->ctx = context;
@@ -223,16 +223,9 @@ bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier sa
 	return result;
 }
 
-bt_Type* bt_derive_type(bt_Context* context, bt_Type* original)
+bt_Type* bt_make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier)
 {
-	bt_Type* promoted = BT_ALLOCATE(context, TYPE, bt_Type);
-	memcpy((char*)promoted + sizeof(bt_Object), (char*)original + sizeof(bt_Object), sizeof(bt_Type) - sizeof(bt_Object));
-	
-	const char* old_name = promoted->name;
-	promoted->name = bt_gc_alloc(context, strlen(old_name) + 1);
-	strcpy(promoted->name, old_name);
-
-	return promoted;
+	return bt_make_type(ctx, name, satisfier, BT_TYPE_CATEGORY_PRIMITIVE);
 }
 
 bt_Type* bt_type_make_nullable(bt_Context* context, bt_Type* to_nullable)
@@ -333,7 +326,7 @@ static void update_sig_name(bt_Context* ctx, bt_Type* fn)
 	fn->name = new_name;
 }
 
-bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
+bt_Type* bt_make_signature_type(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
 {
 	bt_Type* result = bt_make_type(context, "", bt_type_satisfier_signature, BT_TYPE_CATEGORY_SIGNATURE);
 	result->as.fn.return_type = ret;
@@ -348,14 +341,14 @@ bt_Type* bt_make_signature(bt_Context* context, bt_Type* ret, bt_Type** args, ui
 	return result;
 }
 
-bt_Type* bt_make_method(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
+bt_Type* bt_make_method_type(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
 {
-	bt_Type* result = bt_make_signature(context, ret, args, arg_count);
+	bt_Type* result = bt_make_signature_type(context, ret, args, arg_count);
 	result->as.fn.is_method = BT_TRUE;
 	return result;
 }
 
-bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type)
+bt_Type* bt_make_signature_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type)
 {
 	original->as.fn.is_vararg = BT_TRUE;
 	original->as.fn.varargs_type = varargs_type;
@@ -365,7 +358,7 @@ bt_Type* bt_make_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs
 	return original;
 }
 
-bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed)
+bt_Type* bt_make_alias_type(bt_Context* context, const char* name, bt_Type* boxed)
 {
 	bt_Type* result = bt_make_type(context, name, type_satisfier_alias, BT_TYPE_CATEGORY_TYPE);
 	result->as.type.boxed = boxed;
@@ -373,7 +366,7 @@ bt_Type* bt_make_alias(bt_Context* context, const char* name, bt_Type* boxed)
 	return result;
 }
 
-bt_Type* bt_make_fundamental(bt_Context* context)
+bt_Type* bt_make_fundamental_type(bt_Context* context)
 {
 	return bt_make_type(context, "Type", type_satisfier_type, BT_TYPE_CATEGORY_TYPE);
 }
@@ -387,7 +380,7 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 	return result;
 }
 
-bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySignature applicator)
+bt_Type* bt_make_poly_signature_type(bt_Context* context, const char* name, bt_PolySignature applicator)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_SIGNATURE);
 	result->as.poly_fn.applicator = applicator;
@@ -396,14 +389,14 @@ bt_Type* bt_make_poly_signature(bt_Context* context, const char* name, bt_PolySi
 	return result;
 }
 
-bt_Type* bt_make_poly_method(bt_Context* context, const char* name, bt_PolySignature applicator)
+bt_Type* bt_make_poly_method_type(bt_Context* context, const char* name, bt_PolySignature applicator)
 {
-	bt_Type* result = bt_make_poly_signature(context, name, applicator);
+	bt_Type* result = bt_make_poly_signature_type(context, name, applicator);
 	result->as.fn.is_method = BT_TRUE;
 	return result;
 }
 
-bt_Type* bt_make_tableshape(bt_Context* context, const char* name, bt_bool sealed)
+bt_Type* bt_make_tableshape_type(bt_Context* context, const char* name, bt_bool sealed)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE);
 	result->prototype = context->types.table;
@@ -640,7 +633,7 @@ BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant)
 	return -1;
 }
 
-bt_Type* bt_make_enum(bt_Context* context, bt_StrSlice name, bt_bool is_sealed)
+bt_Type* bt_make_enum_type(bt_Context* context, bt_StrSlice name, bt_bool is_sealed)
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
 	bt_Type* result = bt_make_type(context, BT_STRING_STR(owned_name), bt_type_satisfier_same, BT_TYPE_CATEGORY_ENUM);
@@ -986,7 +979,7 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }
 bt_Type* bt_type_null(bt_Context* context) { return context->types.null; }
 bt_Type* bt_type_number(bt_Context* context) { return context->types.number; }
-bt_Type* bt_type_boolean(bt_Context* context) { return context->types.boolean; }
+bt_Type* bt_type_bool(bt_Context* context) { return context->types.boolean; }
 bt_Type* bt_type_string(bt_Context* context) { return context->types.string; }
 bt_Type* bt_type_array(bt_Context* context) { return context->types.array; }
 bt_Type* bt_type_table(bt_Context* context) { return context->types.table; }

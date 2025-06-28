@@ -308,14 +308,14 @@ void boltstd_open_io(bt_Context* context)
 
 	bt_Type* string = bt_type_string(context);
 	bt_Type* number = bt_type_number(context);
-	bt_Type* boolean = bt_type_boolean(context);
+	bt_Type* boolean = bt_type_bool(context);
 	
 	bt_close_error_reason = bt_value(bt_make_string_hashed(context, "File already closed"));
 	bt_add_ref(context, bt_object(bt_close_error_reason));
 
 	io_file_type = bt_make_userdata_type(context, "File");
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
-	bt_module_export(context, module, bt_make_alias(context, "File", io_file_type),
+	bt_module_export(context, module, bt_make_alias_type(context, "File", io_file_type),
 		BT_VALUE_CSTRING(context, "File"), bt_value(io_file_type));
 	bt_add_ref(context, (bt_Object*)io_file_type);
 
