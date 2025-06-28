@@ -12,7 +12,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 
 	if (BT_IS_NUMBER(a)) {
 		if (!BT_IS_NUMBER(b)) return BT_FALSE;
-		return fabs(BT_AS_NUMBER(a) - BT_AS_NUMBER(b)) < BT_EPSILON;
+		return BT_AS_NUMBER(a) == BT_AS_NUMBER(b);
 	}
 
 	if (BT_IS_NUMBER(b)) return BT_FALSE;

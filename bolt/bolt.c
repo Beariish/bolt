@@ -844,16 +844,6 @@ static BT_NO_INLINE void bt_div(bt_Thread* thread, bt_Value* __restrict result, 
 	bt_runtime_error(thread, "Cannot divide non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_eq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
-{
-	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
-}
-
-static BT_FORCE_INLINE void bt_neq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
-{
-	*result = bt_value_is_equal(lhs, rhs) ? BT_VALUE_FALSE : BT_VALUE_TRUE;
-}
-
 static BT_NO_INLINE void bt_lt(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
@@ -949,12 +939,12 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(EQ):
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) == BT_AS_NUMBER(stack[BT_GET_C(op)]));
-			else bt_eq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);  
+			else stack[BT_GET_A(op)] = BT_VALUE_FALSE + bt_value_is_equal(stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  
 		NEXT;
 
 		CASE(NEQ): 
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) != BT_AS_NUMBER(stack[BT_GET_C(op)]));
-			else bt_neq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+			else stack[BT_GET_A(op)] = BT_VALUE_TRUE - bt_value_is_equal(stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  
 		NEXT;
 		
 		CASE(LT): 
