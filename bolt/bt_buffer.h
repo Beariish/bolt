@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_prelude.h"
 
 #define bt_Buffer(T) struct {  \
@@ -57,3 +61,7 @@ void bt_buffer_append_(bt_Context* ctx, char** data1, uint32_t* length1, uint32_
 
 void bt_buffer_move_(char** data1, uint32_t* length1, uint32_t* capacity1, size_t element_size1,
 					 char** data2, uint32_t* length2, uint32_t* capacity2, size_t element_size2);
+
+#if __cplusplus
+}
+#endif

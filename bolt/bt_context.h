@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_prelude.h"
 #include "bt_type.h"
 #include "bt_value.h"
@@ -183,3 +187,7 @@ BOLT_API uint32_t bt_get_debug_index(bt_Callable* callable, bt_Op* ip);
 
 BOLT_API bt_String* bt_get_or_make_interned(bt_Context* ctx, const char* str, uint32_t len);
 BOLT_API void bt_remove_interned(bt_Context* ctx, bt_String* str);
+
+#if __cplusplus
+}
+#endif

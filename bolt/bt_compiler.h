@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_prelude.h"
 #include "bt_parser.h"
 
@@ -27,3 +31,7 @@ BOLT_API bt_Compiler bt_open_compiler(bt_Parser* parser, bt_CompilerOptions opti
 BOLT_API void bt_close_compiler(bt_Compiler* compiler);
 
 BOLT_API bt_Module* bt_compile(bt_Compiler* compiler);
+
+#if __cplusplus
+}
+#endif

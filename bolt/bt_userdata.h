@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+	
 #include "bt_prelude.h"
 #include "bt_value.h"
 
@@ -54,3 +58,6 @@ BOLT_API void bt_userdata_type_set_finalizer(bt_Type* type, bt_UserdataFinalizer
 #define BT_ARG_AS(thread, idx, type) \
 	(type*)((bt_Userdata*)BT_AS_OBJECT(bt_arg(thread, idx)))->data
 
+#if __cplusplus
+}
+#endif

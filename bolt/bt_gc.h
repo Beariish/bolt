@@ -1,6 +1,9 @@
 #pragma once
 
-#include "bt_buffer.h"
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_object.h"
 
 #include <stdint.h>
@@ -62,3 +65,7 @@ BOLT_API uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);
 
 BOLT_API void bt_gc_pause(bt_Context* ctx);
 BOLT_API void bt_gc_unpause(bt_Context* ctx);
+
+#if __cplusplus
+}
+#endif

@@ -1,8 +1,11 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_config.h"
 #include <stdint.h>
-#include <stddef.h>
 
 #define BOLT_VERSION_MAJOR 0
 #define BOLT_VERSION_MINOR 1
@@ -62,3 +65,7 @@ BOLT_API bt_bool bt_strslice_compare(bt_StrSlice a, bt_StrSlice b);
 typedef struct bt_Context bt_Context;
 typedef struct bt_Thread bt_Thread; 
 typedef struct bt_Handlers bt_Handlers;
+
+#if __cplusplus
+}
+#endif

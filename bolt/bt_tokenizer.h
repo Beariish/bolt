@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_buffer.h"
 
 typedef enum {
@@ -103,3 +107,7 @@ BOLT_API bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type);
 
 BOLT_API bt_Token* bt_tokenizer_make_identifier(bt_Tokenizer* tok, bt_StrSlice name);
 BOLT_API bt_Token* bt_tokenizer_make_operator(bt_Tokenizer* tok, bt_TokenType op);
+
+#if __cplusplus
+}
+#endif

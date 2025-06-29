@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_tokenizer.h"
 #include "bt_type.h"
 #include "bt_object.h"
@@ -242,3 +246,7 @@ typedef struct bt_Parser {
 BOLT_API bt_Parser bt_open_parser(bt_Tokenizer* tkn);
 BOLT_API void bt_close_parser(bt_Parser* parse);
 BOLT_API bt_bool bt_parse(bt_Parser* parser);
+
+#if __cplusplus
+}
+#endif

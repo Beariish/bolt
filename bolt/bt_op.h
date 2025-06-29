@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_prelude.h"
 
 /*
@@ -123,4 +127,8 @@ typedef struct bt_Op {
 #define BT_GET_UBC(op) op.ubc
 
 #define BT_SET_IBC(op, _ibc) ((op).ibc = (_ibc))
+#endif
+
+#if __cplusplus
+}
 #endif

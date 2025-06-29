@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_buffer.h"
 #include "bt_object.h"
 #include "bt_userdata.h"
@@ -234,3 +238,7 @@ typedef struct bt_Type {
     uint8_t category : 5;
     bt_bool is_polymorphic : 1;
 } bt_Type;
+
+#if __cplusplus
+}
+#endif

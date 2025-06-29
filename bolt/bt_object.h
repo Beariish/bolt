@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_prelude.h"
 
 #include "bt_value.h"
@@ -238,3 +242,7 @@ BOLT_API bt_Value bt_module_get_export(bt_Module* module, bt_Value key);
 
 BOLT_API bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key);
 BOLT_API void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);
+
+#if __cplusplus
+}
+#endif

@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include "bt_prelude.h"
 
 typedef uint64_t bt_Value;
@@ -88,3 +92,7 @@ BOLT_API bt_Value bt_value(bt_Object* obj);
 BOLT_API bt_bool bt_is_object(bt_Value val);
 /** Get the boxed object pointer from the bt_Value, assumes type is correct */
 BOLT_API bt_Object* bt_object(bt_Value val);
+
+#if __cplusplus
+}
+#endif
