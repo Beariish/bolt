@@ -6,6 +6,7 @@ extern "C" {
 
 #include "bt_config.h"
 #include <stdint.h>
+#include <stddef.h>
 
 #define BOLT_VERSION_MAJOR 0
 #define BOLT_VERSION_MINOR 1
