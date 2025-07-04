@@ -2,14 +2,19 @@
 #include "bt_userdata.h"
 #include "bt_context.h"
 
+#ifdef BT_DEBUG
 #include <assert.h>
+#endif
+
 #include <memory.h>
 
 static void push_userdata_field(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset,
 	bt_Type* field_type, bt_UserdataFieldGetter getter, bt_UserdataFieldSetter setter)
 {
+#ifdef BT_DEBUG
 	assert(type->category == BT_TYPE_CATEGORY_USERDATA);
-
+#endif
+	
 	bt_FieldBuffer* fields = &type->as.userdata.fields;
 
 	bt_UserdataField field;
@@ -29,28 +34,27 @@ static bt_Value userdata_get_##fnname(bt_Context* ctx, uint8_t* userdata, uint32
 }																										           \
 																										           \
 static void userdata_set_##fnname(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)	           \
-{																										           \
-	assert(BT_IS_NUMBER(value));																		           \
+{                                                                                                                  \
 	*(dtype*)(userdata + offset) = (dtype)bt_get_number(value);											           \
 }																										           \
 																										           \
 void bt_userdata_type_field_##fnname(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)	           \
 {						                                                                                           \
 	push_userdata_field(ctx, type, name, offset, ctx->types.number, userdata_get_##fnname, userdata_set_##fnname); \
-}																										  
+}
 
-DEFINE_USERDATA_NUMBER_FIELD(double, bt_number); 
-DEFINE_USERDATA_NUMBER_FIELD(float,  float); 
+DEFINE_USERDATA_NUMBER_FIELD(double, bt_number)
+DEFINE_USERDATA_NUMBER_FIELD(float,  float)
 
-DEFINE_USERDATA_NUMBER_FIELD(int8,  int8_t);
-DEFINE_USERDATA_NUMBER_FIELD(int16, int16_t);
-DEFINE_USERDATA_NUMBER_FIELD(int32, int32_t);
-DEFINE_USERDATA_NUMBER_FIELD(int64, int64_t);
+DEFINE_USERDATA_NUMBER_FIELD(int8,  int8_t)
+DEFINE_USERDATA_NUMBER_FIELD(int16, int16_t)
+DEFINE_USERDATA_NUMBER_FIELD(int32, int32_t)
+DEFINE_USERDATA_NUMBER_FIELD(int64, int64_t)
 
-DEFINE_USERDATA_NUMBER_FIELD(uint8,  uint8_t);
-DEFINE_USERDATA_NUMBER_FIELD(uint16, uint16_t);
-DEFINE_USERDATA_NUMBER_FIELD(uint32, uint32_t);
-DEFINE_USERDATA_NUMBER_FIELD(uint64, uint64_t);
+DEFINE_USERDATA_NUMBER_FIELD(uint8,  uint8_t)
+DEFINE_USERDATA_NUMBER_FIELD(uint16, uint16_t)
+DEFINE_USERDATA_NUMBER_FIELD(uint32, uint32_t)
+DEFINE_USERDATA_NUMBER_FIELD(uint64, uint64_t)
 
 static bt_Value userdata_get_string(bt_Context* ctx, uint8_t* userdata, uint32_t offset)
 {
@@ -64,8 +68,10 @@ static bt_Value userdata_get_string(bt_Context* ctx, uint8_t* userdata, uint32_t
 
 static void userdata_set_string(bt_Context* ctx, uint8_t* userdata, uint32_t offset, bt_Value value)
 {
+#ifdef BT_DEBUG
 	assert(BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING);
-
+#endif
+	
 	bt_String* as_str = (bt_String*)BT_AS_OBJECT(value);
 
 	char** data = (char**)(userdata + offset);
@@ -95,7 +101,9 @@ static void userdata_set_bool(bt_Context* ctx, uint8_t* userdata, uint32_t offse
 	if (value == BT_VALUE_TRUE) *ref = BT_TRUE;
 	if (value == BT_VALUE_FALSE) *ref = BT_FALSE;
 
+#ifdef BT_DEBUG
 	assert(!"Impossible value passed to userdata setter!");
+#endif
 }
 
 void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
@@ -106,25 +114,6 @@ void bt_userdata_type_field_string(bt_Context* ctx, bt_Type* type, const char* n
 void bt_userdata_type_field_bool(bt_Context* ctx, bt_Type* type, const char* name, uint32_t offset)
 {
 	push_userdata_field(ctx, type, name, offset, ctx->types.boolean, userdata_get_bool, userdata_set_bool);
-}
-
-void bt_userdata_type_method(bt_Context* ctx, bt_Type* type, const char* name,
-	bt_NativeProc method, bt_Type* ret, bt_Type** args, uint8_t arg_count)
-{
-	assert(type->category == BT_TYPE_CATEGORY_USERDATA);												  
-		
-	bt_MethodBuffer* methods = &type->as.userdata.functions;														  
-
-	bt_Type* signature = bt_make_signature_type(ctx, ret, args, arg_count);
-	if (arg_count > 0 && args[0] == type) signature->as.fn.is_method = BT_TRUE;
-
-	bt_NativeFn* fn = bt_make_native(ctx, signature, method);
-
-	bt_UserdataMethod me;
-	me.name = bt_make_string(ctx, name);
-	me.fn = fn;
-
-	bt_buffer_push(ctx, methods, me);
 }
 
 void bt_userdata_type_set_finalizer(bt_Type* type, bt_UserdataFinalizer finalizer)

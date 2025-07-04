@@ -215,7 +215,6 @@ typedef struct bt_Type {
 
         struct {
             bt_FieldBuffer fields;
-            bt_MethodBuffer functions;
             bt_UserdataFinalizer finalizer;
         } userdata;
 

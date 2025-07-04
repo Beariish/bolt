@@ -197,15 +197,6 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
             }
         }
 
-        bt_MethodBuffer* methods = &lhs->as.userdata.functions;
-
-        for (uint32_t i = 0; i < methods->length; i++) {
-            bt_UserdataMethod* method = methods->elements + i;
-            if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), rhs_key)) {
-                return method->fn->type;
-            }
-        }
-
         bt_String* as_str = bt_to_string(parse->context, rhs_key);
         parse_error_fmt(parse, "Failed to find key '%.*s' in userdata type", node->source->line, node->source->col, as_str->len, BT_STRING_STR(as_str));
     }

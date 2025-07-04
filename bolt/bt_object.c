@@ -559,14 +559,6 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
             }
         }
 
-        bt_MethodBuffer* methods = &type->as.userdata.functions;
-        for (uint32_t i = 0; i < methods->length; i++) {
-            bt_UserdataMethod* method = methods->elements + i;
-            if (bt_value_is_equal(BT_VALUE_OBJECT(method->name), key)) {
-                return BT_VALUE_OBJECT(method->fn);
-            }
-        }
-
         assert(0 && "This should never be reached due to typechecking!");
     } break;
     case BT_OBJECT_TYPE_STRING:

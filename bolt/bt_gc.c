@@ -77,7 +77,6 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 				break;
 			case BT_TYPE_CATEGORY_USERDATA:
 				bt_buffer_destroy(context, &type->as.userdata.fields);
-				bt_buffer_destroy(context, &type->as.userdata.functions);
 				break;
 			}
 			bt_gc_free(context, type->name, 0); // Length is not tracked
@@ -296,13 +295,6 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 					bt_UserdataField* field = fields->elements + i;
 					grey(gc, (bt_Object*)field->bolt_type);
 					grey(gc, (bt_Object*)field->name);
-				}
-
-				bt_MethodBuffer* methods = &as_type->as.userdata.functions;
-				for (uint32_t i = 0; i < methods->length; i++) {
-					bt_UserdataMethod* method = methods->elements + i;
-					grey(gc, (bt_Object*)method->name);
-					grey(gc, (bt_Object*)method->fn);
 				}
 		} break;
 		case BT_TYPE_CATEGORY_UNION: {

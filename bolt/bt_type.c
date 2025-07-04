@@ -375,7 +375,6 @@ bt_Type* bt_make_userdata_type(bt_Context* context, const char* name)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_same, BT_TYPE_CATEGORY_USERDATA);
 	bt_buffer_empty(&result->as.userdata.fields);
-	bt_buffer_empty(&result->as.userdata.functions);
 	result->as.userdata.finalizer = NULL;
 	return result;
 }
