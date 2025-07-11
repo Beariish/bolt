@@ -92,7 +92,7 @@ void boltstd_open_tables(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
-	bt_table_pairs_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, NULL, bt_table_pairs_iter));
+	bt_table_pairs_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, module, NULL, bt_table_pairs_iter));
 	bt_pair_key_key = BT_VALUE_OBJECT(bt_make_string(context, "key"));
 	bt_pair_value_key = BT_VALUE_OBJECT(bt_make_string(context, "value"));
 
@@ -101,11 +101,11 @@ void boltstd_open_tables(bt_Context* context)
 	bt_add_ref(context, BT_AS_OBJECT(bt_pair_value_key));
 
 	bt_Type* table_pairs_sig = bt_make_poly_signature_type(context, "pairs({}): fn: Pair?", bt_table_pairs_type);
-	bt_NativeFn* fn_ref = bt_make_native(context, table_pairs_sig, bt_table_pairs);
+	bt_NativeFn* fn_ref = bt_make_native(context, module, table_pairs_sig, bt_table_pairs);
 	bt_module_export(context, module, table_pairs_sig, BT_VALUE_CSTRING(context, "pairs"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* table_delete_sig = bt_make_poly_signature_type(context, "delete({}, any): bool", bt_table_delete_type);
-	fn_ref = bt_make_native(context, table_delete_sig, bt_table_delete);
+	fn_ref = bt_make_native(context, module, table_delete_sig, bt_table_delete);
 	bt_module_export(context, module, table_delete_sig, BT_VALUE_CSTRING(context, "delete"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* table = bt_type_table(context);

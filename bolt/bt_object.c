@@ -465,9 +465,10 @@ void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok)
     tok->source = 0;
 }
 
-bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc)
+bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_NativeProc proc)
 {
     bt_NativeFn* result = BT_ALLOCATE(ctx, NATIVE_FN, bt_NativeFn);
+    result->module = module;
     result->type = signature;
     result->fn = proc;
 
@@ -514,7 +515,7 @@ void bt_module_export(bt_Context* ctx, bt_Module* module, bt_Type* type, bt_Valu
 void bt_module_export_native(bt_Context* ctx, bt_Module* module, const char* name, bt_NativeProc proc, bt_Type* ret_type, bt_Type** args, uint8_t arg_count)
 {
     bt_Type* sig = bt_make_signature_type(ctx, ret_type, args, arg_count);
-    bt_NativeFn* fn = bt_make_native(ctx, sig, proc);
+    bt_NativeFn* fn = bt_make_native(ctx, module, sig, proc);
     bt_module_export(ctx, module, sig, BT_VALUE_CSTRING(ctx, name), BT_VALUE_OBJECT(fn));
 }
 

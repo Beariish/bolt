@@ -350,54 +350,54 @@ void boltstd_open_arrays(bt_Context* context)
 	bt_Type* array = context->types.array;
 
 	bt_Type* length_sig = bt_make_signature_type(context, context->types.number, &context->types.array, 1);
-	bt_NativeFn* fn_ref = bt_make_native(context, length_sig, bt_arr_length);
+	bt_NativeFn* fn_ref = bt_make_native(context, module, length_sig, bt_arr_length);
 	bt_type_add_field(context, array, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_pop_sig = bt_make_poly_signature_type(context, "pop([T]): T?", bt_arr_pop_type);
-	fn_ref = bt_make_native(context, arr_pop_sig, bt_arr_pop);
+	fn_ref = bt_make_native(context, module, arr_pop_sig, bt_arr_pop);
 	bt_type_add_field(context, array, arr_pop_sig, BT_VALUE_CSTRING(context, "pop"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_pop_sig, BT_VALUE_CSTRING(context, "pop"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_push_sig = bt_make_poly_signature_type(context, "push([T], T)", bt_arr_push_type);
-	fn_ref = bt_make_native(context, arr_push_sig, bt_arr_push);
+	fn_ref = bt_make_native(context, module, arr_push_sig, bt_arr_push);
 	bt_type_add_field(context, array, arr_push_sig, BT_VALUE_CSTRING(context, "push"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_push_sig, BT_VALUE_CSTRING(context, "push"), BT_VALUE_OBJECT(fn_ref));
 
-	bt_arr_each_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, NULL, bt_arr_each_iter));
+	bt_arr_each_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, module, NULL, bt_arr_each_iter));
 	bt_Type* arr_each_sig = bt_make_poly_signature_type(context, "each([T]): fn: T?", bt_arr_each_type);
-	fn_ref = bt_make_native(context, arr_each_sig, bt_arr_each);
+	fn_ref = bt_make_native(context, module, arr_each_sig, bt_arr_each);
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "$_each_iter"), bt_arr_each_iter_fn);
 
 	bt_Type* arr_clone_sig = bt_make_poly_signature_type(context, "clone([T]): [T]", bt_arr_clone_type);
-	fn_ref = bt_make_native(context, arr_clone_sig, bt_arr_clone);
+	fn_ref = bt_make_native(context, module, arr_clone_sig, bt_arr_clone);
 	bt_type_add_field(context, array, arr_clone_sig, BT_VALUE_CSTRING(context, "clone"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_clone_sig, BT_VALUE_CSTRING(context, "clone"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_reverse_sig = bt_make_poly_signature_type(context, "reverse([T]): [T]", bt_arr_reverse_type);
-	fn_ref = bt_make_native(context, arr_reverse_sig, bt_arr_reverse);
+	fn_ref = bt_make_native(context, module, arr_reverse_sig, bt_arr_reverse);
 	bt_type_add_field(context, array, arr_reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_reverse_sig, BT_VALUE_CSTRING(context, "reverse"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_map_sig = bt_make_poly_signature_type(context, "map([T], fn(T): R): [R]", bt_arr_map_type);
-	fn_ref = bt_make_native(context, arr_map_sig, bt_arr_map);
+	fn_ref = bt_make_native(context, module, arr_map_sig, bt_arr_map);
 	bt_type_add_field(context, array, arr_map_sig, BT_VALUE_CSTRING(context, "map"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_map_sig, BT_VALUE_CSTRING(context, "map"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_filter_sig = bt_make_poly_signature_type(context, "filter([T], fn(T): bool): [T]", bt_arr_filter_type);
-	fn_ref = bt_make_native(context, arr_filter_sig, bt_arr_filter);
+	fn_ref = bt_make_native(context, module, arr_filter_sig, bt_arr_filter);
 	bt_type_add_field(context, array, arr_filter_sig, BT_VALUE_CSTRING(context, "filter"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_filter_sig, BT_VALUE_CSTRING(context, "filter"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_slice_sig = bt_make_poly_signature_type(context, "slice([T], number, number): [T]", bt_arr_slice_type);
-	fn_ref = bt_make_native(context, arr_slice_sig, bt_arr_slice);
+	fn_ref = bt_make_native(context, module, arr_slice_sig, bt_arr_slice);
 	bt_type_add_field(context, array, arr_slice_sig, BT_VALUE_CSTRING(context, "slice"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_slice_sig, BT_VALUE_CSTRING(context, "slice"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* arr_sort_sig = bt_make_poly_signature_type(context, "sort([T], null | fn(T, T): bool): [T]", bt_arr_sort_type);
-	fn_ref = bt_make_native(context, arr_sort_sig, bt_arr_sort);
+	fn_ref = bt_make_native(context, module, arr_sort_sig, bt_arr_sort);
 	bt_type_add_field(context, array, arr_sort_sig, BT_VALUE_CSTRING(context, "sort"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_sort_sig, BT_VALUE_CSTRING(context, "sort"), BT_VALUE_OBJECT(fn_ref));
 

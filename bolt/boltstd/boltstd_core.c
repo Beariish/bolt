@@ -223,11 +223,11 @@ void boltstd_open_core(bt_Context* context)
 
 	bt_module_export(context, module, printable_sig,
 		BT_VALUE_CSTRING(context, "print"),
-		BT_VALUE_OBJECT(bt_make_native(context, printable_sig, bt_print)));
+		BT_VALUE_OBJECT(bt_make_native(context, module, printable_sig, bt_print)));
 
 	bt_module_export(context, module, printable_sig,
 		BT_VALUE_CSTRING(context, "write"),
-		BT_VALUE_OBJECT(bt_make_native(context, printable_sig, bt_write)));
+		BT_VALUE_OBJECT(bt_make_native(context, module, printable_sig, bt_write)));
 
 	bt_module_export_native(context, module, "sameline",  bt_sameline, NULL,   NULL,                0);
 	bt_module_export_native(context, module, "throw",     bt_throw,    NULL,   &string,             1);
@@ -249,12 +249,12 @@ void boltstd_open_core(bt_Context* context)
 	bt_Type* protect_sig = bt_make_poly_signature_type(context, "protect(fn(..T): R, ..T): R | Error", bt_protect_type);
 	bt_module_export(context, module, protect_sig,
 		BT_VALUE_CSTRING(context, "protect"),
-		BT_VALUE_OBJECT(bt_make_native(context, protect_sig, bt_protect)));
+		BT_VALUE_OBJECT(bt_make_native(context, module, protect_sig, bt_protect)));
 
 	bt_Type* assert_sig = bt_make_poly_signature_type(context, "assert(T | Error, string): T", bt_assert_type);
 	bt_module_export(context, module, assert_sig,
 		BT_VALUE_CSTRING(context, "assert"),
-		BT_VALUE_OBJECT(bt_make_native(context, assert_sig, bt_assert)));
+		BT_VALUE_OBJECT(bt_make_native(context, module, assert_sig, bt_assert)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "core"), module);
 }

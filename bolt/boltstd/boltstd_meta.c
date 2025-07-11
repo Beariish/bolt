@@ -230,7 +230,7 @@ void boltstd_open_meta(bt_Context* context)
 	
 	bt_Type* dump_sig = bt_make_poly_signature_type(context, "dump(fn): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(
-		bt_make_native(context, dump_sig, btstd_dump)));
+		bt_make_native(context, module, dump_sig, btstd_dump)));
 
 	bt_register_module(context, BT_VALUE_CSTRING(context, "meta"), module);
 }

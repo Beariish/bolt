@@ -151,6 +151,7 @@ typedef void (*bt_NativeProc)(bt_Context* ctx, bt_Thread* thread);
 
 typedef struct bt_NativeFn {
 	bt_Object obj;
+	bt_Module* module;
 	bt_Type* type;
 	bt_NativeProc fn;
 } bt_NativeFn;
@@ -223,7 +224,7 @@ BOLT_API bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports);
 BOLT_API bt_Module* bt_make_user_module(bt_Context* ctx);
 BOLT_API void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok);
 
-BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Type* signature, bt_NativeProc proc);
+BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_NativeProc proc);
 BOLT_API bt_Type* bt_get_return_type(bt_Callable* callable);
 
 BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
