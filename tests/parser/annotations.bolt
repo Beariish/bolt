@@ -90,6 +90,21 @@ type SparseAnnos = {
     inline_multiple_args: Type
 }
 
+#annotated
+fn FieldAnnos.fn_simple(this) { return this.simple }
+
+#[annotated, rpc]
+fn FieldAnnos.fn_multiple(this) { return this.simple }
+
+#args(10, 20, "hello!")
+fn FieldAnnos.fn_args(this) { return this.simple }
+
+#[args(10, 20, "hello!"), even(true)]
+fn FieldAnnos.fn_multiple_args(this) { return this.simple }
+
+#args(10, 20, "hello!") #even(true)
+fn FieldAnnos.fn_multiple_inline_args(this) { return this.simple }
+
 fn test_annotations(name: string, annos: [meta.Annotation], expected: { ..string: [any] }) {
     test(name, fn {
         expect(tables.length(expected) == annos.length(), "Wrong number of annotations!")
@@ -156,5 +171,11 @@ field_annotations("multiple split field annotations with args", FieldAnnos, "inl
 
 field_annotations("multiple sparse field annotations with no args", SparseAnnos, "multiple",      { "annotated": [], "rpc": [] })
 field_annotations("multiple sparse field annotations with args",    SparseAnnos, "multiple_args", { "args": [10, 20, "hello!"], "even": [true] })
+
+type_annotations("single method annotation with no args",       FieldAnnos.fn_simple,               { "annotated": [] })
+type_annotations("multiple method annotations with no args",    FieldAnnos.fn_multiple,             { "annotated": [], "rpc": [] })
+type_annotations("single method annotation with args",          FieldAnnos.fn_args,                 { "args": [10, 20, "hello!"] })
+type_annotations("multiple method annotations with args",       FieldAnnos.fn_multiple_args,        { "args": [10, 20, "hello!"], "even": [true] })
+type_annotations("multiple split method annotations with args", FieldAnnos.fn_multiple_inline_args, { "args": [10, 20, "hello!"], "even": [true] })
 
 pop_scope()

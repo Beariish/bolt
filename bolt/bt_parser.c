@@ -1435,22 +1435,22 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
         push_scope(parse, BT_TRUE);
 
         if (has_return && identifier) {
+            // TODO(bearish): bad magical number
             bt_Type* args[16];
 
             for (uint8_t i = 0; i < result->as.fn.args.length; ++i) {
                 args[i] = result->as.fn.args.elements[i].type;
             }
 
+            result->resulting_type = bt_make_signature_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+            result->resulting_type->annotations = parse->annotation_base;
+            parse->annotation_base = parse->annotation_tail = 0;
+            
             if (is_methodic) {
                 // forward-declare fully typed method for recursion in tableshape functions
                 bt_Value name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length));
-                result->resulting_type = bt_make_method_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
                 bt_type_add_field(parse->context, prototype, result->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
             } else {
-                result->resulting_type = bt_make_signature_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
-                result->resulting_type->annotations = parse->annotation_base;
-                parse->annotation_base = parse->annotation_tail = 0;
-                
                 bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
                 alias->source = identifier;
                 alias->as.recurse_alias.signature = result->resulting_type;
@@ -1494,7 +1494,6 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
 
     if (is_methodic) {
         result->type = BT_AST_NODE_METHOD;
-        result->resulting_type->as.fn.is_method = BT_TRUE;
     }
     
     return result;
@@ -1735,26 +1734,25 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                     return NULL;
                 }
 
+                // TODO(bearish): bad magic number
                 bt_AstNode* args[16];
                 uint8_t max_arg = 0;
                 uint8_t self_arg = 0;
 
-                if (to_call->as.fn.is_method) {
-                    if (lhs_node->type == BT_AST_NODE_BINARY_OP && lhs_node->source->type == BT_TOKEN_PERIOD) {
-                        if (!to_call->is_polymorphic) {
-                            bt_TypeBuffer* args_ref = &to_call->as.fn.args;
-                            bt_Type* first_arg = args_ref->elements[0];
+                if (lhs_node->type == BT_AST_NODE_BINARY_OP && lhs_node->source->type == BT_TOKEN_PERIOD) {
+                    if (!to_call->is_polymorphic) {
+                        bt_TypeBuffer* args_ref = &to_call->as.fn.args;
+                        bt_Type* first_arg = args_ref->elements[0];
 
-                            bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
-                            if (first_arg->satisfier(first_arg, lhs_type)) {
-                                args[max_arg++] = lhs_node->as.binary_op.left;
-                                self_arg = 1;
-                            }
-                        }
-                        else {
+                        bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
+                        if (first_arg->satisfier(first_arg, lhs_type)) {
                             args[max_arg++] = lhs_node->as.binary_op.left;
                             self_arg = 1;
                         }
+                    }
+                    else {
+                        args[max_arg++] = lhs_node->as.binary_op.left;
+                        self_arg = 1;
                     }
                 }
 
@@ -1775,16 +1773,18 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                     parse_error_token(parse, "Expected end of function call, got '%.*s'", next);
                     return NULL;
                 }
-
+                
                 if (to_call->is_polymorphic) {
+                    // TODO(bearish): bad magic number
                     bt_Type* arg_types[16];
                     for (uint8_t i = 0; i < max_arg; ++i) {
-                        if (!args[i]) {
+                        arg_types[i] = type_check(parse, args[i])->resulting_type;
+
+                        if (!args[i] || !arg_types[i]) {
                             parse_error_fmt(parse, "Failed to determine type of arg %d", next->line, next->col, i + 1);
                             return NULL;
                         }
 
-                        arg_types[i] = type_check(parse, args[i])->resulting_type;
                     }
 
                     bt_Type* old_to_call = to_call;
@@ -1813,6 +1813,16 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                     }
                 }
 
+                // If we have a self arg and too many arguments, let's shift it off
+                if (max_arg > to_call->as.fn.args.length && self_arg && to_call->as.fn.is_vararg == BT_FALSE) {
+                    for (uint8_t i = 0; i < max_arg - 1; ++i) {
+                        args[i] = args[i + 1];
+                    }
+
+                    max_arg--;
+                    self_arg = 0;
+                }
+                
                 if (max_arg != to_call->as.fn.args.length && to_call->as.fn.is_vararg == BT_FALSE) {
                     parse_error(parse, "Incorrect number of arguments", next->line, next->col);
                     return NULL;

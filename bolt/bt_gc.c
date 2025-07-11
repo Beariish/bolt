@@ -146,7 +146,6 @@ static size_t get_object_size(bt_Object* obj)
 	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
 	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
-	case BT_OBJECT_TYPE_METHOD: return sizeof(bt_Fn);
 	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
 	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity - sizeof(bt_Value);
 	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata) + ((bt_Userdata*)obj)->size;

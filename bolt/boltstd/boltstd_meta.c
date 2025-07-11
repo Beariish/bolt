@@ -161,7 +161,6 @@ static void btstd_get_annotations(bt_Context* ctx, bt_Thread* thread)
 		bt_Annotation* anno = NULL;
 
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_FN) anno = ((bt_Fn*)as_obj)->signature->annotations;
-		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_METHOD) anno = ((bt_Fn*)as_obj)->signature->annotations;
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) anno = ((bt_Closure*)as_obj)->fn->signature->annotations;
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE) anno = ((bt_Type*)as_obj)->annotations;
 

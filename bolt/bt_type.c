@@ -334,17 +334,9 @@ bt_Type* bt_make_signature_type(bt_Context* context, bt_Type* ret, bt_Type** arg
 	for (uint8_t i = 0; i < arg_count; ++i) { bt_buffer_push(context, &result->as.fn.args, args[i]); }
 	result->as.fn.is_vararg = BT_FALSE;
 	result->as.fn.varargs_type = NULL;
-	result->as.fn.is_method = BT_FALSE;
 
 	update_sig_name(context, result);
 
-	return result;
-}
-
-bt_Type* bt_make_method_type(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count)
-{
-	bt_Type* result = bt_make_signature_type(context, ret, args, arg_count);
-	result->as.fn.is_method = BT_TRUE;
 	return result;
 }
 
@@ -385,13 +377,6 @@ bt_Type* bt_make_poly_signature_type(bt_Context* context, const char* name, bt_P
 	result->as.poly_fn.applicator = applicator;
 	result->is_polymorphic = BT_TRUE;
 
-	return result;
-}
-
-bt_Type* bt_make_poly_method_type(bt_Context* context, const char* name, bt_PolySignature applicator)
-{
-	bt_Type* result = bt_make_poly_signature_type(context, name, applicator);
-	result->as.fn.is_method = BT_TRUE;
 	return result;
 }
 
@@ -498,7 +483,7 @@ bt_Annotation* bt_tableshape_get_field_annotations(bt_Type* tshp, bt_Value key)
 {
 	if (!tshp->as.table_shape.field_annotations) return NULL;
 	bt_Value result = bt_table_get(tshp->as.table_shape.field_annotations, key);
-	if (result == BT_VALUE_NULL) return NULL;
+	if (result == BT_VALUE_NULL) return NULL; 
 	return (bt_Annotation*)BT_AS_OBJECT(result);
 }
 

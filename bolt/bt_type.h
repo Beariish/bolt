@@ -59,18 +59,15 @@ BOLT_API bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
  * Supplying `NULL` as the return type is valid if the function returns nothing.
  */
 BOLT_API bt_Type* bt_make_signature_type(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
-/** DEPRECATED: The same as bt_make_signature_type, but allows the function to be methodcalled */
-BOLT_API bt_Type* bt_make_method_type(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 /** Converts supplied signature `original` into a vararg function, taking an unspecified number of `varargs_type` arguments */
 BOLT_API bt_Type* bt_make_signature_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
+
 /**
  * Creates a type representing a bolt function signature with polymorphic arguments.
  * `applicator` is called by the bolt parser whenever this function is called, and it's responsible for
  * generating a resulting signature type if possible, otherwise returning NULL.
  */
 BOLT_API bt_Type* bt_make_poly_signature_type(bt_Context* context, const char* name, bt_PolySignature applicator);
-/** DEPRECATED: The methodcall version of bt_make_poly_signature_type */
-BOLT_API bt_Type* bt_make_poly_method_type(bt_Context* context, const char* name, bt_PolySignature applicator);
 
 /** TABLESHAPE TYPES */
 
@@ -198,7 +195,6 @@ typedef struct bt_Type {
             bt_Type* return_type;
             bt_Type* varargs_type;
             bt_bool is_vararg : 1;
-            bt_bool is_method : 1;
         } fn;
 
         struct {
