@@ -4,8 +4,15 @@
 extern "C" {
 #endif
 
+/**
+ * The tokenizer is primarily meant for internal consumption by the parser, and the public API is not
+ * intended to be used by the embedding environment at all.
+ * It could be useful for debug purposes to dump the token stream during parsing, though, and
+ * BT_DEBUG_PRINT in `bt_config.h` does some of this already.
+ */
+	
 #include "bt_buffer.h"
-
+	
 typedef enum {
 	BT_TOKEN_UNKNOWN,
 	BT_TOKEN_EOS,
@@ -100,8 +107,8 @@ BOLT_API void bt_close_tokenizer(bt_Tokenizer* tok);
 
 BOLT_API void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source);
 BOLT_API void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name);
-BOLT_API bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
 
+BOLT_API bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
 BOLT_API bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok);
 BOLT_API bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type);
 

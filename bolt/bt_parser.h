@@ -4,6 +4,11 @@
 extern "C" {
 #endif
 
+/**
+ * All the internals of the bolt parser are meant exclusively for consumption by the bolt compiler, and as such there's no
+ * real api for interacting with it outside of that, and directly accessing deeply nested union members is the way to go.
+ */
+
 #include "bt_tokenizer.h"
 #include "bt_type.h"
 #include "bt_object.h"
@@ -243,8 +248,18 @@ typedef struct bt_Parser {
 	int32_t temp_name_counter;
 } bt_Parser;
 
+/** Creates a valid initial parser state around `tkn` */
 BOLT_API bt_Parser bt_open_parser(bt_Tokenizer* tkn);
+
+/** Close `parse` and free all owned memory, this should only be done after compilation is complete */
 BOLT_API void bt_close_parser(bt_Parser* parse);
+
+/**
+ * Exhaustively pull from the supplied tokenizer and parse the output into a valid AST,
+ * pushing errors through the context's callback along the way if encountered.
+ *
+ * Returns BT_TRUE if parsing is successful, and BT_FALSE if any errors are found.
+ */
 BOLT_API bt_bool bt_parse(bt_Parser* parser);
 
 #if __cplusplus
