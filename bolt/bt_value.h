@@ -42,13 +42,10 @@ typedef struct bt_Type bt_Type;
 #define BT_IS_ENUM(x)     (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_ENUM)
 #define BT_IS_OBJECT(x)   (!BT_IS_NUMBER(x) && (x & BT_TYPE_MASK) == BT_TYPE_OBJECT)
 
-#define BT_IS_SLOW(x)    (((x) & BT_SLOW_MASK) != 0)
 #define BT_IS_FAST(x)    (((x) & BT_SLOW_MASK) == 0)
 #define BT_MAKE_SLOW(x)  (((x) | BT_SLOW_MASK))
 
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
-
-#define BT_EPSILON 0.000000000001
 
 #define BT_AS_NUMBER(x) (bt_get_number((bt_Value)x))
 #define BT_AS_ENUM(x)   (((bt_Value)x) & 0xFFFFFFFFu)
