@@ -1742,10 +1742,10 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                 if (lhs_node->type == BT_AST_NODE_BINARY_OP && lhs_node->source->type == BT_TOKEN_PERIOD) {
                     if (!to_call->is_polymorphic) {
                         bt_TypeBuffer* args_ref = &to_call->as.fn.args;
-                        bt_Type* first_arg = args_ref->elements[0];
+                        bt_Type* first_arg = to_call->as.fn.args.length ? args_ref->elements[0] : NULL;
 
                         bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
-                        if (first_arg->satisfier(first_arg, lhs_type)) {
+                        if (first_arg && first_arg->satisfier(first_arg, lhs_type)) {
                             args[max_arg++] = lhs_node->as.binary_op.left;
                             self_arg = 1;
                         }
