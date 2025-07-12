@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+const char* bt_error_type_name = "Error";
+const char* bt_error_what_key_name = "what";
+
 static uint64_t get_timestamp()
 {
 	struct timespec ts;
@@ -98,16 +101,16 @@ static void bt_throw(bt_Context* ctx, bt_Thread* thread)
 	bt_runtime_error(thread, BT_STRING_STR(message), NULL);
 }
 
-bt_Type* bt_error_type;
-bt_Value bt_error_what_key;
-
 static void bt_error(bt_Context* ctx, bt_Thread* thread)
 {
+	bt_Module* module = bt_get_module(thread);
+	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
+	
 	bt_Value what = bt_arg(thread, 0);
 	bt_Table* result = bt_make_table(ctx, 1);
-	result->prototype = bt_type_get_proto(ctx, bt_error_type);
+	result->prototype = bt_type_get_proto(ctx, error_type);
 
-	bt_table_set(ctx, result, bt_error_what_key, what);
+	bt_table_set(ctx, result, BT_VALUE_CSTRING(ctx, bt_error_what_key_name), what);
 
 	bt_return(thread, BT_VALUE_OBJECT(result));
 }
@@ -129,7 +132,10 @@ static bt_Type* bt_protect_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 		new_args[i + 1] = arg->as.fn.args.elements[i];
 	}
 
-	bt_Type* options[] = { return_type, bt_error_type };
+	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"));
+	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
+	
+	bt_Type* options[] = { return_type, error_type };
 	bt_Type* compound_return = bt_make_union_from(ctx, options, 2);
 	return bt_make_signature_type(ctx, compound_return, new_args, 1 + arg->as.fn.args.length);
 }
@@ -146,10 +152,13 @@ static void bt_protect(bt_Context* ctx, bt_Thread* thread)
 		thread->stack + thread->top + 1, bt_argc(thread) - 1);
 	
 	if (!success) {
+		bt_Module* module = bt_get_module(thread);
+		bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
+	
 		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
+		result->prototype = bt_type_get_proto(ctx, error_type);
 
-		bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(new_thread->last_error));
+		bt_table_set(ctx, result, BT_VALUE_CSTRING(ctx, bt_error_what_key_name), BT_VALUE_OBJECT(new_thread->last_error));
 
 		bt_return(thread, BT_VALUE_OBJECT(result));
 	}
@@ -168,8 +177,11 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	if (argc < 1 || argc > 2) return NULL;
 	bt_Type* arg = bt_type_dealias(args[0]);
 
+	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"));
+	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
+	
 	if (arg->category != BT_TYPE_CATEGORY_UNION) return NULL;
-	if (!bt_union_has_variant(arg, bt_error_type)) return NULL;
+	if (!bt_union_has_variant(arg, error_type)) return NULL;
 	if (argc == 2 && bt_type_dealias(args[1]) != ctx->types.string) return NULL;
 
 	bt_Type* return_type;
@@ -178,14 +190,14 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	
 		for (uint8_t i = 0; i < arg->as.selector.types.length; ++i) {
 			bt_Type* next = arg->as.selector.types.elements[i];
-			if (next == bt_error_type) continue;
+			if (next == error_type) continue;
 
 			bt_union_push_variant(ctx, return_type, next);
 		}
 	}
 	else {
 		return_type = arg->as.selector.types.elements[0];
-		if (return_type == bt_error_type) {
+		if (return_type == error_type) {
 			return_type = arg->as.selector.types.elements[1];
 		}
 	}
@@ -195,10 +207,13 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 
 static void bt_assert(bt_Context* ctx, bt_Thread* thread)
 {
+	bt_Module* module = bt_get_module(thread);
+	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
+	
 	bt_Value result = bt_arg(thread, 0);
 
-	if (bt_is_type(result, bt_error_type)) {
-		bt_String* error_message = (bt_String*)BT_AS_OBJECT(bt_get(ctx, BT_AS_OBJECT(result), bt_error_what_key));
+	if (bt_is_type(result, error_type)) {
+		bt_String* error_message = (bt_String*)BT_AS_OBJECT(bt_get(ctx, BT_AS_OBJECT(result), BT_VALUE_CSTRING(ctx, bt_error_what_key_name)));
 		if (bt_argc(thread) == 2) {
 			bt_String* new_error = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 1));
 			new_error = bt_append_cstr(ctx, new_error, ": ");
@@ -239,11 +254,12 @@ void boltstd_open_core(bt_Context* context)
 
 	bt_module_export_native(context, module, "time", bt_time, context->types.number, NULL, 0);
 
-	bt_error_type = bt_make_tableshape_type(context, "Error", BT_FALSE);
-	bt_error_what_key = BT_VALUE_CSTRING(context, "what");
-	bt_tableshape_add_layout(context, bt_error_type, string, bt_error_what_key, string);
+	bt_Type* bt_error_type = bt_make_tableshape_type(context, bt_error_type_name, BT_FALSE);
+	bt_tableshape_add_layout(context, bt_error_type, string, BT_VALUE_CSTRING(context, bt_error_what_key_name), string);
+	
 	bt_module_export(context, module, bt_make_alias_type(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
-
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name), bt_value(bt_error_type));
+	
 	bt_module_export_native(context, module, "error", bt_error, bt_error_type, &string, 1);
 
 	bt_Type* protect_sig = bt_make_poly_signature_type(context, "protect(fn(..T): R, ..T): R | Error", bt_protect_type);
@@ -261,8 +277,11 @@ void boltstd_open_core(bt_Context* context)
 
 bt_Value boltstd_make_error(bt_Context* context, const char* message)
 {
+	bt_Module* module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"));
+	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name)));
+	
 	bt_String* what = bt_make_string(context, message);
-	bt_Table* result = bt_make_table_from_proto(context, bt_error_type);
-	bt_table_set(context, result, bt_error_what_key, BT_VALUE_OBJECT(what));
+	bt_Table* result = bt_make_table_from_proto(context, error_type);
+	bt_table_set(context, result, BT_VALUE_CSTRING(context, bt_error_what_key_name), BT_VALUE_OBJECT(what));
 	return BT_VALUE_OBJECT(result);
 }

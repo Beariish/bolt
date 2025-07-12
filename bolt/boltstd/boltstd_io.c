@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <errno.h>
 
-static bt_Type* io_file_type;
+static const char* io_file_type_name = "File";
+static const char* close_error_reason = "File already closed";
 
 typedef struct btio_FileState {
 	FILE* handle;
@@ -69,19 +70,16 @@ static void btio_open(bt_Context* ctx, bt_Thread* thread)
 		state.handle = file;
 		state.is_open = BT_TRUE;
 
-		bt_Userdata* result = bt_make_userdata(ctx, io_file_type, &state, sizeof(btio_FileState));
+		bt_Module* module = bt_get_module(thread);
+		bt_Type* file_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, io_file_type_name)));
+		
+		bt_Userdata* result = bt_make_userdata(ctx, file_type, &state, sizeof(btio_FileState));
 		bt_return(thread, BT_VALUE_OBJECT(result));
 	}
 	else {
-		bt_String* what = bt_make_string(ctx, error_to_desc(errno));
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(what));
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, error_to_desc(errno)));
 	}
 }
-
-static bt_Value bt_close_error_reason;
 
 static void btio_close(bt_Context* ctx, bt_Thread* thread)
 {
@@ -95,10 +93,7 @@ static void btio_close(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -116,10 +111,7 @@ static void btio_get_size(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_NUMBER(size));
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -134,10 +126,7 @@ static void btio_seek_set(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -152,10 +141,7 @@ static void btio_seek_relative(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -169,10 +155,7 @@ static void btio_seek_end(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_NULL);
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -186,10 +169,7 @@ static void btio_tell(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_NUMBER(pos));
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -218,11 +198,7 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 
 		if (n_read != size) {
 			if (!feof(state->handle)) {
-				bt_String* what = bt_make_string(ctx, error_to_desc(errno));
-				bt_Table* result = bt_make_table(ctx, 1);
-				result->prototype = bt_type_get_proto(ctx, bt_error_type);
-				bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(what));
-				bt_return(thread, BT_VALUE_OBJECT(result));
+				bt_return(thread, boltstd_make_error(ctx, error_to_desc(errno)));
 			}
 			else {
 				bt_return(thread, BT_VALUE_OBJECT(as_string));
@@ -233,10 +209,7 @@ static void btio_read(bt_Context* ctx, bt_Thread* thread)
 		}
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 
 	bt_gc_unpause(ctx);
@@ -252,21 +225,14 @@ static void btio_write(bt_Context* ctx, bt_Thread* thread)
 		size_t n_written = fwrite(BT_STRING_STR(content), 1, content->len, state->handle);
 
 		if (n_written != content->len) {
-			bt_String* what = bt_make_string(ctx, error_to_desc(errno));
-			bt_Table* result = bt_make_table(ctx, 1);
-			result->prototype = bt_type_get_proto(ctx, bt_error_type);
-			bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(what));
-			bt_return(thread, BT_VALUE_OBJECT(result));
+			bt_return(thread, boltstd_make_error(ctx, error_to_desc(errno)));
 		}
 		else {
 			bt_return(thread, BT_VALUE_NULL);
 		}
 	}
 	else {
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, bt_close_error_reason);
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, close_error_reason));
 	}
 }
 
@@ -291,11 +257,7 @@ static void btio_delete(bt_Context* ctx, bt_Thread* thread)
 	int32_t result = remove(BT_STRING_STR(path));
 
 	if (result != 0) {
-		bt_String* what = bt_make_string(ctx, error_to_desc(errno));
-		bt_Table* result = bt_make_table(ctx, 1);
-		result->prototype = bt_type_get_proto(ctx, bt_error_type);
-		bt_table_set(ctx, result, bt_error_what_key, BT_VALUE_OBJECT(what));
-		bt_return(thread, BT_VALUE_OBJECT(result));
+		bt_return(thread, boltstd_make_error(ctx, error_to_desc(errno)));
 	}
 	else {
 		bt_return(thread, BT_VALUE_NULL);
@@ -310,14 +272,15 @@ void boltstd_open_io(bt_Context* context)
 	bt_Type* number = bt_type_number(context);
 	bt_Type* boolean = bt_type_bool(context);
 	
-	bt_close_error_reason = bt_value(bt_make_string_hashed(context, "File already closed"));
-	bt_add_ref(context, bt_object(bt_close_error_reason));
-
-	io_file_type = bt_make_userdata_type(context, "File");
+	bt_Type* io_file_type = bt_make_userdata_type(context, io_file_type_name);
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
-	bt_module_export(context, module, bt_make_alias_type(context, "File", io_file_type),
-		BT_VALUE_CSTRING(context, "File"), bt_value(io_file_type));
-	bt_add_ref(context, (bt_Object*)io_file_type);
+
+	bt_module_export(context, module, bt_make_alias_type(context, io_file_type_name, io_file_type),
+		BT_VALUE_CSTRING(context, io_file_type_name), bt_value(io_file_type));
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, io_file_type_name), bt_value(io_file_type));
+
+	bt_Module* core_module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"));
+	bt_Type* bt_error_type = (bt_Type*)bt_object(bt_module_get_storage(core_module, BT_VALUE_CSTRING(context, bt_error_type_name)));
 
 	bt_Type* open_args[] = { string, string };
 	bt_Type* open_returns[] = { io_file_type, bt_error_type };

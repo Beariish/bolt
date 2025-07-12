@@ -315,6 +315,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		grey(gc, (bt_Object*)mod->exports);
 		grey(gc, (bt_Object*)mod->name);
 		grey(gc, (bt_Object*)mod->path);
+		grey(gc, (bt_Object*)mod->storage);
 
 		for (uint32_t i = 0; i < mod->imports.length; ++i) {
 			bt_Object* import = (bt_Object*)mod->imports.elements[i];

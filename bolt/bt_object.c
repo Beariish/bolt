@@ -424,20 +424,9 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Val
 
 bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
 {
-    bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
+    bt_Module* result = bt_make_user_module(ctx);
 
     bt_buffer_clone(ctx, &result->imports, imports);
-    result->exports = bt_make_table(ctx, 0);
-    result->type = bt_make_tableshape_type(ctx, "<module>", BT_TRUE);
-    
-    result->debug_source = 0;
-    result->stack_size = 0;
-    result->name = 0;
-    result->path = 0;
-
-    bt_buffer_empty(&result->instructions);
-    bt_buffer_empty(&result->constants);
-    bt_buffer_empty(&result->debug_tokens);
 
     return result;
 }
@@ -445,14 +434,22 @@ bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
 bt_Module* bt_make_user_module(bt_Context* ctx)
 {
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
+
+    result->context = ctx;
     
     result->debug_source = 0;
     result->stack_size = 0;
+    result->name = 0;
+    result->path = 0;
+
     bt_buffer_empty(&result->imports);
     bt_buffer_empty(&result->instructions);
     bt_buffer_empty(&result->constants);
     bt_buffer_empty(&result->debug_tokens);
+
     result->exports = bt_make_table(ctx, 0);
+    result->storage = bt_make_table(ctx, 0);
+
     result->type = bt_make_tableshape_type(ctx, "<module>", BT_TRUE);
 
     return result;
@@ -489,6 +486,20 @@ bt_Type* bt_get_return_type(bt_Callable* callable)
     return NULL;
 }
 
+bt_Module* bt_get_owning_module(bt_Callable* callable)
+{
+    switch (BT_OBJECT_GET_TYPE(callable)) {
+    case BT_OBJECT_TYPE_FN:
+        return ((bt_Fn*)callable)->module;
+    case BT_OBJECT_TYPE_CLOSURE:
+        return ((bt_Closure*)callable)->fn->module;
+    case BT_OBJECT_TYPE_NATIVE_FN:
+        return ((bt_NativeFn*)callable)->module;
+    }
+    
+    return NULL;    
+}
+
 bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size)
 {
     bt_Userdata* result = BT_ALLOCATE_INLINE_STORAGE(ctx, USERDATA, bt_Userdata, size);
@@ -502,7 +513,8 @@ bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32
     return result;
 }
 
-void* bt_userdata_get(bt_Userdata* userdata) {
+void* bt_userdata_get(bt_Userdata* userdata)
+{
     return BT_USERDATA_VALUE(userdata);
 }
 
@@ -527,6 +539,16 @@ bt_Type* bt_module_get_export_type(bt_Module* module, bt_Value key)
 bt_Value bt_module_get_export(bt_Module* module, bt_Value key)
 {
     return bt_table_get(module->exports, key);
+}
+
+void bt_module_set_storage(bt_Module* module, bt_Value key, bt_Value value)
+{
+    bt_table_set(module->context, module->storage, key, value);    
+}
+
+bt_Value bt_module_get_storage(bt_Module* module, bt_Value key)
+{
+    return bt_table_get(module->storage, key);    
 }
 
 bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)

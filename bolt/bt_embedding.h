@@ -51,6 +51,9 @@ BOLT_API bt_Value bt_getup(bt_Thread* thread, uint8_t idx);
  */
 BOLT_API void bt_setup(bt_Thread* thread, uint8_t idx, bt_Value value);
 
+/** Returns the owning module of the currently executing function */
+BOLT_API bt_Module* bt_get_module(bt_Thread* thread);
+	
 /** Returns the value of the last function executed on `thread`, regardless of whether that function was native or in-language */
 BOLT_API bt_Value bt_get_returned(bt_Thread* thread);
 

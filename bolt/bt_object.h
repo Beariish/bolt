@@ -110,6 +110,8 @@ typedef bt_Buffer(bt_ModuleImport*) bt_ImportBuffer;
 typedef struct bt_Module {
 	bt_Object obj;
 
+	bt_Context* context;
+	
 	bt_ValueBuffer constants;
 	bt_InstructionBuffer instructions;
 	bt_ImportBuffer imports;
@@ -122,6 +124,7 @@ typedef struct bt_Module {
 	bt_String* name;
 
 	bt_Table* exports;
+	bt_Table* storage;
 	bt_Type* type;
 	uint8_t stack_size;
 } bt_Module;
@@ -226,6 +229,7 @@ BOLT_API void bt_module_set_debug_info(bt_Module* module, bt_Tokenizer* tok);
 
 BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_NativeProc proc);
 BOLT_API bt_Type* bt_get_return_type(bt_Callable* callable);
+BOLT_API bt_Module* bt_get_owning_module(bt_Callable* callable);
 
 BOLT_API bt_Userdata* bt_make_userdata(bt_Context* ctx, bt_Type* type, void* data, uint32_t size);
 BOLT_API void* bt_userdata_get(bt_Userdata* userdata);
@@ -239,6 +243,9 @@ BOLT_API void bt_module_export_native(bt_Context* ctx, bt_Module* module, const 
 
 BOLT_API bt_Type* bt_module_get_export_type(bt_Module* module, bt_Value key);
 BOLT_API bt_Value bt_module_get_export(bt_Module* module, bt_Value key);
+
+BOLT_API void bt_module_set_storage(bt_Module* module, bt_Value key, bt_Value value);
+BOLT_API bt_Value bt_module_get_storage(bt_Module* module, bt_Value key);
 
 BOLT_API bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key);
 BOLT_API void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);

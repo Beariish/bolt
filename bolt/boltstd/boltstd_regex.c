@@ -1,11 +1,12 @@
 #include "boltstd_regex.h"
+
 #include "boltstd_core.h"
 
 #include "picomatch/picomatch.h"
 
 #include "../bt_embedding.h"
 
-static bt_Type* regex_type;
+static const char* regex_type_name = "Regex";
 
 typedef struct btregex_Regex {
     pm_Regex* regex;
@@ -39,6 +40,9 @@ static void btregex_compile(bt_Context* ctx, bt_Thread* thread)
     wrapped.group_count = pm_getgroups(result);
     wrapped.regex_size = size;
 
+    bt_Module* module = bt_get_module(thread);
+    bt_Type* regex_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, regex_type_name)));
+    
     bt_return(thread, bt_value(bt_make_userdata(ctx, regex_type, &wrapped, sizeof(btregex_Regex))));
 }
 
@@ -133,13 +137,16 @@ void boltstd_open_regex(bt_Context* context)
 {
     bt_Module* module = bt_make_user_module(context);
 
-    regex_type = bt_make_userdata_type(context, "Regex");
+    bt_Type* regex_type = bt_make_userdata_type(context, regex_type_name);
     bt_userdata_type_set_finalizer(regex_type, btregex_regex_finalizer);
-    bt_module_export(context, module, regex_type, BT_VALUE_CSTRING(context, "Regex"), BT_VALUE_OBJECT(regex_type));
-    bt_add_ref(context, (bt_Object*)regex_type);
+    bt_module_export(context, module, regex_type, BT_VALUE_CSTRING(context, regex_type_name), BT_VALUE_OBJECT(regex_type));
+    bt_module_set_storage(module, BT_VALUE_CSTRING(context, regex_type_name), bt_value(regex_type));
 
     bt_Type* string = bt_type_string(context);
     bt_Type* number = bt_type_number(context);
+
+    bt_Module* core_module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"));
+    bt_Type* bt_error_type = (bt_Type*)bt_object(bt_module_get_storage(core_module, BT_VALUE_CSTRING(context, bt_error_type_name)));
     
     bt_Type* compile_return = bt_make_or_extend_union(context, NULL, regex_type);
     compile_return = bt_make_or_extend_union(context, compile_return, bt_error_type);

@@ -4,9 +4,9 @@
 #include "../bt_type.h"
 #include "../bt_debug.h"
 
-static bt_Type* annotation_type;
-static bt_Value annotation_name_key;
-static bt_Value annotation_args_key;
+static const char* annotation_type_name = "Annotation";
+static const char* annotation_name_key_name = "name";
+static const char* annotation_args_key_name = "args";
 
 static void btstd_gc(bt_Context* ctx, bt_Thread* thread)
 {
@@ -138,12 +138,12 @@ static void btstd_dump(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(bt_debug_dump_fn(ctx, arg)));
 }
 
-static void populate_annotation_array(bt_Context* ctx, bt_Annotation* anno, bt_Array* array) {
+static void populate_annotation_array(bt_Context* ctx, bt_Type* anno_type, bt_Annotation* anno, bt_Array* array) {
 	while (anno) {
-		bt_Table* bt_anno = bt_make_table_from_proto(ctx, annotation_type);
-		bt_table_set(ctx, bt_anno, annotation_name_key, BT_VALUE_OBJECT(anno->name));
+		bt_Table* bt_anno = bt_make_table_from_proto(ctx, anno_type);
+		bt_table_set(ctx, bt_anno, BT_VALUE_CSTRING(ctx, annotation_name_key_name), BT_VALUE_OBJECT(anno->name));
 		bt_Array* args = anno->args ? anno->args : bt_make_array(ctx, 0);
-		bt_table_set(ctx, bt_anno, annotation_args_key, BT_VALUE_OBJECT(args));
+		bt_table_set(ctx, bt_anno, BT_VALUE_CSTRING(ctx, annotation_args_key_name), BT_VALUE_OBJECT(args));
 		bt_array_push(ctx, array, BT_VALUE_OBJECT(bt_anno));
 
 		anno = anno->next;
@@ -157,6 +157,9 @@ static void btstd_get_annotations(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(ret));
 
 	if (BT_IS_OBJECT(arg)) {
+		bt_Module* module = bt_get_module(thread);
+		bt_Type* annotation_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, annotation_type_name)));
+
 		bt_Object* as_obj = (bt_Object*)BT_AS_OBJECT(arg);
 		bt_Annotation* anno = NULL;
 
@@ -164,7 +167,7 @@ static void btstd_get_annotations(bt_Context* ctx, bt_Thread* thread)
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) anno = ((bt_Closure*)as_obj)->fn->signature->annotations;
 		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE) anno = ((bt_Type*)as_obj)->annotations;
 
-		populate_annotation_array(ctx, anno, ret);
+		populate_annotation_array(ctx, annotation_type, anno, ret);
 	}
 }
 
@@ -176,8 +179,11 @@ static void btstd_get_field_annotations(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(ret));
 
 	if (type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		bt_Module* module = bt_get_module(thread);
+		bt_Type* annotation_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, annotation_type_name)));
+		
 		bt_Annotation* anno = bt_tableshape_get_field_annotations(type, key);
-		populate_annotation_array(ctx, anno, ret);
+		populate_annotation_array(ctx, annotation_type, anno, ret);
 	}
 }
 
@@ -190,13 +196,10 @@ void boltstd_open_meta(bt_Context* context)
 	bt_Type* string = bt_type_string(context);
 	bt_Type* type = bt_type_type(context);
 
-	annotation_name_key = BT_VALUE_OBJECT(bt_make_string(context, "name"));
-	annotation_args_key = BT_VALUE_OBJECT(bt_make_string(context, "args"));
-
-	annotation_type = bt_make_tableshape_type(context, "Annotation", BT_TRUE);
-	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), annotation_name_key, bt_type_string(context));
-	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), annotation_args_key, bt_make_array_type(context, any));
-	bt_add_ref(context, (bt_Object*)annotation_type);
+	bt_Type* annotation_type = bt_make_tableshape_type(context, annotation_type_name, BT_TRUE);
+	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), BT_VALUE_CSTRING(context, annotation_name_key_name), bt_type_string(context));
+	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), BT_VALUE_CSTRING(context, annotation_args_key_name), bt_make_array_type(context, any));
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, annotation_type_name), bt_value(annotation_type));
 	
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "stack_size"),     bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));

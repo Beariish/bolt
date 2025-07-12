@@ -2,17 +2,17 @@
 
 #include "../bt_embedding.h"
 
-static bt_Value bt_table_pairs_iter_fn;
-static bt_Value bt_pair_key_key;
-static bt_Value bt_pair_value_key;
+static const char* bt_table_pairs_iter_fn_name = "pairs_iter";
+static const char* bt_pair_key_key_name = "key";
+static const char* bt_pair_value_key_name = "value";
 
 static bt_Type* make_table_pair_type(bt_Context* ctx, bt_Type* tbl)
 {
 	bt_Type* return_type = bt_make_tableshape_type(ctx, "Pair", BT_TRUE);
 	bt_Type* key_type = tbl->as.table_shape.key_type ? tbl->as.table_shape.key_type : ctx->types.any;
 	bt_Type* value_type = tbl->as.table_shape.value_type ? bt_type_remove_nullable(ctx, tbl->as.table_shape.value_type) : ctx->types.any;
-	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, bt_pair_key_key, key_type);
-	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, bt_pair_value_key, value_type);
+	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, BT_VALUE_CSTRING(ctx, bt_pair_key_key_name), key_type);
+	bt_tableshape_add_layout(ctx, return_type, ctx->types.string, BT_VALUE_CSTRING(ctx, bt_pair_value_key_name), value_type);
 
 	return return_type;
 }
@@ -32,7 +32,10 @@ static bt_Type* bt_table_pairs_type(bt_Context* ctx, bt_Type** args, uint8_t arg
 
 static void bt_table_pairs(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_push(thread, bt_table_pairs_iter_fn);
+	bt_Module* module = bt_get_module(thread);
+	bt_Value iter_fn = bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_table_pairs_iter_fn_name));
+	
+	bt_push(thread, iter_fn);
 	bt_push(thread, bt_arg(thread, 0));
 	bt_push(thread, BT_VALUE_NUMBER(0));
 
@@ -52,8 +55,8 @@ static void bt_table_pairs_iter(bt_Context* ctx, bt_Thread* thread)
 		idx++;
 
 		bt_Table* pair = bt_make_table(ctx, 2);
-		bt_table_set(ctx, pair, bt_pair_key_key, raw_pair->key);
-		bt_table_set(ctx, pair, bt_pair_value_key, raw_pair->value);
+		bt_table_set(ctx, pair, BT_VALUE_CSTRING(ctx, bt_pair_key_key_name), raw_pair->key);
+		bt_table_set(ctx, pair, BT_VALUE_CSTRING(ctx, bt_pair_value_key_name), raw_pair->value);
 
 		bt_return(thread, BT_VALUE_OBJECT(pair));
 		bt_setup(thread, 1, BT_VALUE_NUMBER(idx));
@@ -92,14 +95,9 @@ void boltstd_open_tables(bt_Context* context)
 {
 	bt_Module* module = bt_make_user_module(context);
 
-	bt_table_pairs_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, module, NULL, bt_table_pairs_iter));
-	bt_pair_key_key = BT_VALUE_OBJECT(bt_make_string(context, "key"));
-	bt_pair_value_key = BT_VALUE_OBJECT(bt_make_string(context, "value"));
-
-	bt_add_ref(context, BT_AS_OBJECT(bt_table_pairs_iter_fn));
-	bt_add_ref(context, BT_AS_OBJECT(bt_pair_key_key));
-	bt_add_ref(context, BT_AS_OBJECT(bt_pair_value_key));
-
+	bt_Value bt_table_pairs_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, module, NULL, bt_table_pairs_iter));
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, bt_table_pairs_iter_fn_name), bt_table_pairs_iter_fn);
+	
 	bt_Type* table_pairs_sig = bt_make_poly_signature_type(context, "pairs({}): fn: Pair?", bt_table_pairs_type);
 	bt_NativeFn* fn_ref = bt_make_native(context, module, table_pairs_sig, bt_table_pairs);
 	bt_module_export(context, module, table_pairs_sig, BT_VALUE_CSTRING(context, "pairs"), BT_VALUE_OBJECT(fn_ref));

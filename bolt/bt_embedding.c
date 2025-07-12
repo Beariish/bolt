@@ -30,3 +30,9 @@ BOLT_API void bt_setup(bt_Thread* thread, uint8_t idx, bt_Value value)
 {
 	BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]))[idx] = value;
 }
+
+bt_Module* bt_get_module(bt_Thread* thread)
+{
+	bt_Callable* callable = BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]);
+	return bt_get_owning_module(callable);
+}
