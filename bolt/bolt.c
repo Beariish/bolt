@@ -511,17 +511,6 @@ bt_bool bt_execute_with_args(bt_Context* context, bt_Thread* thread, bt_Callable
 	return BT_TRUE;
 }
 
-static bt_Module* get_module(bt_Callable* cb)
-{
-	switch (BT_OBJECT_GET_TYPE(&cb->obj)) {
-	case BT_OBJECT_TYPE_FN: return cb->fn.module;
-	case BT_OBJECT_TYPE_CLOSURE: return cb->cl.fn->module;
-	case BT_OBJECT_TYPE_MODULE: return &cb->module;
-	case BT_OBJECT_TYPE_NATIVE_FN: return NULL;
-	default: bt_runtime_error(NULL, "Failed to get module from callable", NULL); return NULL;
-	}
-}
-
 void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 {
 	thread->last_error = bt_make_string(thread->context, message);
@@ -541,7 +530,7 @@ void bt_runtime_error(bt_Thread* thread, const char* message, bt_Op* ip)
 				col = source_token->col;
 			}
 
-			bt_Module* module = get_module(callable);
+			bt_Module* module = bt_get_owning_module(callable);
 			thread->context->on_error(BT_ERROR_RUNTIME, (module && module->path) ? BT_STRING_STR(module->path) : "", message, line, col);
 		}
 		else {
