@@ -183,7 +183,6 @@ bt_Handlers bt_default_handlers()
 
 void bt_close(bt_Context* context)
 {
-	
 	context->types.any = 0;
 	context->types.null = 0;
 	context->types.number = 0;
@@ -192,8 +191,6 @@ void bt_close(bt_Context* context)
 	context->types.array = 0;
 	context->types.table = 0;
 	context->types.type = 0;
-	
-	//while (bt_collect(&context->gc, 0));
 	
 	context->meta_names.add = 0;
 	context->meta_names.div = 0;
@@ -225,6 +222,7 @@ void bt_close(bt_Context* context)
 	}
 
 	bt_destroy_gc(context, &context->gc);
+	context->free(context);
 }
 
 bt_bool bt_run(bt_Context* context, const char* source)
