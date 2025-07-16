@@ -2,20 +2,27 @@
 A *lightweight*, **lightning-fast**, type-safe embeddable language for real-time applications. 
 
 ```rust
-import print from core
+import print, error, Error from core
+import abs, epsilon from math
 
-fn speak(animal: string) {
-	return match animal {
-		"cat" do "meow",
-		"dog" do "woof",
-		"mouse" do "squeak",
-		else "nothing!"
-	}
+// The return type of safe_divide is inferred to be `Error | number`
+fn safe_divide(a: number, b: number) {
+    if abs(b) < epsilon {
+        return error("Cannot divide by zero!")
+    }
+
+    return a / b
 }
 
-let const animals = [ "cat", "dog", "mouse", "monkey" ]
-for const animal in animals.each() {
-	print(animal, "says", speak(animal))
+match let result = safe_divide(10, 5) {
+    is Error {
+        // The type of result is narrowed in this branch!
+        print("Failed to divide:", result.what)
+    }
+
+    is number {
+        print("The answer is", result)
+    }
 }
 ```
 

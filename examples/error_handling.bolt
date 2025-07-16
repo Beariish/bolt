@@ -1,0 +1,22 @@
+import print, error, Error from core
+import abs, epsilon from math
+
+// The return type of safe_divide is inferred to be `Error | number`
+fn safe_divide(a: number, b: number) {
+    if abs(b) < epsilon {
+        return error("Cannot divide by zero!")
+    }
+
+    return a / b
+}
+
+match let result = safe_divide(10, 5) {
+    is Error {
+        // The type of result is narrowed in this branch!
+        print("Failed to divide:", result.what)
+    }
+
+    is number {
+        print("The answer is", result)
+    }
+}
