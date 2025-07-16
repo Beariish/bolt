@@ -1,7 +1,7 @@
 # ⚡ Bolt
 A *lightweight*, **lightning-fast**, type-safe embeddable language for real-time applications. 
 
-```rust
+```ts
 import print, error, Error from core
 import abs, epsilon from math
 
