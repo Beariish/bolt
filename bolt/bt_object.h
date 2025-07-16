@@ -13,6 +13,7 @@ extern "C" {
 
 typedef struct bt_Type bt_Type;
 
+/** Denotes the discriminated type of object. `BT_OBJECT_TYPE_NONE` is used to represent a base `bt_Object*` */
 typedef enum {
 	BT_OBJECT_TYPE_NONE,
 	BT_OBJECT_TYPE_TYPE,
@@ -32,6 +33,14 @@ typedef bt_Buffer(uint32_t) bt_DebugLocBuffer;
 typedef bt_Buffer(bt_Value) bt_ValueBuffer;
 typedef bt_Buffer(bt_Op) bt_InstructionBuffer;
 
+/**
+ * Every `bt_Object` contains a pointer to the next object in the list of managed objects, set by the context when it's first allocated.
+ * Objects are allocated at dynamic sizes depending on their contents, though, so the first member of each subtype
+ * should be a `bt_Object` such that it's safe to cast to/from it.
+ *
+ * When the `BOLT_USE_MASKED_GC_HEADER` macro is defined, we use the empty bits in the `next` pointer to store
+ * type information as well as the object's GC mark
+ */
 #ifdef BOLT_USE_MASKED_GC_HEADER
 typedef struct bt_Object {
 	uint64_t mask;

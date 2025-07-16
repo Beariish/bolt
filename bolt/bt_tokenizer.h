@@ -102,17 +102,26 @@ typedef struct {
 	uint16_t line, col;
 } bt_Tokenizer;
 
+/** Creates a tokenizer with a default state, ready to parse. Must be destroyed with `bt_close_tokenizer` */
 BOLT_API bt_Tokenizer bt_open_tokenizer(bt_Context* context);
+/** Frees `tok` and all its' owned allocations, should only be called after associated compilers and parsers have been destroyed as they keep internal references to tokenizer data */
 BOLT_API void bt_close_tokenizer(bt_Tokenizer* tok);
 
+/** Makes a copy of the null-terminated string `source` and sets the internal source ptr */
 BOLT_API void bt_tokenizer_set_source(bt_Tokenizer* tok, const char* source);
+/** Sets the source name (used for error messages), must be null-terminated */
 BOLT_API void bt_tokenizer_set_source_name(bt_Tokenizer* tok, const char* source_name);
 
+/** Advance the tokenizer by one token and return it */
 BOLT_API bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok);
+/** Peek at the next token without advancing the tokenizer */
 BOLT_API bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok);
+/** Expect the next token to be of type `type`. Advance the tokenizer and return whether the type was matched. */
 BOLT_API bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type);
 
+/** Create an identifier token without a source string reference - used internally for temporary bindings in the compiler */
 BOLT_API bt_Token* bt_tokenizer_make_identifier(bt_Tokenizer* tok, bt_StrSlice name);
+/** Create an operator token without a source string reference - used internally in the compiler for generated expressions */
 BOLT_API bt_Token* bt_tokenizer_make_operator(bt_Tokenizer* tok, bt_TokenType op);
 
 #if __cplusplus

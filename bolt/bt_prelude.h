@@ -56,11 +56,13 @@ extern "C" {
 typedef uint8_t bt_bool;
 typedef double bt_number;
 
+/** Source + length string slice, assumes no null termination */
 typedef struct {
 	const char* source;
 	uint16_t length;
 } bt_StrSlice;
 
+/** Compare whether two string slinces are equal */
 BOLT_API bt_bool bt_strslice_compare(bt_StrSlice a, bt_StrSlice b);
 
 typedef struct bt_Context bt_Context;
