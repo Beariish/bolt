@@ -2,86 +2,79 @@
 The math module is a thin wrapper around `math.h`.
 
 ## Constants
-These are all exactly what you'd expect.
-```rust
-math.pi
-math.tau
-math.e
+```ts
+math.pi: number
+math.tau: number
+math.e: number
 
-math.huge
-math.infinity
-math.nan
+math.huge: number
+math.infinity: number
+math.nan: number
 
-math.ln2
-math.ln10
-math.log2e
-math.log10e
+math.ln2: number
+math.ln10: number
+math.log2e: number
+math.log10e: number
 
-math.sqrt2
-math.sqrthalf
+math.sqrt2: number
+math.sqrthalf: number
 
-math.epsilon
+math.epsilon: number
 ```
 
 ## Functions
 
-```rust
-math.min(args: ..number): number
-```
-Returns the smallest out of all the numbers provided.
+```ts
+// Returns the smallest out of all the numbers provided.
+math.min(n: number, rest: ..number): number
 
----
+// Returns the largest out of all the numbers provided.
+math.max(n: number, rest: ..number): number
 
-```rust
-math.max(args: ..number): number
-```
-Returns the largest out of all the numbers provided.
-
----
-
-```rust
+// Returns whether `n` is a power of 2.
 math.ispow2(n: number): bool
-```
-Returns whether `n` is a power of 2.
 
----
+// Sets the seed for the internal random number generator
+math.random_seed(seed: number)
 
-Explaining the follow functions in detail seems needless, so I'm just gonna list them.
-```rust
-math.sqrt(number): number
-math.abs(number): number
-math.round(number): number
-math.ceil(number): number
-math.floor(number): number
-math.trunc(number): number
-math.sign(number): number
+// Returns a random number in the range [0-1)
+math.random(): number
 
-math.sin(number): number
-math.cos(number): number
-math.tan(number): number
+// Explaining the following functions in detail seems excessive, so I'm just gonna list them.
+math.sqrt(n: number): number
+math.abs(n: number): number
+math.round(n: number): number
+math.ceil(n: number): number
+math.floor(n: number): number
+math.trunc(n: number): number
+math.sign(n: number): number
 
-math.asin(number): number
-math.acos(number): number
-math.atan(number): number
+math.sin(n: number): number
+math.cos(n: number): number
+math.tan(n: number): number
 
-math.sinh(number): number
-math.cosh(number): number
-math.tanh(number): number
+math.asin(n: number): number
+math.acos(n: number): number
+math.atan(n: number): number
 
-math.asinh(number): number
-math.acosh(number): number
-math.atanh(number): number
+math.sinh(n: number): number
+math.cosh(n: number): number
+math.tanh(n: number): number
 
-math.log(number): number
-math.log10(number): number
-math.log2(number): number
-math.exp(number): number
+math.asinh(n: number): number
+math.acosh(n: number): number
+math.atanh(n: number): number
+math.atan2(y: number, x: number): number
 
-math.deg(number): number
-math.rad(number): number
+math.log(n: number): number
+math.log10(n: number): number
+math.log2(n: number): number
+math.exp(n: number): number
 
-math.pow(number, number): number
-math.mod(number, number): number
-math.imod(number, number): number
-math.atan2(number, number): number
+math.deg(n: number): number
+math.rad(n: number): number
+
+math.pow(a: number, b: number): number
+math.mod(a: number, b: number): number
+math.imod(a: number, b: number): number
 ```
