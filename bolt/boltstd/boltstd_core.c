@@ -64,7 +64,7 @@ static void bt_readline(bt_Context* ctx, bt_Thread* thread)
 
 	// We got an empty line
 	if (matched == 0) { 
-		scanf("%*c", line);
+		(void)scanf("%*c");
 		line[0] = 0;
 	}
 	
@@ -258,7 +258,7 @@ void boltstd_open_core(bt_Context* context)
 	bt_tableshape_add_layout(context, bt_error_type, string, BT_VALUE_CSTRING(context, bt_error_what_key_name), string);
 	
 	bt_module_export(context, module, bt_make_alias_type(context, "Error", bt_error_type), BT_VALUE_CSTRING(context, "Error"), BT_VALUE_OBJECT(bt_error_type));
-	bt_module_set_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name), bt_value(bt_error_type));
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name), bt_value((bt_Object*)bt_error_type));
 	
 	bt_module_export_native(context, module, "error", bt_error, bt_error_type, &string, 1);
 

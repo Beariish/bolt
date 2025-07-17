@@ -113,7 +113,7 @@ static int emit_arg(pm_Regex* result, unsigned char arg, int measure) {
     return emit_op(result, arg, measure);
 }
 
-static int store_data(pm_Regex* result, char* start, size_t len, size_t* out_idx, int measure) {
+static int store_data(pm_Regex* result, char* start, int len, int* out_idx, int measure) {
     if (measure) {
         result->size += len;
         return 1;
@@ -143,10 +143,10 @@ static int emit_exact(pm_Regex* result, const char** source, int measure) {
 
     size_t n_matched = match - (*source);
 
-    size_t start_idx = 0;
+    int start_idx = 0;
     if (!emit_op(result, OP_MATCHEXACT, measure)) return 0;
     if (!emit_arg(result, (unsigned char)n_matched, measure)) return 0;
-    if (!store_data(result, *source, n_matched, &start_idx, measure)) return 0;
+    if (!store_data(result, (char*)*source, (int)n_matched, &start_idx, measure)) return 0;
 
     *source = match;
     return 1;
@@ -158,7 +158,7 @@ static int set_jump_from(pm_Regex* result, size_t pc, int from) {
         result->err = "Jump offset is too large";
         return 0;
     } else {
-        CODE_BASE(result)[pc] = offset;
+        CODE_BASE(result)[pc] = (unsigned char)offset;
         return 1;
     }
 }
@@ -167,7 +167,7 @@ static int emit_branch_end(pm_Regex* result, size_t branch_loc, int measure) {
     if (branch_loc > 0) {
         if (!emit_op(result, OP_END, measure)) return 0;
         if (!measure) {
-            if (!set_jump_from(result, branch_loc, branch_loc - 2)) return 0;
+            if (!set_jump_from(result, branch_loc, (int)branch_loc - 2)) return 0;
         }
     }
 
@@ -185,7 +185,7 @@ static int shift_branch(pm_Regex* result, size_t start_loc, size_t shift_amount,
         memmove(CODE_BASE(result) + start_loc + shift_amount, CODE_BASE(result) + start_loc, result->size - start_loc);
     }
 
-    result->size += shift_amount;
+    result->size += (int)shift_amount;
     return 1;
 }
 
@@ -207,7 +207,7 @@ static int emit_set(pm_Regex* result, const char** source, int measure) {
 
         switch (ch) {
         case ']':
-            if (!measure) CODE_BASE(result)[arg_idx] = result->size - arg_idx - 1;
+            if (!measure) CODE_BASE(result)[arg_idx] = (unsigned char)(result->size - arg_idx - 1);
             return 1;
         case '\\':
             if (is_class_char(**source)) {
@@ -261,7 +261,7 @@ static int emit_quantifier(pm_Regex* result, int last_emitted, int quant, int me
     }
 
     if (!shift_branch(result, last_emitted, 2, measure)) return 0;
-    CODE_BASE(result)[last_emitted] = quant;
+    CODE_BASE(result)[last_emitted] = (unsigned char)quant;
     if (!set_jump_from(result, last_emitted + 1, last_emitted)) return 0;
     return 1;
 }
@@ -313,8 +313,8 @@ static int emit_range_quantifier(pm_Regex* result, const char** source, int last
 
     if (!shift_branch(result, last_emitted, 4, measure)) return 0;
     CODE_BASE(result)[last_emitted] = OP_COUNT_RANGE;
-    CODE_BASE(result)[last_emitted + 1] = range_start;
-    CODE_BASE(result)[last_emitted + 2] = range_end;
+    CODE_BASE(result)[last_emitted + 1] = (unsigned char)range_start;
+    CODE_BASE(result)[last_emitted + 2] = (unsigned char)range_end;
     if (!set_jump_from(result, last_emitted + 3, last_emitted)) return 0;
     return 1;
 }
@@ -367,7 +367,7 @@ static int compile_internal(pm_Regex* result, const char** source, int in_block,
                     result->err = "Unexpected group inside non-capturing group";
                     return 0;
                 }
-                int capture_idx = result->num_groups++;
+                unsigned char capture_idx = (unsigned char)result->num_groups++;
                 if (!emit_op(result, OP_OPENGROUP, measure)) return 0;
                 if (!emit_arg(result, capture_idx, measure)) return 0;
 
@@ -397,7 +397,7 @@ static int compile_internal(pm_Regex* result, const char** source, int in_block,
             if (!emit_branch_end(result, branch_fix, measure)) return 0;
             if (!shift_branch(result, branch_start, 3, measure)) return 0; // 3 for BRANCH, else, skip
             CODE_BASE(result)[branch_start] = OP_CHOOSE;
-            if (!set_jump_from(result, branch_start + 1, branch_start)) return 0;
+            if (!set_jump_from(result, branch_start + 1, (int)branch_start)) return 0;
             branch_fix = branch_start + 2;
             break;
         case '\\':
@@ -419,13 +419,13 @@ static int compile_internal(pm_Regex* result, const char** source, int in_block,
                 (*source)++;
                 quant = quant == OP_ONE_MORE ? OP_ONE_MORE_LAZY : OP_ZERO_MORE_LAZY;
             }
-            if (!emit_quantifier(result, last_emitted, quant, measure)) return 0;
+            if (!emit_quantifier(result, (int)last_emitted, quant, measure)) return 0;
             break;
         case '?':
-            if (!emit_quantifier(result, last_emitted, OP_ZERO_MORE, measure)) return 0;
+            if (!emit_quantifier(result, (int)last_emitted, OP_ZERO_MORE, measure)) return 0;
             break;
         case '{':
-            if (!emit_range_quantifier(result, source, last_emitted, measure)) return 0;
+            if (!emit_range_quantifier(result, source, (int)last_emitted, measure)) return 0;
             break;
         default:
             (*source)--;
@@ -461,13 +461,13 @@ int pm_expsize(const char* source, const char** err) {
         return 0;
     }
 
-    return sizeof(pm_Regex) + result.size;
+    return (int)sizeof(pm_Regex) + result.size;
 }
 
 int pm_compile(pm_Regex* result, int result_size, const char* source) {
     memset(result, 0, result_size);
     result->num_groups = 1; // Include base match
-    result->capacity = result_size - sizeof(pm_Regex);
+    result->capacity = result_size - (int)sizeof(pm_Regex);
 
     if (source == NULL || source[0] == '\0') {
         result->err = "No source string!";
@@ -507,9 +507,8 @@ static int matches_class(const char* source, char class, int* consume) {
             || (matches_class(source, 'W', 0) && matches_class(source + 1, 'w', 0));
     case 'B':
         return !matches_class(source, 'b', consume);
+    default: return 0;
     }
-
-    return 0;
 }
 
 static int match(pm_Regex* expr, int pc, const char* source, int len, int* offset, pm_Group* groups, int group_count, int spec_depth, int spec);
@@ -603,13 +602,13 @@ static int match(pm_Regex* expr, int pc, const char* source, int len, int* offse
                     }
                     set_idx += 3;
                 } else if (set_op == ARG_CLASS) {
-                    if (matches_class(source + (*offset), *(op + 2 + set_idx + 1), 0)) {
+                    if (matches_class(source + (*offset), (char)(*(op + 2 + set_idx + 1)), 0)) {
                         result = !result;
                         break;
                     }
                     set_idx++;
                 } else {
-                    if (current == set_op) {
+                    if (current == (char)set_op) {
                         result = !result;
                         break;
                     }
@@ -713,18 +712,18 @@ static int match(pm_Regex* expr, int pc, const char* source, int len, int* offse
 int pm_match(pm_Regex* expr, const char* source, int len, pm_Group* groups, int group_count, int* remainder) {
     if (!source) return 0;
     if (len == 0) {
-        len = strlen(source);
+        len = (int)strlen(source);
     }
     
     if (expr->is_anchored) {
-        size_t offset = 0;
+        int offset = 0;
         int result = match(expr, 0, source, len, &offset, groups, group_count, 0, 0);
         if (remainder) *remainder = offset;
         return result;
     } else {
-        size_t offset = 0;
+        int offset = 0;
         int result = 0;
-        for (size_t i = 0; i < len && result == 0; i++) {
+        for (int i = 0; i < len && result == 0; i++) {
             offset = i;
             result = match(expr, 0, source, len, &offset, groups, group_count, 0, 0);
         }

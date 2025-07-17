@@ -276,8 +276,8 @@ void boltstd_open_io(bt_Context* context)
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
 
 	bt_module_export(context, module, bt_make_alias_type(context, io_file_type_name, io_file_type),
-		BT_VALUE_CSTRING(context, io_file_type_name), bt_value(io_file_type));
-	bt_module_set_storage(module, BT_VALUE_CSTRING(context, io_file_type_name), bt_value(io_file_type));
+		BT_VALUE_CSTRING(context, io_file_type_name), bt_value((bt_Object*)io_file_type));
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, io_file_type_name), bt_value((bt_Object*)io_file_type));
 
 	bt_Module* core_module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"));
 	bt_Type* bt_error_type = (bt_Type*)bt_object(bt_module_get_storage(core_module, BT_VALUE_CSTRING(context, bt_error_type_name)));

@@ -86,7 +86,7 @@ static bt_StrSlice next_temp_name(bt_Parser* parse)
     strcpy(new_name, name_temp);
 
     bt_buffer_push(parse->context, &parse->temp_names, new_name);
-    return (bt_StrSlice) { .source = new_name, .length = strlen(name_temp) };
+    return (bt_StrSlice) { .source = new_name, .length = (uint16_t)strlen(name_temp) };
 }
 
 static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* node, bt_AstNode* rhs)
@@ -3054,7 +3054,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         }
 
         bt_AstNode* result = make_node(parse, BT_AST_NODE_LOOP_NUMERIC);
-        result->source = start;
+        result->source = start->source;
         result->as.loop_numeric.start = start;
         result->as.loop_numeric.stop = stop;
         result->as.loop_numeric.step = step;

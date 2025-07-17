@@ -199,7 +199,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_Type* annotation_type = bt_make_tableshape_type(context, annotation_type_name, BT_TRUE);
 	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), BT_VALUE_CSTRING(context, annotation_name_key_name), bt_type_string(context));
 	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), BT_VALUE_CSTRING(context, annotation_args_key_name), bt_make_array_type(context, any));
-	bt_module_set_storage(module, BT_VALUE_CSTRING(context, annotation_type_name), bt_value(annotation_type));
+	bt_module_set_storage(module, BT_VALUE_CSTRING(context, annotation_type_name), bt_value((bt_Object*)annotation_type));
 	
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "stack_size"),     bt_make_number(BT_STACK_SIZE));
 	bt_module_export(context, module, number, BT_VALUE_CSTRING(context, "callstack_size"), bt_make_number(BT_CALLSTACK_SIZE));
