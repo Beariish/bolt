@@ -31,7 +31,7 @@ extern "C" {
 #define BT_ASSUME(x) __assume(x)
 #else
 #define BT_FORCE_INLINE __attribute__((always_inline))
-#define BT_NO_INLINE __attribute__((no_inline))
+#define BT_NO_INLINE
 #define BT_ASSUME(x) do { if (!(x)) __builtin_unreachable(); } while (0)
 #endif
 
