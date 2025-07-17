@@ -14,6 +14,7 @@ int main(int argc, char** argv) {
 	bt_Handlers handlers = bt_default_handlers();
 
 	bt_open(&context, &handlers);
+	
 	boltstd_open_all(context);
 
 	bt_append_module_path(context, "%s");

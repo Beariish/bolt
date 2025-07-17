@@ -104,32 +104,22 @@ if(NOT MSVC)
         -Ofast;
         -O3;
         -ffast-math;
-        -fno-signaling-nans;
-        -fno-rounding-math;
-        -funsafe-math-optimizations;
         -fomit-frame-pointer;
         -march=native;
         -flto;
         -ffp-contract=fast;
         -fmerge-all-constants;
-        -fmodulo-sched;
-        -fmodulo-sched-allow-regmoves;
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
     -Ofast;
     -O3;
     -ffast-math;
-    -fno-signaling-nans;
-    -fno-rounding-math;
-    -funsafe-math-optimizations;
     -fomit-frame-pointer;
     -march=native;
     -flto;
     -ffp-contract=fast;
     -fmerge-all-constants;
-    -fmodulo-sched;
-    -fmodulo-sched-allow-regmoves;
 )
 endif()
 
