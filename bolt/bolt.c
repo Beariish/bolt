@@ -119,7 +119,7 @@ static void bt_error(bt_ErrorType type, const char* module, const char* message,
 
 static void bt_write(bt_Context* ctx, const char* msg)
 {
-	printf(msg);
+	printf("%s", msg);
 }
 #endif
 
@@ -955,7 +955,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 					ip++; // skip the ext op
 				}
 				else {
-					obj2 = (bt_Object*)(intptr_t)BT_GET_A(op); // save this, as we modify op
+					obj2 = (bt_Object*)(uintptr_t)BT_GET_A(op); // save this, as we modify op
 					stack[(uint8_t)obj2] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
 				}
 			} else stack[BT_GET_A(op)] = bt_get(context, obj, stack[BT_GET_C(op)]); 

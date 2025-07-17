@@ -92,7 +92,7 @@ static void sprint_uint64_t(bt_Context* ctx, bt_StringBuffer* output, bt_Value v
 	}
 
 	char buf[128];
-	int32_t len = sprintf(buf, "%lld", (uint64_t)BT_AS_NUMBER(value));
+	int32_t len = sprintf(buf, "%llu", (uint64_t)BT_AS_NUMBER(value));
 
 	push_string(ctx, output, buf, len);
 }
@@ -208,7 +208,7 @@ static void bt_string_replace(bt_Context* ctx, bt_Thread* thread)
 	char* tmp;
 	char* ins = orig;
 	uint32_t count;
-	for (count = 0; tmp = strstr(ins, rep); ++count) {
+	for (count = 0; (tmp = strstr(ins, rep)); ++count) {
 		ins = tmp + len_rep;
 	}
 

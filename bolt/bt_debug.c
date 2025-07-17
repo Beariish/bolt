@@ -47,7 +47,7 @@ static const char* ast_node_op_to_string(bt_AstNode* node)
 		case BT_TOKEN_GTE: return ">=";
 		case BT_TOKEN_NULLCOALESCE: return "??";
 		case BT_TOKEN_LEFTBRACKET: return "[]";
-		default: return "<???>";
+		default: return "[???]";
 		}
 	} break;
 	case BT_AST_NODE_UNARY_OP: {
@@ -56,7 +56,7 @@ static const char* ast_node_op_to_string(bt_AstNode* node)
 		case BT_TOKEN_PLUS: return "+";
 		case BT_TOKEN_MINUS: return "-";
 		case BT_TOKEN_QUESTION: return "?";
-		default: return "<???>";
+		default: return "[???]";
 		}
 	} break;
 	}
@@ -225,19 +225,19 @@ static void format_single_instruction(char* buffer, bt_Op instruction)
 	len += sprintf(buffer + len, op_to_mnemonic[op]);
 	
 	if (is_op_abc(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d, %3d", 15 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
+		len += sprintf(buffer + len, "%*s%3d, %3d, %3d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
 	}
 	else if (is_op_ab(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d", 15 - len, " ", BT_GET_A(instruction), BT_GET_B(instruction));
+		len += sprintf(buffer + len, "%*s%3d, %3d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction));
 	}
 	else if (is_op_a(op)) {
-		len += sprintf(buffer + len, "%*s%3d", 15 - len, " ", BT_GET_A(instruction));
+		len += sprintf(buffer + len, "%*s%3d", (int)(15 - len), " ", BT_GET_A(instruction));
 	}
 	else if (is_op_aibc(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d", 15 - len, " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
+		len += sprintf(buffer + len, "%*s%3d, %3d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
 	}
 	else if (is_op_ibc(op)) {
-		len += sprintf(buffer + len, "%*s%3d", 15 - len, " ", BT_GET_IBC(instruction));
+		len += sprintf(buffer + len, "%*s%3d", (int)(15 - len), " ", BT_GET_IBC(instruction));
 	}
 
 	buffer[len] = 0;
@@ -249,7 +249,9 @@ bt_String* bt_debug_dump_fn(bt_Context* ctx, bt_Callable* function)
 	const char* mod_name = "";
 	uint32_t stack_size = 0;
 	bt_ValueBuffer constants;
+	bt_buffer_empty(&constants);
 	bt_InstructionBuffer instructions;
+	bt_buffer_empty(&instructions);
 	bt_bool has_debug = 0;
 
 	if (BT_OBJECT_GET_TYPE(function) == BT_OBJECT_TYPE_CLOSURE) {
@@ -322,7 +324,7 @@ bt_String* bt_debug_dump_fn(bt_Context* ctx, bt_Callable* function)
 
 	char buffer[128];
 	for (uint32_t i = 0; i < instructions.length; ++i) {
-		buffer[sprintf(buffer, "\t  [%03d]: ", i)] = 0;
+		buffer[sprintf(buffer, "\t  [%03u]: ", i)] = 0;
 		result = bt_string_append_cstr(ctx, result, buffer);
 
 		format_single_instruction(buffer, instructions.elements[i]);

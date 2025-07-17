@@ -174,7 +174,7 @@ static void compile_error(bt_Compiler* compiler, const char* message, uint16_t l
     compiler->has_errored = BT_TRUE;
 }
 
-static void compile_error_fmt(bt_Compiler* compiler, const char* format, uint16_t line, uint16_t col, ...)
+static void compile_error_fmt(bt_Compiler* compiler, const char* format, size_t line, size_t col, ...)
 {
     va_list va;
     va_start(va, col);
@@ -187,7 +187,7 @@ static void compile_error_fmt(bt_Compiler* compiler, const char* format, uint16_
 #endif
     va_end(va);
 
-    compile_error(compiler, message, line, col);
+    compile_error(compiler, message, (uint16_t)line, (uint16_t)col);
 }
 
 static void compile_error_token(bt_Compiler* compiler, const char* format, bt_Token* source)
@@ -558,9 +558,8 @@ static bt_bool is_assigning(bt_TokenType op) {
     case BT_TOKEN_MULEQ:
     case BT_TOKEN_DIVEQ:
         return BT_TRUE;
+    default: return BT_FALSE;
     }
-
-    return BT_FALSE;
 }
 
 static bt_Value get_from_proto(bt_Type* type, bt_Value key)
@@ -622,6 +621,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
                 BT_VALUE_OBJECT(bt_make_string_hashed_len(ctx->context, expr->source->source.source, expr->source->source.length)));
             emit_ab(ctx, BT_OP_LOAD, result_loc, idx, BT_FALSE);
         } break;
+        default:
+            compile_error_token(ctx->compiler, "Invalid literal expression type '%*s'", expr->source);
+            break;
         }
     } break;
     case BT_AST_NODE_ENUM_LITERAL: {
@@ -753,9 +755,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_NOT: 
             emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc, BT_FALSE);
             break;
-#ifdef BT_DEBUG
-        default: assert(0 && "Unimplemented unary operator!");
-#endif
+        default:
+            compile_error_token(ctx->compiler, "Invalid unary operator '%*s'", expr->source);
+            break;
         }
 
         restore_registers(ctx);
@@ -924,9 +926,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_ASSIGN:
             emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc, BT_FALSE);
             break;
-#ifdef BT_DEBUG
-        default: assert(0 && "Unimplemented binary operator!");
-#endif
+        default:
+            compile_error_token(ctx->compiler, "Invalid binary operator '%*s'", expr->source);
+            break;
         }
 
     try_store:
@@ -1094,9 +1096,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     case BT_AST_NODE_LOOP_WHILE: {
             compile_for(ctx, expr, BT_TRUE, result_loc);
     } break;
-#ifdef BT_DEBUG
-    default: assert(0);
-#endif
+    default:
+        compile_error_token(ctx->compiler, "Invalid expression type '%*s'", expr->source);
+        break;
     }
 
     if (ctx->compiler->options.generate_debug_info) {
@@ -1342,6 +1344,9 @@ static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_ex
             compile_expression(ctx, stmt->as.loop_while.condition, condition_loc);
             skip_loc = emit_aibc(ctx, BT_OP_JMPF, condition_loc, 0);
         } break;
+    default:
+        compile_error_token(ctx->compiler, "Invalid loop type '%*s'", stmt->source);
+        return BT_FALSE;
     }
 
     setup_loop(ctx, loop_start);
