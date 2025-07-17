@@ -165,6 +165,7 @@ bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, ui
 bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len)
 {
     bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
+    memset(BT_STRING_STR(result), 0, len + 1);
     result->len = len;
     result->hash = 0;
     return result;
@@ -187,12 +188,12 @@ bt_StrSlice bt_as_strslice(bt_String* str)
     return result;
 }
 
-const char* const bt_get_string(bt_String* str)
+const char* const bt_string_get(bt_String* str)
 {
     return BT_STRING_STR(str);
 }
 
-bt_String* bt_concat_strings(bt_Context* ctx, bt_String* a, bt_String* b)
+bt_String* bt_string_concat(bt_Context* ctx, bt_String* a, bt_String* b)
 {
     uint32_t length = a->len + b->len;
 
@@ -205,7 +206,7 @@ bt_String* bt_concat_strings(bt_Context* ctx, bt_String* a, bt_String* b)
     return result;
 }
 
-bt_String* bt_append_cstr(bt_Context* ctx, bt_String* a, const char* b)
+bt_String* bt_string_append_cstr(bt_Context* ctx, bt_String* a, const char* b)
 {
     uint32_t b_len = (uint32_t)strlen(b);
     uint32_t length = a->len + b_len;
@@ -299,12 +300,6 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
     return BT_FALSE;
 }
 
-bt_bool bt_table_set_cstr(bt_Context* ctx, bt_Table* tbl, const char* key, bt_Value value)
-{
-    bt_Value str = BT_VALUE_OBJECT(bt_make_string_hashed(ctx, key));
-    return bt_table_set(ctx, tbl, str, value);
-}
-
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
     for (uint32_t i = 0; i < tbl->length; ++i) {
@@ -319,12 +314,6 @@ bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
     }
 
     return BT_VALUE_NULL;
-}
-
-bt_Value bt_table_get_cstr(bt_Context* ctx, bt_Table* tbl, const char* key)
-{
-    bt_Value str = BT_VALUE_OBJECT(bt_make_string_hashed(ctx, key));
-    return bt_table_get(tbl, str);
 }
 
 int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key)
@@ -422,16 +411,16 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Val
     return result;
 }
 
-bt_Module* bt_make_module(bt_Context* ctx, bt_ImportBuffer* imports)
+bt_Module* bt_make_module_with_imports(bt_Context* ctx, bt_ImportBuffer* imports)
 {
-    bt_Module* result = bt_make_user_module(ctx);
+    bt_Module* result = bt_make_module(ctx);
 
     bt_buffer_clone(ctx, &result->imports, imports);
 
     return result;
 }
 
-bt_Module* bt_make_user_module(bt_Context* ctx)
+bt_Module* bt_make_module(bt_Context* ctx)
 {
     bt_Module* result = BT_ALLOCATE(ctx, MODULE, bt_Module);
 

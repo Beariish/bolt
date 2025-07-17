@@ -37,7 +37,7 @@ static void bt_str_remainder(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(substring));
 }
 
-static void bt_string_concat(bt_Context* ctx, bt_Thread* thread)
+static void bt_strings_concat(bt_Context* ctx, bt_Thread* thread)
 {
 	uint8_t argc = bt_argc(thread);
 
@@ -270,7 +270,7 @@ static void bt_string_starts_with(bt_Context* ctx, bt_Thread* thread) {
 		return;
 	}
 
-	bt_return(thread, bt_make_bool(strncmp(bt_get_string(self), bt_get_string(arg), bt_string_length(arg)) == 0));
+	bt_return(thread, bt_make_bool(strncmp(bt_string_get(self), bt_string_get(arg), bt_string_length(arg)) == 0));
 }
 
 static void bt_string_ends_with(bt_Context* ctx, bt_Thread* thread) {
@@ -282,7 +282,7 @@ static void bt_string_ends_with(bt_Context* ctx, bt_Thread* thread) {
 		return;
 	}
 
-	bt_return(thread, bt_make_bool(strncmp(bt_get_string(self) + bt_string_length(self) - 1 - bt_string_length(arg), bt_get_string(arg), bt_string_length(arg)) == 0));
+	bt_return(thread, bt_make_bool(strncmp(bt_string_get(self) + bt_string_length(self) - 1 - bt_string_length(arg), bt_string_get(arg), bt_string_length(arg)) == 0));
 }
 
 static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
@@ -296,12 +296,12 @@ static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
 		return;
 	}
 
-	bt_return(thread, bt_make_bool(strncmp(bt_get_string(self) + idx, bt_get_string(arg), bt_string_length(arg)) == 0));
+	bt_return(thread, bt_make_bool(strncmp(bt_string_get(self) + idx, bt_string_get(arg), bt_string_length(arg)) == 0));
 }
 
 void boltstd_open_strings(bt_Context* context)
 {
-	bt_Module* module = bt_make_user_module(context);
+	bt_Module* module = bt_make_module(context);
 
 	bt_Type* string = bt_type_string(context);
 	bt_Type* number = bt_type_number(context);
@@ -329,7 +329,7 @@ void boltstd_open_strings(bt_Context* context)
 	bt_module_export(context, module, remainder_sig, BT_VALUE_CSTRING(context, "remainder"), BT_VALUE_OBJECT(remainder_ref));
 
 	bt_Type* concat_sig = bt_make_signature_vararg(context, bt_make_signature_type(context, string, &string, 1), string);
-	fn_ref = bt_make_native(context, module, concat_sig, bt_string_concat);
+	fn_ref = bt_make_native(context, module, concat_sig, bt_strings_concat);
 
 	bt_type_add_field(context, string, concat_sig, BT_VALUE_CSTRING(context, "concat"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, concat_sig, BT_VALUE_CSTRING(context, "concat"), BT_VALUE_OBJECT(fn_ref));

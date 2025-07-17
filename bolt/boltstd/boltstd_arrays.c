@@ -346,7 +346,7 @@ static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_arrays(bt_Context* context)
 {
-	bt_Module* module = bt_make_user_module(context);
+	bt_Module* module = bt_make_module(context);
 	bt_Type* array = context->types.array;
 
 	bt_Type* length_sig = bt_make_signature_type(context, context->types.number, &context->types.array, 1);

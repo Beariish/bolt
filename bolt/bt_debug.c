@@ -281,53 +281,53 @@ bt_String* bt_debug_dump_fn(bt_Context* ctx, bt_Callable* function)
 	bt_gc_pause(ctx);
 
 	bt_String* result = bt_make_string_empty(ctx, 0);
-	result = bt_append_cstr(ctx, result, name);
-	result = bt_append_cstr(ctx, result, "\n\tModule: ");
-	result = bt_append_cstr(ctx, result, mod_name);
-	result = bt_append_cstr(ctx, result, "\n\tStack size: ");
-	result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(stack_size)));
-	result = bt_append_cstr(ctx, result, "\n\tHas debug: ");
-	result = bt_append_cstr(ctx, result, has_debug ? "YES" : "NO");
-	result = bt_append_cstr(ctx, result, "\n");
+	result = bt_string_append_cstr(ctx, result, name);
+	result = bt_string_append_cstr(ctx, result, "\n\tModule: ");
+	result = bt_string_append_cstr(ctx, result, mod_name);
+	result = bt_string_append_cstr(ctx, result, "\n\tStack size: ");
+	result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(stack_size)));
+	result = bt_string_append_cstr(ctx, result, "\n\tHas debug: ");
+	result = bt_string_append_cstr(ctx, result, has_debug ? "YES" : "NO");
+	result = bt_string_append_cstr(ctx, result, "\n");
 
 	if (BT_OBJECT_GET_TYPE(function) == BT_OBJECT_TYPE_CLOSURE) {
-		result = bt_append_cstr(ctx, result, "\tUpvals [");
-		result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(function->cl.num_upv)));
-		result = bt_append_cstr(ctx, result, "]:\n");
+		result = bt_string_append_cstr(ctx, result, "\tUpvals [");
+		result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(function->cl.num_upv)));
+		result = bt_string_append_cstr(ctx, result, "]:\n");
 
 		for (uint32_t i = 0; i < function->cl.num_upv; ++i) {
-			result = bt_append_cstr(ctx, result, "\t  [");
-			result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(i)));
-			result = bt_append_cstr(ctx, result, "]: ");
-			result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_CLOSURE_UPVALS(function)[i]));
-			result = bt_append_cstr(ctx, result, "\n");
+			result = bt_string_append_cstr(ctx, result, "\t  [");
+			result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(i)));
+			result = bt_string_append_cstr(ctx, result, "]: ");
+			result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_CLOSURE_UPVALS(function)[i]));
+			result = bt_string_append_cstr(ctx, result, "\n");
 		}
 	}
 
-	result = bt_append_cstr(ctx, result, "\tConstants [");
-	result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(constants.length)));
-	result = bt_append_cstr(ctx, result, "]:\n");
+	result = bt_string_append_cstr(ctx, result, "\tConstants [");
+	result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(constants.length)));
+	result = bt_string_append_cstr(ctx, result, "]:\n");
 
 	for (uint32_t i = 0; i < constants.length; ++i) {
-		result = bt_append_cstr(ctx, result, "\t  [");
-		result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(i)));
-		result = bt_append_cstr(ctx, result, "]: ");
-		result = bt_concat_strings(ctx, result, bt_to_string(ctx, constants.elements[i]));
-		result = bt_append_cstr(ctx, result, "\n");
+		result = bt_string_append_cstr(ctx, result, "\t  [");
+		result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(i)));
+		result = bt_string_append_cstr(ctx, result, "]: ");
+		result = bt_string_concat(ctx, result, bt_to_string(ctx, constants.elements[i]));
+		result = bt_string_append_cstr(ctx, result, "\n");
 	}
 
-	result = bt_append_cstr(ctx, result, "\tCode [");
-	result = bt_concat_strings(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(instructions.length)));
-	result = bt_append_cstr(ctx, result, "]:\n");
+	result = bt_string_append_cstr(ctx, result, "\tCode [");
+	result = bt_string_concat(ctx, result, bt_to_string(ctx, BT_VALUE_NUMBER(instructions.length)));
+	result = bt_string_append_cstr(ctx, result, "]:\n");
 
 	char buffer[128];
 	for (uint32_t i = 0; i < instructions.length; ++i) {
 		buffer[sprintf(buffer, "\t  [%03d]: ", i)] = 0;
-		result = bt_append_cstr(ctx, result, buffer);
+		result = bt_string_append_cstr(ctx, result, buffer);
 
 		format_single_instruction(buffer, instructions.elements[i]);
-		result = bt_append_cstr(ctx, result, buffer);
-		result = bt_append_cstr(ctx, result, "\n");
+		result = bt_string_append_cstr(ctx, result, buffer);
+		result = bt_string_append_cstr(ctx, result, "\n");
 	}
 
 	bt_gc_unpause(ctx);

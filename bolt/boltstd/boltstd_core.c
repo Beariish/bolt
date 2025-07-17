@@ -216,8 +216,8 @@ static void bt_assert(bt_Context* ctx, bt_Thread* thread)
 		bt_String* error_message = (bt_String*)BT_AS_OBJECT(bt_get(ctx, BT_AS_OBJECT(result), BT_VALUE_CSTRING(ctx, bt_error_what_key_name)));
 		if (bt_argc(thread) == 2) {
 			bt_String* new_error = (bt_String*)BT_AS_OBJECT(bt_arg(thread, 1));
-			new_error = bt_append_cstr(ctx, new_error, ": ");
-			error_message = bt_concat_strings(ctx, new_error, error_message);
+			new_error = bt_string_append_cstr(ctx, new_error, ": ");
+			error_message = bt_string_concat(ctx, new_error, error_message);
 		}
 
 		bt_runtime_error(thread, BT_STRING_STR(error_message), NULL);
@@ -229,7 +229,7 @@ static void bt_assert(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_core(bt_Context* context)
 {
-	bt_Module* module = bt_make_user_module(context);
+	bt_Module* module = bt_make_module(context);
 
 	bt_Type* string = bt_type_string(context);
 	

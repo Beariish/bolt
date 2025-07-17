@@ -1489,7 +1489,7 @@ bt_Module* bt_compile(bt_Compiler* compiler)
 
     push_scope(&fn);
 
-    bt_Module* result = bt_make_module(compiler->context, imports);
+    bt_Module* result = bt_make_module_with_imports(compiler->context, imports);
     fn.module = result;
 
     compile_body(&fn, body);

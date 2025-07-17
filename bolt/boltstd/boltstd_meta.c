@@ -189,7 +189,7 @@ static void btstd_get_field_annotations(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_meta(bt_Context* context)
 {
-	bt_Module* module = bt_make_user_module(context);
+	bt_Module* module = bt_make_module(context);
 	bt_Type* any = bt_type_any(context);
 	
 	bt_Type* number = bt_type_number(context);

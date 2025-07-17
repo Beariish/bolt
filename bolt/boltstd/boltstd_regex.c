@@ -19,14 +19,14 @@ static void btregex_compile(bt_Context* ctx, bt_Thread* thread)
     bt_String* source = (bt_String*)bt_object(bt_arg(thread, 0));
 
     const char* err = NULL;
-    int size = pm_expsize(bt_get_string(source), &err);
+    int size = pm_expsize(bt_string_get(source), &err);
     if (size == 0) {
         bt_return(thread, boltstd_make_error(ctx, err));
         return;
     }
 
     pm_Regex* result = bt_gc_alloc(ctx, size);
-    if (!pm_compile(result, size, bt_get_string(source))) {
+    if (!pm_compile(result, size, bt_string_get(source))) {
         bt_return(thread, boltstd_make_error(ctx, pm_geterror(result)));
         bt_gc_free(ctx, result, size);
         return;
@@ -79,10 +79,10 @@ static void btregex_match(bt_Context* ctx, bt_Thread* thread)
     btregex_Regex* regex = bt_userdata_get(userdata);
     bt_String* pattern = (bt_String*)bt_object(bt_arg(thread, 1));
     
-    if (pm_match(regex->regex, bt_get_string(pattern), bt_string_length(pattern), regex->capture_groups, regex->group_count, 0)) {
+    if (pm_match(regex->regex, bt_string_get(pattern), bt_string_length(pattern), regex->capture_groups, regex->group_count, 0)) {
         bt_Array* result = bt_make_array(ctx, regex->group_count);
         for (size_t i = 0; i < regex->group_count; i++) {
-            bt_array_push(ctx, result, bt_value(bt_make_string_len(ctx, bt_get_string(pattern) + regex->capture_groups[i].start, regex->capture_groups[i].length)));
+            bt_array_push(ctx, result, bt_value(bt_make_string_len(ctx, bt_string_get(pattern) + regex->capture_groups[i].start, regex->capture_groups[i].length)));
         }
 
         bt_return(thread, bt_value(result));
@@ -117,7 +117,7 @@ static void bt_regex_all_iter(bt_Context* ctx, bt_Thread* thread)
     size_t old_remainder = (size_t)remainder_num;
     size_t remainder = (size_t)remainder_num;
     
-    const char* str = bt_get_string(pattern) + remainder;
+    const char* str = bt_string_get(pattern) + remainder;
     size_t len = bt_string_length(pattern) - remainder;
     if (pm_match(regex->regex, str, len, regex->capture_groups, regex->group_count, &remainder)) {
         bt_Array* result = bt_make_array(ctx, regex->group_count);
@@ -135,7 +135,7 @@ static void bt_regex_all_iter(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_regex(bt_Context* context)
 {
-    bt_Module* module = bt_make_user_module(context);
+    bt_Module* module = bt_make_module(context);
 
     bt_Type* regex_type = bt_make_userdata_type(context, regex_type_name);
     bt_userdata_type_set_finalizer(regex_type, btregex_regex_finalizer);

@@ -93,7 +93,7 @@ static void bt_table_length(bt_Context* ctx, bt_Thread* thread)
 
 void boltstd_open_tables(bt_Context* context)
 {
-	bt_Module* module = bt_make_user_module(context);
+	bt_Module* module = bt_make_module(context);
 
 	bt_Value bt_table_pairs_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, module, NULL, bt_table_pairs_iter));
 	bt_module_set_storage(module, BT_VALUE_CSTRING(context, bt_table_pairs_iter_fn_name), bt_table_pairs_iter_fn);

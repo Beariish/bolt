@@ -773,7 +773,7 @@ static BT_NO_INLINE void bt_add(bt_Thread* thread, bt_Value* __restrict result, 
 		bt_String* rhs_str = (bt_String*)BT_AS_OBJECT(rhs);
 
 		if (BT_OBJECT_GET_TYPE(lhs_str) == BT_OBJECT_TYPE_STRING && BT_OBJECT_GET_TYPE(rhs_str) == BT_OBJECT_TYPE_STRING) {
-			*result = BT_VALUE_OBJECT(bt_concat_strings(thread->context, lhs_str, rhs_str));
+			*result = BT_VALUE_OBJECT(bt_string_concat(thread->context, lhs_str, rhs_str));
 			return;
 		}
 	}
