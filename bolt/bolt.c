@@ -84,7 +84,6 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->meta_names.eq = bt_make_string_hashed_len(ctx, "@eq", 3);
 	ctx->meta_names.neq = bt_make_string_hashed_len(ctx, "@neq", 4);
 	ctx->meta_names.format = bt_make_string_hashed_len(ctx, "@format", 7);
-	ctx->meta_names.collect = bt_make_string_hashed_len(ctx, "@collect", 8);
 
 	ctx->compiler_options.generate_debug_info = BT_TRUE;
 	ctx->compiler_options.accelerate_arithmetic = BT_TRUE;
@@ -201,7 +200,6 @@ void bt_close(bt_Context* context)
 	context->meta_names.eq = 0;
 	context->meta_names.neq = 0;
 	context->meta_names.format = 0;
-	context->meta_names.collect = 0;
 	
 	context->type_registry = 0;
 	context->prelude = 0;
@@ -833,6 +831,8 @@ static BT_NO_INLINE void bt_lt(bt_Thread* thread, bt_Value* __restrict result, b
 		return;
 	}
 
+	ARITH_MF(lt);
+	
 	bt_runtime_error(thread, "Cannot lt non-number value!", ip);
 }
 
@@ -843,7 +843,23 @@ static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict resul
 		return;
 	}
 
+	ARITH_MF(lte);
+	
 	bt_runtime_error(thread, "Cannot lte non-number value!", ip);
+}
+
+static BT_FORCE_INLINE void bt_mfeq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+{
+	ARITH_MF(eq);
+	
+	bt_runtime_error(thread, "Cannot eq non-number value!", ip);
+}
+
+static BT_FORCE_INLINE void bt_mfneq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+{
+	ARITH_MF(neq);
+	
+	bt_runtime_error(thread, "Cannot neq non-number value!", ip);
 }
 
 static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, bt_Module* __restrict module, bt_Op* __restrict ip, bt_Value* __restrict constants, int8_t return_loc)
@@ -928,7 +944,10 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) != BT_AS_NUMBER(stack[BT_GET_C(op)]));
 			else stack[BT_GET_A(op)] = BT_VALUE_TRUE - bt_value_is_equal(stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  
 		NEXT;
-		
+
+		CASE(MFEQ):  bt_mfeq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		CASE(MFNEQ): bt_mfneq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+			
 		CASE(LT): 
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) < BT_AS_NUMBER(stack[BT_GET_C(op)]));
 			else bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);

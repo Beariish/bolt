@@ -153,6 +153,7 @@ static bt_bool is_op_abc(uint8_t op) {
 	case BT_OP_EXPORT: case BT_OP_CLOSE:
 	case BT_OP_ADD: case BT_OP_SUB: case BT_OP_MUL: case BT_OP_DIV:
 	case BT_OP_EQ: case BT_OP_NEQ: case BT_OP_LT: case BT_OP_LTE:
+	case BT_OP_MFEQ: case BT_OP_MFNEQ:
 	case BT_OP_LOAD_IDX: case BT_OP_LOAD_IDX_K: case BT_OP_STORE_IDX_K:
 	case BT_OP_STORE_IDX: case BT_OP_LOAD_PROTO:
 	case BT_OP_COALESCE: case BT_OP_TCHECK:

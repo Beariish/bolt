@@ -147,7 +147,6 @@ struct bt_Context {
 		bt_String* eq;
 		bt_String* neq;
 		bt_String* format;
-		bt_String* collect;
 	} meta_names;
 
 	bt_Table* type_registry;

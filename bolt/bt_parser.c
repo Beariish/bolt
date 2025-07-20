@@ -2204,6 +2204,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
 
             node->resulting_type = bt_type_make_nullable(parse->context, bt_type_dealias(type));
         } break;
+        // TODO(bearish): This should really be a lot more sophisticated
 #define XSTR(x) #x
 #define TYPE_ARITH(tok1, tok2, metaname, produces_bool, is_eq)                                                                     \
         case tok1: case tok2: {                                                                                                    \
@@ -2224,7 +2225,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }                                                                                                                  \
             }                                                                                                                      \
                                                                                                                                    \
-            if (lhs == parse->context->types.number || lhs == parse->context->types.any || (lhs == parse->context->types.string && \
+            if (lhs == parse->context->types.number || (lhs == parse->context->types.string &&                                     \
                 ((tok1) == BT_TOKEN_PLUS && (tok2) == BT_TOKEN_PLUSEQ))) {                                                         \
                 if (!lhs->satisfier(lhs, rhs)) {                                                                                   \
                     parse_error(parse, "Cannot " XSTR(metaname) " rhs to lhs", node->source->line, node->source->col);             \
@@ -2233,43 +2234,51 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 if (lhs == parse->context->types.number && lhs == rhs) node->as.binary_op.accelerated = BT_TRUE;                   \
             }                                                                                                                      \
             else {                                                                                                                 \
-                if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {                                                                \
+                if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE && lhs->prototype_types) {                                        \
                     bt_Value mf_key = BT_VALUE_OBJECT(parse->context->meta_names.metaname);                                        \
                     bt_Value sub_mf = bt_table_get(lhs->prototype_types, mf_key);                                                  \
-                    if (sub_mf == BT_VALUE_NULL) parse_error(parse, "Failed to find @" XSTR(metaname) " metamethod in tableshape", node->source->line, node->source->col);      \
-                    bt_Type* sub = (bt_Type*)BT_AS_OBJECT(sub_mf);                                                                           \
+                    if (sub_mf == BT_VALUE_NULL) {                                                                                 \
+                        if(is_eq) {                                                                                                \
+                            node->resulting_type = parse->context->types.boolean;                                                  \
+                            break;                                                                                                 \
+                        }                                                                                                          \
+                        else {                                                                                                     \
+                            parse_error(parse, "Failed to find @" XSTR(metaname) " metamethod in tableshape",                      \
+                                node->source->line, node->source->col);                                                            \
+                        }                                                                                                          \
+                    }                                                                                                              \
+                    bt_Type* sub = (bt_Type*)BT_AS_OBJECT(sub_mf);                                                                 \
                                                                                                                                    \
                     if (sub->category != BT_TYPE_CATEGORY_SIGNATURE) {                                                             \
-                        parse_error(parse, "Expected metamethod @" XSTR(metaname) " to be function", node->source->line, node->source->col);                                                        \
+                        parse_error(parse, "Expected metamethod @" XSTR(metaname) " to be function",                               \
+                            node->source->line, node->source->col);                                                                \
                     }                                                                                                              \
                                                                                                                                    \
                     if (sub->as.fn.args.length != 2 || sub->as.fn.is_vararg) {                                                     \
-                        parse_error(parse, "Expected metamethod @" XSTR(metaname) " to take exactly 2 arguments", node->source->line, node->source->col);                                           \
+                        parse_error(parse, "Expected metamethod @" XSTR(metaname) " to take exactly 2 arguments",                  \
+                            node->source->line, node->source->col);                                                                \
                     }                                                                                                              \
                                                                                                                                    \
                     bt_Type* arg_lhs = sub->as.fn.args.elements[0];                                                                \
                     bt_Type* arg_rhs = sub->as.fn.args.elements[1];                                                                \
                                                                                                                                    \
                     if (!arg_lhs->satisfier(arg_lhs, lhs) || !arg_rhs->satisfier(arg_rhs, rhs)) {                                  \
-                        parse_error(parse, "Invalid arguments for @" XSTR(metaname), node->source->line, node->source->col);                                                 \
+                        parse_error(parse, "Invalid arguments for @" XSTR(metaname), node->source->line, node->source->col);       \
                     }                                                                                                              \
                                                                                                                                    \
                     node->resulting_type = sub->as.fn.return_type;                                                                 \
+                    node->as.binary_op.from_mf = BT_TRUE;                                                                          \
                     if(lhs->as.table_shape.final) {                                                                                \
                         node->as.binary_op.hoistable = BT_TRUE;                                                                    \
                         node->as.binary_op.from = lhs;                                                                             \
                         node->as.binary_op.key = mf_key;                                                                           \
                     }                                                                                                              \
                 }                                                                                                                  \
-                else if(!is_eq) {                                                                                                             \
-                    parse_error(parse, "Lhs is not an " XSTR(metaname) "able type", node->source->line, node->source->col);                                                     \
+                else if(!is_eq) {                                                                                                  \
+                    parse_error(parse, "Lhs is not an " XSTR(metaname) "able type", node->source->line, node->source->col);        \
                 }                                                                                                                  \
                 else node->resulting_type = parse->context->types.boolean;                                                         \
             }                                                                                                                      \
-                                                                                                                                   \
-            if (node->resulting_type == parse->context->types.number) {                                                            \
-                node->as.binary_op.accelerated = BT_TRUE;                                                                          \
-            } break;                                                                                                               \
         } break;
         TYPE_ARITH(BT_TOKEN_PLUS, BT_TOKEN_PLUSEQ, add, 0, 0);
         TYPE_ARITH(BT_TOKEN_MINUS, BT_TOKEN_MINUSEQ, sub, 0, 0);

@@ -1,0 +1,182 @@
+import * from "../test"
+
+import to_string from core
+
+push_scope("metamethods")
+
+type T = {
+    x: number,
+    y: number
+}
+
+fn T.@add(this, other: T) {
+    return T => { x: this.x + other.x, y: this.y + other.y }
+}
+
+fn T.@sub(this, other: T) {
+    return T => { x: this.x - other.x, y: this.y - other.y }
+}
+
+fn T.@mul(this, other: T) {
+    return T => { x: this.x * other.x, y: this.y * other.y }
+}
+
+fn T.@div(this, other: T) {
+    return T => { x: this.x / other.x, y: this.y / other.y }
+}
+
+fn T.@lt(this, other: T) { return this.x < other.x }
+fn T.@lte(this, other: T) { return this.x <= other.x }
+
+fn T.@eq(this, other: T) {
+    return this.x == other.x and this.y == other.y
+}
+
+fn T.@neq(this, other: T) {
+    return this.x != other.x or this.y != other.y
+}
+
+fn T.@format(this) {
+    return "x: " + to_string(this.x) + ", y: " + to_string(this.y)
+}
+
+test("meta @add", fn {
+    let const t1 = T => { x: 5, y: 5 }
+    let const t2 = T => { x: 10, y: 10 }
+
+    let const t3 = t1 + t2
+    expect(t3.x == 15, "A correct new object is returned")
+    expect(t3.y == 15, "A correct new object is returned")
+
+    expect(t1.x == 5 and t2.x == 10, "Old objects are not mutated")
+})
+
+test("meta @add assign", fn {
+    let t1 = T => { x: 5, y: 5 }
+    let const t2 = T => { x: 10, y: 10 }
+
+    t1 += t2
+    expect(t1.x == 15, "A correct new object is returned")
+    expect(t1.y == 15, "A correct new object is returned")
+
+    expect(t2.x == 10, "Old objects are not mutated")
+})
+
+test("meta @sub", fn {
+    let const t1 = T => { x: 10, y: 10 }
+    let const t2 = T => { x: 5, y: 5 }
+
+    let const t3 = t1 - t2
+    expect(t3.x == 5, "A correct new object is returned")
+    expect(t3.y == 5, "A correct new object is returned")
+
+    expect(t1.x == 10 and t2.x == 5, "Old objects are not mutated")
+})
+
+test("meta @sub assign", fn {
+    let t1 = T => { x: 15, y: 15 }
+    let const t2 = T => { x: 10, y: 10 }
+
+    t1 -= t2
+    expect(t1.x == 5, "A correct new object is returned")
+    expect(t1.y == 5, "A correct new object is returned")
+
+    expect(t2.x == 10, "Old objects are not mutated")
+})
+
+test("meta @mul", fn {
+    let const t1 = T => { x: 10, y: 10 }
+    let const t2 = T => { x: 5, y: 5 }
+
+    let const t3 = t1 * t2
+    expect(t3.x == 50, "A correct new object is returned")
+    expect(t3.y == 50, "A correct new object is returned")
+
+    expect(t1.x == 10 and t2.x == 5, "Old objects are not mutated")
+})
+
+test("meta @mul assign", fn {
+    let t1 = T => { x: 15, y: 15 }
+    let const t2 = T => { x: 10, y: 10 }
+
+    t1 *= t2
+    expect(t1.x == 150, "A correct new object is returned")
+    expect(t1.y == 150, "A correct new object is returned")
+
+    expect(t2.x == 10, "Old objects are not mutated")
+})
+
+test("meta @div", fn {
+    let const t1 = T => { x: 10, y: 10 }
+    let const t2 = T => { x: 5, y: 5 }
+
+    let const t3 = t1 / t2
+    expect(t3.x == 2, "A correct new object is returned")
+    expect(t3.y == 2, "A correct new object is returned")
+
+    expect(t1.x == 10 and t2.x == 5, "Old objects are not mutated")
+})
+
+test("meta @div assign", fn {
+    let t1 = T => { x: 15, y: 15 }
+    let const t2 = T => { x: 10, y: 10 }
+
+    t1 /= t2
+    expect(t1.x == 1.5, "A correct new object is returned")
+    expect(t1.y == 1.5, "A correct new object is returned")
+
+    expect(t2.x == 10, "Old objects are not mutated")
+})
+
+test("meta @lt", fn {
+    let t1 = T => { x: 5, y: 5 }
+    let t2 = T => { x: 10, y: 10 }
+
+    expect(t1 < t2, "Expected t1 to be less than t2")
+})
+
+test("meta @lte", fn {
+    let t1 = T => { x: 5, y: 5 }
+    let t2 = T => { x: 5, y: 5 }
+    let t3 = T => { x: 10, y: 10 }
+
+    expect(t1 <= t2, "Expected t1 to be less than or equal to t2")
+    expect(t1 <= t3, "Expected t1 to be less than t3")
+})
+
+test("meta @gt", fn {
+    let t1 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 5, y: 5 }
+
+    expect(t1 > t2, "Expected t1 to be greater than t2")
+})
+
+test("meta @gte", fn {
+    let t1 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 5, y: 5 }
+    let t3 = T => { x: 10, y: 10 }
+
+    expect(t1 > t2, "Expected t1 to be greater than t2")
+    expect(t1 >= t3, "Expected t1 to be greater than or equal to t2")
+})
+
+test("meta @eq", fn {
+    let t1 = T => { x: 5, y: 5 }
+    let t2 = T => { x: 5, y: 5 }
+
+    expect(t1 == t2, "Expected t1 to be equal to t2")
+})
+
+test("meta @neq", fn {
+    let t1 = T => { x: 5, y: 5 }
+    let t2 = T => { x: 6, y: 5 }
+
+    expect(t1 != t2, "Expected t1 to be equal to t2")
+})
+
+test("meta @format", fn {
+    let t1 = T => { x: 5, y: 5 }
+    expect(to_string(t1) == "x: 5, y: 5", "Expected t1 to be given custom format")
+})
+
+pop_scope()

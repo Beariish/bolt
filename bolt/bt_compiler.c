@@ -906,10 +906,10 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             } else emit_abc(ctx, BT_OP_LOAD_IDX, result_loc, lhs_loc, rhs_loc, BT_FALSE);
             break;
         case BT_TOKEN_EQUALS:
-            emit_abc(ctx, BT_OP_EQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
+            emit_abc(ctx, expr->as.binary_op.from_mf ? BT_OP_MFEQ : BT_OP_EQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_NOTEQ:
-            emit_abc(ctx, BT_OP_NEQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
+            emit_abc(ctx, expr->as.binary_op.from_mf ? BT_OP_MFNEQ : BT_OP_NEQ, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_LT:
             emit_abc(ctx, BT_OP_LT, result_loc, lhs_loc, rhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);

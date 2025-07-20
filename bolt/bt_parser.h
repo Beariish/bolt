@@ -85,6 +85,7 @@ typedef struct bt_AstNode {
 			bt_Type* from;
 			bt_Value key;
 			bt_bool hoistable;
+			bt_bool from_mf;
 		} binary_op;
 
 		struct {

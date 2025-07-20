@@ -419,7 +419,6 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	grey(gc, (bt_Object*)ctx->meta_names.eq);
 	grey(gc, (bt_Object*)ctx->meta_names.neq);
 	grey(gc, (bt_Object*)ctx->meta_names.format);
-	grey(gc, (bt_Object*)ctx->meta_names.collect);
 	
 	grey(gc, (bt_Object*)ctx->root);
 	grey(gc, (bt_Object*)ctx->type_registry);

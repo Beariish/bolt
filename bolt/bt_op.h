@@ -32,6 +32,8 @@ extern "C" {
     X(DIV)         /*  R(a) = R(b) / R(c)                            */             \
     X(EQ)          /*  R(a) = R(b) == R(c)                           */             \
     X(NEQ)         /*  R(a) = R(b) != R(c)                           */             \
+    X(MFEQ)        /*  R(a) = R(b).@eq(R(b), R(c)                    */             \
+    X(MFNEQ)       /*  R(a) = R(b).@neq(R(b), R(c)                   */             \
     X(LT)          /*  R(a) = R(b) < R(c)                            */             \
     X(LTE)         /*  R(a) = R(b) <= R(c)                           */             \
     X(TEST)        /*  if(R(a) == (bool)acc) ip += ibc               */             \
