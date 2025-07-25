@@ -862,12 +862,12 @@ static BT_FORCE_INLINE void bt_mfneq(bt_Thread* thread, bt_Value* __restrict res
 	bt_runtime_error(thread, "Cannot neq non-number value!", ip);
 }
 
-static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, bt_Module* __restrict module, bt_Op* __restrict ip, bt_Value* __restrict constants, int8_t return_loc)
+static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
-	register bt_Value* __restrict stack = thread->stack + thread->top;
+	bt_Value* stack = thread->stack + thread->top;
 	_mm_prefetch((const char*)stack, 1);
-	register bt_Value* __restrict upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
-	register bt_Object* __restrict obj, * __restrict obj2;
+	bt_Value* upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
+	bt_Object* obj, * obj2;
 
 	BT_ASSUME(obj);
 	BT_ASSUME(obj2);

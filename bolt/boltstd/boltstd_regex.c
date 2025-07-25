@@ -139,8 +139,9 @@ void boltstd_open_regex(bt_Context* context)
 
     bt_Type* regex_type = bt_make_userdata_type(context, regex_type_name);
     bt_userdata_type_set_finalizer(regex_type, btregex_regex_finalizer);
-    bt_module_export(context, module, regex_type, BT_VALUE_CSTRING(context, regex_type_name), BT_VALUE_OBJECT(regex_type));
+    bt_module_export(context, module, bt_type_type(context), BT_VALUE_CSTRING(context, regex_type_name), BT_VALUE_OBJECT(regex_type));
     bt_module_set_storage(module, BT_VALUE_CSTRING(context, regex_type_name), bt_value((bt_Object*)regex_type));
+    bt_add_ref(context, regex_type);
 
     bt_Type* string = bt_type_string(context);
     bt_Type* number = bt_type_number(context);

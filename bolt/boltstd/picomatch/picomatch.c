@@ -396,8 +396,8 @@ static int compile_internal(pm_Regex* result, const char** source, int in_block,
         case '|':
             if (!emit_branch_end(result, branch_fix, measure)) return 0;
             if (!shift_branch(result, branch_start, 3, measure)) return 0; // 3 for BRANCH, else, skip
-            CODE_BASE(result)[branch_start] = OP_CHOOSE;
-            if (!set_jump_from(result, branch_start + 1, (int)branch_start)) return 0;
+            if(!measure) CODE_BASE(result)[branch_start] = OP_CHOOSE;
+            if (!measure && !set_jump_from(result, branch_start + 1, (int)branch_start)) return 0;
             branch_fix = branch_start + 2;
             break;
         case '\\':
