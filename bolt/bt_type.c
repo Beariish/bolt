@@ -524,7 +524,7 @@ bt_Type* bt_make_union(bt_Context* context)
 
 bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
-	if (!uni && variant->category != BT_TYPE_CATEGORY_UNION) return variant;
+	if (!uni && (!variant || variant->category != BT_TYPE_CATEGORY_UNION)) return variant;
 	if (uni == variant) return uni;
 	if (!uni || uni->category != BT_TYPE_CATEGORY_UNION) {
 		bt_Type* first = uni;
@@ -958,15 +958,6 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	}
 
 	return BT_FALSE;
-}
-bt_Type* bt_type_union_clone(bt_Context* ctx, bt_Type* type)
-{
-	switch (type->category) {
-		case BT_TYPE_CATEGORY_UNION:
-			return bt_make_union_from(ctx, type->as.selector.types.elements, type->as.selector.types.length);
-		break;
-	default: return type;
-	}
 }
 
 bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }

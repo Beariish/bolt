@@ -1329,7 +1329,7 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
             }
 
             if (!expected && expr) {
-                expected = bt_type_union_clone(ctx, expr->resulting_type);
+                expected = bt_make_or_extend_union(ctx, expected, expr->resulting_type);
             }
 
             if (expected && !expected->satisfier(expected, expr->resulting_type)) {
