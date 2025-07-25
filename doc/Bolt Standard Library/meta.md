@@ -63,6 +63,10 @@ meta.get_enum_name(e: Type, value: any): string
 */
 meta.add_module_path(path_spec: string)
 
+// Dymmically searches for a module and attempts to load it, returning `null` if it doesn't exist
+// Returns a reference to the module's export table
+meta.find_module(path: string): unsealed {}?
+
 // Returns the number of options in a given union type.
 /** Example:
     let x = meta.get_union_size(type(string | number | null))

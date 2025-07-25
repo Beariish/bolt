@@ -43,6 +43,9 @@ strings.format(template: string, args: ..any): string
 // If there is no match, -1 is returned
 strings.find(haystack: string, needle: string): number
 
+// Searches for a substring in `str`, returning whether there is a match or not.
+strings.contains(haystack: string, needle: string): bool
+
 // Replaces all instances of `from` in `str` with `to`.
 // Returns a new string.
 strings.replace(str: string, from: string, to: string): string

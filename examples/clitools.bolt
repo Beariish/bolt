@@ -1,0 +1,34 @@
+/**
+ * A collection of functions used in the other examples to run modules as standalone cli tools
+*/
+
+import meta
+import io
+import Error, error from core
+import print, assert from core
+
+type File = io.File
+
+/** Determines if we're being run as a cli, and if we are, whether we're the main module */
+export fn as_cli_module(name: string): [string] | null {
+    if let cli = meta.find_module("cli") {
+        let const args = cli.args as type([string])!
+        if args[0].contains(name) {
+            return args
+        }
+    }
+
+    return null
+}
+
+/** Reads an entire file into a string, or returns an error */
+export fn read_file(path: string): string | Error {
+    return match let file = io.open(path, "r") {
+        is File do match let size = io.get_size(file) {
+            is number do io.read(file, size),
+            is Error do size
+        },
+
+        is Error do file
+    }!
+}

@@ -338,6 +338,7 @@ static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 		sort_context.context = ctx;
 		sort_context.thread = thread;
 		qsort(arg->items, arg->length, sizeof(bt_Value), bt_sort_comp);
+		
 		sort_context.in_use = BT_FALSE;
 	}
 

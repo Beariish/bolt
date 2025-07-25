@@ -185,8 +185,8 @@ BOLT_API void bt_register_prelude(bt_Context* context, bt_Value name, bt_Type* t
 
 /** Register a module with a given name, allowing it to be imported by that alias */
 BOLT_API void bt_register_module(bt_Context* context, bt_Value name, bt_Module* module);
-/** Search the module registry by name, returning NULL if no module is found */
-BOLT_API bt_Module* bt_find_module(bt_Context* context, bt_Value name);
+/** Search the module registry by name, returning NULL if no module is found. If `suppress_errors` is set, no runtime errors are raised */
+BOLT_API bt_Module* bt_find_module(bt_Context* context, bt_Value name, bt_bool suppress_errors);
 
 /** Allocates a new thread with an empty callstack */
 BOLT_API bt_Thread* bt_make_thread(bt_Context* context);

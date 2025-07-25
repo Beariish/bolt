@@ -171,7 +171,7 @@ static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 	bt_String* source = (bt_String*)bt_object(bt_arg(thread, 0));
 	bt_String* needle = (bt_String*)bt_object(bt_arg(thread, 1));
 
-	for (uint32_t i = 0; i < source->len - needle->len; ++i) {
+	for (uint32_t i = 0; i < (source->len - needle->len) + 1; ++i) {
 		const char* start = BT_STRING_STR(source) + i;
 
 		int32_t found = (int32_t)i;
@@ -189,6 +189,31 @@ static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 	}
 
 	bt_return(thread, BT_VALUE_NUMBER((double)-1));
+}
+
+static void bt_string_contains(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_String* source = (bt_String*)bt_object(bt_arg(thread, 0));
+	bt_String* needle = (bt_String*)bt_object(bt_arg(thread, 1));
+
+	for (uint32_t i = 0; i < (source->len - needle->len) + 1; ++i) {
+		const char* start = BT_STRING_STR(source) + i;
+
+		int32_t found = (int32_t)i;
+		for (uint32_t j = 0; j < needle->len; j++) {
+			if (start[j] != BT_STRING_STR(needle)[j]) {
+				found = -1;
+				break;
+			}
+		}
+
+		if (found != -1) {
+			bt_return(thread, bt_make_bool(1));
+			return;
+		}
+	}
+	
+	bt_return(thread, bt_make_bool(0));
 }
 
 static void bt_string_replace(bt_Context* ctx, bt_Thread* thread) 
@@ -346,6 +371,13 @@ void boltstd_open_strings(bt_Context* context)
 
 	bt_type_add_field(context, string, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, find_sig, BT_VALUE_CSTRING(context, "find"), BT_VALUE_OBJECT(fn_ref));
+	
+	bt_Type* contains_args[] = { string, string };
+	bt_Type* contains_sig = bt_make_signature_type(context, boolean, contains_args, 2);
+	fn_ref = bt_make_native(context, module, contains_sig, bt_string_contains);
+
+	bt_type_add_field(context, string, contains_sig, BT_VALUE_CSTRING(context, "contains"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, contains_sig, BT_VALUE_CSTRING(context, "contains"), BT_VALUE_OBJECT(fn_ref));
 
 	bt_Type* replace_args[] = { string, string, string };
 	bt_Type* replace_sig = bt_make_signature_type(context, string, replace_args, 3);

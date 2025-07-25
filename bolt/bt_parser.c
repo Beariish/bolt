@@ -159,13 +159,7 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
         }
 
         bt_Table* layout = lhs->as.table_shape.layout;
-
-        if (!layout) {
-            parse_error_token(parse, "Attempted to get field, but table has none", node->source);
-            return NULL;
-        }
-
-        bt_Value table_entry = bt_table_get(layout, rhs_key);
+        bt_Value table_entry = layout ? bt_table_get(layout, rhs_key) : BT_VALUE_NULL;
         if (table_entry != BT_VALUE_NULL) {
             bt_Type* type = (bt_Type*)BT_AS_OBJECT(table_entry);
 
@@ -757,7 +751,9 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier, 
     return result;
 }
 
-static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
+static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias);
+
+static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
 {
     try_parse_annotations(parse);
     
@@ -1049,6 +1045,36 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
     return NULL;
 }
 
+static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
+{
+    bt_Tokenizer* tok = parse->tokenizer;
+    bt_Context* ctx = tok->context;
+
+    bt_Type* first = parse_type_single(parse, recurse, alias);
+    if (!first) return NULL;
+
+    bt_bool cont = BT_FALSE;
+
+    do {
+        cont = BT_FALSE;
+        bt_Token* next = bt_tokenizer_peek(tok);
+        switch (next->type) {
+        case BT_TOKEN_UNION:
+            bt_tokenizer_emit(tok);
+            first = bt_make_or_extend_union(ctx, first, parse_type_single(parse, recurse, alias));
+            cont = BT_TRUE;
+            break;
+        case BT_TOKEN_QUESTION:
+            bt_tokenizer_emit(tok);
+            first = bt_type_make_nullable(ctx, first);
+            cont = BT_TRUE;
+            break;
+        }
+    } while (cont);
+
+    return first;
+}
+
 static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
 {
     bt_AstNode* result = make_node(parse, BT_AST_NODE_ARRAY);
@@ -1303,7 +1329,7 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
             }
 
             if (!expected && expr) {
-                expected = expr->resulting_type;
+                expected = bt_type_union_clone(ctx, expr->resulting_type);
             }
 
             if (expected && !expected->satisfier(expected, expr->resulting_type)) {
@@ -1334,6 +1360,13 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
         }
         else if (expr->type == BT_AST_NODE_LOOP_ITERATOR) {
             expected = infer_return(parse, ctx, &expr->as.loop_iterator.body, expected, is_inferable, level + 1);
+        }
+        else if (expr->type == BT_AST_NODE_MATCH) {
+            expected = infer_return(parse, ctx, &expr->as.match.branches, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.match.else_branch, expected, is_inferable, level + 1);
+        }
+        else if (expr->type == BT_AST_NODE_MATCH_BRANCH) {
+            expected = infer_return(parse, ctx, &expr->as.match_branch.body, expected, is_inferable, level + 1);
         }
     }
 
@@ -2613,7 +2646,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
         bt_String* module_name_str = parse_module_name(parse, NULL);
         bt_Value module_name = BT_VALUE_OBJECT(module_name_str);
-        bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+        bt_Module* mod_to_import = bt_find_module(parse->context, module_name, BT_FALSE);
 
         if (!mod_to_import) {
             parse_error_fmt(parse, "Failed to import module '%.*s'", next->line, next->col, module_name_str->len, BT_STRING_STR(module_name_str));
@@ -2672,7 +2705,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
         bt_Value module_name = BT_VALUE_OBJECT(parse_module_name(parse, NULL));
 
-        bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+        bt_Module* mod_to_import = bt_find_module(parse->context, module_name, BT_FALSE);
 
         if (!mod_to_import) {
             bt_String* name_str = (bt_String*)BT_AS_OBJECT(module_name);
@@ -2726,7 +2759,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         }
     }
 
-    bt_Module* mod_to_import = bt_find_module(parse->context, module_name);
+    bt_Module* mod_to_import = bt_find_module(parse->context, module_name, BT_FALSE);
 
     if (!mod_to_import) {
         bt_String* name_str = (bt_String*)BT_AS_OBJECT(module_name);

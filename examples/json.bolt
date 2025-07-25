@@ -204,6 +204,34 @@ export fn parse(input: string): JsonValue | Error {
     return match let result = parse_single(input, 0) {
         is Error do result,
         is ParseSuccess do result.result,
-        else error("Failed!")
+    }!
+}
+
+import "clitools" as cli
+
+if let args = cli.as_cli_module("json") {
+    if args.length() < 2 {
+        print("Usage: examples/json.bolt <file>")
+    } else {
+        let filename = args[1]
+        match let file = cli.read_file(filename) {
+            is string {
+                match let json = parse(file) {
+                    is JsonValue {
+                        print("Parsed successfully!")
+                        print("Content:")
+                        print(json)
+                    }
+
+                    is Error {
+                        print("Parsing failed:", json.what)
+                    }
+                }
+            }
+
+            is Error {
+                print("Couldn't read file:", file.what)
+            }
+        }
     }
 }

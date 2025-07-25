@@ -132,7 +132,7 @@ static bt_Type* bt_protect_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 		new_args[i + 1] = arg->as.fn.args.elements[i];
 	}
 
-	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"));
+	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"), BT_FALSE);
 	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
 	
 	bt_Type* options[] = { return_type, error_type };
@@ -177,7 +177,7 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	if (argc < 1 || argc > 2) return NULL;
 	bt_Type* arg = bt_type_dealias(args[0]);
 
-	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"));
+	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"), BT_FALSE);
 	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
 	
 	if (arg->category != BT_TYPE_CATEGORY_UNION) return NULL;
@@ -277,7 +277,7 @@ void boltstd_open_core(bt_Context* context)
 
 bt_Value boltstd_make_error(bt_Context* context, const char* message)
 {
-	bt_Module* module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"));
+	bt_Module* module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"), BT_FALSE);
 	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name)));
 	
 	bt_String* what = bt_make_string(context, message);

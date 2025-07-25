@@ -187,6 +187,13 @@ static void btstd_get_field_annotations(bt_Context* ctx, bt_Thread* thread)
 	}
 }
 
+static void btstd_find_module(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value module_name = bt_arg(thread, 0);
+	bt_Module* module = bt_find_module(ctx, module_name, BT_TRUE);
+	bt_return(thread, module ? bt_value((bt_Object*)module->exports) : bt_make_null());
+}
+
 void boltstd_open_meta(bt_Context* context)
 {
 	bt_Module* module = bt_make_module(context);
@@ -207,6 +214,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export(context, module, type,   BT_VALUE_CSTRING(context, "Annotation"),     bt_value((bt_Object*)annotation_type));
 	
 	bt_Type* findtype_ret = bt_type_make_nullable(context, type);
+	bt_Type* findmodule_ret = bt_type_make_nullable(context, bt_type_table(context));
 	bt_Type* annotation_arr = bt_make_array_type(context, annotation_type);
 	
 	bt_Type* regtype_args[]         = { string, type };
@@ -230,6 +238,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export_native(context, module, "get_union_entry",   btstd_get_union_entry,       type,           get_union_entry_args, 2);
 	bt_module_export_native(context, module, "annotations",       btstd_get_annotations,       annotation_arr, &any,                 1);
 	bt_module_export_native(context, module, "field_annotations", btstd_get_field_annotations, annotation_arr, field_anno_args,      2);
+	bt_module_export_native(context, module, "find_module",       btstd_find_module,           findmodule_ret, &string,              1);
 	
 	bt_Type* dump_sig = bt_make_poly_signature_type(context, "dump(fn): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(

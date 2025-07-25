@@ -1,0 +1,70 @@
+import * from "../test"
+
+push_scope("aliases")
+
+test("primitive aliases", fn {
+    type Null = null
+    type Number = number
+    type Bool = bool
+    type String = string
+    type TType = Type
+})
+
+test("primitive union aliases", fn {
+    type NullNumber = null | number
+    type BoolType = bool | Type
+    type NumberBoolString = number | bool | string
+})
+
+test("primitive nullable union aliases", fn {
+    type NullNumber = number?
+    type NumberBoolStringNull = number | bool | string?
+
+    expect(NullNumber == type(number | null), "Expected types to be equal!")
+    expect(NumberBoolStringNull == type(number | bool | string | null), "Expected types to be equal!")
+})
+
+test("array aliases", fn {
+    type NullArray = [null]
+    type NumberArray = [number]
+    type BoolArray = [bool]
+    type StringArray = [string]
+    type TypeArray = [Type]
+})
+
+test("nested array aliases", fn {
+    type NullArrayArray = [[null]]
+    type NumberArrayArray = [[number]]
+    type BoolArrayArray = [[bool]]
+    type StringArrayArray = [[string]]
+    type TypeArrayArray = [[Type]]
+})
+
+test("union array aliases", fn {
+    type NullNumberArray = [null | number]
+    type NumberArrayNumberArray = [number | [number]]
+    type NumberArrayNumberStringArray = [number | [number] | string]
+})
+
+test("nullable union array aliases", fn {
+    type NullNumberArray = [number?]
+    type NumberBoolStringNullArray = [number | bool | string?]
+
+    expect(NullNumberArray == type([number | null]), "Expected types to be equal!")
+    expect(NumberBoolStringNullArray == type([number | bool | string | null]), "Expected types to be equal!")
+})
+
+test("array union aliases", fn {
+    type ArrayNull = [number] | null
+    type ArrayStringBool = [number] | string | bool
+})
+
+test("array nullable union aliases", fn {
+    type ArrayNull = [number]?
+    type ArrayStringBoolNull = [number] | string | bool?
+
+    expect(ArrayNull == type([number] | null), "Expected types to be equal!")
+    expect(ArrayStringBoolNull == type([number] | bool | string | null), "Expected types to be equal!")
+})
+
+pop_scope()

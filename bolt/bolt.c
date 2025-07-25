@@ -380,7 +380,7 @@ static bt_Value bt_normalize_path(bt_Context* context, bt_Value path)
 	return BT_VALUE_OBJECT(result);
 }
 
-bt_Module* bt_find_module(bt_Context* context, bt_Value name)
+bt_Module* bt_find_module(bt_Context* context, bt_Value name, bt_bool suppress_errors)
 {
 	bt_push_root(context, BT_AS_OBJECT(name));
 	// TODO: resolve module name with path
@@ -399,7 +399,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 			path_len = sprintf(path_buf, pathspec->spec, BT_STRING_STR(to_load));
 	
 			if (path_len >= BT_MODULE_PATH_SIZE) {
-				bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
+				if (!suppress_errors) bt_runtime_error(context->current_thread, "Path buffer overrun when loading module!", NULL);
 				bt_pop_root(context);
 				return NULL;
 			}
@@ -412,7 +412,7 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name)
 		}
 
 		if (code == 0) {
-			if(context->current_thread) bt_runtime_error(context->current_thread, "Cannot find module file", NULL);
+			if(context->current_thread && !suppress_errors) bt_runtime_error(context->current_thread, "Cannot find module file", NULL);
 			bt_pop_root(context);
 			return NULL;
 		}

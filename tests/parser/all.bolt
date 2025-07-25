@@ -1,6 +1,7 @@
 import * from "../test"
 import "_scope"
 
+import "aliases"
 import "literals"
 import "bindings"
 import "inference/all"

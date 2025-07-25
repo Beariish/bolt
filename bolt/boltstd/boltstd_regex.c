@@ -146,7 +146,7 @@ void boltstd_open_regex(bt_Context* context)
     bt_Type* string = bt_type_string(context);
     bt_Type* number = bt_type_number(context);
 
-    bt_Module* core_module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"));
+    bt_Module* core_module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"), BT_FALSE);
     bt_Type* bt_error_type = (bt_Type*)bt_object(bt_module_get_storage(core_module, BT_VALUE_CSTRING(context, bt_error_type_name)));
     
     bt_Type* compile_return = bt_make_or_extend_union(context, NULL, regex_type);
