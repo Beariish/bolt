@@ -141,9 +141,9 @@ BOLT_API bt_Type* bt_type_dealias(bt_Type* type);
 /** Returns whether `type` is an alias or not */
 BOLT_API bt_bool bt_is_alias(bt_Type* type);
 /** Returns whether `value´ can safely by cast to `type` */
-BOLT_API bt_bool bt_can_cast(bt_Value value, bt_Type* type);
+BOLT_API BT_NO_INLINE bt_bool bt_can_cast(bt_Value value, bt_Type* type);
 /** Performs a value-level cast (NO OBJECT TYPES!) on `value`, returning a new boxed value */
-BOLT_API bt_Value bt_value_cast(bt_Value value, bt_Type* type);
+BOLT_API BT_NO_INLINE bt_Value bt_value_cast(bt_Value value, bt_Type* type);
 /** Returns whether `value` is of type `type` */
 BOLT_API bt_bool bt_is_type(bt_Value value, bt_Type* type);
 /** Attempt to create a new value of type `type` that is reasonable cast from `value`, returning NULL if not possible */

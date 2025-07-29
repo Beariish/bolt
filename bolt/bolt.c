@@ -789,7 +789,7 @@ static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* __restrict resul
 	bt_runtime_error(thread, "Cannot negate non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_sub(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(BT_AS_NUMBER(lhs) - BT_AS_NUMBER(rhs));
@@ -836,7 +836,7 @@ static BT_NO_INLINE void bt_lt(bt_Thread* thread, bt_Value* __restrict result, b
 	bt_runtime_error(thread, "Cannot lt non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(lhs) && BT_IS_NUMBER(rhs)) {
 		*result = BT_AS_NUMBER(lhs) <= BT_AS_NUMBER(rhs) ? BT_VALUE_TRUE : BT_VALUE_FALSE;
@@ -848,14 +848,14 @@ static BT_FORCE_INLINE void bt_lte(bt_Thread* thread, bt_Value* __restrict resul
 	bt_runtime_error(thread, "Cannot lte non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_mfeq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_mfeq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	ARITH_MF(eq);
 	
 	bt_runtime_error(thread, "Cannot eq non-number value!", ip);
 }
 
-static BT_FORCE_INLINE void bt_mfneq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_mfneq(bt_Thread* thread, bt_Value* __restrict result, bt_Value lhs, bt_Value rhs, bt_Op* ip)
 {
 	ARITH_MF(neq);
 	
