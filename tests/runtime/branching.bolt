@@ -1,0 +1,65 @@
+import * from "../test"
+
+push_scope("branching")
+
+test("single branch", fn {
+    let const x = 10
+
+    ensure_branch()
+    if x > 5 {
+        expect_branched(true, "This branch should be taken")
+    }
+})
+
+test("single branch with else", fn {
+    let const x = 10
+
+    ensure_branch()
+    if x < 5 {
+        expect_branched(false, "This branch should never be taken")
+    } else {
+        expect_branched(true, "This branch should be taken")
+    }
+})
+
+test("branch with if-else chain", fn {
+    let const x = "hello"
+    
+    ensure_branch()
+    if x == "bye" {
+        expect_branched(false, "This branch should never be taken")
+    } else if x == "goodbye" {
+        expect_branched(false, "This branch should never be taken")
+    } else if x == "hello" {
+        expect_branched(true, "This branch should be taken")
+    } else {
+        expect_branched(false, "This branch should never be taken")
+    }
+})
+
+test("single branch using 'then'", fn {
+    let const x = 10
+
+    ensure_branch()
+    if x > 5 then expect_branched(true, "This branch should be taken")
+})
+
+test("single branch with else using 'then'", fn {
+    let const x = 10
+
+    ensure_branch()
+    if x < 5 then expect_branched(false, "This branch should never be taken")
+    else expect_branched(true, "This branch should be taken")
+})
+
+test("branch with if-else chain using 'then'", fn {
+    let const x = "hello"
+    
+    ensure_branch()
+    if x == "bye" then expect_branched(false, "This branch should never be taken")
+    else if x == "goodbye" then expect_branched(false, "This branch should never be taken")
+    else if x == "hello" then expect_branched(true, "This branch should be taken")
+    else expect_branched(false, "This branch should never be taken")
+})
+
+pop_scope()
