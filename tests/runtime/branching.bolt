@@ -62,4 +62,44 @@ test("branch with if-else chain using 'then'", fn {
     else expect_branched(false, "This branch should never be taken")
 })
 
+test("single if-let branch", fn {
+    fn maybe_number: number? { return 10 }
+
+    ensure_branch()
+    if let x = maybe_number() { expect_branched(x == 10, "This branch should be taken") }
+})
+
+test("single if-let branch - not taken", fn {
+    fn maybe_number: number? { return null }
+
+    if let x = maybe_number() { expect(false, "This branch should never be taken") }
+})
+
+test("single if-let branch - using 'then'", fn {
+    fn maybe_number: number? { return 10 }
+
+    ensure_branch()
+    if let x = maybe_number() then expect_branched(x == 10, "This branch should be taken")
+})
+
+test("single if-let branch with else", fn {
+    fn maybe_number: number? { return null }
+
+    ensure_branch()
+    if let x = maybe_number() { expect_branched(x == 10, "This branch should never be taken") }
+    else { expect_branched(true, "This branch should be taken") }
+})
+
+test("if-let branch chain with else", fn {
+    fn maybe_number: number? { return null }
+    fn maybe_number2: number? { return null }
+    fn maybe_number3: number? { return 10 }
+
+    ensure_branch()
+    if let x = maybe_number() { expect_branched(x == 10, "This branch should never be taken") }
+    else if let y = maybe_number2() { expect_branched(y == 10, "This branch should never be taken") }
+    else if let z = maybe_number3() { expect_branched(z == 10, "This branch should be taken") }
+    else { expect_branched(false, "This branch should never be taken") }
+})
+
 pop_scope()
