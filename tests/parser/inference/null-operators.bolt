@@ -9,6 +9,14 @@ test("? operator inference", fn {
     expect(x? is bool,         "Expected x? to be 'bool'")
 })
 
+test("? operator narrowing", fn {
+    let const x: number | null = 10
+
+    if x? {
+        expect(typeof(x) == number, "Expected x to be narrowed")
+    }
+})
+
 test("?? operator inference", fn {
     let const x: number | null = null
 

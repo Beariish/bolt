@@ -2538,6 +2538,23 @@ static bt_bool can_start_expression(bt_Token* token)
 static bt_AstNode* attempt_narrowing(bt_Parser* parser, bt_AstNode* condition)
 {
     if (!condition) return NULL;
+
+    if (condition->type == BT_AST_NODE_UNARY_OP) {
+        if (condition->source->type == BT_TOKEN_QUESTION) {
+            bt_AstNode* operand = condition->as.unary_op.operand;
+            if (operand->type != BT_AST_NODE_IDENTIFIER) return NULL;
+            bt_Type* op_type = resolve_to_type(parser, operand);
+            if (!op_type) return NULL;
+
+            bt_AstNode* shadow = make_node(parser, BT_AST_NODE_LET);
+            shadow->source = operand->source;
+            shadow->as.let.is_const = BT_FALSE;
+            shadow->as.let.name = operand->source->source;
+            shadow->resulting_type = bt_type_remove_nullable(parser->context, op_type);
+            return shadow;
+        }
+    }
+    
     if (condition->type != BT_AST_NODE_BINARY_OP) return NULL;
 
     if (condition->source->type == BT_TOKEN_IS) {
