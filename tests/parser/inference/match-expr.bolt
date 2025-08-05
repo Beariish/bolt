@@ -35,8 +35,8 @@ test("match expr inference with multiple branches and types", fn {
 
 test("match expr inference with expression blocks", fn {
     let x = match 1 {
-        1, 2, 3 do 10,
-        4, 5, 6 do false,
+        1, 2, 3 then 10,
+        4, 5, 6 then false,
         else "hello!"
     }
 
@@ -46,8 +46,8 @@ test("match expr inference with expression blocks", fn {
 
 test("match expr inference with implicit else", fn {
     let x = match 1 {
-        1, 2, 3 do 10,
-        4, 5, 6 do false,
+        1, 2, 3 then 10,
+        4, 5, 6 then false,
     }
 
     expect(typeof(x) == type(number | bool | null), "Expected 'x' to be 'number | bool | null'")

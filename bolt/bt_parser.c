@@ -3312,6 +3312,11 @@ static bt_AstNode* parse_match(bt_Parser* parse)
                 bt_tokenizer_emit(parse->tokenizer);
             } else {
                 bt_AstNode* compare_against = parse_expression(parse, 0, NULL);
+                if (!compare_against) {
+                    parse_error_token(parse, "Failed to parse match condition: '%.*s'", next);
+                    return NULL;
+                }
+                
                 bt_AstNode* compare_op = make_node(parse, BT_AST_NODE_BINARY_OP);
                 compare_op->as.binary_op.left = match_on_ident;
                 compare_op->as.binary_op.right = compare_against;
@@ -3343,7 +3348,7 @@ static bt_AstNode* parse_match(bt_Parser* parse)
             bt_AstNode* branch = make_node(parse, BT_AST_NODE_MATCH_BRANCH);
             branch->as.match_branch.condition = current_condition;
             bt_AstNode* narrowed = attempt_narrowing(parse, current_condition);
-            branch->as.match_branch.body = parse_block_or_single(parse, BT_TOKEN_DO, narrowed);
+            branch->as.match_branch.body = parse_block_or_single(parse, BT_TOKEN_THEN, narrowed);
 
             bt_buffer_push(parse->context, &result->as.match.branches, branch);
         } else {
@@ -3370,7 +3375,13 @@ static bt_AstNode* parse_match(bt_Parser* parse)
 
 static bt_AstNode* parse_match_expression(bt_Parser* parse)
 {
+    bt_Token* next = bt_tokenizer_peek(parse->tokenizer);
     bt_AstNode* match = parse_match(parse);
+    if (!match) {
+        parse_error_token(parse, "Failed to parse match expression: '%.*s'", next);
+        return NULL;
+    }
+    
     match->as.match.is_expr = BT_TRUE;
 
     bt_Type* aggregate_type = NULL;
