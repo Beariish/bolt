@@ -24,11 +24,11 @@ export fn as_cli_module(name: string): [string] | null {
 /** Reads an entire file into a string, or returns an error */
 export fn read_file(path: string): string | Error {
     return match let file = io.open(path, "r") {
-        is File do match let size = io.get_size(file) {
-            is number do io.read(file, size),
-            is Error do size
+        is File then match let size = io.get_size(file) {
+            is number then io.read(file, size),
+            is Error then size
         },
 
-        is Error do file
+        is Error then file
     }!
 }

@@ -202,8 +202,8 @@ fn parse_single(content: string, idx: number): ParseResult {
 
 export fn parse(input: string): JsonValue | Error {
     return match let result = parse_single(input, 0) {
-        is Error do result,
-        is ParseSuccess do result.result,
+        is Error then result,
+        is ParseSuccess then result.result,
     }!
 }
 
