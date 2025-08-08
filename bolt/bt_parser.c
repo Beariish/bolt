@@ -1240,10 +1240,10 @@ static uint8_t postfix_binding_power(bt_Token* token)
     switch (token->type)
     {
     case BT_TOKEN_BANG: return 16;
-    case BT_TOKEN_LEFTPAREN: return 19;
+    case BT_TOKEN_LEFTPAREN: return 20;
     case BT_TOKEN_QUESTION: return 15;
-    case BT_TOKEN_LEFTBRACKET: return 17;
-    case BT_TOKEN_FATARROW: return 18;
+    case BT_TOKEN_LEFTBRACKET: return 18;
+    case BT_TOKEN_FATARROW: return 19;
     default:
         return 0;
     }

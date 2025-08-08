@@ -1,0 +1,68 @@
+import bench from "bench"
+import sqrt from math
+
+fn eval_a(i: number, j: number) {
+    let ij = i + j
+    return 1 / (ij * (ij + 1) / 2 + i + 1)
+}
+
+fn eval_a_times_u(u: [number]) {
+    return for i in u.length() {
+        let sum = 0
+
+        for j in u.length() {
+            sum += eval_a(i, j) * u[j]
+        }
+
+        sum
+    }
+}
+
+fn eval_at_times_u(u: [number]) {
+    return for i in u.length() {
+        let sum = 0
+
+        for j in u.length() {
+            sum += eval_a(j, i) * u[j]
+        }
+
+        sum
+    }
+}
+
+fn eval_ata_times_u(u: [number]) {
+    return eval_at_times_u(eval_a_times_u(u))
+}
+
+fn spectral(n: number) {
+    let u = for i in n do 1
+    let v: [number]
+
+    for _ in 10 {
+        v = eval_ata_times_u(u)
+        u = eval_ata_times_u(v)
+    }
+
+    let vbv = 0
+    let vv = 0
+
+    for i in u.length() {
+        let lv = v[i]
+        vbv += u[i] * lv
+        vv += lv * lv
+    }
+
+    return sqrt(vbv / vv)
+}
+
+bench("spectral(50)", 100, fn {
+    spectral(50)
+})
+
+bench("spectral(250)", 25, fn {
+    spectral(250)
+})
+
+bench("spectral(500)", 10, fn {
+    spectral(500)
+})

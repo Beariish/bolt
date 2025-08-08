@@ -1144,7 +1144,11 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(NUMFOR):
 			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_A(op)]) + BT_AS_NUMBER(stack[BT_GET_A(op) + 1]));
-			if (BT_AS_NUMBER(stack[BT_GET_A(op)]) >= BT_AS_NUMBER(stack[BT_GET_A(op) + 2])) ip += BT_GET_IBC(op);
+			if (stack[BT_GET_A(op) + 3] == BT_VALUE_TRUE) {
+				if (BT_AS_NUMBER(stack[BT_GET_A(op)]) >= BT_AS_NUMBER(stack[BT_GET_A(op) + 2])) ip += BT_GET_IBC(op);
+			} else {
+				if (BT_AS_NUMBER(stack[BT_GET_A(op)]) <= BT_AS_NUMBER(stack[BT_GET_A(op) + 2])) ip += BT_GET_IBC(op);
+			}
 		NEXT;
 
 		CASE(ITERFOR):

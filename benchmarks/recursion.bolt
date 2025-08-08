@@ -1,8 +1,10 @@
 import bench from "bench"
 
 fn fib(n: number): number {
-    if n < 2 { return n }
-    return fib(n - 1) + fib(n - 2)
+    return match n {
+        < 2 then n
+        else fib(n - 1) + fib(n - 2) 
+    }
 }
 
 fn fib_iter(n: number) {
@@ -16,6 +18,10 @@ fn fib_iter(n: number) {
 
     return y
 }
+
+bench("fib(28)", 25, fn {
+    fib(28)
+})
 
 bench("fib(30)", 25, fn {
     fib(30)

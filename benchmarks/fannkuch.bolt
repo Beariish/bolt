@@ -1,0 +1,76 @@
+import bench from "bench"
+
+import print from core
+import mod from math
+
+fn fannkuch(n: number) {
+    let perm1 = for i in n do i
+    let perm = for i in n do 0
+    let count = for i in n do 0
+
+    let flips = 0
+    let nperm = 0
+    let checksum = 0
+    let r = n
+
+    for r > 0 {
+        for i in r to 0 by -1 {
+            count[i - 1] = i
+        }
+
+        for i in n {
+            perm[i] = perm1[i]
+        }
+
+        let f = 0
+        let k = perm[0]
+
+        for k != 0 {
+            for i in k / 2 {
+                let t = perm[i]
+                perm[i] = perm[k - i]
+                perm[k - i] = t
+            }
+
+            k = perm[0]
+            f += 1
+        }
+
+        if f > flips then flips = f
+        if mod(nperm, 2) == 0 then checksum += f else checksum -= f
+
+        r = 1
+        for {
+            if r == n { return flips }
+
+            let p0 = perm1[0]
+            for i in r {
+                perm1[i] = perm1[i + 1]
+            }
+
+            perm1[r] = p0
+            count[r] -= 1
+            if count[r] > 0 {
+                break
+            }
+            
+            r += 1
+        }
+
+        nperm += 1
+    }
+
+    return flips
+}
+
+bench("fannkuch(7)", 100, fn {
+    fannkuch(7)
+})
+
+bench("fannkuch(8)", 25, fn {
+    fannkuch(8)
+})
+
+bench("fannkuch(9)", 10, fn {
+   fannkuch(9)
+})

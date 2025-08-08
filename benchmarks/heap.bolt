@@ -250,7 +250,20 @@ fn Heap.pop(this): Node {
     return root
 }
 
-bench("sorted heap", 30, fn {
+bench("heap(2000)", 100, fn {
+    let h = Heap.new()
+    
+    for i in 2000 {
+        h.insert(i)
+    }
+
+    let sum = 0
+    for i in 2000 {
+        sum += h.pop().value
+    }
+})
+
+bench("heap(20000)", 25, fn {
     let h = Heap.new()
     
     for i in 20000 {

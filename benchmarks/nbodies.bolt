@@ -1,0 +1,165 @@
+import bench from "bench"
+import math
+
+type Body = {
+    px: number, py: number, pz: number,
+    vx: number, vy: number, vz: number,
+    mass: number
+}
+
+type BodyPair = {
+    first: Body,
+    second: Body,
+}
+
+fn combinations(bodies: [Body]): [BodyPair] {
+    let result: [BodyPair]
+    for i in bodies.length() - 1 {
+        for j in i + 1 to bodies.length() {
+            result.push(BodyPair => {
+                first: bodies[i],
+                second: bodies[j]
+            })
+        }
+    }
+
+    return result
+}
+
+let const pi = math.pi
+let const sqrt = math.sqrt
+let const pow = math.pow
+let const solar_mass = 4 * pi * pi
+let const days_per_year = 365.24
+
+fn make_system(): [Body] {
+    let result: [Body]
+
+    // Sun
+    result.push(Body => {
+        px: 0, py: 0, pz: 0,
+        vx: 0, vy: 0, vz: 0,
+        mass: solar_mass
+    })
+
+    // Juptier
+    result.push(Body => {
+        px: 4.84143144246472090, py: -1.16032004402742839, pz: -0.103622044471123109,
+        vx: 0.00166007664274403694 * days_per_year, vy: 0.00769901118419740425 * days_per_year, vz: -0.0000690460016972063023 * days_per_year,
+        mass: 0.000954791938424326609 * solar_mass
+    })
+
+    // Saturn
+    result.push(Body => {
+        px: 8.34336671824457987, py: 4.12479856412430479, pz: -0.403523417114321381,
+        vx: -0.00276742510726862411 * days_per_year, vy: 0.00499852801234917238 * days_per_year, vz: 0.0000230417297573763929 * days_per_year,
+        mass: 0.000285885980666130812 * solar_mass
+    })
+
+    // Uranus
+    result.push(Body => {
+        px: 12.8943695621391310, py: -15.1111514016986312, pz: -0.223307578892655734,
+        vx: 0.00296460137564761618 * days_per_year, vy: 0.00237847173959480950 * days_per_year, vz: -0.0000296589568540237556 * days_per_year,
+        mass: 0.0000436624404335156298 * solar_mass
+    })
+
+    // Neptune
+    result.push(Body => {
+        px: 15.3796971148509165, py: -25.9193146099879641, pz: 0.179258772950371181,
+        vx: 0.00268067772490389322 * days_per_year, vy: 0.00162824170038242295 * days_per_year, vz: -0.0000951592254519715870 * days_per_year,
+        mass: 0.0000515138902046611451 * solar_mass
+    })
+
+    return result
+}
+
+fn offset_momemtum(reference: Body, bodies: [Body]) {
+    let px = 0
+    let py = 0
+    let pz = 0
+
+    for body in bodies.each() {
+        px -= body.vx * body.mass
+        py -= body.vy * body.mass
+        pz -= body.vz * body.mass
+    }
+
+    reference.vx = px / reference.mass
+    reference.vy = py / reference.mass
+    reference.vz = pz / reference.mass
+}
+
+fn sum_energy(system: [Body], pairs: [BodyPair]) {
+    let e = 0
+
+    for pair in pairs.each() {
+        let b1 = pair.first
+        let b2 = pair.second
+
+        let dx = b1.px - b2.px
+        let dy = b1.py - b2.py
+        let dz = b1.pz - b2.pz
+
+        e -= (b1.mass * b2.mass) / sqrt(dx * dx + dy * dy + dz * dz)
+    }
+
+    for body in system.each() {
+        e += body.mass * ((body.vx * body.vx + body.vy * body.vy + body.vz * body.vz) / 2)
+    }
+
+    return e
+}
+
+fn advance(time: number, iters: number, bodies: [Body], pairs: [BodyPair]) {
+    for i in iters {
+        for pair in pairs.each() {
+            let b1 = pair.first
+            let b2 = pair.second
+
+            let dx = b1.px - b2.px
+            let dy = b1.py - b2.py
+            let dz = b1.pz - b2.pz
+
+            let mag = time * pow(dx * dx + dy * dy + dz * dz, -1.5)
+
+            let b1m = b1.mass * mag
+            let b2m = b2.mass * mag
+
+            b1.vx -= dx * b2m
+            b1.vy -= dy * b2m
+            b1.vz -= dz * b2m
+
+            b2.vx += dx * b1m
+            b2.vy += dy * b1m
+            b2.vz += dz * b1m
+        }
+
+        for body in bodies.each() {
+            body.px += time * body.vx
+            body.py += time * body.vy
+            body.pz += time * body.vz
+        }
+    }
+}
+
+fn sim_system(iters: number) {
+    let system = make_system()
+    let pairs = combinations(system)
+
+    offset_momemtum(system[0], system)
+    sum_energy(system, pairs)
+    advance(0.01, iters, system, pairs)
+    sum_energy(system, pairs)
+}
+
+bench("sim_system(5000)", 100, fn {
+    sim_system(5000)
+})
+
+bench("sim_system(50000)", 25, fn {
+    sim_system(50000)
+})
+
+bench("sim_system(500000)", 10, fn {
+    sim_system(500000)
+})

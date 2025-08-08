@@ -1323,15 +1323,17 @@ static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_ex
             skip_loc = emit_aibc(ctx, BT_OP_ITERFOR, base_loc, 0);
         } break;
     case BT_AST_NODE_LOOP_NUMERIC: {
-            uint8_t base_loc = get_registers(ctx, 3);
+            uint8_t base_loc = get_registers(ctx, 4);
 
             uint8_t it_loc = make_binding_at_loc(ctx, stmt->as.loop_numeric.identifier->source->source, base_loc, stmt->as.loop_numeric.identifier->source);
             uint8_t step_loc = base_loc + 1;
             uint8_t stop_loc = base_loc + 2;
+            uint8_t lt_loc   = base_loc + 3;
 
             compile_expression(ctx, stmt->as.loop_numeric.start, it_loc);
             compile_expression(ctx, stmt->as.loop_numeric.step, step_loc);
             compile_expression(ctx, stmt->as.loop_numeric.stop, stop_loc);
+            emit_abc(ctx, BT_OP_LT, lt_loc, it_loc, stop_loc, BT_TRUE);
             emit_abc(ctx, BT_OP_SUB, it_loc, it_loc, step_loc, BT_TRUE);
 
             loop_start = ctx->output.length;

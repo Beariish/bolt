@@ -589,10 +589,18 @@ fn projection_test(n: number) {
     }
 }
 
-bench("40 length 100 chain projection tests", 25, fn {
-    for i in 40 do projection_test(100)
+bench("projection(100)", 100, fn {
+    projection_test(100)
 })
 
-bench("40 length 100 chain constraint tests, 100 solves", 25, fn {
-    for i in 40 do chain_test(100)
+bench("projection(1000)", 10, fn {
+    projection_test(1000)
+})
+
+bench("chain(100)", 100, fn {
+    chain_test(100)
+})
+
+bench("chain(1000)", 10, fn {
+    chain_test(1000)
 })

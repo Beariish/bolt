@@ -45,7 +45,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
             len = BT_SPRINTF("%lld", (uint64_t)n);
         }
         else {
-            len = BT_SPRINTF("%f", n);
+            len = BT_SPRINTF("%.9f", n);
         }
     }
     else {
