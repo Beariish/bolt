@@ -1,6 +1,6 @@
-import * from core
+import time, write, sameline, to_string, print from core
 
-fn bench_with_pre_work(name: string, iter: number, body: fn: fn) {
+export fn bench_with_pre_work(name: string, iter: number, body: fn: fn) {
     let total_time = 0
 
     write("Prewarming \"" + name + "\" [" + to_string(0) + "/" + to_string(iter) + "]")
@@ -28,9 +28,6 @@ fn bench_with_pre_work(name: string, iter: number, body: fn: fn) {
     print()
 }
 
-fn bench(name: string, iter: number, body: fn) {
+export fn bench(name: string, iter: number, body: fn) {
     bench_with_pre_work(name, iter, fn { return body })
 }
-
-export bench
-export bench_with_pre_work

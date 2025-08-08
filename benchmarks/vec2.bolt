@@ -1,8 +1,8 @@
 import sqrt from math
-import bench from "bench"
-import print from core
 
-type Vec2 = final {
+import bench from "bench"
+
+export type Vec2 = final {
     x: number,
     y: number
 }
@@ -65,5 +65,3 @@ bench("unhoisted 1m vec2 do nothing", 35, fn {
         a.do_nothing()
     }
 })
-
-export Vec2

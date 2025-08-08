@@ -2815,19 +2815,22 @@ static bt_AstNode* parse_import(bt_Parser* parse)
 
 static bt_AstNode* parse_export(bt_Parser* parse)
 {
-    bt_Tokenizer* tok = parse->tokenizer;
     bt_AstNode* to_export = parse_statement(parse);
     
     bt_StrSlice name;
+    bt_Type* type = NULL;
 
     if (to_export->type == BT_AST_NODE_LET) {
         name = to_export->as.let.name;
+        type = type_check(parse, to_export)->resulting_type;
     }
     else if (to_export->type == BT_AST_NODE_ALIAS) {
         name = to_export->source->source;
+        type = bt_make_alias_type(parse->context, to_export->as.alias.type->name, to_export->as.alias.type);
     }
     else if (to_export->type == BT_AST_NODE_IDENTIFIER) {
         name = to_export->source->source;
+        type = type_check(parse, to_export)->resulting_type;
     }
     else {
         parse_error_token(parse, "Unexportable expression '%.*s' following 'export'!", to_export->source);
@@ -2838,7 +2841,7 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     export->source = to_export->source;
     export->as.exp.name = name;
     export->as.exp.value = to_export;
-    export->resulting_type = type_check(parse, to_export)->resulting_type;
+    export->resulting_type = type;
     
     if (export->resulting_type == 0) {
         parse_error_token(parse, "Failed to resolve type of export", export->source);

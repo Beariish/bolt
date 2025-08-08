@@ -1,5 +1,6 @@
 import ispow2, imod from math
 import print from core
+
 import bench from "bench"
 
 type Node = {

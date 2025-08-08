@@ -1,7 +1,7 @@
-import bench from "bench"
-import error, assert from core
+import error, assert, print from core
 import floor from math
-import print from core
+
+import bench from "bench"
 
 /************************************* STRENGTH ****************************************************/
 

@@ -1,7 +1,8 @@
-import * from "bench"
-import JsonValue, parse from "../examples/json"
 import print, assert, Error from core
 import open, get_size, read, close from io
+
+import bench_with_pre_work from "bench"
+import JsonValue, parse from "../examples/json"
 
 bench_with_pre_work("Parse 1MB json", 25, fn {
     let file = assert(open("examples/1MB.json", "r"), "Can't open file!")

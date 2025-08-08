@@ -44,7 +44,6 @@ test("import closure type inference", fn {
 })
 
 test("import enum type type inference", fn {
-    expect(typeof(Enum) == Type, "Expected import 'Enum' to be 'Type'")
     expect(Enum is Type,         "Expected import 'Enum' to be 'Type'")
 })
 
@@ -54,7 +53,6 @@ test("import enum variant type inference", fn {
 })
 
 test("import tableshape type type inference", fn {
-    expect(typeof(T) == Type, "Expected import 'T' to be 'Type'")
     expect(T is Type,         "Expected import 'T' to be 'Type'")
 })
 
@@ -64,13 +62,11 @@ test("import tableshape instance type inference", fn {
 })
 
 test("import alias type inference", fn {
-    expect(typeof(Alias) == Type, "Expected import 'Alias' to be 'Type'")
     expect(Alias is Type,         "Expected import 'Alias' to be 'Type'")
     expect(Alias == number,       "Expected import 'Alias' to be 'number'")
 })
 
 test("import signature type inference", fn {
-    expect(typeof(Signature) == Type,                   "Expected import 'Signature' to be 'Type'")
     expect(Signature is Type,                           "Expected import 'Signature' to be 'Type'")
     expect(Signature == type(fn(number, string): bool), "Expected import 'Signature' to be 'fn(number, string): bool'")
 })

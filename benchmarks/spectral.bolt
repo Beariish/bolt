@@ -1,5 +1,6 @@
-import bench from "bench"
 import sqrt from math
+
+import bench from "bench"
 
 fn eval_a(i: number, j: number) {
     let ij = i + j

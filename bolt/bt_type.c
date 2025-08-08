@@ -654,6 +654,7 @@ bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name)
 
 bt_Type* bt_type_dealias(bt_Type* type)
 {
+	if (type && type == type->ctx->types.type) return type;
 	if (type && type->category == BT_TYPE_CATEGORY_TYPE) return bt_type_dealias(type->as.type.boxed);
 	return type;
 }

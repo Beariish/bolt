@@ -1,7 +1,8 @@
 // Based on the binary tree benchmark at https://github.com/wren-lang/wren/blob/main/test/benchmark/binary_trees.wren
 // Performance here is a lot lower than desired, huge huge huge allocation bottleneck for making this many objects recursively
-import bench from "bench"
 import pow from math
+
+import bench from "bench"
 
 type Tree = final {
     item: number,

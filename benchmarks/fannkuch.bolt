@@ -1,7 +1,6 @@
-import bench from "bench"
-
-import print from core
 import mod from math
+
+import bench from "bench"
 
 fn fannkuch(n: number) {
     let perm1 = for i in n do i

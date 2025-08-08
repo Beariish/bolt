@@ -1,5 +1,6 @@
-import bench from "bench"
 import math
+
+import bench from "bench"
 
 type Body = {
     px: number, py: number, pz: number,

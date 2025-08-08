@@ -1,5 +1,6 @@
-import Vec2 from "vec2" 
 import print from core
+
+import Vec2 from "vec2" 
 import bench from "bench"
 
 bench("hoisted 100k vec2 create, create, add", 35, fn {
