@@ -803,19 +803,19 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             bt_Table* rhs_fields = rhs->as.table_shape.layout;
             bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
 
-            for (uint32_t i = 0; i < lhs_fields->length; ++i) {
+            for (uint32_t i = 0; i < (lhs_fields ? lhs_fields->length : 0); ++i) {
                 bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
                 bt_tableshape_add_layout(parse->context, result, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
             }
 
-            for (uint32_t i = 0; i < rhs_fields->length; ++i) {
+            for (uint32_t i = 0; i < (rhs_fields ? rhs_fields->length : 0); ++i) {
                 bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
                 if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     bt_String* as_str = (bt_String*)BT_AS_OBJECT(field->key);
-                    parse_error_fmt(parse, "Both lhs and rhs have a feild with name '%.*s'", token->line, token->col, as_str->len, BT_STRING_STR(as_str));
+                    parse_error_fmt(parse, "Both lhs and rhs have a field with name '%.*s'", token->line, token->col, as_str->len, BT_STRING_STR(as_str));
                     return NULL;
                 }
 
@@ -1239,7 +1239,7 @@ static uint8_t postfix_binding_power(bt_Token* token)
 {
     switch (token->type)
     {
-    case BT_TOKEN_BANG: return 10;
+    case BT_TOKEN_BANG: return 16;
     case BT_TOKEN_LEFTPAREN: return 19;
     case BT_TOKEN_QUESTION: return 15;
     case BT_TOKEN_LEFTBRACKET: return 17;
@@ -1269,10 +1269,11 @@ return (InfixBindingPower) { 4, 3 };
         return (InfixBindingPower) { 9, 10 };
 
     case BT_TOKEN_NULLCOALESCE: return (InfixBindingPower) { 11, 12 };
-    case BT_TOKEN_IS: case BT_TOKEN_AS: return (InfixBindingPower) { 13, 14 };
+    case BT_TOKEN_IS: return (InfixBindingPower) { 13, 14 };
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return (InfixBindingPower) { 15, 16 };
     case BT_TOKEN_MUL: case BT_TOKEN_DIV: return (InfixBindingPower) { 17, 18 };
-    case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTIONPERIOD: return (InfixBindingPower) { 19, 20 };
+    case BT_TOKEN_AS: return (InfixBindingPower) { 19, 20 };
+    case BT_TOKEN_PERIOD: case BT_TOKEN_QUESTIONPERIOD: return (InfixBindingPower) { 21, 22 };
     }
 
     return (InfixBindingPower) { 0, 0 };
@@ -1459,6 +1460,10 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
     if (next->type == BT_TOKEN_COLON) {
         next = bt_tokenizer_emit(tok);
         result->as.fn.ret_type = parse_type(parse, BT_TRUE, NULL);
+        /*if (!result->as.fn.ret_type) {
+            parse_error_token(parse, "Failed to parse return type for function literal: '%.*s'", next);
+            return NULL;
+        }*/
         has_return = BT_TRUE;
     }
 
@@ -1479,7 +1484,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             result->resulting_type->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
             
-            if (is_methodic) {
+            if (prototype) {
                 // forward-declare fully typed method for recursion in tableshape functions
                 bt_Value name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length));
                 bt_type_add_field(parse->context, prototype, result->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
@@ -1877,7 +1882,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                     
                     if (i < to_call->as.fn.args.length) {
                         bt_Type* fn_type = to_call->as.fn.args.elements[i];
-                        if (!fn_type->satisfier(fn_type, arg_type)) {
+                        if (!arg_type || !fn_type->satisfier(fn_type, arg_type)) {
                             parse_error_token(parse, "Invalid argument type: '%.*s'", args[i]->source);
                             return NULL;
                         }
@@ -2091,7 +2096,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             if (!bt_type_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
                 parse_error(parse, "Unary operator ! can only be applied to nullable types", node->source->line, node->source->col);
             }
-            node->resulting_type = bt_type_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type);
+            node->resulting_type = node->as.unary_op.operand->resulting_type ? bt_type_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type) : NULL;
             break;
         case BT_TOKEN_MINUS:
             if (type_check(parse, node->as.unary_op.operand)->resulting_type == parse->context->types.number) {
@@ -2470,13 +2475,20 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     }
 
     if (type_or_expr->type == BT_TOKEN_ASSIGN) {
-        bt_tokenizer_emit(tok); // eat assignment operator
+        bt_Token* next = bt_tokenizer_emit(tok); // eat assignment operator
         bt_AstNode* rhs = parse_expression(parse, 0, NULL);
+
+        if (!rhs) {
+            parse_error_token(parse, "Failed to parse right hand of assignment: '%.*s'", next);
+            return NULL;
+        }
+        
         node->as.let.initializer = rhs;
 
         if (node->resulting_type) {
             if (!node->resulting_type->satisfier(node->resulting_type, type_check(parse, rhs)->resulting_type)) {
                 parse_error_token(parse, "Assignment doesn't match explicit binding type", node->source);
+                return NULL;
             }
         }
         else {
@@ -2858,7 +2870,10 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
             if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
 
             bt_AstNode* fn = parse_function_literal(parser, ident, type);
-            if (fn->type != BT_AST_NODE_FUNCTION && fn->type != BT_AST_NODE_METHOD) parse_error_token(parser, "Expected function literal", fn->source);
+            if (!fn || (fn->type != BT_AST_NODE_FUNCTION && fn->type != BT_AST_NODE_METHOD)) {
+                parse_error_token(parser, "Expected function literal", ident);
+                return NULL;
+            }
 
             bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
             bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);

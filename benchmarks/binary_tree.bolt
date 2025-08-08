@@ -1,0 +1,59 @@
+// Based on the binary tree benchmark at https://github.com/wren-lang/wren/blob/main/test/benchmark/binary_trees.wren
+// Performance here is a lot lower than desired, huge huge huge allocation bottleneck for making this many objects recursively
+import bench from "bench"
+import pow from math
+
+type Tree = final {
+    item: number,
+    left: Tree?,
+    right: Tree?
+}
+
+fn Tree.new(item: number, depth: number): Tree {
+    if depth > 0 {
+        let const item2 = item + item
+        depth -= 1
+
+        return Tree => {
+            item: item,
+            left: Tree.new(item2 - 1, depth),
+            right: Tree.new(item2, depth)
+        }
+    }
+    
+    return Tree => {
+        item: item,
+        left: null,
+        right: null
+    }
+}
+
+fn Tree.check(this): number {
+    let const left = this.left
+    return if left? 
+        then this.item + left.check() - this.right!.check() 
+        else this.item
+}
+
+let const min_depth = 4
+let const max_depth = 12
+let const stretch_depth = max_depth + 1
+
+bench("binary trees", 15, fn {
+    let const stretch_check = Tree.new(0, stretch_depth).check()
+    let const long_tree = Tree.new(0, max_depth)
+
+    let iterations = pow(2, max_depth)
+
+    for depth in min_depth to stretch_depth by 2 {
+        let check = 0
+
+        for i in iterations {
+            check += Tree.new(i, depth).check() + Tree.new(-i, depth).check()
+        }
+
+        iterations /= 4
+    }
+
+    let const long_check = long_tree.check()
+})

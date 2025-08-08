@@ -1,0 +1,598 @@
+import bench from "bench"
+import error, assert from core
+import floor from math
+import print from core
+
+/************************************* STRENGTH ****************************************************/
+
+type Strength = {
+    value: number,
+    name: string,
+}
+
+fn Strength.new(value: number, name: string) {
+    return Strength => {
+        value: value,
+        name: name
+    }
+}
+
+fn Strength.stronger(this, other: Strength) {
+    return this.value < other.value
+}
+
+fn Strength.weaker(this, other: Strength) {
+    return this.value > other.value
+}
+
+fn Strength.strongest(this, other: Strength) {
+    return if this.stronger(other) then this else other
+}
+
+fn Strength.weakest(this, other: Strength) {
+    return if this.weaker(other) then this else other 
+}
+
+let const REQURIED         = Strength.new(0, "required")
+let const STRONG_PREFERRED = Strength.new(1, "strongPreferred")
+let const PREFERRED        = Strength.new(2, "preferred")
+let const STRONG_DEFAULT   = Strength.new(3, "strongDefault")
+let const NORMAL           = Strength.new(4, "normal")
+let const WEAK_DEFAULT     = Strength.new(5, "weakDefault")
+let const WEAKEST          = Strength.new(6, "weakest")
+
+let const ORDERED = [
+    WEAKEST, WEAK_DEFAULT, NORMAL, STRONG_DEFAULT, PREFERRED, STRONG_PREFERRED
+]
+
+fn Strength.next_weaker(this) {
+    return ORDERED[this.value]
+}
+
+/************************************* CONSTRAINT ****************************************************/
+
+type Constraint = {
+    strength: Strength,
+}
+
+let cbs: {
+    incremental_add: fn(Constraint),
+    add_propagate: fn(Constraint, number): bool,
+    incremental_remove: fn(Constraint), 
+} = {
+    incremental_add: fn(con: Constraint) {},
+    add_propagate: fn(con: Constraint, mark: number): bool { return false },
+    incremental_remove: fn(con: Constraint) {}
+}
+
+type Variable = {
+    constraints: [Constraint],
+    determined_by: Constraint?,
+    mark: number,
+    walk_strength: Strength,
+    stay: bool,
+    name: string,
+    value: number,
+}
+
+fn Variable.new(name: string, value: number) {
+    return Variable => {
+        constraints: [:Constraint],
+        determined_by: null,
+        mark: 0,
+        walk_strength: WEAKEST,
+        stay: true,
+        name: name,
+        value: value
+    } 
+}
+
+fn Variable.constrain(this, con: Constraint) {
+    this.constraints.push(con)
+}
+
+fn Variable.unconstrain(this, con: Constraint) {
+    this.constraints = this.constraints.filter(fn(c: Constraint) { return c != con })
+    if this.determined_by == con { this.determined_by = null }
+}
+
+fn Constraint.execute(this) {}
+fn Constraint.is_input(this): bool { return false }
+fn Constraint.add_to_graph(this) {}
+fn Constraint.remove_from_graph(this) {}
+fn Constraint.choose_method(this, mark: number) {}
+fn Constraint.is_satisfied(this): bool { return false }
+fn Constraint.mark_inputs(this, mark: number) {}
+fn Constraint.inputs_known(this, mark: number): bool { return false }
+fn Constraint.get_input(this): Variable? { return null }
+fn Constraint.get_output(this): Variable? { return null }
+fn Constraint.mark_unsatisfied(this) {}
+fn Constraint.recalculate(this) {}
+
+fn Constraint.satisfy(this, mark: number): Constraint? { 
+    this.choose_method(mark)
+    if not this.is_satisfied() {
+        if this.strength == REQURIED {
+            print("Constraint was required but not satisfied")
+        }
+
+        return null
+    }
+
+    this.mark_inputs(mark)
+    
+    let out = this.get_output()!
+    let overriden = out.determined_by
+    if overriden? then overriden.mark_unsatisfied()
+    
+    out.determined_by = this
+
+    if not cbs.add_propagate(this, mark) {
+        print("Constraint cycle encountered", this, mark)
+    }
+
+    out.mark = mark
+    return overriden
+}
+
+fn Constraint.add(this) {
+    this.add_to_graph()
+    cbs.incremental_add(this)
+}
+
+fn Constraint.destroy(this) {
+    if this.is_satisfied() then cbs.incremental_remove(this)
+    this.remove_from_graph()
+}
+
+/************************************* PLAN ****************************************************/
+type Plan = {
+    constraints: [Constraint]
+} 
+
+fn Plan.new { return Plan => { constraints: [:Constraint] } }
+
+fn Plan.add(this, con: Constraint) {
+    this.constraints.push(con)
+}
+
+fn Plan.size(this) { return this.constraints.length() }
+
+fn Plan.execute(this) {
+    for con in this.constraints.each() do con.execute()
+}
+
+/************************************* PLANNER ****************************************************/
+
+type Planner = {
+    current_mark: number
+}
+
+fn Planner.new { return Planner => { current_mark: 0 } }
+
+fn Planner.new_mark(this) {
+    this.current_mark += 1
+    return this.current_mark
+}
+
+fn Planner.incremental_add(this, con: Constraint) {
+    let mark = this.new_mark()
+    let overriden = con.satisfy(mark)
+    for overriden? {
+        overriden = overriden!.satisfy(mark)
+    }
+}
+
+fn Planner.remove_propagate_from(out: Variable) {
+    out.determined_by = null
+    out.walk_strength = WEAKEST
+    out.stay = true
+
+    let unsatisfied: [Constraint]
+    let todo = [out]
+
+    for todo.length() > 0 {
+        let last = todo.pop()!
+
+        for con in last.constraints.each() {
+            if not con.is_satisfied() then unsatisfied.push(con)
+        }
+
+        let determine = last.determined_by
+        for next in last.constraints.each() {
+            if next != determine and next.is_satisfied() {
+                next.recalculate()
+                todo.push(next.get_output()!)
+            }
+        }
+    }
+
+    return unsatisfied
+}
+
+fn Planner.incremental_remove(this, con: Constraint) {
+    let out = con.get_output()!
+    con.mark_unsatisfied()
+    con.remove_from_graph()
+
+    let unsatisfied = this.remove_propagate_from(out)
+    let strength = REQURIED
+
+    for {
+        for u in unsatisfied.each() {
+            if u.strength == strength then this.incremental_add(u)
+        }
+
+        strength = strength.next_weaker()
+        if strength == WEAKEST { break }
+    }
+}
+
+fn Planner.add_constraint_consuming_to(v: Variable, cons: [Constraint]) {
+    let determine = v.determined_by
+    for con in v.constraints.each() {
+        if con != determine and con.is_satisfied() {
+            cons.push(con)
+        }
+    }
+}
+
+fn Planner.add_propagate(this, con: Constraint, mark: number) {
+    let todo = [con]
+    for todo.length() > 0 {
+        let last = todo.pop()!
+        if last.get_output()!.mark == mark {
+            this.incremental_remove(con)
+            return false
+        }
+
+        last.recalculate()
+        this.add_constraint_consuming_to(last.get_output()!, todo)
+    }
+
+    return true
+}
+
+fn Planner.make_plan(this, sources: [Constraint]) {
+    let mark = this.new_mark()
+    let plan = Plan.new()
+    let todo = sources
+
+    for todo.length() > 0 {
+        let con = todo.pop()!
+        let output = con.get_output()!
+        if output.mark != mark and con.inputs_known(mark) {
+            plan.add(con)
+            output.mark = mark
+            this.add_constraint_consuming_to(output, todo)
+        }
+    }
+
+    return plan
+}
+
+fn Planner.extract_plan(this, cons: [Constraint]) {
+    let sources: [Constraint]
+    for con in cons.each() {
+        if con.is_input() and con.is_satisfied() then sources.push(con)
+    }
+
+    return this.make_plan(sources)
+}
+
+let ThePlanner: { planner: Planner? } = { planner: null }
+
+cbs.incremental_add = fn(con: Constraint) { ThePlanner.planner!.incremental_add(con) }
+cbs.add_propagate = fn(con: Constraint, mark: number) { return ThePlanner.planner!.add_propagate(con, mark) }
+cbs.incremental_remove = fn(con: Constraint) { ThePlanner.planner!.incremental_remove(con) }
+
+type UnaryConstraint = Constraint + {
+    satisfied: bool,
+    output: Variable
+}
+
+fn UnaryConstraint.new(output: Variable, strength: Strength) {
+    let result = UnaryConstraint => {
+        strength: strength,
+        satisfied: false,
+        output: output,
+    }
+
+    result.add()
+    return result
+}
+
+fn UnaryConstraint.add_to_graph(this) {
+    this.output.constrain(this)
+    this.satisfied = false
+}
+
+fn UnaryConstraint.choose_method(this, mark: number) {
+    this.satisfied = this.output.mark != mark and this.strength.stronger(this.output.walk_strength)
+}
+
+fn UnaryConstraint.is_satisfied(this) { return this.satisfied }
+fn UnaryConstraint.get_output(this): Variable? { return this.output }
+
+fn UnaryConstraint.recaulculate(this) {
+    let o = this.output
+    o.walk_strength = this.strength
+    o.stay = not this.is_input()
+    if o.stay then this.execute()
+}
+
+fn UnaryConstraint.mark_unsatisfied(this) { this.satisfied = false }
+fn UnaryConstraint.inputs_known(this, mark: number): bool { return true }
+
+fn UnaryConstraint.remove_from_graph(this) {
+    this.output.unconstrain(this)
+    this.satisfied = false
+}
+
+type StayConstraint = UnaryConstraint + {}
+
+fn StayConstraint.new(output: Variable, strength: Strength) {
+    let result = StayConstraint => {
+        strength: strength,
+        satisfied: false,
+        output: output,
+    }
+
+    result.add()
+    return result
+}
+
+fn StayConstraint.execute(this) {}
+
+type EditConstraint = UnaryConstraint + {}
+
+fn EditConstraint.new(output: Variable, strength: Strength) {
+    let result = EditConstraint => {
+        strength: strength,
+        satisfied: false,
+        output: output,
+    }
+
+    result.add()
+    return result
+}
+
+fn EditConstraint.is_input(this) { return true }
+fn EditConstraint.execute(this) {}
+
+
+type Direction = enum {
+    None, Forward, Backward
+}
+
+type BinaryConstraint = Constraint + {
+    v1: Variable,
+    v2: Variable,
+    direction: Direction
+}
+
+fn BinaryConstraint.new(v1: Variable, v2: Variable, strength: Strength) {
+    let result = BinaryConstraint => {
+        strength: strength,
+        direction: Direction.None,
+        v1: v1,
+        v2: v2,
+    }
+
+    result.add()
+    return result
+}
+
+fn BinaryConstraint.choose_method(this, mark: number) {
+    if this.v1.mark == mark {
+        this.direction = if this.v2.mark != mark and this.strength.stronger(this.v2.walk_strength) 
+            then Direction.Forward 
+            else Direction.None
+    }
+
+    if this.v2.mark == mark {
+        this.direction = if this.v1.mark != mark and this.strength.stronger(this.v1.walk_strength) 
+            then Direction.Backward 
+            else Direction.None
+    }
+
+    if this.v1.walk_strength.weaker(this.v2.walk_strength) {
+        this.direction = if this.strength.stronger(this.v1.walk_strength)
+            then Direction.Backward
+            else Direction.None
+    } else {
+        this.direction = if this.strength.stronger(this.v2.walk_strength)
+            then Direction.Forward
+            else Direction.Backward 
+    }
+}
+
+fn BinaryConstraint.add_to_graph(this) {
+    this.v1.constrain(this)
+    this.v2.constrain(this)
+    this.direction = Direction.None
+}
+
+fn BinaryConstraint.is_satisfied(this): bool { return this.direction != Direction.None }
+
+fn BinaryConstraint.mark_inputs(this, mark: number) {
+    this.get_input()!.mark = mark
+}
+
+fn BinaryConstraint.get_input(this): Variable? { return if this.direction == Direction.Forward then this.v1 else this.v2 }
+fn BinaryConstraint.get_output(this): Variable? { return if this.direction == Direction.Forward then this.v2 else this.v1 }
+
+fn BinaryConstraint.recalculate(this) {
+    let input = this.get_input()!
+    let output = this.get_output()!
+
+    output.walk_strength = this.strength.weakest(input.walk_strength)
+    output.stay = input.stay
+    if output.stay then this.execute()
+}
+
+fn BinaryConstraint.mark_unsatisfied(this) { this.direction = Direction.None }
+
+fn BinaryConstraint.inputs_known(this, mark: number): bool {
+    let input = this.get_input()!
+    return input.mark == mark or input.stay or input.determined_by == null
+}
+
+fn BinaryConstraint.remove_from_graph(this) {
+    this.v1.unconstrain(this)
+    this.v2.unconstrain(this)
+    this.direction = Direction.None
+}
+
+type ScaleConstraint = BinaryConstraint + {
+    scale: Variable,
+    offset: Variable,
+}
+
+fn ScaleConstraint.new(src: Variable, scale: Variable, offset: Variable, dest: Variable, strength: Strength) {
+    let result = ScaleConstraint => {
+        strength: strength,
+        direction: Direction.None,
+        v1: src,
+        v2: dest,
+        scale: scale,
+        offset: offset,
+    }
+
+    result.add()
+    return result
+}
+
+fn ScaleConstraint.add_to_graph(this) {
+    BinaryConstraint.add_to_graph(this)
+    this.scale.constrain(this)
+    this.offset.constrain(this)
+}
+
+fn ScaleConstraint.remove_from_graph(this) {
+    BinaryConstraint.remove_from_graph(this)
+    this.scale.unconstrain(this)
+    this.offset.unconstrain(this)
+}
+
+fn ScaleConstraint.mark_inputs(this, mark: number) {
+    BinaryConstraint.mark_inputs(this, mark)
+    this.scale.mark = mark
+    this.offset.mark = mark
+}
+
+fn ScaleConstraint.execute(this) {
+    if this.direction == Direction.Forward {
+        this.v2.value = this.v1.value * this.scale.value + this.offset.value
+    } else {
+        this.v1.value = floor((this.v2.value - this.offset.value) / this.scale.value)
+    }
+}
+
+fn ScaleConstraint.recalculate(this) {
+    let input = this.get_input()!
+    let output = this.get_output()!
+
+    output.walk_strength = this.strength.weakest(input.walk_strength)
+    output.stay = input.stay and this.scale.stay and this.offset.stay
+    if output.stay then this.execute()
+}
+
+type EqualityConstraint = BinaryConstraint + { }
+
+fn EqualityConstraint.new(v1: Variable, v2: Variable, strength: Strength) {
+    let result = EqualityConstraint => {
+        strength: strength,
+        direction: Direction.None,
+        v1: v1,
+        v2: v2
+    }
+
+    result.add()
+    return result
+}
+
+fn EqualityConstraint.execute(this) {
+    this.get_output()!.value = this.get_input()!.value
+}
+
+// BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK BENCHMARK 
+
+fn chain_test(n: number) {
+    let planner = Planner.new()
+    ThePlanner.planner = planner
+
+    let prev: Variable? = null
+    let first: Variable? = null
+    let last: Variable? = null
+
+    for i in n + 1 {
+        let v = Variable.new("v", 0)
+        if prev? then EqualityConstraint.new(prev, v, REQURIED)
+        if i == 0 then first = v
+        if i == n then last = v
+        prev = v
+    }
+
+    let edit = EditConstraint.new(first!, PREFERRED)
+    let plan = planner.extract_plan([edit])
+
+    for i in 100 {
+        first!.value = i
+        plan.execute()
+    }
+}
+
+fn change(v: Variable, value: number, planner: Planner) {
+    let edit = EditConstraint.new(v, PREFERRED)
+    let plan = planner.extract_plan([edit])
+
+    for i in 10 {
+        v.value = value
+        plan.execute()
+    }
+
+    edit.destroy()
+}
+
+fn projection_test(n: number) {
+    let planner = Planner.new()
+    ThePlanner.planner = planner
+
+    let scale = Variable.new("scale", 10)
+    let offset = Variable.new("offset", 1000)
+
+    let src: Variable? = null
+    let dst: Variable? = null
+
+    let dests: [Variable]
+    for i in n {
+        src = Variable.new("src", i)
+        dst = Variable.new("dst", i)
+        dests.push(dst!)
+
+        StayConstraint.new(src!, NORMAL)
+        ScaleConstraint.new(src!, scale, offset, dst!, REQURIED)
+    }
+
+    change(src!, 17, planner)
+    if dst!.value != 1170 then print("Projection 1 failed!")
+
+    change(scale, 5, planner)
+    for i in n - 1 {
+        if dests[i].value != i * 5 + 1000 then print("Projection 2 failed!")
+    }
+
+    change(offset, 2000, planner)
+    for i in n - 1 {
+        if dests[i].value != i * 5 + 2000 then print("Projection 3 failed!")
+    }
+}
+
+bench("40 length 100 chain projection tests", 25, fn {
+    for i in 40 do projection_test(100)
+})
+
+bench("40 length 100 chain constraint tests, 100 solves", 25, fn {
+    for i in 40 do chain_test(100)
+})
