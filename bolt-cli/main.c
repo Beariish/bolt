@@ -21,7 +21,7 @@ static void boltstd_open_cli(bt_Context* ctx, int argc, char** argv)
 
 int main(int argc, char** argv) {
 	if (argc < 2) {
-		printf("USAGE: bolt.exe module_name\n");
+		printf("USAGE: bolt module_name\n");
 		return 1;
 	}
 
