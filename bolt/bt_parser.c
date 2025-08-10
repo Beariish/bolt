@@ -803,13 +803,13 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             bt_Table* rhs_fields = rhs->as.table_shape.layout;
             bt_Table* rhs_field_types = rhs->as.table_shape.key_layout;
 
-            for (uint32_t i = 0; i < (lhs_fields ? lhs_fields->length : 0); ++i) {
+            for (uint32_t i = 0; i < (lhs_fields ? lhs_fields->length : 0u); ++i) {
                 bt_TablePair* field = BT_TABLE_PAIRS(lhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(lhs_field_types) + i;
                 bt_tableshape_add_layout(parse->context, result, (bt_Type*)BT_AS_OBJECT(type->value), field->key, (bt_Type*)BT_AS_OBJECT(field->value));
             }
 
-            for (uint32_t i = 0; i < (rhs_fields ? rhs_fields->length : 0); ++i) {
+            for (uint32_t i = 0; i < (rhs_fields ? rhs_fields->length : 0u); ++i) {
                 bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
