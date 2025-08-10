@@ -112,7 +112,7 @@ RETURN 2       // return result
 Not only is this two instructions shorter, but the stack-based approach involves two extra copies (pushing a and b to the stack), but the `ADD` and `RETURN`` instructions both encode 0 arguments, either leaving gaps in the instruction stream if constant-sized, or requiring variable-read dispatch.
 
 ### Typesafety and accelerated bytecode
-Bolt's type system is a large factor behind it's impressive performance. Despite the compiler still being in it's early stages, having basic checking in place lets it emit smarter sequences of instructions, or perform work at compile-time that would otherwise need to be repeated.
+Bolt's type system is a large factor behind its impressive performance. Despite the compiler still being in its early stages, having basic checking in place lets it emit smarter sequences of instructions, or perform work at compile-time that would otherwise need to be repeated.
 
 The clearest example of this is that many instructions in Bolt make use of the "acceleration bit", which when set tells the VM to take a fast path for that instruction, often forgoing doing any runtime type checking or hashtable lookups. Coupled with unmasked nanbox doubles, this means things like arithmetic often compile down to a single native instruction.
 
@@ -128,7 +128,7 @@ Once again thanks to the type system in Bolt, the calling convention can be made
 Bolt makes use of inline table allocations whenever the shape of the table is known at compiletime, making for a single allocation instead of needing to make two jumps in memory to fetch the contents. This not only makes lookup faster, but the allocation/freeing of tables as well. In most circumstances, for hard-typed table creation (via `=>` operator), the type contains a table template as well, with all keys pre-hashed and put into the correct slots, so creating the table becomes a single alloc + memcpy. 
 
 ## Type prototyping
-Bolt will construct fully setup tables with proper keys ahead of time for known types, simplying tableshape creation to an alloc+memcpy. Because the type is responsible for keeping the prototype alive, and that every Bolt value can be used as a key by identity, it's completely safe to inline this for performance. Runtime setup for default values can also be ammortized this way.
+Bolt will construct fully setup tables with proper keys ahead of time for known types, simplifying tableshape creation to an alloc+memcpy. Because the type is responsible for keeping the prototype alive, and that every Bolt value can be used as a key by identity, it's completely safe to inline this for performance. Runtime setup for default values can also be ammortized this way.
 
 ## Inline threading and manual tuning
 Bolt makes use of inline threading to jump from instruction to instruction in the interpreter, generating essentially a large switch statement of goto's at the end of each instruction to dispatch the next. This should in practise generate the same code as computed gotos, but is more portable. (Notably because msvc doesn't support it as an extension.) 
@@ -138,4 +138,5 @@ There's also a lot of manual tuning in the main interpreter loop, with compiler 
 One of the biggest surprises to me was that having indivial ops for some things rather than branching within an op turned out to be slower - likely due to worse utilization of the branch predictor.
 
 ### String interning
+
 Bolt deduplicates strings through interning, performing a hash on the character data if the strings length is beneath a certain threshold (`32`, currently, derived through testing), and searching for it in a global string deduplication table before allocating a new object. Allocations are costly, and for some non-trivial tasks (see `examples/json.bolt`) it provides a very significant speedup.
