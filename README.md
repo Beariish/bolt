@@ -42,7 +42,7 @@ match let result = safe_divide(10, 5) {
 * **[Notable Bolt users](https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Users.md)**
 
 ## Dependencies 
-Bolt only depends on the C standard library as well as `libm` on Unix-based ssytems.
+Bolt only depends on the C standard library as well as `libm` on Unix-based sytems.
 Some standard library modules include things like file and system IO, but these can be disabled easily.
 By default, Bolt sets up an environment that uses `malloc`/`realloc`/`free`, but this is also easy to configure.
 Bolt also embeds my other library [picomatch](https://github.com/Beariish/picomatch) for regex parsing
@@ -80,3 +80,4 @@ Feature additions will need a lot of consideration, Bolt is very intentionally m
 
 ## License
 Bolt is licensed under MIT. See LICENSE for more information.
+
