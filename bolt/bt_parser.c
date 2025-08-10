@@ -2060,6 +2060,28 @@ static bt_Type* resolve_to_type(bt_Parser* parse, bt_AstNode* node)
         }
     }
 
+    // Explicitly resolve types like 'module.Type'
+    if (node->type == BT_AST_NODE_BINARY_OP) {
+        if (node->source->type == BT_TOKEN_PERIOD) {
+            if (node->as.binary_op.left->type == BT_AST_NODE_IMPORT_REFERENCE && node->as.binary_op.right->type == BT_AST_NODE_LITERAL) {
+                bt_ModuleImport* import = find_import(parse, node->as.binary_op.left);
+                if (import) {
+                    bt_Object* table = BT_AS_OBJECT(import->value);
+                    if (BT_OBJECT_GET_TYPE(table) == BT_OBJECT_TYPE_TABLE) {
+                        bt_Value key = node_to_literal_value(parse, node->as.binary_op.right);
+                        bt_Value type = bt_get(parse->context, table, key);
+                        if (BT_IS_OBJECT(type)) {
+                            bt_Object* as_obj = BT_AS_OBJECT(type);
+                            if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE) {
+                                return (bt_Type*)as_obj;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     return to_ret;
 }
 
