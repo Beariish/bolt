@@ -18,6 +18,15 @@ This benchmark highlights the cost of invoking a closure in each language, imple
 
 ---
 
+A classic recursive fibonnacci sequence - each language implements this in about 4 lines of code. This is a good indicator for recursive performance, local function invocations, and so-on.
+It's worth noting that some languages like Lua here supprot tail-call optimizations, while Bolt does not.
+
+<p align="center">
+    <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Fib.png"></img>
+</p>
+
+---
+
 This benchmark computes a mandelbrot set. It doesn't render it out to an image or anything, though a rolling sum of pixel values is collected to ensure correctness. This is very arithmetic-heavy, with a decent amount of function invocations as well (especially to sqrt). Function inlining would potentially provide a huge boost here.
 <p align="center">
     <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Mandelbrot.png"></img>
@@ -43,6 +52,34 @@ This calls the same method repeatedly on a pre-allocated object, purely benchmar
 <p align="center">
     <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Vec2%20distance.png"></img>
 </p>
+
+---
+
+This creates a massive, bottom-up binary tree and then walks the branches to generate a checksum.
+
+<p align="center">
+    <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/BinaryTree.png"></img>
+</p>
+
+---
+
+This next set of benchmarks are all based on the "games" found at [https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html](benchmarksgame).
+Each solution has been hand-written for Bolt and is present in the `/benchmarks` folder in the repository.
+
+Some of the sample sizes are smaller here than on the site, purely because the benchmarks can run very long - but they all also scale very linearly.
+All foreign languages have been run locally for timing as well. For each problem, the fastest single-process solution has been used.
+
+<p align="center">
+    <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Spectral.png"></img>
+</p>
+<p align="center">
+    <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Nbody.png"></img>
+</p>
+<p align="center">
+    <img src="https://github.com/Beariish/bolt/blob/main/doc/_images/Fannkuch.png"></img>
+</p>
+
+Luau appears to eek out a win in `Nbody`, likely due to better intrinsics or some kind of vector support, while Bolt gets crushed in `Fannkuch` by the languages that have native integer acceleration.
 
 # Why is Bolt fast?
 ### Nanboxing
