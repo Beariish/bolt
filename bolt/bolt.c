@@ -123,6 +123,8 @@ static void bt_write(bt_Context* ctx, const char* msg)
 
 #ifdef BOLT_ALLOW_MALLOC
 #include <malloc.h>
+#else
+#include <stdlib.h>
 #endif
 
 #ifdef BOLT_ALLOW_FOPEN
