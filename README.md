@@ -76,8 +76,9 @@ Bugfixes are likely to be accepted as long as they're within reason and don't ch
 
 Optimizations may also be accepted for minor versions under similar criteria. A before/after run of `/benchmarks/all` is expected to evaluate the impact and make sure nothing else regresses. If the specific optimization isn't captured in any existing benchmark, adding one is required.
 
-Feature additions will need a lot of consideration, Bolt is very intentionally minimal in its' design and featureset. I highly suggest you submit some kind of proposal or plan before starting any significant work on a feature to review. Use cases, performance, and implementation cost will all be expected to be justified.
+Feature additions will need a lot of consideration, Bolt is very intentionally minimal in its design and featureset. I highly suggest you submit some kind of proposal or plan before starting any significant work on a feature to review. Use cases, performance, and implementation cost will all be expected to be justified.
 
 ## License
 Bolt is licensed under MIT. See LICENSE for more information.
+
 
