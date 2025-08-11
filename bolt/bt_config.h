@@ -27,7 +27,9 @@
 #define BOLT_USE_INLINE_THREADING
 
 // Allows for the use of the cstdlib to set up some reasonable default handlers for memory allocation
+#ifndef __APPLE__
 #define BOLT_ALLOW_MALLOC
+#endif
 
 // Allows for the use of the cstdlib to set up a default error handler
 #define BOLT_ALLOW_PRINTF
