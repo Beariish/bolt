@@ -974,8 +974,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 					ip++; // skip the ext op
 				}
 				else {
-					obj2 = (bt_Object*)(uintptr_t)BT_GET_A(op); // save this, as we modify op
-					stack[(uint8_t)obj2] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
+					stack[BT_GET_A(op)] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
 				}
 			} else stack[BT_GET_A(op)] = bt_get(context, obj, stack[BT_GET_C(op)]); 
 		NEXT;
@@ -989,8 +988,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 					ip++; // skip the ext op
 				}
 				else {
-					obj2 = (bt_Object*)(intptr_t)BT_GET_C(op); // save this, as we modify op
-					bt_set(context, obj, constants[BT_GET_IBC(*(++ip))], stack[(uint8_t)obj2]);
+					bt_set(context, obj, constants[BT_GET_IBC(*(++ip))], stack[BT_GET_C(op)]);
 				}
 			}
 			else bt_set(context, obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
