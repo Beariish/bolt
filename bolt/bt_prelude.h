@@ -32,7 +32,14 @@ extern "C" {
 #else
 #define BT_FORCE_INLINE __attribute__((always_inline))
 #define BT_NO_INLINE
-#define BT_ASSUME(x) do { if (!(x)) __builtin_unreachable(); } while (0)
+#if __has_builtin(__builtin_assume)
+  #define BT_ASSUME(x) __builtin_assume(x)
+#else
+  // On MacOs and other platforms using 
+  // #define BT_ASSUME(x) do { if (!(x)) __builtin_unreachable(); } while(0)
+  // and other compiler tricks can cause memory corruption.
+  #define BT_ASSUME(x) ((void)0)
+#endif
 #endif
 
 #ifdef BOLT_SHARED_LIBRARY
@@ -51,6 +58,21 @@ extern "C" {
 	#endif
 #else
 	#define BOLT_API
+#endif
+
+#ifdef __has_builtin
+    #if __has_builtin(__builtin_prefetch)
+        #define BT_PREFETCH_READ_MODERATE(addr) __builtin_prefetch(addr, 0, 2)
+    #else
+        #define BT_PREFETCH_READ_MODERATE(addr) ((void)0)
+    #endif
+#elif defined(__GNUC__)
+    #define BT_PREFETCH_READ_MODERATE(addr) __builtin_prefetch(addr, 0, 2)
+#elif defined(_MSC_VER) && defined(_M_X64)
+    #include <xmmintrin.h>
+    #define BT_PREFETCH_READ_MODERATE(addr) _mm_prefetch((const char*)(addr), _MM_HINT_T2)
+#else
+    #define BT_PREFETCH_READ_MODERATE(addr) ((void)0)
 #endif
 
 typedef uint8_t bt_bool;

@@ -5,7 +5,6 @@
 #endif 
 
 #include <memory.h>
-#include <immintrin.h>
 #include <string.h>
 
 #include "bt_context.h"
@@ -124,6 +123,8 @@ static void bt_write(bt_Context* ctx, const char* msg)
 
 #ifdef BOLT_ALLOW_MALLOC
 #include <malloc.h>
+#else
+#include <stdlib.h>
 #endif
 
 #ifdef BOLT_ALLOW_FOPEN
@@ -160,11 +161,10 @@ bt_Handlers bt_default_handlers()
 {
 	bt_Handlers result = { 0 };
 
-#ifdef BOLT_ALLOW_MALLOC
 	result.alloc = malloc;
 	result.realloc = realloc;
 	result.free = free;
-#endif
+
 
 #ifdef BOLT_ALLOW_FOPEN
 	result.read_file = bt_read_file;
@@ -865,7 +865,7 @@ static BT_NO_INLINE void bt_mfneq(bt_Thread* thread, bt_Value* __restrict result
 static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
 {
 	bt_Value* stack = thread->stack + thread->top;
-	_mm_prefetch((const char*)stack, 1);
+	BT_PREFETCH_READ_MODERATE((const char*)stack);
 	bt_Value* upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
 	bt_Object* obj, * obj2;
 
