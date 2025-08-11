@@ -48,7 +48,7 @@ By default, Bolt sets up an environment that uses `malloc`/`realloc`/`free`, but
 Bolt also embeds my other library [picomatch](https://github.com/Beariish/picomatch) for regex parsing
 
 ## Minimal embedding example
-The [bolt-cli](https://github.com/Beariish/bolt/blob/main/bolt-cli/main.c) program provides a very concise example of how to embed bolt an an application, see the [Bolt embedding guide](https://github.com/Beariish/bolt/tree/main/doc/Bolt%20Embedding%20Guide.md) for more details.
+The [bolt-cli](https://github.com/Beariish/bolt/blob/main/bolt-cli/main.c) program provides a very concise example of how to embed bolt in an application, see the [Bolt embedding guide](https://github.com/Beariish/bolt/tree/main/doc/Bolt%20Embedding%20Guide.md) for more details.
 
 ## Language examples
 The [examples](https://github.com/Beariish/bolt/tree/main/examples) folder contains a few short examples of ideomatically written bolt code. Check out the [tests](https://github.com/Beariish/bolt/tree/main/tests) and [benchmarks](https://github.com/Beariish/bolt/tree/main/benchmarks) folders as wel for some more in-depth language overview.
