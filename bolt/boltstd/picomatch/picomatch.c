@@ -218,7 +218,7 @@ static int emit_set(pm_Regex* result, const char** source, int measure) {
                 if (!emit_arg(result, get_escaped_char(source), measure)) return 0;
             }
             break;
-        case '-':
+        case '-': {
             char last_ch = (!measure) ? CODE_BASE(result)[result->size - 1] : 0;
             char next_ch = **source;
             (*source)++;
@@ -232,6 +232,7 @@ static int emit_set(pm_Regex* result, const char** source, int measure) {
             if (!emit_arg(result, last_ch, measure)) return 0;
             if (!emit_arg(result, next_ch, measure)) return 0;
             break;
+        }
         default:
             if (!emit_arg(result, ch, measure)) return 0;
             break;
@@ -413,7 +414,7 @@ static int compile_internal(pm_Regex* result, const char** source, int in_block,
             }
             break;
         case '+':
-        case '*':
+        case '*': {
             int quant = *(*source - 1) == '+' ? OP_ONE_MORE : OP_ZERO_MORE;
             if (**source == '?') {
                 (*source)++;
@@ -421,6 +422,7 @@ static int compile_internal(pm_Regex* result, const char** source, int in_block,
             }
             if (!emit_quantifier(result, (int)last_emitted, quant, measure)) return 0;
             break;
+        }
         case '?':
             if (!emit_quantifier(result, (int)last_emitted, OP_ZERO_MORE, measure)) return 0;
             break;
@@ -589,7 +591,7 @@ static int match(pm_Regex* expr, int pc, const char* source, int len, int* offse
             pc++;
             break;
         case OP_MATCHSET:
-        case OP_INVMATCHSET:
+        case OP_INVMATCHSET: {
             char current = source[*offset];
             result = (*op) == OP_INVMATCHSET;
             int set_idx = 0;
@@ -618,6 +620,7 @@ static int match(pm_Regex* expr, int pc, const char* source, int len, int* offse
             if (result) (*offset)++;
             pc += *(op + 1) + 2;
             break;
+        }
         case OP_MATCHBOL:
             result = *offset == 0;
             pc++;
@@ -638,7 +641,7 @@ static int match(pm_Regex* expr, int pc, const char* source, int len, int* offse
             }
             pc += 2;
             break;
-        case OP_CHOOSE:
+        case OP_CHOOSE: {
             int old_offset = *offset;
             block_depth++;
             result = match(expr, pc + 3, source, len, offset, groups, group_count, block_depth, 0);
@@ -655,6 +658,7 @@ static int match(pm_Regex* expr, int pc, const char* source, int len, int* offse
             block_depth--;
             pc += *(op + 2);
             break;
+        }
         case OP_BLOCK:
             block_depth++;
             result = match(expr, pc + 2, source, len, offset, groups, group_count, block_depth, 0);

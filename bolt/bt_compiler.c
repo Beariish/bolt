@@ -775,7 +775,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         switch (expr->source->type) {
         case BT_TOKEN_AND:
             test = 1;
-        case BT_TOKEN_OR:
+        case BT_TOKEN_OR: {
             uint32_t instruction_idx = emit_aibc(ctx, BT_OP_TEST, result_loc, 0);
             uint8_t rhs_loc = find_binding_or_compile_loc(ctx, rhs, result_loc);
 
@@ -786,6 +786,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             if (!test) *test_op = BT_ACCELERATE_OP(*test_op);
             handled = 1;
             break;
+        }
         }
 
         if (handled) break;
