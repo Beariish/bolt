@@ -1,4 +1,4 @@
-# Arrays
+# Strings
 Module containing utility functions for working with strings. All functions in this module are availible both as imports and exposed directly on the `string` prototype. That means that these are equal:
 ```ts
 import strings
@@ -67,4 +67,5 @@ strings.ends_with(haystack: string, needle: string): bool
 
 // Returns whether `needle` exists inside `haystack`, starting from `offset`
 strings.compare_at(haystack: string, needle: string, offset: number): bool
+
 ```
