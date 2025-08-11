@@ -5,6 +5,7 @@
 #endif 
 
 #include <memory.h>
+#include <immintrin.h>
 #include <string.h>
 
 #include "bt_context.h"
@@ -123,8 +124,6 @@ static void bt_write(bt_Context* ctx, const char* msg)
 
 #ifdef BOLT_ALLOW_MALLOC
 #include <malloc.h>
-#else
-#include <stdlib.h>
 #endif
 
 #ifdef BOLT_ALLOW_FOPEN
@@ -164,7 +163,6 @@ bt_Handlers bt_default_handlers()
 	result.alloc = malloc;
 	result.realloc = realloc;
 	result.free = free;
-
 
 #ifdef BOLT_ALLOW_FOPEN
 	result.read_file = bt_read_file;
