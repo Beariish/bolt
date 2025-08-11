@@ -418,7 +418,7 @@ let b = a as bool // b: bool? = null
 let c = a as number! // a: number = 10, use ! to strip the null
 
 if let num = a as number {
-    // safe cast, we skip the branch is a is not a number
+    // safe cast, we skip the branch if a is not a number
 }
 ```
 
@@ -1282,3 +1282,4 @@ The Bolt standard library contains a bunch of useful modules, though it's up to 
 ## 17. Learn more
 
 If you wish to learn more, I highly recommend you check out the Bolt [examples](https://github.com/Beariish/bolt/tree/main/examples), or even dive into the [benchmarks](https://github.com/Beariish/bolt/tree/main/benchmarks) or [tests](https://github.com/Beariish/bolt/tree/main/tests) to get a deeper understanding for the language. The rest of the documentation can be found [here](https://github.com/Beariish/bolt/tree/main/doc), as well.
+
