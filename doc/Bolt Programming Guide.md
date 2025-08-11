@@ -913,7 +913,7 @@ type JsonValue = number
                | { ..string: JsonValue }
 ```
 #### 15.3.1. Nullable
-We've also touched on nullability a few times - something being "nullable" in Bolt simply means that it's a union containing null. All the `?` type operator does is append `| null` to the end of a union. As `any` is a union of all times, it is also nullable.
+We've also touched on nullability a few times - something being "nullable" in Bolt simply means that it's a union containing null. All the `?` type operator does is append `| null` to the end of a union. As `any` is a union of all types, it is also nullable.
 
 ### 15.4. Tableshapes
 Tableshape types let us predefine the layout of tables so that we can work with a common interface throughout our code. In its simplest form, we can simply provide all the keys and their types when defining our tableshape.
@@ -1280,4 +1280,5 @@ export type ExportedType = unsealed {
 The Bolt standard library contains a bunch of useful modules, though it's up to the host application to decide which are included. Their contents can be found [here](https://github.com/Beariish/bolt/tree/main/doc/Bolt%20Standard%20Library).
 
 ## 17. Learn more
+
 If you wish to learn more, I highly recommend you check out the Bolt [examples](https://github.com/Beariish/bolt/tree/main/examples), or even dive into the [benchmarks](https://github.com/Beariish/bolt/tree/main/benchmarks) or [tests](https://github.com/Beariish/bolt/tree/main/tests) to get a deeper understanding for the language. The rest of the documentation can be found [here](https://github.com/Beariish/bolt/tree/main/doc), as well.
