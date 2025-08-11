@@ -79,7 +79,8 @@ fn offset_momemtum(reference: Body, bodies: [Body]) {
     let py = 0
     let pz = 0
 
-    for body in bodies.each() {
+    for bi in bodies.length() {
+        let body = bodies[bi]
         px -= body.vx * body.mass
         py -= body.vy * body.mass
         pz -= body.vz * body.mass
@@ -93,7 +94,8 @@ fn offset_momemtum(reference: Body, bodies: [Body]) {
 fn sum_energy(system: [Body], pairs: [BodyPair]) {
     let e = 0
 
-    for pair in pairs.each() {
+    for pi in pairs.length() {
+        let pair = pairs[pi]
         let b1 = pair.first
         let b2 = pair.second
 
@@ -104,7 +106,8 @@ fn sum_energy(system: [Body], pairs: [BodyPair]) {
         e -= (b1.mass * b2.mass) / sqrt(dx * dx + dy * dy + dz * dz)
     }
 
-    for body in system.each() {
+    for bi in system.length() {
+        let body = system[bi]
         e += body.mass * ((body.vx * body.vx + body.vy * body.vy + body.vz * body.vz) / 2)
     }
 
@@ -112,8 +115,12 @@ fn sum_energy(system: [Body], pairs: [BodyPair]) {
 }
 
 fn advance(time: number, iters: number, bodies: [Body], pairs: [BodyPair]) {
+    let n_pairs = pairs.length()
+    let n_bodies = bodies.length()
+
     for i in iters {
-        for pair in pairs.each() {
+        for pi in n_pairs {
+            let pair = pairs[pi]
             let b1 = pair.first
             let b2 = pair.second
 
@@ -135,7 +142,8 @@ fn advance(time: number, iters: number, bodies: [Body], pairs: [BodyPair]) {
             b2.vz += dz * b1m
         }
 
-        for body in bodies.each() {
+        for bi in n_bodies {
+            let body = bodies[bi]
             body.px += time * body.vx
             body.py += time * body.vy
             body.pz += time * body.vz
