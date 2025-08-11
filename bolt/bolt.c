@@ -5,7 +5,6 @@
 #endif 
 
 #include <memory.h>
-#include <immintrin.h>
 #include <string.h>
 
 #include "bt_context.h"
