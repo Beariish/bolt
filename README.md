@@ -80,3 +80,4 @@ Feature additions will need a lot of consideration, Bolt is very intentionally m
 
 ## License
 Bolt is licensed under MIT. See LICENSE for more information.
+
