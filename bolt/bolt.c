@@ -868,8 +868,6 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 	bt_Value* upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
 	bt_Object* obj, * obj2;
 
-	BT_ASSUME(obj);
-	BT_ASSUME(obj2);
 
 #ifndef BOLT_USE_INLINE_THREADING
 	register bt_Op op;

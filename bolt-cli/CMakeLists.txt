@@ -97,22 +97,16 @@ endif()
 
 if(NOT MSVC)
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
-    
+
     target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Debug>:
-            -g;
-            -O0;
-        >
-        $<$<CONFIG:Release>:
-            -Ofast;
-            -O3;
-            -ffast-math;
-            -fomit-frame-pointer;
-            -march=native;
-            -flto;
-            -ffp-contract=fast;
-            -fmerge-all-constants;
-        >
+    -Ofast;
+    -O3;
+    -ffast-math;
+    -fomit-frame-pointer;
+    -march=native;
+    -flto;
+    -ffp-contract=fast;
+    -fmerge-all-constants;
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
@@ -138,4 +132,3 @@ set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "bolt"
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
-

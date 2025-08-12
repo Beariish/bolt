@@ -163,14 +163,20 @@ if(NOT MSVC)
 
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
     target_compile_options(${PROJECT_NAME} PRIVATE
-        -Ofast;
-        -O3;
-        -ffast-math;
-        -fomit-frame-pointer;
-        -march=native;
-        -flto;
-        -ffp-contract=fast;
-        -fmerge-all-constants;
+        $<$<CONFIG:Debug>:
+            -g;
+            -O0;
+        >
+        $<$<CONFIG:Release>:
+            -Ofast;
+            -O3;
+            -ffast-math;
+            -fomit-frame-pointer;
+            -march=native;
+            -flto;
+            -ffp-contract=fast;
+            -fmerge-all-constants;
+        >
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE

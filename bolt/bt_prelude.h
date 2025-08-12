@@ -35,10 +35,7 @@ extern "C" {
 #if __has_builtin(__builtin_assume)
   #define BT_ASSUME(x) __builtin_assume(x)
 #else
-  // On MacOs and other platforms using 
-  // #define BT_ASSUME(x) do { if (!(x)) __builtin_unreachable(); } while(0)
-  // and other compiler tricks can cause memory corruption.
-  #define BT_ASSUME(x) ((void)0)
+  #define BT_ASSUME(x) do { if (!(x)) __builtin_unreachable(); } while(0)
 #endif
 #endif
 
