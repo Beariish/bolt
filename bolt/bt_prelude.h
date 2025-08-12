@@ -30,7 +30,7 @@ extern "C" {
 #define BT_NO_INLINE __declspec(noinline)
 #define BT_ASSUME(x) __assume(x)
 #else
-#define BT_FORCE_INLINE __attribute__((always_inline))
+#define BT_FORCE_INLINE __attribute__((always_inline)) inline
 #define BT_NO_INLINE
 #if __has_builtin(__builtin_assume)
   #define BT_ASSUME(x) __builtin_assume(x)
