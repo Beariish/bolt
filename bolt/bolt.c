@@ -122,9 +122,11 @@ static void bt_write(bt_Context* ctx, const char* msg)
 #endif
 
 #ifdef BOLT_ALLOW_MALLOC
+#ifndef __APPLE__
 #include <malloc.h>
 #else
 #include <stdlib.h>
+#endif
 #endif
 
 #ifdef BOLT_ALLOW_FOPEN
@@ -161,9 +163,12 @@ bt_Handlers bt_default_handlers()
 {
 	bt_Handlers result = { 0 };
 
+#ifdef BOLT_ALLOW_MALLOC
 	result.alloc = malloc;
 	result.realloc = realloc;
 	result.free = free;
+#endif
+
 
 #ifdef BOLT_ALLOW_FOPEN
 	result.read_file = bt_read_file;
