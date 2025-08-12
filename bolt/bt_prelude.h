@@ -57,19 +57,15 @@ extern "C" {
 	#define BOLT_API
 #endif
 
-#ifdef __has_builtin
-    #if __has_builtin(__builtin_prefetch)
-        #define BT_PREFETCH_READ_MODERATE(addr) __builtin_prefetch(addr, 0, 2)
+#ifndef BT_PREFETCH_READ_MODERATE
+    #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+        #include <xmmintrin.h>
+        #define BT_PREFETCH_READ_MODERATE(addr) _mm_prefetch((const char*)(addr), _MM_HINT_T2)
+    #elif (defined(__GNUC__) || defined(__clang__)) && __has_builtin(__builtin_prefetch)
+        #define BT_PREFETCH_READ_MODERATE(addr) __builtin_prefetch((addr), 0, 2)
     #else
-        #define BT_PREFETCH_READ_MODERATE(addr) ((void)0)
+        #define BT_PREFETCH_READ_MODERATE(addr) ((void)(addr))
     #endif
-#elif defined(__GNUC__)
-    #define BT_PREFETCH_READ_MODERATE(addr) __builtin_prefetch(addr, 0, 2)
-#elif defined(_MSC_VER) && defined(_M_X64)
-    #include <xmmintrin.h>
-    #define BT_PREFETCH_READ_MODERATE(addr) _mm_prefetch((const char*)(addr), _MM_HINT_T2)
-#else
-    #define BT_PREFETCH_READ_MODERATE(addr) ((void)0)
 #endif
 
 typedef uint8_t bt_bool;
