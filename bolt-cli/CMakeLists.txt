@@ -100,6 +100,7 @@ if(NOT MSVC)
     set(TARGET x86_64-none-none)
 
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
+
     target_compile_options(${PROJECT_NAME} PRIVATE
         -Ofast;
         -O3;
@@ -134,4 +135,3 @@ set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "bolt"
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
-
