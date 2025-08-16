@@ -211,6 +211,11 @@ void bt_close(bt_Context* context)
 	context->troot_top = 0;
 	context->current_thread = 0;
 	context->native_references = 0;
+
+	for (uint32_t i = 0; i < BT_STRINGTABLE_SIZE; i++) {
+		bt_buffer_destroy(context, &context->string_table[i]);
+	}
+
 	while (bt_collect(&context->gc, 0));
 
 	bt_free(context, context->root);
