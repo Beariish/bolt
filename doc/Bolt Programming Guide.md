@@ -418,7 +418,7 @@ let b = a as bool // b: bool? = null
 let c = a as number! // a: number = 10, use ! to strip the null
 
 if let num = a as number {
-    // safe cast, we skip the branch is a is not a number
+    // safe cast, we skip the branch if a is not a number
 }
 ```
 
