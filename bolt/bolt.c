@@ -230,7 +230,7 @@ void bt_close(bt_Context* context)
 bt_bool bt_run(bt_Context* context, const char* source)
 {
 	bt_Module* mod = bt_compile_module(context, source, "<interp>");
-	if (!mod) return BT_FALSE;
+	if (!mod) return BT_TRUE;
 	return bt_execute(context, (bt_Callable*)mod);
 }
 
