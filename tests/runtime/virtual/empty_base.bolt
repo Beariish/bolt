@@ -1,0 +1,74 @@
+import * from "../../test"
+
+import math
+
+type Shape = {}
+fn Shape.area(this) { return 0 }
+
+type Rect = Shape + {
+    a: number, b: number
+}
+
+fn Rect.area(this) { return this.a * this.b }
+
+type Circle = Shape + {
+    r: number
+}
+
+fn Circle.area(this) { return math.pi * this.r * this.r }
+
+fn total_area(shapes: [Shape]) {
+    let sum = 0
+    for shape in shapes.each() {
+        sum += shape.area()
+    }
+
+    return sum
+}
+
+push_scope("empty-base")
+
+test("array of base shapes", fn {
+    let area = total_area([
+        Shape => {},
+        Shape => {},
+        Shape => {}
+    ])
+
+    expect(area == 0, "Correctly called base function")
+})
+
+test("array of all rects", fn {
+    let area = total_area([
+        Rect => { a: 5, b: 5 },
+        Rect => { a: 5, b: 5 },
+        Rect => { a: 5, b: 5 }
+        : Shape
+    ])
+
+    expect(area == 75, "Correctly called derived function")
+})
+
+test("array of all circles", fn {
+    let area = total_area([
+        Circle => { r: 5 },
+        Circle => { r: 5 },
+        Circle => { r: 5 }
+        : Shape
+    ])
+
+    expect(math.round(area) == 236, "Correctly called derived function")
+})
+
+test("array of mixed shapes", fn {
+    let area = total_area([
+        Shape => {},
+        Rect => { a: 5, b: 5 },
+        Circle => { r: 5 }
+        : Shape
+    ])
+
+    expect(math.round(area) == 104, "Correctly called each derived function")
+})
+
+pop_scope()

@@ -1,0 +1,6 @@
+import * from "../../test"
+import "_scope"
+
+import "empty_base"
+
+pop_scope()
