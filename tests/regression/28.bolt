@@ -1,0 +1,37 @@
+import * from "../test"
+import tables
+
+/*
+This works:
+
+import print from core
+import tables
+
+let a = {42: "haha"}
+print(tables.length(a))  // 1
+
+/////////////////////////////////////////////////////////////////////
+
+This doesn't:
+
+import print from core
+import tables
+
+let const k = 42
+let a = {k: "haha"}
+print(tables.length(a))  // Invalid argument type: 'a'
+*/
+
+push_scope("28")
+
+test("always worked", fn {
+    let a = {42: "haha"}
+    expect(tables.length(a) == 1, "Expected table to have length of one")
+})
+
+test("didn't work", fn {
+    let a = {k: "haha"}
+    expect(tables.length(a) == 1, "Expected table to have length of one") 
+})
+
+pop_scope()

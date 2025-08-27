@@ -1,0 +1,7 @@
+import * from "../test"
+
+import "_scope"
+
+import "28"
+
+pop_scope()

@@ -4,5 +4,6 @@ import "_scope"
 import "parser/all"
 import "runtime/all"
 import "stdlib/all"
+import "regression/all"
 
 pop_scope()
