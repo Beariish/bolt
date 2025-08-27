@@ -1,0 +1,12 @@
+import * from "../test"
+
+push_scope("soft-casting")
+
+test("slow path cast", fn {
+    type  T = { x: number, y: number }
+    let t1 = { y: 10, x: 20 }
+    let t2 = t1 as T!
+    expect(t2.x == 20 and t2.y == 10, "Expected fields to match")
+})
+
+pop_scope()
