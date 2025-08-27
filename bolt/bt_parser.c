@@ -813,7 +813,7 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
                 bt_TablePair* field = BT_TABLE_PAIRS(rhs_fields) + i;
                 bt_TablePair* type = BT_TABLE_PAIRS(rhs_field_types) + i;
 
-                if (bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
+                if (result->as.table_shape.layout && bt_table_get(result->as.table_shape.layout, field->key) != BT_VALUE_NULL) {
                     bt_String* as_str = (bt_String*)BT_AS_OBJECT(field->key);
                     parse_error_fmt(parse, "Both lhs and rhs have a field with name '%.*s'", token->line, token->col, as_str->len, BT_STRING_STR(as_str));
                     return NULL;
