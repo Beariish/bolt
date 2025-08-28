@@ -4,6 +4,7 @@ import "_scope"
 import "arithmetic"
 import "branching"
 import "short_circuit"
+import "soft_casting"
 import "virtual/all"
 
-pop_scope() 
+pop_scope()
