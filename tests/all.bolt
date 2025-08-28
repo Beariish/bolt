@@ -7,3 +7,4 @@ import "stdlib/all"
 import "regression/all"
 
 pop_scope()
+ensure_scopes_popped()

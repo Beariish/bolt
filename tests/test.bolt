@@ -26,7 +26,6 @@ type TestState = {
 }
 
 let state: TestState
-
 state.current_scope = state.root
 
 fn run_scope(scope: TestScope): ! {
@@ -146,4 +145,11 @@ export fn expect_branched(condition: bool, message: string) {
     }
 
     expect(condition, message)
+}
+
+export fn ensure_scopes_popped {
+    if state.current_scope != state.root {
+        print("Test run ended with test scopes still on stack")
+        print("Did you forget to add a 'pop_scope()' somewhere?")
+    }
 }
