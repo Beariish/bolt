@@ -1738,6 +1738,11 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             lhs_node = token_to_node(parse, lhs);
             type_check(parse, lhs_node);
         }
+        
+        if (!lhs_node) {
+            parse_error_token(parse, "Failed to parse expression starting at '%.*s'", lhs);
+            return NULL;
+        }
     }
     
     for (;;) {
