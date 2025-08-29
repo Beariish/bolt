@@ -2906,6 +2906,15 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
             }
 
             bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
+
+            bt_Type* existing_field = bt_type_get_field_type(parser->context, type, BT_VALUE_OBJECT(name));
+            if (existing_field) {
+                if (!existing_field->satisfier(existing_field, fn->resulting_type)) {
+                    parse_error_token(parser, "Invalid signature for function '%.*s' already defined in tableshape", ident);
+                    return NULL;
+                }
+            }
+            
             bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
 
             bt_AstNode* result = make_node(parser, BT_AST_NODE_METHOD);
