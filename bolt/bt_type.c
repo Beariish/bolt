@@ -94,11 +94,11 @@ static bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 		bt_Table* lpairs = left->as.table_shape.layout;
 		bt_Table* rpairs = right->as.table_shape.layout;
 	
-		for (uint32_t i = 0; i < lpairs->length; ++i) {
+		for (uint32_t i = 0; i < (lpairs ? lpairs->length : 0); ++i) {
 			bt_TablePair* lentry = BT_TABLE_PAIRS(lpairs) + i;
 
 			bt_bool found = BT_FALSE;
-			for (uint32_t j = 0; j < rpairs->length; ++j) {
+			for (uint32_t j = 0; j < (rpairs ? rpairs->length : 0); ++j) {
 				bt_TablePair* rentry = BT_TABLE_PAIRS(rpairs) + j;
 
 				bt_Type* ltype = (bt_Type*)BT_AS_OBJECT(lentry->value);
