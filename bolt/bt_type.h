@@ -61,7 +61,9 @@ BOLT_API bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner);
 BOLT_API bt_Type* bt_make_signature_type(bt_Context* context, bt_Type* ret, bt_Type** args, uint8_t arg_count);
 /** Converts supplied signature `original` into a vararg function, taking an unspecified number of `varargs_type` arguments */
 BOLT_API bt_Type* bt_make_signature_vararg(bt_Context* context, bt_Type* original, bt_Type* varargs_type);
-
+/** Returns whether a signature type is 'methodic' over type `t` (meaning it can be called through dot syntax) */
+BOLT_API bt_bool bt_type_is_methodic(bt_Type* signature, bt_Type* t);
+    
 /**
  * Creates a type representing a bolt function signature with polymorphic arguments.
  * `applicator` is called by the bolt parser whenever this function is called, and it's responsible for
@@ -136,7 +138,7 @@ BOLT_API bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value 
 /** Returns the type of field `key` in `tshp`, or `NULL` if it is not present */
 BOLT_API bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key);
 
-    /** TYPE UTILS */
+/** TYPE UTILS */
 
 /** Extracts the fundamental type from the type alias `type` */
 BOLT_API bt_Type* bt_type_dealias(bt_Type* type);

@@ -349,6 +349,15 @@ bt_Type* bt_make_signature_vararg(bt_Context* context, bt_Type* original, bt_Typ
 	return original;
 }
 
+bt_bool bt_type_is_methodic(bt_Type* signature, bt_Type* t)
+{
+	if (t->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
+	if (signature->category != BT_TYPE_CATEGORY_SIGNATURE) return BT_FALSE;
+	if (signature->as.fn.args.length < 1) return BT_FALSE;
+
+	return signature->as.fn.args.elements[0]->satisfier(signature->as.fn.args.elements[0], t);
+}
+
 bt_Type* bt_make_alias_type(bt_Context* context, const char* name, bt_Type* boxed)
 {
 	bt_Type* result = bt_make_type(context, name, type_satisfier_alias, BT_TYPE_CATEGORY_TYPE);
