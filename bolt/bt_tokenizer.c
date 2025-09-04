@@ -142,6 +142,8 @@ bt_Token* bt_tokenizer_emit(bt_Tokenizer* tok)
 
 eat_whitespace:
 	switch (*tok->current) {
+	case 0:
+		return &BT_TOKEN_EOF;
 	case ' ':
 		tok->current++; tok->col++;
 		goto eat_whitespace;
@@ -156,13 +158,14 @@ eat_whitespace:
 		goto eat_whitespace;
 	case '/':
 		if (*(tok->current + 1) == '/') {
-			while (*tok->current != '\n') tok->current++;
+			while (*tok->current && *tok->current != '\n') tok->current++;
 			goto eat_whitespace;
 		}
 		else if (*(tok->current + 1) == '*') {
 			uint8_t depth = 1;
 			tok->current += 2; tok->col += 2;
 			while (depth > 0) {
+				if (*tok->current == 0) goto eat_whitespace;
 				if (*tok->current == '*' && *(tok->current + 1) == '/') depth--;
 				if (*tok->current == '/' && *(tok->current + 1) == '*') depth++;
 				if (*tok->current == '\n') { tok->line++; tok->col = 1; }
