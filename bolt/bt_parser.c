@@ -1316,7 +1316,7 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 }
 
 
-static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* body, bt_Type* expected, bt_bool is_inferable, uint8_t level)
+static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* body, bt_Type* expected, bt_bool is_inferable, bt_bool* has_typeless_return, uint8_t level)
 {
     bt_bool has_return = BT_FALSE;
     for (uint32_t i = 0; i < body->length; ++i) {
@@ -1326,6 +1326,15 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
         if (expr->type == BT_AST_NODE_RETURN) {
             if (expected && expr->resulting_type == NULL) {
                 parse_error(parse, "Expected block to return value", expr->source->line, expr->source->col);
+                return NULL;
+            }
+
+            if (expr->resulting_type == NULL) {
+                *has_typeless_return = BT_TRUE;
+            }
+
+            if (expr->resulting_type != NULL && *has_typeless_return) {
+                parse_error(parse, "Not all paths in block return a value", expr->source->line, expr->source->col);
                 return NULL;
             }
 
@@ -1346,28 +1355,28 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
             has_return = BT_TRUE;
         }
         else if (expr->type == BT_AST_NODE_IF) {
-            expected = infer_return(parse, ctx, &expr->as.branch.body, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.branch.body, expected, is_inferable, has_typeless_return, level + 1);
             bt_AstNode* elif = expr->as.branch.next;
             while (elif) {
-                expected = infer_return(parse, ctx, &elif->as.branch.body, expected, is_inferable, level + 1);
+                expected = infer_return(parse, ctx, &elif->as.branch.body, expected, is_inferable, has_typeless_return, level + 1);
                 elif = elif->as.branch.next;
             }
         }
         else if (expr->type == BT_AST_NODE_LOOP_WHILE) {
-            expected = infer_return(parse, ctx, &expr->as.loop_while.body, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.loop_while.body, expected, is_inferable, has_typeless_return, level + 1);
         }
         else if (expr->type == BT_AST_NODE_LOOP_NUMERIC) {
-            expected = infer_return(parse, ctx, &expr->as.loop_numeric.body, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.loop_numeric.body, expected, is_inferable, has_typeless_return, level + 1);
         }
         else if (expr->type == BT_AST_NODE_LOOP_ITERATOR) {
-            expected = infer_return(parse, ctx, &expr->as.loop_iterator.body, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.loop_iterator.body, expected, is_inferable, has_typeless_return, level + 1);
         }
         else if (expr->type == BT_AST_NODE_MATCH) {
-            expected = infer_return(parse, ctx, &expr->as.match.branches, expected, is_inferable, level + 1);
-            expected = infer_return(parse, ctx, &expr->as.match.else_branch, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.match.branches, expected, is_inferable, has_typeless_return, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.match.else_branch, expected, is_inferable, has_typeless_return, level + 1);
         }
         else if (expr->type == BT_AST_NODE_MATCH_BRANCH) {
-            expected = infer_return(parse, ctx, &expr->as.match_branch.body, expected, is_inferable, level + 1);
+            expected = infer_return(parse, ctx, &expr->as.match_branch.body, expected, is_inferable, has_typeless_return, level + 1);
         }
     }
 
@@ -1511,8 +1520,9 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
         return NULL;
     }
 
+    bt_bool has_typeless_return = BT_FALSE;
     result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, 
-        result->as.fn.ret_type, result->as.fn.ret_type == NULL, 0);
+        result->as.fn.ret_type, result->as.fn.ret_type == NULL, &has_typeless_return, 0);
     
     bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
