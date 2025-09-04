@@ -76,4 +76,32 @@ test("complex typed array literal inference", fn {
     expect(c is type([{a: number}]),     "Expected c to be '[{a: number}]'")
 })
 
+test("typed empty array literal", fn {
+    let a: [number] = []
+
+    expect(typeof(a) == type([number]), "Expected 'a' to be '[number]'")
+})
+
+test("typed empty array literal as argument", fn {
+    fn len(arr: [number]) { return arr.length() }
+
+    expect(len([]) == 0, "Expected length of '[]' to be '0'")
+})
+
+test("typed empty array literal as table value", fn {
+    let t = {
+        x: []
+    }
+
+    expect(typeof(t.x) == type([any]), "Expected 't.x' to be '[any]'")
+})
+
+test("typed empty array literal as tableshape value", fn {
+    type T = { arr: [number] }
+
+    let t = T => { arr: [] }
+
+    expect(typeof(t.arr) == type([number]), "Expected 't.arr' to be '[number]'")
+})
+
 pop_scope()

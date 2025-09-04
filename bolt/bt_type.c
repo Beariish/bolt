@@ -63,11 +63,15 @@ bt_bool bt_type_is_optional(bt_Type* type)
 
 static bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 {
-	return bt_type_satisfier_same(left, right) || (
-		(left->category == BT_TYPE_CATEGORY_ARRAY && left->category == right->category) &&
-		left->as.array.inner->satisfier(
-			left->as.array.inner,
-			right->as.array.inner));
+	if (bt_type_satisfier_same(left, right)) return BT_TRUE;
+
+	if (left->category == BT_TYPE_CATEGORY_ARRAY && left->category == right->category) {
+		// Arrays with NULL inner type are the empty array
+		if (left->as.array.inner && !right->as.array.inner) return BT_TRUE;
+		if (left->as.array.inner->satisfier(left->as.array.inner, right->as.array.inner)) return BT_TRUE;
+	}
+
+	return BT_FALSE;
 }
 
 static bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)

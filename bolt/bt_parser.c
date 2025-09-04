@@ -549,6 +549,17 @@ static bt_Value node_to_literal_value(bt_Parser* parse, bt_AstNode* node)
     return result;
 }
 
+// Convert temporary inferable types into storable types
+static bt_Type* to_storable_type(bt_Context* ctx, bt_Type* type)
+{
+    // Promote empty array literals to arrays of any for storage 
+    if (type->category == BT_TYPE_CATEGORY_ARRAY && type->as.array.inner == 0) {
+        return bt_make_array_type(ctx, ctx->types.any);
+    }
+    
+    return type;
+}
+
 static bt_AstNode* literal_to_node(bt_Parser* parse, bt_Value literal)
 {
     bt_AstNode* result = make_node(parse, BT_AST_NODE_VALUE_LITERAL);
@@ -620,9 +631,9 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
         else {
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
-            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, field->as.table_field.value_type);
+            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, to_storable_type(parse->context, field->as.table_field.value_type));
 
-            bt_Type* value_type = type_check(parse, value_expr)->resulting_type;
+            bt_Type* value_type = to_storable_type(parse->context, type_check(parse, value_expr)->resulting_type);
 
             map_key_type = bt_make_or_extend_union(parse->context, map_key_type, key_type);
             map_value_type = bt_make_or_extend_union(parse->context, map_value_type, value_type);
@@ -1137,13 +1148,6 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
                 result->as.arr.inner_type = item_type;
             }
         }
-    }
-
-    // empty array literal
-    // I would really like this to infer the type from the binding on the lhs, but I 
-    // don't think we really have the capability to do that yet
-    if (result->as.arr.inner_type == 0) {
-        result->as.arr.inner_type = parse->context->types.any;
     }
 
     result->resulting_type = bt_make_array_type(parse->context, result->as.arr.inner_type);
@@ -2538,7 +2542,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
             if (!rhs) {
                 parse_error_token(parse, "Assignment failed to evaluate to type", node->source); return NULL;
             }
-            node->resulting_type = type_check(parse, rhs)->resulting_type;
+            node->resulting_type = to_storable_type(parse->context, type_check(parse, rhs)->resulting_type);
             
             if (!node->resulting_type) {
                 parse_error_token(parse, "Assignment failed to evaluate to type", node->source); return NULL;
