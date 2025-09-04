@@ -1,0 +1,260 @@
+import * from "../test"
+
+push_scope("assignment")
+
+test("null assignment", fn {
+    let a = null
+    let b = null
+    a = b
+
+    expect(a == null, "Expected 'a' to be 'null'")
+})
+
+test("bool assignment", fn {
+    let a = false
+    let b = true
+    a = b
+
+    expect(a == true, "Expected 'a' to be 'true'")
+})
+
+test("number assignment", fn {
+    let a = 10
+    let b = 20
+    a = b
+
+    expect(a == 20, "Expected 'a' to be '20'")
+})
+
+test("string assignment", fn {
+    let a = "hello"
+    let b = "world"
+    a = b
+
+    expect(a == "world", "Expected 'a' to be 'world'")
+})
+
+test("enum assignment", fn {
+    type E = enum { A, B, C }
+    let a = E.A
+    let b = E.B
+
+    a = b
+
+    expect(a == E.B, "Expected 'a' to be 'E.B'")
+})
+
+test("unsealed enum assignment", fn {
+    type UE = unsealed enum { A, B, C }
+    let a = UE.A
+    let b = UE.B
+
+    a = b
+
+    expect(a == UE.B, "Expected 'a' to be 'UE.B'")
+})
+
+test("empty array assignment", fn {
+    let a = [1, 2, 3]
+    let b = [:number]
+
+    a = b
+
+    expect(a.length() == 0, "Expected 'a' to be an empty array")
+})
+
+test("populated array assignment", fn {
+    let a = [1, 2, 3]
+    let b = [4, 5, 6]
+
+    a = b
+
+    expect(a.length() == 3, "Expected 'a' to have 3 elements")
+    expect(a[0] == 4, "Expected 'a[0]' to be '4'")
+    expect(a[1] == 5, "Expected 'a[1]' to be '5'")
+    expect(a[2] == 6, "Expected 'a[2]' to be '6'")
+})
+
+test("empty tableshape assignment", fn {
+    type T1 = {}
+
+    let a = T1 => {}
+    let b = T1 => {}
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+})
+
+test("empty unsealed tableshape assignment", fn {
+    type UT1 = unsealed {}
+
+    let a = UT1 => { x: 10 }
+    let b = UT1 => { x: 5 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.x == 5, "Expected 'a.x' to be '5'")
+})
+
+test("tableshape assignment", fn {
+    type T2 = { x: number, y: number }
+
+    let a = T2 => { x: 10, y: 20 }
+    let b = T2 => { x: 30, y: 40 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.x == 30, "Expected 'a.x' to be '30'")
+    expect(a.y == 40, "Expected 'a.y' to be '40'")
+})
+
+test("tableshape assignment", fn {
+    type UT2 = unsealed { x: number, y: number }
+
+    let a = UT2 => { x: 10, y: 20, z: 100 }
+    let b = UT2 => { x: 30, y: 40, z: 150 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.x == 30, "Expected 'a.x' to be '30'")
+    expect(a.y == 40, "Expected 'a.y' to be '40'")
+    expect(a.z == 150, "Expected 'a.z' to be '150'")
+})
+
+test("empty inferable tableshape assignment", fn {
+    type T3 = {}
+    type T4 = {}
+
+    let a = T3 => {}
+    let b = T4 => {}
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+})
+
+test("empty unsealed inferable tableshape assignment", fn {
+    type UT3 = unsealed {}
+    type UT4 = unsealed {}
+
+    let a = UT3 => { x: 10 }
+    let b = UT4 => { x: 5 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.x == 5, "Expected 'a.x' to be '5'")
+})
+
+test("inferable tableshape assignment", fn {
+    type T5 = { x: number, y: number }
+    type T6 = { x: number, y: number }
+
+    let a = T5 => { x: 10, y: 20 }
+    let b = T6 => { x: 30, y: 40 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.x == 30, "Expected 'a.x' to be '30'")
+    expect(a.y == 40, "Expected 'a.y' to be '40'")
+})
+
+test("unsealed inferable tableshape assignment", fn {
+    type UT5 = unsealed { x: number, y: number }
+    type UT6 = unsealed { x: number, y: number }
+
+    let a = UT5 => { x: 10, y: 20, z: 100 }
+    let b = UT6 => { x: 30, y: 40, z: 150 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.x == 30, "Expected 'a.x' to be '30'")
+    expect(a.y == 40, "Expected 'a.y' to be '40'")
+    expect(a.z == 150, "Expected 'a.z' to be '150'")
+})
+
+test("prototyped empty tableshape assignment", fn {
+    type PT1 = {}
+
+    fn PT1.get(this) { return 10 }
+
+    let a = PT1 => {}
+    let b = PT1 => {}
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.get() == 10, "Expected 'a.get()' to be 10")
+})
+
+test("prototyped empty unsealed tableshape assignment", fn {
+    type PT2 = unsealed {}
+
+    fn PT2.get(this) { return 10 }
+
+    let a = PT2 => { x: 5 }
+    let b = PT2 => { x: 5 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.get() == 10, "Expected 'a.get()' to be 10")
+})
+
+test("prototyped tableshape assignment", fn {
+    type PT3 = { x: number, y: number }
+
+    fn PT3.get(this) { return this.x + this.y }
+
+    let a = PT3 => { x: 10, y: 20 }
+    let b = PT3 => { x: 30, y: 40 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.get() == 70, "Expected 'a.get()' to be 70")
+    expect(a.x == 30, "Expected 'a.x' to be 30")
+    expect(a.y == 40, "Expected 'a.y' to be 40")
+})
+
+test("prototyped unsealed tableshape assignment", fn {
+    type PT4 = unsealed { x: number, y: number }
+
+    fn PT4.get(this) { return this.x + this.y + (this.z as number ?? 0)  }
+
+    let a = PT4 => { x: 10, y: 20, z: 100 }
+    let b = PT4 => { x: 30, y: 40, z: 150 }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a.get() == 220, "Expected 'a.get()' to be 220")
+    expect(a.x == 30, "Expected 'a.x' to be 30")
+    expect(a.y == 40, "Expected 'a.y' to be 40")
+    expect(a.z == 150, "Expected 'a.z' to be 150")
+})
+
+test("maplike tableshape assignment", fn {
+    let a: { ..string: number } = {
+        "one": 1, "two": 2
+    }
+
+    let b: { ..string: number } = {
+        "three": 3, "four": 4
+    }
+
+    a = b
+
+    expect(a == b, "Expected 'a' to be 'b'")
+    expect(a["two"] == null, "Expected 'a[\"two\"]' to be 'null'")
+    expect(a["three"] == 3, "Expected 'a[\"three\"]' to be '3'")
+    expect(a["four"] == 4, "Expected 'a[\"four\"]' to be '4'")
+})
+
+pop_scope()

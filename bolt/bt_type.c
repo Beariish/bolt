@@ -82,7 +82,9 @@ static bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 		}
 	}
 
-	if (left->as.table_shape.sealed && right->as.table_shape.layout->length != left->as.table_shape.layout->length) return BT_FALSE;
+	uint32_t left_length = left->as.table_shape.layout ? left->as.table_shape.layout->length : 0;
+	uint32_t right_length = right->as.table_shape.layout ? right->as.table_shape.layout->length : 0;
+	if (left->as.table_shape.sealed && left_length != right_length) return BT_FALSE;
 
 	if (left->prototype_values &&
 		left->prototype_values != right->prototype_values) {

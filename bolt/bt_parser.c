@@ -608,7 +608,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         field->as.table_field.value_type = type_check(parse, value_expr)->resulting_type;
 
         if (type) {
-            bt_Type* expected = (bt_Type*)BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key));
+            bt_Type* expected = type->as.table_shape.layout ? (bt_Type*)BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key)) : 0;
             if (!expected && type->as.table_shape.sealed) {
                 parse_error_token(parse, "Unexpected field '%.*s' in sealed table literal", key_expr->source);
             }

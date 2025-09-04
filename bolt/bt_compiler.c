@@ -1011,7 +1011,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         bt_AstBuffer* fields = &expr->as.table.fields;
         bt_Type* resulting = expr->resulting_type;
 
-        if (expr->as.table.typed && expr->resulting_type->as.table_shape.sealed) {
+        if (expr->as.table.typed) {
             uint8_t t_idx = push(ctx, BT_VALUE_OBJECT(expr->resulting_type));
 
             push_registers(ctx);

@@ -2,6 +2,7 @@ import * from "../test"
 import "_scope"
 
 import "arithmetic"
+import "assignment"
 import "branching"
 import "short_circuit"
 import "soft_casting"
