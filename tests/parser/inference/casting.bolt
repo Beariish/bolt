@@ -101,8 +101,32 @@ test("as-casting invalid array types", fn {
     expect(y is type([number]), "Expected 'as' to cast to '[number]'")
 })
 
-// TODO: array casting
-// TODO: union casting
+test("as-casting to union type", fn {
+    type U = number | string
+
+    let a: U = 10
+    let b = "hello"
+
+    a = b as U!
+
+    expect(a is string, "Expected 'a' to be 'string'")
+    expect(a == "hello", "Expected 'a' to be 'hello'")
+})
+
+test("as-casting to valye type", fn {
+    type T = {x: number}
+    type S = number | T
+
+    let a: S | string = 42
+    let b: S = T => { x: 10 }
+
+    b = a as S!
+
+    expect(b is number, "Expected 'b' to be 'number'")
+    expect(b is S, "Expected 'b' to be 'S'")
+    expect(b == 42, "Expected 'b' to be '42'")
+})
+
 // TODO: signature casting
 
 pop_scope()

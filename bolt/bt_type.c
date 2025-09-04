@@ -730,6 +730,14 @@ bt_Value bt_value_cast(bt_Value value, bt_Type* type)
 		}
 		if (BT_IS_ENUM(value)) return value;
 	}
+
+	if (type->category == BT_TYPE_CATEGORY_UNION) {
+		for (uint32_t i = 0; i < type->as.selector.types.length; i++) {
+			bt_Type* t = type->as.selector.types.elements[i];
+			bt_Value as_cast = bt_value_cast(value, t);
+			if (as_cast != BT_VALUE_NULL) return as_cast;
+		}
+	}
 	
 	return BT_VALUE_NULL;
 }
