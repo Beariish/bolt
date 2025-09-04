@@ -1111,7 +1111,8 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
     
         for (uint32_t i = 0; i < result->as.arr.items.length; i++) {
             bt_AstNode* item = result->as.arr.items.elements[i];
-            if (!explicit_type->satisfier(explicit_type, type_check(parse, item)->resulting_type)) {
+            bt_Type* item_type = type_check(parse, item)->resulting_type;
+            if (!explicit_type->satisfier(explicit_type, item_type)) {
                 parse_error_token(parse, "Item in array literal doesn't match explicit type: '%.*s'", item->source);
                 return NULL;
             }
@@ -1122,6 +1123,11 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
             bt_AstNode* item = result->as.arr.items.elements[i];
 
             bt_Type* item_type = type_check(parse, item)->resulting_type;
+            if (!item_type) {
+                parse_error(parse, "Expression in array literal doesn't produce a value", item->source->line, item->source->col);
+                return NULL;
+            }
+            
             if (result->as.arr.inner_type) {
                 if (!result->as.arr.inner_type->satisfier(result->as.arr.inner_type, item_type)) {
                     result->as.arr.inner_type = bt_make_or_extend_union(parse->context, result->as.arr.inner_type, item_type);
