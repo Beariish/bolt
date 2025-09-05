@@ -212,8 +212,6 @@ void bt_close(bt_Context* context)
 	context->current_thread = 0;
 	context->native_references = 0;
 
-	// Note: bt_collect should consider stringtable entries, but it doesn't currently.
-	// The call immediately after this cleanup will fail when we fix that.
 	for (uint32_t i = 0; i < BT_STRINGTABLE_SIZE; i++) {
 		bt_buffer_destroy(context, &context->string_table[i]);
 		bt_buffer_empty(&context->string_table[i]);
