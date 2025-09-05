@@ -624,9 +624,12 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
                 parse_error_token(parse, "Unexpected field '%.*s' in sealed table literal", key_expr->source);
             }
 
-            if (expected && !expected->satisfier(expected, field->as.table_field.value_type)) {
+            bt_Type* value_type = field->as.table_field.value_type;
+            if (!value_type) {
+                parse_error_token(parse, "Failed to evaluate type of table field '%.*s'", key_expr->source);
+            } else if (expected && !expected->satisfier(expected, value_type)) {
                 parse_error_fmt(parse, "Invalid type for field '%.*s': wanted '%s', got '%s'", key_expr->source->line, key_expr->source->col,
-                    key_expr->source->source.length, key_expr->source->source.source, expected->name, field->as.table_field.value_type->name);
+                    key_expr->source->source.length, key_expr->source->source.source, expected->name, value_type->name);
             }
         }
         else {
