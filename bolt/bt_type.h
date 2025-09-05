@@ -155,7 +155,7 @@ BOLT_API bt_Value bt_transmute_type(bt_Value value, bt_Type* type);
 /** Returns whether types `a` and `b` are functionally equal */
 BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b);
     
-static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return BT_TRUE; }
+static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return left && right; }
 static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
 
 typedef enum {
