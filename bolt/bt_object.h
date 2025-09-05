@@ -238,6 +238,8 @@ typedef struct bt_Annotation {
 BOLT_API bt_String* bt_make_string(bt_Context* ctx, const char* str);
 /** Allocate a managed string from `len` bytes of `str` + nul byte. Content is copied */
 BOLT_API bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len);
+/** Allocate a managed string from `len` bytes of `str` + nul byte. Content is copied. This string is never interned for performance */
+BOLT_API bt_String* bt_make_string_len_uninterned(bt_Context* ctx, const char* str, uint32_t len);
 /** Allocate a managed string from `str` and then hash the contents. Measures the length and copies the content */
 BOLT_API bt_String* bt_make_string_hashed(bt_Context* ctx, const char* str);
 /** Allocate a managed string from `len` bytes of `str` + nul byte and then hash it. Content is copied */
@@ -249,6 +251,8 @@ BOLT_API bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len);
 	
 /** Convert any bt_Value into a string representation - allocated a temporary stack buffer */
 BOLT_API bt_String* bt_to_string(bt_Context* ctx, bt_Value value);
+/** Convert any bt_Value into a string representation - allocated a temporary stack buffer. String is interned if possible for runtime performance */
+BOLT_API bt_String* bt_to_static_string(bt_Context* ctx, bt_Value value);
 /** Convert any bt_Value into a string in-place, making zero allocations */
 BOLT_API int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Value value);
 

@@ -24,8 +24,17 @@ bt_String* bt_to_string(bt_Context* ctx, bt_Value value)
 {
     if (BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING) return (bt_String*)BT_AS_OBJECT(value);
 
-    char buffer[4096];
-    int32_t len = bt_to_string_inplace(ctx, buffer, 4096, value);
+    char buffer[BT_TO_STRING_BUF_LENGTH];
+    int32_t len = bt_to_string_inplace(ctx, buffer, BT_TO_STRING_BUF_LENGTH, value);
+    return bt_make_string_len_uninterned(ctx, buffer, len);
+}
+
+bt_String* bt_to_static_string(bt_Context* ctx, bt_Value value)
+{
+    if (BT_IS_OBJECT(value) && BT_OBJECT_GET_TYPE(BT_AS_OBJECT(value)) == BT_OBJECT_TYPE_STRING) return (bt_String*)BT_AS_OBJECT(value);
+
+    char buffer[BT_TO_STRING_BUF_LENGTH];
+    int32_t len = bt_to_string_inplace(ctx, buffer, BT_TO_STRING_BUF_LENGTH, value);
     return bt_make_string_len(ctx, buffer, len);
 }
 
@@ -113,6 +122,11 @@ bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
         return bt_get_or_make_interned(ctx, str, len);
     }
 
+    return bt_make_string_len_uninterned(ctx, str, len);
+}
+
+bt_String* bt_make_string_len_uninterned(bt_Context* ctx, const char* str, uint32_t len)
+{
     bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
     memcpy(BT_STRING_STR(result), str, len);
     BT_STRING_STR(result)[len] = 0;

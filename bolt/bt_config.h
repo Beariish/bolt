@@ -82,3 +82,8 @@
 #ifndef BT_MODULE_PATH_SIZE
 #define BT_MODULE_PATH_SIZE 512
 #endif
+
+// The stack size for the temporary string that bt_to_string uses during conversion
+#ifndef BT_TO_STRING_BUF_LENGTH
+#define BT_TO_STRING_BUF_LENGTH 1024
+#endif
