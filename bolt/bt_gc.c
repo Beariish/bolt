@@ -453,6 +453,17 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		blacken(gc, obj);
 	}
 
+	// Clear interned strings that are no longer referenced from the string table
+	for (uint32_t i = 0; i < BT_STRINGTABLE_SIZE; i++) {
+		bt_StringTableBucket* bucket = &ctx->string_table[i];
+		for (uint32_t idx = 0; idx < bucket->length; ++idx) {
+			if (!BT_OBJECT_GET_MARK((bt_Object*)bucket->elements[idx].string)) {
+				bucket->elements[idx] = bucket->elements[--bucket->length];
+				idx--;				
+			}
+		}
+	}
+	
 	uint32_t n_collected = 0;
 
 	bt_Object* prev = ctx->root;
