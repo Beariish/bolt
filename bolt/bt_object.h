@@ -32,6 +32,7 @@ typedef enum {
 typedef bt_Buffer(uint32_t) bt_DebugLocBuffer;
 typedef bt_Buffer(bt_Value) bt_ValueBuffer;
 typedef bt_Buffer(bt_Op) bt_InstructionBuffer;
+typedef bt_Buffer(uint8_t) bt_TopBuffer;
 
 /**
  * Every `bt_Object` contains a pointer to the next object in the list of managed objects, set by the context when it's first allocated.
@@ -144,6 +145,7 @@ typedef struct bt_Module {
 	bt_ValueBuffer constants;
 	bt_InstructionBuffer instructions;
 	bt_ImportBuffer imports;
+	bt_TopBuffer tops;
 
 	bt_TokenBuffer debug_tokens;
 	char* debug_source;
@@ -164,6 +166,7 @@ typedef struct bt_Fn {
 
 	bt_ValueBuffer constants;
 	bt_InstructionBuffer instructions;
+	bt_TopBuffer tops;
 
 	bt_Type* signature;
 	bt_Module* module;
@@ -302,6 +305,8 @@ BOLT_API bt_bool bt_table_delete_key(bt_Table* tbl, bt_Value key);
 BOLT_API bt_Array* bt_make_array(bt_Context* ctx, uint32_t initial_capacity);
 /** Pushes `value` to the end of `arr`. Will allocate and move contents if out of capacity */
 BOLT_API uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value);
+/** Reserve at least `capacity` slots in `arr`, allocating if necessary - returns the new capacity */
+BOLT_API uint64_t bt_array_reserve(bt_Context* ctx, bt_Array* arr, uint64_t capacity);
 /** Pops the last value from `arr`, returning BT_VALUE_NULL if empty */
 BOLT_API bt_Value bt_array_pop(bt_Array* arr);
 /** Gets the number of elements in `arr` */
@@ -344,11 +349,12 @@ BOLT_API bt_Value bt_module_get_storage(bt_Module* module, bt_Value key);
  * `signature` is the callable type of this function
  * `constants` contains all constant values addressable by the function
  * `instructions` contains a list of opcodes that make up the function body
+ * `tops` is a buffer as long as `instructions` that tells the GC how many stack slots to preserve
  * `stack_size` refers to the maximum number of stack slots required for the function, these are prealloacted on call
  *
  * The constant and instruction buffers are copied on call
  */ 
-BOLT_API bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size);
+BOLT_API bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, bt_TopBuffer* tops, uint8_t stack_size);
 
 /**
  * Creates a managed reference to a native function
@@ -362,7 +368,9 @@ BOLT_API bt_NativeFn* bt_make_native(bt_Context* ctx, bt_Module* module, bt_Type
 BOLT_API bt_Type* bt_get_return_type(bt_Callable* callable);
 /** Finds the module responsible for owning `callable` */
 BOLT_API bt_Module* bt_get_owning_module(bt_Callable* callable);
-
+/** Return the number of registers used at `ip` */
+BOLT_API uint8_t bt_get_top_at(bt_Callable* callable, bt_Op* ip);
+	
 /** USERDATA */
 
 /**

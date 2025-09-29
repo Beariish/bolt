@@ -371,16 +371,23 @@ bt_Array* bt_make_array(bt_Context* ctx, uint32_t initial_capacity)
 uint64_t bt_array_push(bt_Context* ctx, bt_Array* arr, bt_Value value)
 {
     if (arr->length == arr->capacity) {
-        uint32_t old_cap = arr->capacity;
-
-        arr->capacity *= 2;
-        if (arr->capacity == 0) arr->capacity = 4;
-        arr->items = bt_gc_realloc(ctx, arr->items, sizeof(bt_Value) * old_cap, sizeof(bt_Value) * arr->capacity);
+        bt_array_reserve(ctx, arr, arr->capacity * 2);
     }
 
     arr->items[arr->length++] = value;
 
     return arr->length;
+}
+
+uint64_t bt_array_reserve(bt_Context* ctx, bt_Array* arr, uint64_t capacity)
+{
+    if (capacity == 0) capacity = 4;
+    if (capacity > arr->capacity) {
+        arr->items = bt_gc_realloc(ctx, arr->items, sizeof(bt_Value) * arr->capacity, sizeof(bt_Value) * capacity);
+        arr->capacity = (uint32_t)capacity;
+    }
+
+    return arr->capacity;
 }
 
 bt_Value bt_array_pop(bt_Array* arr)
@@ -410,7 +417,7 @@ bt_Value bt_array_get(bt_Context* ctx, bt_Array* arr, uint64_t index)
     return arr->items[index];
 }
 
-bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, uint8_t stack_size)
+bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_ValueBuffer* constants, bt_InstructionBuffer* instructions, bt_TopBuffer* tops, uint8_t stack_size)
 {
     bt_Fn* result = BT_ALLOCATE(ctx, FN, bt_Fn);
     
@@ -421,6 +428,7 @@ bt_Fn* bt_make_fn(bt_Context* ctx, bt_Module* module, bt_Type* signature, bt_Val
 
     bt_buffer_clone(ctx, &result->constants, constants);
     bt_buffer_clone(ctx, &result->instructions, instructions);
+    bt_buffer_clone(ctx, &result->tops, tops);
 
     return result;
 }
@@ -487,6 +495,26 @@ bt_Type* bt_get_return_type(bt_Callable* callable)
     }
     
     return NULL;
+}
+
+uint8_t bt_get_top_at(bt_Callable* callable, bt_Op* ip)
+{
+    switch (BT_OBJECT_GET_TYPE(callable)) {
+    case BT_OBJECT_TYPE_CLOSURE: {
+        bt_Fn* as_fn = ((bt_Closure*)callable)->fn;
+        return as_fn->tops.elements[ip - as_fn->instructions.elements];
+    }
+    case BT_OBJECT_TYPE_FN:
+        bt_Fn* as_fn = (bt_Fn*)callable;
+        return as_fn->tops.elements[ip - as_fn->instructions.elements];
+    case BT_OBJECT_TYPE_MODULE:
+        bt_Module* as_mod = (bt_Module*)callable;
+        return as_mod->tops.elements[ip - as_mod->instructions.elements];
+    case BT_OBJECT_TYPE_NATIVE_FN:
+        return 0;
+    }
+    
+    return 0;
 }
 
 bt_Module* bt_get_owning_module(bt_Callable* callable)

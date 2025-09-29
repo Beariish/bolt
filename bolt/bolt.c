@@ -885,8 +885,9 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 #define NEXT break;
 #define RETURN return;
 #define CASE(x) case BT_OP_##x
-#define DISPATCH \
-	op = *ip++; \
+#define DISPATCH     \
+	thread->ip = ip; \
+	op = *ip++;      \
 	switch(BT_GET_OPCODE(op))
 #else
 #define RETURN return;
@@ -894,10 +895,12 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 #define X(op) case BT_OP_##op: goto lbl_##op;
 #define op (*ip)
 #define NEXT                          \
-	switch (BT_GET_OPCODE(*(++ip))) { \
+	thread->ip = ip++;                \
+	switch (BT_GET_OPCODE(op)) {      \
 		BT_OPS_X                      \
 	}
 #define DISPATCH                      \
+	thread->ip = ip;                  \
 	switch (BT_GET_OPCODE(op)) {	  \
 		BT_OPS_X                      \
 	}

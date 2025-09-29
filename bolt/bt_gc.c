@@ -45,19 +45,17 @@ void bt_gc_free(bt_Context* ctx, void* ptr, size_t size)
 
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
+	if (context->gc.bytes_allocated >= context->gc.next_cycle) {
+		bt_collect(&context->gc, 0);
+	}
+	
 	bt_Object* obj = bt_gc_alloc(context, full_size);
 	memset(obj, 0, full_size);
 
 	BT_OBJECT_SET_TYPE(obj, type);
 	if (context->next) BT_OBJECT_SET_NEXT(context->next, obj);
 	context->next = obj;
-
-	if (context->gc.bytes_allocated >= context->gc.next_cycle) {
-		bt_push_root(context, obj);
-		bt_collect(&context->gc, 0);
-		bt_pop_root(context);
-	}
-
+	
 	return obj;
 }
 
@@ -432,15 +430,24 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	
 	if (gc->ctx->current_thread) {
 		bt_Thread* thr = gc->ctx->current_thread;
-		uint32_t top = thr->top + BT_STACKFRAME_GET_SIZE(thr->callstack[thr->depth - 1]) 
-			+ BT_STACKFRAME_GET_USER_TOP(thr->callstack[thr->depth - 1]);
+		
+		uint32_t user_bottom = thr->top + BT_STACKFRAME_GET_SIZE(thr->callstack[thr->depth - 1]);
+		uint32_t user_top = user_bottom + BT_STACKFRAME_GET_USER_TOP(thr->callstack[thr->depth - 1]);
 
+		bt_Callable* current = BT_STACKFRAME_GET_CALLABLE(thr->callstack[thr->depth - 1]);
+		uint32_t top = thr->top + bt_get_top_at(current, thr->ip);
+		
 		for (uint32_t i = 0; i < thr->depth; ++i) {
 			bt_StackFrame stck = thr->callstack[i];
 			grey(gc, (bt_Object*)BT_STACKFRAME_GET_CALLABLE(stck));
 		}
 
 		for (uint32_t i = 0; i < top; ++i) {
+			bt_Value val = thr->stack[i];
+			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
+		}
+
+		for (uint32_t i = user_bottom; i < user_top; ++i) {
 			bt_Value val = thr->stack[i];
 			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
 		}
@@ -488,6 +495,11 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 				
 			current = (bt_Object*)BT_OBJECT_NEXT(current);
 			BT_OBJECT_SET_NEXT(prev, current);
+
+			if (ctx->next == to_free) {
+				ctx->next = prev;
+			}
+			
 			bt_free(ctx, to_free);
 
 			n_collected++;

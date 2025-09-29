@@ -52,6 +52,7 @@ typedef struct FunctionContext {
     bt_Buffer(Constant) constants;
     bt_InstructionBuffer output;
     bt_DebugLocBuffer debug;
+    bt_TopBuffer tops;
 
     bt_Compiler* compiler;
     bt_Context* context;
@@ -70,6 +71,7 @@ typedef struct FunctionContext {
 
 static uint8_t get_register(FunctionContext* ctx);
 static uint8_t get_registers(FunctionContext* ctx, uint8_t count);
+static uint8_t get_used_register_count(FunctionContext* ctx);
 static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstNode* fn);
 static uint8_t find_upval(FunctionContext* ctx, bt_StrSlice name);
 static uint8_t find_binding(FunctionContext* ctx, bt_StrSlice name);
@@ -119,6 +121,7 @@ static void table_ensure_template_made(bt_Context* ctx, bt_Type* tblshp)
 static uint32_t emit_op(FunctionContext* ctx, bt_Op op)
 {
     bt_buffer_push(ctx->context, &ctx->output, op);
+    bt_buffer_push(ctx->context, &ctx->tops, get_used_register_count(ctx));
 
     if (ctx->compiler->options.generate_debug_info) {
         if (ctx->compiler->debug_top) {
@@ -427,6 +430,20 @@ static uint8_t get_register(FunctionContext* ctx)
 
         uint8_t result = offset + found;
         if (result > ctx->min_top_register) ctx->min_top_register = result;
+        return result - 1;
+    }
+
+    return UINT8_MAX;
+}
+
+static uint8_t get_used_register_count(FunctionContext* ctx)
+{
+    uint8_t offset = 0;
+    for (uint8_t idx = 0; idx < 4; ++idx, offset += 64) {
+        uint64_t mask = ctx->registers.regs[idx];
+        if (mask == UINT64_MAX) continue;
+        uint8_t found = internal_ffsll(~mask);
+        uint8_t result = offset + found;
         return result - 1;
     }
 
@@ -1523,10 +1540,12 @@ bt_Module* bt_compile(bt_Compiler* compiler)
     result->stack_size = fn.min_top_register;
     bt_buffer_clone(compiler->context, &result->constants, &fn_constants);
     bt_buffer_clone(compiler->context, &result->instructions , &fn.output);
+    bt_buffer_clone(compiler->context, &result->tops , &fn.tops);
 
     bt_buffer_destroy(compiler->context, &fn_constants);
     bt_buffer_destroy(compiler->context, &fn.constants);
     bt_buffer_destroy(compiler->context, &fn.output);
+    bt_buffer_destroy(compiler->context, &fn.tops);
 
     return result;
 }
@@ -1562,7 +1581,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
         bt_buffer_push(compiler->context, &fn_constants, ctx.constants.elements[i].value);
     }
     
-    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, ctx.min_top_register);
+    bt_Fn* result = bt_make_fn(compiler->context, mod, fn->resulting_type, &fn_constants, &ctx.output, &ctx.tops, ctx.min_top_register);
     
     if (compiler->options.generate_debug_info) {
         result->debug = bt_gc_alloc(compiler->context, sizeof(bt_DebugLocBuffer));
@@ -1572,6 +1591,7 @@ static bt_Fn* compile_fn(bt_Compiler* compiler, FunctionContext* parent, bt_AstN
     bt_buffer_destroy(compiler->context, &fn_constants);
     bt_buffer_destroy(compiler->context, &ctx.constants);
     bt_buffer_destroy(compiler->context, &ctx.output);
+    bt_buffer_destroy(compiler->context, &ctx.tops);
 
     return result;
 }

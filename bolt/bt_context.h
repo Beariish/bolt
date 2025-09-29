@@ -172,6 +172,7 @@ typedef struct bt_Thread {
 	jmp_buf error_loc;
 
 	bt_Context* context;
+	bt_Op* ip;
 	
 	bt_bool should_report;
 } bt_Thread;
