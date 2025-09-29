@@ -54,7 +54,7 @@ The [bolt-cli](https://github.com/Beariish/bolt/blob/main/bolt-cli/main.c) progr
 The [examples](https://github.com/Beariish/bolt/tree/main/examples) folder contains a few short examples of ideomatically written bolt code. Check out the [tests](https://github.com/Beariish/bolt/tree/main/tests) and [benchmarks](https://github.com/Beariish/bolt/tree/main/benchmarks) folders as wel for some more in-depth language overview.
 
 ## Building
-Bolt currently only builds on x64. 32-bit architectures are explicitly not supported, arm and riscv are untested.
+Bolt currently builds on x64 and arm64. 32-bit architectures are explicitly not supported, and riscv is untested.
 Running `cmake` in the root directory of the project will generate a static library for the language, as well as the CLI tool.
 For more information and options regarding embedding Bolt in your application, see `bt_config.h`.
 See below for the status of Bolt on each relevant compiler. 
@@ -80,4 +80,5 @@ Feature additions will need a lot of consideration, Bolt is very intentionally m
 
 ## License
 Bolt is licensed under MIT. See LICENSE for more information.
+
 
