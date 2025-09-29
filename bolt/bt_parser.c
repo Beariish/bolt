@@ -553,7 +553,7 @@ static bt_Value node_to_literal_value(bt_Parser* parse, bt_AstNode* node)
 static bt_Type* to_storable_type(bt_Context* ctx, bt_Type* type)
 {
     // Promote empty array literals to arrays of any for storage 
-    if (type->category == BT_TYPE_CATEGORY_ARRAY && type->as.array.inner == 0) {
+    if (type && type->category == BT_TYPE_CATEGORY_ARRAY && type->as.array.inner == 0) {
         return bt_make_array_type(ctx, ctx->types.any);
     }
     
@@ -616,7 +616,8 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
 
         field->as.table_field.value_expr = value_expr;
-        field->as.table_field.value_type = type_check(parse, value_expr)->resulting_type;
+        bt_AstNode* value_checked = type_check(parse, value_expr);
+        field->as.table_field.value_type = value_checked ? value_checked->resulting_type : NULL;
 
         if (type) {
             bt_Type* expected = type->as.table_shape.layout ? (bt_Type*)BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key)) : 0;
@@ -636,7 +637,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
             bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, to_storable_type(parse->context, field->as.table_field.value_type));
 
-            bt_Type* value_type = to_storable_type(parse->context, type_check(parse, value_expr)->resulting_type);
+            bt_Type* value_type = to_storable_type(parse->context, value_checked ? value_checked->resulting_type : NULL);
 
             map_key_type = bt_make_or_extend_union(parse->context, map_key_type, key_type);
             map_value_type = bt_make_or_extend_union(parse->context, map_value_type, value_type);
@@ -2155,7 +2156,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             node->resulting_type = node->as.unary_op.operand->resulting_type;
             break;
         default:
-            node->resulting_type = type_check(parse, node->as.unary_op.operand)->resulting_type;
+            node->resulting_type = node->as.unary_op.operand ? type_check(parse, node->as.unary_op.operand)->resulting_type : NULL;
             break;
         }
     } break;
@@ -3100,11 +3101,12 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
         bt_buffer_empty(&new_else->as.branch.body);
         bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
         bt_buffer_push(parse->context, &new_else->as.branch.body, new_last);
-        last->as.branch.next = new_else;
+        if (last) { last->as.branch.next = new_else; }
+        else { parse_error(parse, "Failed to insert default else branch", parse->tokenizer->line, parse->tokenizer->col); }
         aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, parse->context->types.null);
     }
 
-    branch->resulting_type = aggregate_type;
+    if (branch) branch->resulting_type = aggregate_type;
     return branch;
 }
 
