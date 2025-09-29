@@ -21,7 +21,7 @@ let const whitespace: { ..string: bool } = {
 }
 
 let const numchars: { ..string: bool } = {
-    "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true,
+    "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true, "-": true
 }
 
 fn json_parse_word(content: string, idx: number, word: string) {
@@ -80,7 +80,10 @@ fn json_parse_string(content: string, idx: number): ParseResult {
         }
     }
 
-    result += content.substring(idx + last_eaten, length - last_eaten)
+    let const strlen = length - last_eaten
+    if strlen > 0 {
+        result += content.substring(idx + last_eaten, strlen)
+    }
 
     return ParseSuccess => {
         remainder: idx + length + 1,
@@ -90,7 +93,6 @@ fn json_parse_string(content: string, idx: number): ParseResult {
 
 fn parse_single(content: string, idx: number): ParseResult {
     idx = eat_whitespace(content, idx)
-    
     match let first = content.substring(idx, 1) {
         "n" {
             return if let remainder = json_parse_null(content, idx)
