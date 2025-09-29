@@ -89,7 +89,8 @@ typedef struct bt_TablePair {
 typedef struct bt_Table {
 	bt_Object obj;
 	struct bt_Table* prototype;
-	uint16_t is_inline, length, capacity, inline_capacity;
+	uint32_t length, capacity;
+	uint16_t is_inline, inline_capacity;
 	union {
 		bt_TablePair* outline; bt_Value inline_first;
 	};
