@@ -21,6 +21,9 @@ arrays.pop(arr: [T]): T?
 // Appends `item` to the end of `arr`.
 arrays.push(arr: [T], item: T)
 
+// Preallocates at least `n` slots in `arr`
+arrays.reserve(arr: [T], n: number)
+
 // Produces an iterator closure that returns each element of `arr` in sequence, followed by `null`.
 /** Example:
     let arr = [1, 2, 3]
@@ -55,4 +58,10 @@ arrays.sort(arr: [T], comp: fn(T, T): bool): [T]
 // An accelerated version for numeric arrays, taking no comparison function - this is roughly 8-10x faster.
 // ⚠️ NOTE: This returns the input array back to the caller to allow for method chaining, it does not create a copy.
 arrays.sort(arr: [number]): [number]
+
+// Concatenates `result` with `arrs`, modifying it in-place
+arrays.concatenate(result: [T], arrs: ..[T])
+
+// Flattens an N-dimensional array into an (N-1)-dimensional array
+arrays.flatten(arrays: [[T]]): [T] 
 ```

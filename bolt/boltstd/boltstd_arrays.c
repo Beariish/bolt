@@ -345,6 +345,91 @@ static void bt_arr_sort(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, BT_VALUE_OBJECT(arg));
 }
 
+static bt_Type* bt_arr_reserve_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 2) return NULL;
+	bt_Type* arr = bt_type_dealias(args[0]);
+	bt_Type* amt = bt_type_dealias(args[1]);
+
+	if (arr->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+	if (amt != ctx->types.number) return NULL;
+
+	return bt_make_signature_type(ctx, amt, args, 2);
+}
+
+static void bt_arr_reserve(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arr = (bt_Array*)bt_object(bt_arg(thread, 0));
+	uint64_t amt = (uint64_t)bt_get_number(bt_arg(thread, 1));
+	
+	uint64_t result = bt_array_reserve(ctx, arr, amt);
+	bt_return(thread, bt_make_number((bt_number)result));
+}
+
+static bt_Type* bt_arr_concatenate_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc < 2) return NULL;
+	bt_Type* arr = bt_type_dealias(args[0]);
+	if (arr->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+
+	for (uint32_t i = 1; i < argc; i++) {
+		bt_Type* arg = bt_type_dealias(args[i]);
+		if (arg->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+		if (!arr->as.array.inner->satisfier(arr->as.array.inner, arg->as.array.inner)) return NULL;
+	}
+	
+	return bt_make_signature_type(ctx, NULL, args, argc);
+}
+
+static void bt_arr_concatenate(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arr = (bt_Array*)bt_object(bt_arg(thread, 0));
+
+	uint8_t argc = bt_argc(thread);
+	uint64_t total_cap = arr->length;
+	for (uint8_t i = 1; i < argc; i++) {
+		bt_Array* arg = (bt_Array*)bt_object(bt_arg(thread, i));
+		total_cap += arg->length;
+	}
+
+	bt_array_reserve(ctx, arr, total_cap);
+
+	for (uint8_t i = 1; i < argc; i++) {
+		bt_Array* arg = (bt_Array*)bt_object(bt_arg(thread, i));
+		memcpy(arr->items + arr->length, arg->items, sizeof(bt_Value) * arg->length);
+		arr->length += arg->length;
+	}
+}
+
+static bt_Type* bt_arr_flatten_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
+{
+	if (argc != 1) return NULL;
+	bt_Type* arr = bt_type_dealias(args[0]);
+	if (arr->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+	if (arr->as.array.inner->category != BT_TYPE_CATEGORY_ARRAY) return NULL;
+	return bt_make_signature_type(ctx, arr->as.array.inner, args, argc);
+}
+
+static void bt_arr_flatten(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Array* arr = (bt_Array*)bt_object(bt_arg(thread, 0));
+	uint32_t total_cap = 0;
+	for (uint32_t i = 0; i < arr->length; i++) {
+		bt_Array* sub = (bt_Array*)bt_object(bt_array_get(ctx, arr, i));
+		total_cap += sub->length;
+	}
+
+	bt_Array* result = bt_make_array(ctx, total_cap);
+
+	for (uint32_t i = 0; i < arr->length; i++) {
+		bt_Array* sub = (bt_Array*)bt_object(bt_array_get(ctx, arr, i));
+		memcpy(result->items + result->length, sub->items, sizeof(bt_Value) * sub->length);
+		result->length += sub->length;
+	}
+
+	bt_return(thread, bt_value((bt_Object*)result));
+}
+
 void boltstd_open_arrays(bt_Context* context)
 {
 	bt_Module* module = bt_make_module(context);
@@ -402,5 +487,20 @@ void boltstd_open_arrays(bt_Context* context)
 	bt_type_add_field(context, array, arr_sort_sig, BT_VALUE_CSTRING(context, "sort"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_sort_sig, BT_VALUE_CSTRING(context, "sort"), BT_VALUE_OBJECT(fn_ref));
 
+	bt_Type* arr_reserve_sig = bt_make_poly_signature_type(context, "reserve([T], number): number", bt_arr_reserve_type);
+	fn_ref = bt_make_native(context, module, arr_reserve_sig, bt_arr_reserve);
+	bt_type_add_field(context, array, arr_reserve_sig, BT_VALUE_CSTRING(context, "reserve"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_reserve_sig, BT_VALUE_CSTRING(context, "reserve"), BT_VALUE_OBJECT(fn_ref));
+	
+	bt_Type* arr_concatenate_sig = bt_make_poly_signature_type(context, "concatenate([T], ..[T])", bt_arr_concatenate_type);
+	fn_ref = bt_make_native(context, module, arr_concatenate_sig, bt_arr_concatenate);
+	bt_type_add_field(context, array, arr_concatenate_sig, BT_VALUE_CSTRING(context, "concatenate"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_concatenate_sig, BT_VALUE_CSTRING(context, "concatenate"), BT_VALUE_OBJECT(fn_ref));
+	
+	bt_Type* arr_flaten_sig = bt_make_poly_signature_type(context, "flatten([[T]]): [T]", bt_arr_flatten_type);
+	fn_ref = bt_make_native(context, module, arr_flaten_sig, bt_arr_flatten);
+	bt_type_add_field(context, array, arr_flaten_sig, BT_VALUE_CSTRING(context, "flatten"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, arr_flaten_sig, BT_VALUE_CSTRING(context, "flatten"), BT_VALUE_OBJECT(fn_ref));
+	
 	bt_register_module(context, BT_VALUE_CSTRING(context, "arrays"), module);
 }

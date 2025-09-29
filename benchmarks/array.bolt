@@ -7,6 +7,12 @@ bench("populating 1m array", 15, fn {
     for i in 1000000 { result.push(i) }
 })
 
+bench("populating 1m reserved array", 15, fn {
+    let result: [number]
+    result.reserve(1000000)
+    for i in 1000000 { result.push(i) }
+})
+
 bench_with_pre_work("popping from 1m array", 15, fn {
     let result: [number]
     for i in 1000000 { result.push(i) }
@@ -115,5 +121,32 @@ bench_with_pre_work("1k-element complex op", 100, fn {
             .sort()
             .reverse()
             .map(fn(x: number) { return x * 2 })
+    }
+})
+
+bench_with_pre_work("concatenate 100 10k arrays", 150, fn {
+    let const source1: [number] = for j in 10000 do j
+    let const source2: [number] = for j in 10000 do j
+    let const source3: [number] = for j in 10000 do j
+    let const source4: [number] = for j in 10000 do j
+    let const source5: [number] = for j in 10000 do j
+    let const source6: [number] = for j in 10000 do j
+    let const source7: [number] = for j in 10000 do j
+    let const source8: [number] = for j in 10000 do j
+    let const source9: [number] = for j in 10000 do j
+
+    return fn {
+        for i in 10 {
+            let const source0: [number] = for j in 10000 do j
+            source0.concatenate(source1, source2, source3, source4, source5, source6, source7, source8, source9)
+        }
+    }
+})
+
+bench_with_pre_work("flatten 1k 10k arrays", 15, fn {
+    let const source: [[number]] = for i in 1000 do for j in 10000 do j
+
+    return fn {
+        let const flat = source.flatten()
     }
 })

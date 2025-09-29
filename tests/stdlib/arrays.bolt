@@ -2,6 +2,7 @@ import * from "../test"
 
 import arrays
 import core
+import math
 
 push_scope("arrays")
 
@@ -159,6 +160,168 @@ test("map as prototype", fn {
     expect(arr2.pop() == "3", "Expected last element to be '3'")
     expect(arr2.pop() == "2", "Expected last element to be '2'")
     expect(arr2.pop() == "1", "Expected last element to be '1'")
+})
+
+test("reserve as freestanding", fn {
+    let const arr = [1, 2, 3, 4, 5, 6, 7, 8]
+    expect(arrays.reserve(arr, 6) == 8, "Expected reserve of smaller size not to allocate")
+    expect(arrays.reserve(arr, 128) == 128, "Expected reserve of larger size to allocate")
+})
+
+test("reserve as prototype", fn {
+    let const arr = [1, 2, 3, 4, 5, 6, 7, 8]
+    expect(arr.reserve(6) == 8, "Expected reserve of smaller size not to allocate")
+    expect(arr.reserve(128) == 128, "Expected reserve of larger size to allocate")
+})
+
+test("concatenate as freestanding", fn {
+    let source0 = [1, 2, 3]
+    let source1 = [4, 5, 6]
+    let source2 = [7, 8, 9]
+
+    arrays.concatenate(source0, source1, source2)
+
+    expect(source0.length() == 9, "Expected source0 to have length 9")
+    expect(source1.length() == 3, "Expected source1 to have length 3")
+    expect(source2.length() == 3, "Expected source2 to have length 3")
+    for i in 9 {
+        expect(source0[i] == i + 1, "Expected concatenated array to be in order")
+    }
+})
+
+test("concatenate as prototype", fn {
+    let source0 = [1, 2, 3]
+    let source1 = [4, 5, 6]
+    let source2 = [7, 8, 9]
+
+    source0.concatenate(source1, source2)
+
+    expect(source0.length() == 9, "Expected source0 to have length 9")
+    expect(source1.length() == 3, "Expected source1 to have length 3")
+    expect(source2.length() == 3, "Expected source2 to have length 3")
+    for i in 9 {
+        expect(source0[i] == i + 1, "Expected concatenated array to be in order")
+    }
+})
+
+test("flatten as freestanding", fn {
+    let const sources = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]
+
+    let const flat = arrays.flatten(sources)
+
+    expect(sources.length() == 3, "Original array should be untouched")
+    expect(flat.length() == 9, "Expected flat to have length 9")
+        for i in 9 {
+        expect(flat[i] == i + 1, "Expected concatenated array to be in order")
+    }
+})
+
+test("flatten as prototype", fn {
+    let const sources = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]
+
+    let const flat = sources.flatten()
+
+    expect(sources.length() == 3, "Original array should be untouched")
+    expect(flat.length() == 9, "Expected flat to have length 9")
+        for i in 9 {
+        expect(flat[i] == i + 1, "Expected concatenated array to be in order")
+    }
+})
+
+test("filter as freestanding", fn {
+    let const source = for i in 10 do i
+    let const filtered = arrays.filter(source, fn(n: number) { return math.mod(n, 2) == 0 })
+
+    expect(source.length() == 10, "Expected source arary to be untouched")
+    expect(filtered.length() == 5, "Expected filtered to have length 5")
+    for i in 5 {
+        expect(filtered[i] == i * 2, "Expected filtered to contain even numbers")
+    }
+})
+
+test("filter as prototype", fn {
+    let const source = for i in 10 do i
+    let const filtered = source.filter(fn(n: number) { return math.mod(n, 2) == 0 })
+
+    expect(source.length() == 10, "Expected source arary to be untouched")
+    expect(filtered.length() == 5, "Expected filtered to have length 5")
+    for i in 5 {
+        expect(filtered[i] == i * 2, "Expected filtered to contain even numbers")
+    }
+})
+
+test("slice as freestanding", fn {
+    let const source = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    let const sliced = arrays.slice(source, 2, 3)
+
+    expect(source.length() == 9, "Expected source array to be untouched")
+    expect(sliced.length() == 3, "Expected sliced to have length 3")
+    expect(sliced[0] == 3, "Expected sliced[0] to be 3")
+    expect(sliced[1] == 4, "Expected sliced[1] to be 4")
+    expect(sliced[2] == 5, "Expected sliced[2] to be 5")
+})
+
+test("slice as prototype", fn {
+    let const source = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    let const sliced = source.slice(2, 3)
+
+    expect(source.length() == 9, "Expected source array to be untouched")
+    expect(sliced.length() == 3, "Expected sliced to have length 3")
+    expect(sliced[0] == 3, "Expected sliced[0] to be 3")
+    expect(sliced[1] == 4, "Expected sliced[1] to be 4")
+    expect(sliced[2] == 5, "Expected sliced[2] to be 5")
+})
+
+test("sort(numeric) as freestanding", fn {
+    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let const sorted = arrays.sort(source)
+    
+    expect(source == sorted, "Expected source array to be sorted")
+    expect(sorted.length() == 9, "Expected sorted to have length 9")
+    for i in 9 {
+        expect(sorted[i] == i + 1, "Expected sorted to be sorted")
+    }
+})
+
+test("sort(numeric) as prototype", fn {
+    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let const sorted = source.sort()
+
+    expect(source == sorted, "Expected source array to be sorted")
+    expect(sorted.length() == 9, "Expected sorted to have length 9")
+    for i in 9 {
+        expect(sorted[i] == i + 1, "Expected sorted to be sorted")
+    }
+})
+
+test("sort(custom) as freestanding", fn {
+    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let const sorted = arrays.sort(source, fn(a: number, b: number) { return b < a })
+    
+    expect(source == sorted, "Expected source array to be sorted")
+    expect(sorted.length() == 9, "Expected sorted to have length 9")
+    for i in 9 {
+        expect(sorted[i] == 9 - i, "Expected sorted to be sorted in reverse")
+    }
+})
+
+test("sort(custom) as prototype", fn {
+    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let const sorted = source.sort(fn(a: number, b: number) { return b < a })
+
+    expect(source == sorted, "Expected source array to be sorted")
+    expect(sorted.length() == 9, "Expected sorted to have length 9")
+    for i in 9 {
+        expect(sorted[i] == 9 - i, "Expected sorted to be sorted in reverse")
+    }
 })
 
 pop_scope()
