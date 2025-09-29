@@ -3299,6 +3299,7 @@ static bt_AstNode* parse_match(bt_Parser* parse)
     bt_bool is_inline_ident = BT_FALSE;
     
     bt_Token* next = bt_tokenizer_peek(tok);    
+    bt_Token* source = next;    
     if (next->type == BT_TOKEN_LET) {
         bt_tokenizer_emit(tok);
         bt_Token* ident = bt_tokenizer_emit(tok);
@@ -3350,6 +3351,7 @@ static bt_AstNode* parse_match(bt_Parser* parse)
     push_local(parse, match_on);
 
     bt_AstNode* result = make_node(parse, BT_AST_NODE_MATCH);
+    result->source = source;
     result->as.match.is_expr = BT_FALSE;
     result->as.match.condition = is_inline_ident ? match_on_expr : match_on;
     bt_buffer_empty(&result->as.match.branches);
