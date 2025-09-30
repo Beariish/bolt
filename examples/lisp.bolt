@@ -1,0 +1,671 @@
+// Based off of and translated from https://github.com/rui314/minilisp
+
+import core
+
+let const numchars: { ..string: bool } = {
+    "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true
+}
+
+let const symchars: { ..string: bool } = {
+    "a": true, "b": true, "c": true, "d": true, "e": true, "f": true,
+    "g": true, "h": true, "i": true, "j": true, "k": true, "l": true,
+    "m": true, "n": true, "o": true, "p": true, "q": true, "r": true,
+    "s": true, "t": true, "u": true, "v": true, "w": true, "x": true,
+    "y": true, "z": true,
+
+    "0": true, "1": true, "2": true, "3": true, "4": true, "5": true,
+    "6": true, "7": true, "8": true, "9": true, "-": true,
+}
+
+let const opchars: { ..string: bool } = {
+    "+": true, "-": true, "*": true, "/": true, "=": true, 
+    "!": true, "@": true, "#": true, "$": true, "%": true, 
+    "^": true, "&": true, "|": true 
+}
+
+type ObjectType = enum { Number Cell Symbol Primitive Function Macro Special Env }
+type SpecialType = enum { Nil Dot CParen True }
+
+type Object = {
+    t: ObjectType,
+    value:
+        number                                        |
+        string                                        |
+        SpecialType                                   |
+        Object                                        |
+        { car: Object, cdr: Object }                  |
+        { params: Object, body: Object, env: Object } |
+        { vars: Object, up: Object? }                 |
+        fn(Object, Object): Object?                   
+}
+
+type Cell = { car: Object, cdr: Object }
+type Primitive = fn(Object, Object): Object?
+type Function = { params: Object, body: Object, env: Object }
+type Env = { vars: Object, up: Object? }
+
+fn make_number(n: number) { return Object => { t: ObjectType.Number, value: n } }
+fn make_symbol(sym: string) { return Object => { t: ObjectType.Symbol, value: sym } }
+fn make_primitive(prim: Primitive) { return Object => { t: ObjectType.Primitive, value: prim } }
+
+fn make_function(t: ObjectType, params: Object, body: Object, env: Object) { 
+    return Object => { t: t, value: {
+        params: params,
+        body: body,
+        env: env,
+    } } 
+}
+
+fn make_special(t: SpecialType) { return Object => { t: ObjectType.Special, value: t } }
+fn make_env(vars: Object, up: Object?) { return Object => { t: ObjectType.Env, value: { vars: vars, up: up } } }
+
+fn cons(car: Object, cdr: Object) { return Object => { t: ObjectType.Cell, value: { car: car, cdr: cdr } } }
+fn acons(x: Object, y: Object, a: Object) { return cons(cons(x, y), a) }
+
+let Nil = make_special(SpecialType.Nil)
+let Dot = make_special(SpecialType.Dot)
+let CParen = make_special(SpecialType.CParen)
+let True = make_special(SpecialType.True)
+
+let dyn = { Symbols: Nil, env: make_env(Nil, null) }
+
+fn error(err: string) { core.throw("Error: " + err) }
+
+type Parser = {
+    remainder: string,
+    read_proc: fn(Parser): Object?
+}
+
+fn Parser.peek(this) {
+    return if this.remainder.length() > 0 then this.remainder.substring(0, 1) else ""
+}
+
+fn Parser.get(this) {
+    let char = this.peek()
+    if char == "" { return char }
+    this.remainder = this.remainder.remainder(1)
+    return char
+}
+
+fn Parser.skip_line(this) {
+    for {
+        let char = this.get()
+        if char == "" or char == "\n" {
+            return
+        }
+        if char == "\r" {
+            if this.peek() == "\n" { this.get() }
+            return
+        }
+    }
+}
+
+fn Parser.read_list(this): Object {
+    match let obj = this.read_proc(this) {
+        null { error("Unclosed parenthesis") }
+        Dot { error("Stray dot") }
+        CParen { return Nil }
+        is Object {
+            let head = cons(obj, Nil)
+            let tail = head
+
+            for {
+                match let inner = this.read_proc(this) {
+                    null { error("Unclosed parenthesis") }
+                    CParen { return head }
+                    Dot {
+                        let tail_cell = tail.value as Cell!
+                        tail_cell.cdr = this.read_proc(this)!
+                        if this.read_proc(this)! != CParen {
+                            error("Closed parenthesis expected after dot")
+                        }
+
+                        return head
+                    }
+
+                    is Object {
+                        let tail_cell = tail.value as Cell!
+                        tail_cell.cdr = cons(inner, Nil)
+                        tail = tail_cell.cdr
+                    }
+                }
+            }
+        }
+    }
+
+    return Nil
+}
+
+fn intern(name: string): Object {
+    let p = dyn.Symbols
+    for p != Nil {
+        let p_cell = p.value as Cell!
+        if p_cell.car.value as string! == name {
+            return p_cell.car
+        }
+
+        p = p_cell.cdr
+    }
+
+    let sym = make_symbol(name)
+    dyn.Symbols = cons(sym, dyn.Symbols)
+    return sym
+}
+
+fn Parser.read_quote(this): Object {
+    let sym = intern("quote")
+    return cons(sym, cons(this.read_proc(this)!, Nil))
+}
+
+fn Parser.read_number(this, start: string): Object {
+    let num_string = start
+    for numchars[this.peek()]? {
+        num_string += this.get()
+    }
+
+    return make_number(core.to_number(num_string)!)
+}
+
+fn Parser.read_symbol(this, start: string): Object {
+    let sym_string = start
+    for symchars[this.peek()]? {
+        sym_string += this.get()
+    }
+
+    return intern(sym_string)
+}
+
+fn Parser.read(this): Object? {
+    for {
+        match let char = this.get() {
+            " ", "\n", "\r", "\t" { continue }
+            "" { return null }
+            ";" { this.skip_line() continue }
+            "(" { return this.read_list() }
+            ")" { return CParen }
+            "." { return Dot }
+            "'" { return this.read_quote() }
+            (numchars[char]?) { return this.read_number(char) }
+            (symchars[char]? or opchars[char]?) { return this.read_symbol(char) }
+            else { error("Can't parse:" + char) }
+        }
+    }
+
+    return Nil
+}
+
+fn Parser.new(source: string) {
+    return Parser => { remainder: source, read_proc: Parser.read }
+}
+
+fn print(obj: Object): ! {
+    match obj.t {
+        ObjectType.Number { core.write(obj.value as number!) }
+        ObjectType.Symbol { core.write(obj.value as string!) }
+        ObjectType.Primitive { core.write("<primitive>") }
+        ObjectType.Function { core.write("<function>") }
+        ObjectType.Macro { core.write("<macro>") }
+        ObjectType.Special { 
+            match obj {
+                Nil { core.write("()") }
+                True { core.write("t") }
+            }
+        }
+        ObjectType.Cell {
+            core.write("(")
+            for {
+                let cell = obj.value as Cell!
+                print(cell.car)
+                if cell.cdr == Nil { break }
+                if cell.cdr.t != ObjectType.Cell {
+                    core.write(" . ")
+                    print(cell.cdr)
+                    break
+                }
+
+                core.write(" ")
+                obj = cell.cdr
+            }
+
+            core.write(")")
+        }
+
+        else {
+            core.print("Unsure how to print object " + core.to_string(obj.t))
+        }
+    }
+}
+
+fn list_length(head: Object): number {
+    let result = 0
+
+    for {
+        if head == Nil { return result }
+        if head.t != ObjectType.Cell { error("Can't measure length of dotted list") }
+        let head_cell = head.value as Cell!
+        head = head_cell.cdr
+        result += 1
+    }
+
+    return result
+}
+
+fn add_variable(env: Object, sym: Object, val: Object) {
+    let env_obj = env.value as Env!
+    env_obj.vars = acons(sym, val, env_obj.vars)
+}
+
+fn push_env(env: Object, vars: Object, vals: Object): Object {
+    if list_length(vars) != list_length(vals) { error("Can't apply function: argument names and values mismatch") }
+
+    let map = Nil
+    let p = vars
+    let q = vals
+    
+    for p != Nil {
+        let p_cell = p.value as Cell!
+        let q_cell = q.value as Cell!
+        map = acons(p_cell.car, q_cell.car, map)
+        p = p_cell.cdr
+        q = q_cell.cdr
+    }
+
+    return make_env(map, env)
+}
+
+type Evaluator = {
+    eval_proc: fn(Evaluator, Object, Object): Object?,
+    trace: bool
+}
+
+fn Evaluator.block(this, env: Object, list: Object): Object? {
+    let result: Object? = null
+
+    for list != Nil {
+        let list_cell = list.value as Cell!
+        result = this.eval_proc(this, env, list_cell.car)
+        list = list_cell.cdr
+    }
+
+    return result
+}
+
+fn Evaluator.eval_list(this, env: Object, list: Object): Object {
+    let head: Object? = null
+    let tail: Object? = null
+
+    for list != Nil {
+        let list_cell = list.value as Cell!
+        let tmp = this.eval_proc(this, env, list_cell.car)!
+        
+        if head == null {
+            head = cons(tmp, Nil)
+            tail = head
+        } else {
+            let tail_cell = tail!.value as Cell!
+            tail_cell.cdr = cons(tmp, Nil)
+            tail = tail_cell.cdr
+        }
+
+        list = list_cell.cdr
+    }
+
+    if head == null { return Nil }
+    return head!
+}
+
+fn Evaluator.is_list(this, list: Object): bool {
+    return list == Nil or list.t == ObjectType.Cell
+}
+
+fn Evaluator.apply(this, env: Object, func: Object, args: Object): Object? {
+    if not this.is_list(args) { error("Args must be list") }
+
+    if func.t == ObjectType.Primitive {
+        return (func.value as Primitive!)(env, args)
+    }
+
+    if func.t == ObjectType.Function {
+        let as_fn = func.value as Function!
+        let e_args = this.eval_list(env, args)
+        let new_env = push_env(as_fn.env, as_fn.params, e_args)
+        return this.block(new_env, as_fn.body)
+    }
+
+    error("Unsupported applicator")
+    return null
+}
+
+fn Evaluator.find(this, env: Object, sym: Object): Object? {
+    let p: Object? = env
+    for p? {
+        let as_env = p!.value as Env!
+
+        let cell = as_env.vars
+        for cell != Nil {
+            let cell_cell = cell.value as Cell!
+            
+            let bind = cell_cell.car
+            if sym == (bind.value as Cell!).car {
+                return bind
+            }
+
+            cell = cell_cell.cdr
+        }
+
+        p = as_env.up
+    }
+
+    return null
+}
+
+fn Evaluator.expand(this, env: Object, obj: Object): Object? {
+    if obj.t != ObjectType.Cell or (obj.value as Cell!).car.t != ObjectType.Symbol {
+        return obj
+    }
+
+    let obj_cell = obj.value as Cell!
+    let bind = this.find(env, obj_cell.car)
+    if bind == null or ((bind as Object!).value as Cell!).cdr.t != ObjectType.Macro {
+        return obj
+    }
+
+    let bind_cell = (bind as Object!).value as Cell!
+    let bind_fn = bind_cell.cdr.value as Function!
+    let new_env = push_env(env, bind_fn.params, obj_cell.cdr)
+    return this.block(new_env, bind_fn.body)
+}
+
+fn Evaluator.eval(this, env: Object, obj: Object): Object? {
+    if this.trace { print(obj) core.print("") }
+    match obj.t {
+        ObjectType.Number, ObjectType.Primitive, ObjectType.Function, ObjectType.Special { return obj }
+
+        ObjectType.Symbol {
+            let bind = this.find(env, obj)
+            if bind == null { error("Undefined symbol " + obj.value as string!) }
+            return (bind!.value as Cell!).cdr
+        }
+
+        ObjectType.Cell {
+            let expanded = this.expand(env, obj)
+            if expanded != obj {
+                return this.eval(env, expanded!)
+            }
+
+            let obj_cell = obj.value as Cell!
+            let func = this.eval(env, obj_cell.car)!
+            if func.t != ObjectType.Primitive and func.t != ObjectType.Function { error("Head of list must be function") }
+            return this.apply(env, func, obj_cell.cdr)
+        }
+
+        else {
+            error("Unknown tag type " + core.to_string(obj.t))
+        }
+    }
+
+    return null
+}
+
+fn Evaluator.new() { return Evaluator => { eval_proc: Evaluator.eval, trace: false } }
+
+let const e = Evaluator.new()
+
+fn prim_quote(env: Object, list: Object) {
+    if list_length(list) != 1 { error("Quote expected one arg") }
+    return (list.value as Cell!).car
+}
+
+fn prim_list(env: Object, list: Object) {
+    return e.eval_list(env, list)
+}
+
+fn prim_set(env: Object, list: Object) {
+    if list_length(list) != 2 { error("Set expeted 2 args") }
+    if (list.value as Cell!).car.t != ObjectType.Symbol { error("First argument to set must be symbol") }
+
+    if let bind = e.find(env, (list.value as Cell!).car) {
+        let l = ((list.value as Cell!).cdr.value as Cell!).car
+        let value = e.eval(env, l)!
+        if let c = bind.value as Cell { c.cdr = value }
+        return value 
+    } else {
+        error("Unbound variable " + (list.value as Cell!).car.value as string!)
+        return Nil
+    }
+
+    return Nil
+}
+
+fn prim_arith(applicator: fn(number, number): number) {
+    return fn(env: Object, list: Object) {
+        let args = e.eval_list(env, list)
+        let args_cell = args.value as Cell!
+        if args_cell.car.t != ObjectType.Number { error("Expected number for arithmetic operation") }
+
+        let start = args_cell.car.value as number!
+
+        args = args_cell.cdr
+        for args != Nil {
+            let args_cell = args.value as Cell!
+            if args_cell.car.t != ObjectType.Number { error("Expected number for arithmetic operation") }
+            start = applicator(start, args_cell.car.value as number!)
+            args = args_cell.cdr
+        }
+
+        return make_number(start)
+    }
+}
+
+fn handle_fn(env: Object, list: Object, t: ObjectType) {
+    if list.t != ObjectType.Cell or not e.is_list((list.value as Cell!).car) or (list.value as Cell!).cdr.t != ObjectType.Cell {
+        error("Invalid function definition")
+    }
+
+    let p = (list.value as Cell!).car
+    for p != Nil {
+        let p_cell = p.value as Cell!
+
+        if p_cell.car.t != ObjectType.Symbol {
+            error("Parameter name must be symbol")
+        }
+
+        if not e.is_list(p_cell.cdr) {
+            error("Parameters must be list")
+        }
+
+        p = p_cell.cdr
+    }
+
+    return make_function(t, (list.value as Cell!).car, (list.value as Cell!).cdr, env)
+}
+
+fn prim_lambda(env: Object, list: Object) {
+    return handle_fn(env, list, ObjectType.Function)
+}
+
+fn handle_defun(env: Object, list: Object, t: ObjectType) {
+    if (list.value as Cell!).car.t != ObjectType.Symbol or (list.value as Cell!).cdr.t != ObjectType.Cell {
+        error("Definition expected args and body")
+    }
+
+    let func = handle_fn(env, (list.value as Cell!).cdr, t)
+    add_variable(env, (list.value as Cell!).car, func)
+    return func
+}
+
+fn prim_fn(env: Object, list: Object) {
+    return handle_defun(env, list, ObjectType.Function)
+}
+
+fn prim_macro(env: Object, list: Object) {
+    return handle_defun(env, list, ObjectType.Macro)
+}
+
+fn prim_expand(env: Object, list: Object) {
+    if list_length(list) != 1 { error("expand expected 1 arg") }
+    return e.expand(env, (list.value as Cell!).car)!
+}
+
+fn prim_def(env: Object, list: Object) {
+    if list_length(list) != 2 or (list.value as Cell!).car.t != ObjectType.Symbol {
+        error("Def expected name and expr")
+    }
+
+    let value = e.eval(env, ((list.value as Cell!).cdr.value as Cell!).car)!
+    add_variable(env, (list.value as Cell!).car, value)
+    return value
+}
+
+fn prim_print(env: Object, list: Object) {
+    print(e.eval(env, (list.value as Cell!).car)!)
+    core.print("")
+    return Nil
+}
+
+fn prim_if(env: Object, list: Object) {
+    if list_length(list) < 2 { error("if expected at least 2 args") }
+    let list_cell = list.value as Cell!
+    let cond = e.eval(env, list_cell.car)!
+    if cond != Nil {
+        return e.eval(env, (list_cell.cdr.value as Cell!).car)!
+    }
+
+    let els = (list_cell.cdr.value as Cell!).cdr
+    return if els == Nil then Nil else e.block(env, els)!
+}
+
+fn prim_eq(env: Object, list: Object) {
+    if list_length(list) != 2 { error("= takes 2 args") }
+    
+    let values = e.eval_list(env, list)
+    let a = (values.value as Cell!).car
+    let b = ((values.value as Cell!).cdr.value as Cell!).car
+    
+    if(a.t != ObjectType.Number or b.t != ObjectType.Number) { error("= only takes numbers") }
+    
+    return if a.value as number! == b.value as number! then True else Nil
+}
+
+fn prim_trace(env: Object, list: Object) {
+    if list_length(list) < 1 { error("trace takes args") }
+    e.trace = true
+    let result = e.block(env, list)
+    e.trace = false
+    return result!
+}
+
+fn prim_exit(env: Object, list: Object) {
+    if list_length(list) != 0 { error("exit takes no args") }
+    error("Exited.")
+    return Nil
+}
+
+fn add_prim(env: Object, name: string, func: Primitive) {
+    let sym = intern(name)
+    let prim = make_primitive(func)
+    add_variable(env, sym, prim)
+}
+
+add_variable(dyn.env, intern("t"), True)
+add_prim(dyn.env, "quote", prim_quote)
+add_prim(dyn.env, "list", prim_list)
+
+add_prim(dyn.env, "def", prim_def)
+add_prim(dyn.env, "set", prim_set)
+
+add_prim(dyn.env, "+", prim_arith(fn(a: number, b: number) { return a + b}))
+add_prim(dyn.env, "-", prim_arith(fn(a: number, b: number) { return a - b}))
+add_prim(dyn.env, "*", prim_arith(fn(a: number, b: number) { return a * b}))
+add_prim(dyn.env, "/", prim_arith(fn(a: number, b: number) { return a / b}))
+
+add_prim(dyn.env, "fn", prim_fn)
+add_prim(dyn.env, "lambda", prim_lambda)
+add_prim(dyn.env, "macro", prim_macro)
+add_prim(dyn.env, "expand", prim_expand)
+
+add_prim(dyn.env, "if", prim_if)
+add_prim(dyn.env, "=", prim_eq)
+
+add_prim(dyn.env, "print", prim_print)
+add_prim(dyn.env, "trace", prim_trace)
+add_prim(dyn.env, "exit", prim_exit)
+
+export fn eval_string(code: string): Object? {
+    let p = Parser.new(code)
+    
+    let unevaled = p.read()
+    let obj: Object? = null
+
+    for unevaled? {
+        match let expr = unevaled! {
+            CParen { error("Excess closing parenthesis") }
+            Dot { error("Excess dot") }
+            else {
+                obj = e.eval(dyn.env, expr)
+            }
+        }
+
+        unevaled = p.read()
+    }
+
+    return obj
+}
+
+export fn repl {
+    core.print("Bolt lisp:")
+    for {
+        core.write("> ")
+        let input = core.read_line()
+        let result = eval_string(input)
+        if result is Object {
+            print(result)
+            core.print("")
+        }
+    }
+}
+
+export fn test_recursion {
+    eval_string("
+(fn f (x) 
+    (if 
+        (= x 0) 
+            0 
+            (+ (f (- x 1)) x))) 
+
+(print (f 4))
+    ")
+}
+
+export fn test_lambda {
+    eval_string("
+(def counter
+    ((lambda (val)
+       (lambda () (set val (+ val 1)) val))
+     0))
+  
+(print (counter))
+(print (counter))
+(print (counter))
+    ")
+}
+
+import "clitools" as cli
+
+if let args = cli.as_cli_module("lisp") {
+    if args.length() < 2 {
+        repl()
+    } else {
+        let filename = args[1]
+        match let file = cli.read_file(filename) {
+            is string {
+                let result = eval_string(file)
+                if result is Object { 
+                    if result != Nil {
+                        print(result) 
+                    }
+                }
+            }
+        }
+    }
+}
