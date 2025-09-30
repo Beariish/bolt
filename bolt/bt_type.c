@@ -807,6 +807,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 					bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
 
 					bt_Value val = bt_table_get(as_tbl, pair->key);
+					if (val == BT_VALUE_NULL) return bt_union_has_variant((bt_Type*)BT_AS_OBJECT(pair->value), type->ctx->types.null);
 					if (!bt_is_type(val, (bt_Type*)BT_AS_OBJECT(pair->value))) return BT_FALSE;
 
 					num_matched++;
