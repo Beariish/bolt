@@ -797,6 +797,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		bt_Table* as_tbl = (bt_Table*)as_obj;
 
 		if (as_tbl->prototype != type->prototype_values) return BT_FALSE;
+		if (as_tbl->prototype != 0 && as_tbl->prototype == type->prototype_values) return BT_TRUE;
 
 		bt_Type* orig_type = type;
 		uint32_t num_matched = 0;
@@ -805,10 +806,15 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 			if (layout) {
 				for (uint32_t i = 0; i < layout->length; i++) {
 					bt_TablePair* pair = BT_TABLE_PAIRS(layout) + i;
+					bt_Type* inner = (bt_Type*)BT_AS_OBJECT(pair->value);
 
 					bt_Value val = bt_table_get(as_tbl, pair->key);
-					if (val == BT_VALUE_NULL) return bt_union_has_variant((bt_Type*)BT_AS_OBJECT(pair->value), type->ctx->types.null);
-					if (!bt_is_type(val, (bt_Type*)BT_AS_OBJECT(pair->value))) return BT_FALSE;
+					if (val == BT_VALUE_NULL && bt_union_has_variant(inner, type->ctx->types.null) == -1) return BT_FALSE;
+
+					// If we have a recursive field, assume we're a match if all other fields match
+					if (type != inner && bt_union_has_variant(inner, type) == -1) {
+						if (!bt_is_type(val, inner)) return BT_FALSE;
+					}
 
 					num_matched++;
 				}
