@@ -26,7 +26,7 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 			if (type == BT_OBJECT_TYPE_STRING) {
 				bt_String* a_str = (bt_String*)obja;
 				bt_String* b_str = (bt_String*)objb;
-				// Strings this short are interned, and comparison is alerady sorted by the identity compare
+				if (a_str == b_str) return BT_TRUE;
 				if (a_str->len != b_str->len) return BT_FALSE;
 				if (a_str->interned && b_str->interned) return BT_FALSE;
 				if (a_str->hash && b_str->hash) return a_str->hash == b_str->hash;
