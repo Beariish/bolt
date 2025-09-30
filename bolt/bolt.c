@@ -1064,7 +1064,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		NEXT;
 
 		CASE(CALL):
-			if (thread->depth >= BT_CALLSTACK_SIZE) {
+			if (thread->depth >= BT_CALLSTACK_SIZE - 1) {
 				bt_runtime_error(thread, "Stack overflow!", ip);
 			}
 
@@ -1076,12 +1076,14 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 			switch (BT_OBJECT_GET_TYPE(obj)) {
 			case BT_OBJECT_TYPE_FN:
+				if (thread->top + ((bt_Fn*)obj)->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Fn*)obj)->stack_size, 0);
 				call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
 			break;
 			case BT_OBJECT_TYPE_CLOSURE:
 				switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
 				case BT_OBJECT_TYPE_FN:
+					if (thread->top + ((bt_Closure*)obj)->fn->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 					thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
 					call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
 					break;
@@ -1116,7 +1118,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		NEXT;
 
 		CASE(REC_CALL):
-			if (thread->depth >= BT_CALLSTACK_SIZE) {
+			if (thread->depth >= BT_CALLSTACK_SIZE - 1) {
 				bt_runtime_error(thread, "Stack overflow!", ip);
 			}
 
@@ -1128,12 +1130,14 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		switch (BT_OBJECT_GET_TYPE(obj)) {
 		case BT_OBJECT_TYPE_FN:
+			if (thread->top + ((bt_Fn*)obj)->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 			thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Fn*)obj)->stack_size, 0);
 			call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op)));
 			break;
 		case BT_OBJECT_TYPE_CLOSURE:
 			switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
 			case BT_OBJECT_TYPE_FN:
+				if (thread->top + ((bt_Closure*)obj)->fn->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
 				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (BT_GET_B(op)));
 				break;
