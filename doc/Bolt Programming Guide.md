@@ -767,7 +767,7 @@ Recursion in Bolt is only supported for functions that can be fully declared bef
 ```ts
 fn fib(n: number): number {
     return match n {
-        0, 1 do 1,
+        0, 1 then 1,
         else fib(n - 1) + fib(n - 2)
     }
 }
@@ -1282,3 +1282,4 @@ The Bolt standard library contains a bunch of useful modules, though it's up to 
 ## 17. Learn more
 
 If you wish to learn more, I highly recommend you check out the Bolt [examples](https://github.com/Beariish/bolt/tree/main/examples), or even dive into the [benchmarks](https://github.com/Beariish/bolt/tree/main/benchmarks) or [tests](https://github.com/Beariish/bolt/tree/main/tests) to get a deeper understanding for the language. The rest of the documentation can be found [here](https://github.com/Beariish/bolt/tree/main/doc), as well.
+
