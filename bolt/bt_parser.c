@@ -1395,7 +1395,8 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
     }
 
     if (level == 0 && !has_return && expected) {
-        uint16_t line, col = 0;
+        uint16_t line = 0;
+        uint16_t col = 0;
         
         if (body->length > 0) {
           line = body->elements[0]->source->line;
