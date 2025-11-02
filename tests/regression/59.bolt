@@ -1,0 +1,44 @@
+import * from "../test"
+import Error from core
+import meta
+
+/*
+Example from https://github.com/Beariish/bolt/blob/main/doc/Bolt%20Programming%20Guide.md#154-tableshapes
+leads to segmentation fault.
+
+type Node = {
+    parent: Node?
+    children: [Node]
+}
+
+let root: Node = { 
+    parent: null, 
+    children: [
+        { parent: root, children: [:Node] },
+        { parent: root, children: [:Node] }
+        : Node
+    ]
+}
+*/
+
+push_scope("59")
+
+test("doesn't segfault or error", fn {
+    type Node = {
+        parent: Node?
+        children: [Node]
+    }
+
+    let root: Node = { 
+        parent: null, 
+        children: [
+            { parent: root, children: [:Node] },
+            { parent: root, children: [:Node] }
+            : Node
+        ]
+    }
+
+    expect(root.children[0].parent == root, "Expected structure to be valid")
+})
+
+pop_scope()

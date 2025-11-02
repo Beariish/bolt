@@ -3,6 +3,7 @@ import * from "../test"
 import "_scope"
 
 import "28"
+import "59"
 import "60"
 
 pop_scope()

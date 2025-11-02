@@ -2511,6 +2511,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
     bt_AstNode* node = make_node(parse, BT_AST_NODE_LET);
     node->source = bt_tokenizer_peek(tok);
     node->as.let.is_const = BT_FALSE;
+    bt_bool is_local_defined = BT_FALSE;
 
     bt_Token* name_or_const = bt_tokenizer_emit(tok);
 
@@ -2534,6 +2535,8 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         if (!type) parse_error_token(parse, "Failed to parse explicit type for binding '%.*s'", name_or_const);
 
         node->resulting_type = type;
+        push_local(parse, node);
+        is_local_defined = BT_TRUE;
         type_or_expr = bt_tokenizer_peek(tok);
     }
 
@@ -2579,7 +2582,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         node->as.let.initializer = initializer;
     }
 
-    push_local(parse, node);
+    if (!is_local_defined) push_local(parse, node);
     return node;
 }
 
