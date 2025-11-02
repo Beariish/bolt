@@ -102,6 +102,7 @@ int32_t bt_to_string_inplace(bt_Context* ctx, char* buffer, uint32_t size, bt_Va
                 len = BT_SPRINTF("<0x%llx: Import(>", value);
                 len += bt_to_string_inplace(ctx, buffer + len, size - len, BT_VALUE_OBJECT(import->name));
             } break;
+            case BT_OBJECT_TYPE_MODULE: len = BT_SPRINTF("<0x%llx: module>", value); break;
             default: len = BT_SPRINTF("<0x%llx: object>", value); break;
             }
         }

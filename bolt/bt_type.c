@@ -775,6 +775,7 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	bt_Object* as_obj = BT_AS_OBJECT(value);
 
 	if (type == type->ctx->types.string && BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_STRING) return BT_TRUE;
+	if (type == type->ctx->types.module && BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_MODULE) return BT_TRUE;
 
 	switch (type->category) {
 	case BT_TYPE_CATEGORY_TYPE:
@@ -1007,3 +1008,4 @@ bt_Type* bt_type_string(bt_Context* context) { return context->types.string; }
 bt_Type* bt_type_array(bt_Context* context) { return context->types.array; }
 bt_Type* bt_type_table(bt_Context* context) { return context->types.table; }
 bt_Type* bt_type_type(bt_Context* context) { return context->types.type; }
+bt_Type* bt_type_module(bt_Context* context) { return context->types.module; }

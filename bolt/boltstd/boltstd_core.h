@@ -9,8 +9,9 @@ extern "C" {
 extern const char* bt_error_type_name;
 extern const char* bt_error_what_key_name;
 
-void BOLT_API boltstd_open_core(bt_Context* context);
-bt_Value BOLT_API boltstd_make_error(bt_Context* context, const char* message);
+BOLT_API void boltstd_open_core(bt_Context* context);
+BOLT_API bt_Value boltstd_make_error(bt_Context* context, const char* message);
+BOLT_API bt_Type* boltstd_get_error_type(bt_Context* context);
 
 #if __cplusplus
 }

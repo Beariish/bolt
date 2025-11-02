@@ -407,6 +407,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	grey(gc, (bt_Object*)ctx->types.array);
 	grey(gc, (bt_Object*)ctx->types.table);
 	grey(gc, (bt_Object*)ctx->types.type);
+	grey(gc, (bt_Object*)ctx->types.module);
 	
 	grey(gc, (bt_Object*)ctx->meta_names.add);
 	grey(gc, (bt_Object*)ctx->meta_names.sub);

@@ -134,6 +134,7 @@ struct bt_Context {
 		bt_Type* string;
 		bt_Type* array;
 		bt_Type* table;
+		bt_Type* module;
 		bt_Type* type;
 	} types;
 

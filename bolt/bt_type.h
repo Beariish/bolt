@@ -40,6 +40,8 @@ BOLT_API bt_Type* bt_type_array(bt_Context* context);
 BOLT_API bt_Type* bt_type_table(bt_Context* context);
 /** Returns the primitive `Type` type */
 BOLT_API bt_Type* bt_type_type(bt_Context* context);
+/** Returns the primitive `module` type */
+BOLT_API bt_Type* bt_type_module(bt_Context* context);
 
 /** Creates a primitive type, like `number`, `bool` etc */
 BOLT_API bt_Type* bt_make_primitive_type(bt_Context* ctx, const char* name, bt_TypeSatisfier satisfier);

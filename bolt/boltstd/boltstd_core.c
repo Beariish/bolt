@@ -277,11 +277,17 @@ void boltstd_open_core(bt_Context* context)
 
 bt_Value boltstd_make_error(bt_Context* context, const char* message)
 {
-	bt_Module* module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"), BT_FALSE);
-	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name)));
+	bt_Type* error_type = boltstd_get_error_type(context);
 	
 	bt_String* what = bt_make_string(context, message);
 	bt_Table* result = bt_make_table_from_proto(context, error_type);
 	bt_table_set(context, result, BT_VALUE_CSTRING(context, bt_error_what_key_name), BT_VALUE_OBJECT(what));
 	return BT_VALUE_OBJECT(result);
+}
+
+bt_Type* boltstd_get_error_type(bt_Context* context)
+{
+	bt_Module* module = bt_find_module(context, BT_VALUE_CSTRING(context, "core"), BT_FALSE);
+	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(context, bt_error_type_name)));
+	return error_type;
 }

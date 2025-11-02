@@ -1,5 +1,8 @@
 #include "boltstd_meta.h"
 
+#include <stdio.h>
+
+#include "boltstd_core.h"
 #include "../bt_embedding.h"
 #include "../bt_type.h"
 #include "../bt_debug.h"
@@ -194,6 +197,65 @@ static void btstd_find_module(bt_Context* ctx, bt_Thread* thread)
 	bt_return(thread, module ? bt_value((bt_Object*)module->exports) : bt_make_null());
 }
 
+static bt_String* btstd_safe_error_string;
+static bt_Context* btstd_safe_error_ctx;
+#define BTSTD_ERROR_LEN 1024
+
+static void btstd_safe_error(bt_ErrorType type, const char* module, const char* message, uint16_t line, uint16_t col)
+{
+	if (btstd_safe_error_string == NULL) {
+		btstd_safe_error_string = bt_make_string_empty(btstd_safe_error_ctx, 0);
+		bt_add_ref(btstd_safe_error_ctx, (bt_Object*)btstd_safe_error_string);
+	}
+	
+	static char format_buffer[BTSTD_ERROR_LEN];
+	int pot_len = snprintf(format_buffer, BTSTD_ERROR_LEN, bt_string_length(btstd_safe_error_string) ? "\n[%s:%d:%d]: %s" : "[%s:%d:%d]: %s", module, line, col, message);
+	format_buffer[pot_len < BTSTD_ERROR_LEN ? pot_len : BTSTD_ERROR_LEN - 1] = 0;
+	
+	btstd_safe_error_string = bt_string_append_cstr(btstd_safe_error_ctx, btstd_safe_error_string, format_buffer);
+}
+
+static void btstd_try_compile(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value source_val = bt_arg(thread, 0);
+	bt_String* source = (bt_String*)bt_object(source_val);
+
+	bt_Value mod_val = bt_arg(thread, 1);
+	bt_String* module_name = (bt_String*)bt_object(mod_val);
+
+	if (btstd_safe_error_ctx) {
+		bt_runtime_error(thread, "Nested try_compile detected - not allowed!", 0);
+		bt_return(thread, boltstd_make_error(ctx, "Nested try_compile detected - not allowed!"));
+		return;
+	}
+	
+	bt_ErrorFunc old_onerror = ctx->on_error;
+	btstd_safe_error_ctx = ctx;
+	ctx->on_error = btstd_safe_error;
+	
+	bt_Module* mod = bt_compile_module(ctx, BT_STRING_STR(source), BT_STRING_STR(module_name));
+
+	btstd_safe_error_ctx = NULL;
+	ctx->on_error = old_onerror;
+
+	if (mod) {
+		bt_return(thread, bt_value((bt_Object*)mod));
+	} else {
+		bt_remove_ref(ctx, (bt_Object*)btstd_safe_error_string);
+		bt_return(thread, boltstd_make_error(ctx, BT_STRING_STR(btstd_safe_error_string)));
+	}
+}
+
+static void btstd_execute_module(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Value module = bt_arg(thread, 0);
+	bt_Module* mod = (bt_Module*)bt_object(module);
+
+	bt_execute_on_thread(ctx, thread, (bt_Callable*)mod);
+
+	bt_return(thread, mod->exports ? bt_value((bt_Object*)mod->exports) : bt_make_table(ctx, 0));
+}
+
 void boltstd_open_meta(bt_Context* context)
 {
 	bt_Module* module = bt_make_module(context);
@@ -202,6 +264,8 @@ void boltstd_open_meta(bt_Context* context)
 	bt_Type* number = bt_type_number(context);
 	bt_Type* string = bt_type_string(context);
 	bt_Type* type = bt_type_type(context);
+	bt_Type* mod_type = bt_type_module(context);
+	bt_Type* table = bt_type_table(context);
 
 	bt_Type* annotation_type = bt_make_tableshape_type(context, annotation_type_name, BT_TRUE);
 	bt_tableshape_add_layout(context, annotation_type, bt_type_string(context), BT_VALUE_CSTRING(context, annotation_name_key_name), bt_type_string(context));
@@ -214,14 +278,18 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export(context, module, type,   BT_VALUE_CSTRING(context, "Annotation"),     bt_value((bt_Object*)annotation_type));
 	
 	bt_Type* findtype_ret = bt_type_make_nullable(context, type);
-	bt_Type* findmodule_ret = bt_type_make_nullable(context, bt_type_table(context));
+	bt_Type* findmodule_ret = bt_type_make_nullable(context, table);
 	bt_Type* annotation_arr = bt_make_array_type(context, annotation_type);
+
+	bt_Type* trycompile_ret_types[] = { bt_type_module(context), boltstd_get_error_type(context) };
+	bt_Type* trycompile_ret = bt_make_union_from(context, trycompile_ret_types, 2);
 	
 	bt_Type* regtype_args[]         = { string, type };
 	bt_Type* getenumname_args[]     = { type,   any };
 	bt_Type* get_union_entry_args[] = { type,   number };
 	bt_Type* field_anno_args[]      = { type,   any };
-
+	bt_Type* trycompile_args[]      = { string, string };
+	
 	bt_module_export_native(context, module, "gc",                btstd_gc,                    number,         NULL,                 0);
 	bt_module_export_native(context, module, "grey",              btstd_grey,                  NULL,           &any,                 1);
 	bt_module_export_native(context, module, "push_root",         btstd_push_root,             NULL,           &any,                 1);
@@ -239,6 +307,8 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export_native(context, module, "annotations",       btstd_get_annotations,       annotation_arr, &any,                 1);
 	bt_module_export_native(context, module, "field_annotations", btstd_get_field_annotations, annotation_arr, field_anno_args,      2);
 	bt_module_export_native(context, module, "find_module",       btstd_find_module,           findmodule_ret, &string,              1);
+	bt_module_export_native(context, module, "try_compile",       btstd_try_compile,           trycompile_ret, trycompile_args,      2);
+	bt_module_export_native(context, module, "execute_module",    btstd_execute_module,        table,          &mod_type,            1);
 	
 	bt_Type* dump_sig = bt_make_poly_signature_type(context, "dump(fn): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(

@@ -60,6 +60,8 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->types.type = bt_make_fundamental_type(ctx);
 	ctx->types.type->as.type.boxed = ctx->types.any;
 
+	ctx->types.module = bt_make_primitive_type(ctx, "module", bt_type_satisfier_same);
+	
 	ctx->loaded_modules = bt_make_table(ctx, 1);
 	ctx->prelude = bt_make_table(ctx, 16);
 	ctx->native_references = bt_make_table(ctx, 16);
@@ -73,6 +75,7 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "null")), ctx->types.null);
 	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "array")), ctx->types.array);
 	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "Type")), ctx->types.type);
+	bt_register_type(ctx, BT_VALUE_OBJECT(bt_make_string_hashed(ctx, "module")), ctx->types.module);
 
 	ctx->meta_names.add = bt_make_string_hashed_len(ctx, "@add", 4);
 	ctx->meta_names.sub = bt_make_string_hashed_len(ctx, "@sub", 4);
@@ -193,6 +196,7 @@ void bt_close(bt_Context* context)
 	context->types.string = 0;
 	context->types.array = 0;
 	context->types.table = 0;
+	context->types.module = 0;
 	context->types.type = 0;
 	
 	context->meta_names.add = 0;

@@ -67,6 +67,15 @@ meta.add_module_path(path_spec: string)
 // Returns a reference to the module's export table
 meta.find_module(path: string): unsealed {}?
 
+// Attempts to compile source code `source` into a module named `name`
+// Returns a reference to the compiled module, or an error
+meta.try_compile(source: string, name: string): module | Error
+
+// Executes a module body on the current thread, populating its' exports table along the way
+// This does not add the module to the import deduplication table
+// Returns the module's exports table
+meta.execute_module(mod: module): table
+
 // Returns the number of options in a given union type.
 /** Example:
     let x = meta.get_union_size(type(string | number | null))
