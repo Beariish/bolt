@@ -253,7 +253,7 @@ static void btstd_execute_module(bt_Context* ctx, bt_Thread* thread)
 
 	bt_execute_on_thread(ctx, thread, (bt_Callable*)mod);
 
-	bt_return(thread, mod->exports ? bt_value((bt_Object*)mod->exports) : bt_make_table(ctx, 0));
+	bt_return(thread, mod->exports ? bt_value((bt_Object*)mod->exports) : bt_value((bt_Object*)bt_make_table(ctx, 0)));
 }
 
 void boltstd_open_meta(bt_Context* context)
