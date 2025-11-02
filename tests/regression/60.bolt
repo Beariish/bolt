@@ -1,0 +1,19 @@
+import * from "../test"
+import Error from core
+import meta
+
+/*
+When parsing functions with empty function bodies such as
+
+fn foo() : number {}
+
+Bolt currently seg faults when trying to access element[0] in bt_parser.c line 1398
+*/
+
+push_scope("60")
+
+test("doesn't segfault", fn {
+    expect(meta.try_compile("fn foo(): number {}", "test") is Error, "Expected code not to segfault and produce an error")
+})
+
+pop_scope()
