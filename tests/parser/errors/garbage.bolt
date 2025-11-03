@@ -1,0 +1,32 @@
+import * from "../../test"
+
+import Error from core
+import meta
+
+push_scope("garbage")
+
+test("empty source", fn {
+    expect(meta.try_compile("", "empty_source") is module, "Expected empty source to succeed gracefully")
+})
+
+test("single identifier", fn {
+    expect(meta.try_compile("asdfasdf", "single_identifier") is Error, "Expected single identifier to error gracefully")
+})
+
+test("multiple identifiers", fn {
+    expect(meta.try_compile("asdfasdf asdf gjhk kasfo oqwirhq osknafoa", "multiple_identifiers") is Error, "Expected multiple identifiers to error gracefully")
+})
+
+test("random parentheses", fn {
+    expect(meta.try_compile("((()(()((())))()()()))()()))", "random_parentheses") is Error, "Expected random parentheses to error gracefully")
+})
+
+test("random symbols", fn {
+    expect(meta.try_compile("**-++**+++--**/+*/--", "random_symbols") is Error, "Expected random symbols to error gracefully")
+})
+
+test("random annotation", fn {
+    expect(meta.try_compile("#####an####An(10)#####an[rpc]####[]###", "random_annotation") is Error, "Expected random annotations to error gracefully")
+})
+
+pop_scope()

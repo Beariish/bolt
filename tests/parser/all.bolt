@@ -9,5 +9,6 @@ import "order"
 import "annotations"
 import "defaults"
 import "metamethods"
+import "errors/all"
 
 pop_scope() 
