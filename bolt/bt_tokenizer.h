@@ -100,6 +100,7 @@ typedef struct {
 	bt_Token* literal_null;
 
 	uint16_t line, col;
+	bt_bool has_errored;
 } bt_Tokenizer;
 
 /** Creates a tokenizer with a default state, ready to parse. Must be destroyed with `bt_close_tokenizer` */

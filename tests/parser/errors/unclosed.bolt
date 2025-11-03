@@ -1,0 +1,12 @@
+import * from "../../test"
+
+import Error from core
+import meta
+
+push_scope("unclosed")
+
+test("unclosed string", fn {
+    expect(meta.try_compile("\"this is a string", "unclosed_string") is Error, "Expected unclosed string to error gracefully")
+})
+
+pop_scope()

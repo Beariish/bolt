@@ -2,6 +2,7 @@
 #include "bt_context.h"
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,15 +21,104 @@ static bt_Token BT_TOKEN_EOF = {
 	BT_TOKEN_EOS
 };
 
-static void tokenizer_error_unrecognized(bt_Tokenizer* tok, char got, int16_t line, int16_t col)
+
+static const char* get_tok_name(bt_TokenType type)
+{
+	switch (type) {
+	case BT_TOKEN_UNKNOWN: return "<unknown>";
+	case BT_TOKEN_EOS: return "<eos>";
+	case BT_TOKEN_IDENTIFIER: return "<identifier>";
+	case BT_TOKEN_FALSE_LITERAL: return "false";
+	case BT_TOKEN_TRUE_LITERAL: return "true";
+	case BT_TOKEN_STRING_LITERAL: return "<string literal>";
+	case BT_TOKEN_IDENTIFIER_LITERAL: return "<identifier>";
+	case BT_TOKEN_NUMBER_LITERAL: return "<number literal>";
+	case BT_TOKEN_NULL_LITERAL: return "<null>";
+	case BT_TOKEN_LEFTPAREN: return "(";
+	case BT_TOKEN_RIGHTPAREN: return ")";
+	case BT_TOKEN_LEFTBRACE: return "{";
+	case BT_TOKEN_RIGHTBRACE: return "}";
+	case BT_TOKEN_LEFTBRACKET: return "[";
+	case BT_TOKEN_RIGHTBRACKET: return "]";
+	case BT_TOKEN_COLON: return ":";
+	case BT_TOKEN_SEMICOLON: return ";";
+	case BT_TOKEN_PERIOD: return ".";
+	case BT_TOKEN_COMMA: return ",";
+	case BT_TOKEN_QUESTION: return "?";
+	case BT_TOKEN_VARARG: return "..";
+	case BT_TOKEN_NULLCOALESCE: return "??";
+	case BT_TOKEN_GT: return ">";
+	case BT_TOKEN_GTE: return ">=";
+	case BT_TOKEN_LT: return "<";
+	case BT_TOKEN_LTE: return "<=";
+	case BT_TOKEN_ASSIGN: return "=";
+	case BT_TOKEN_EQUALS: return "==";
+	case BT_TOKEN_BANG: return "!";
+	case BT_TOKEN_NOTEQ: return "!=";
+	case BT_TOKEN_PLUS: return "+";
+	case BT_TOKEN_PLUSEQ: return "+=";
+	case BT_TOKEN_MINUS: return "-";
+	case BT_TOKEN_MINUSEQ: return "-=";
+	case BT_TOKEN_MUL: return "*";
+	case BT_TOKEN_MULEQ: return "*=";
+	case BT_TOKEN_DIV: return "/";
+	case BT_TOKEN_DIVEQ: return "/=";
+	case BT_TOKEN_LET: return "let";
+	case BT_TOKEN_CONST: return "const";
+	case BT_TOKEN_FN: return "fn";
+	case BT_TOKEN_RETURN: return "return";
+	case BT_TOKEN_TYPE: return "type";
+	case BT_TOKEN_IF: return "if";
+	case BT_TOKEN_ELSE: return "else";
+	case BT_TOKEN_FOR: return "for";
+	case BT_TOKEN_IN: return "in";
+	case BT_TOKEN_TO: return "to";
+	case BT_TOKEN_BY: return "by";
+	case BT_TOKEN_IS: return "is";
+	case BT_TOKEN_AS: return "as";
+	case BT_TOKEN_DO: return "do";
+	case BT_TOKEN_THEN: return "then";
+	case BT_TOKEN_FINAL: return "final";
+	case BT_TOKEN_UNSEALED: return "unsealed";
+	case BT_TOKEN_FATARROW: return "=>";
+	case BT_TOKEN_ENUM: return "enum";
+	case BT_TOKEN_BREAK: return "break";
+	case BT_TOKEN_CONTINUE: return "continue";
+	case BT_TOKEN_OR: return "or";
+	case BT_TOKEN_AND: return "and";
+	case BT_TOKEN_NOT: return "not";
+	case BT_TOKEN_UNION: return "|";
+	case BT_TOKEN_TYPEOF: return "typeof";
+	case BT_TOKEN_IMPORT: return "import";
+	case BT_TOKEN_EXPORT: return "export";
+	case BT_TOKEN_FROM: return "from";
+	default: return "UNHANDLED TOKEN";
+	}
+}
+
+static void tokenizer_error(bt_Tokenizer* tok, int16_t line, int16_t col, const char* format, ...)
 {
 	char buffer[1024];
-#ifdef _MSC_VER
-	buffer[sprintf_s(buffer, sizeof(buffer), "Unrecognized character '%d'", got)] = 0;
-#else
-	buffer[sprintf(buffer, "Unrecognized character '%d'", got)] = 0;
-#endif
+
+	va_list args;
+	va_start(args, format);
+	int len = vsnprintf(buffer, sizeof(buffer), format, args);
+	va_end(args);
+
+	buffer[len < sizeof(buffer) ? len : sizeof(buffer) - 1] = '\0';
+
+	tok->has_errored = BT_TRUE;
 	tok->context->on_error(BT_ERROR_PARSE, tok->source_name, buffer, line, col);
+}
+
+static void tokenizer_error_unrecognized(bt_Tokenizer* tok, char got, int16_t line, int16_t col)
+{
+	tokenizer_error(tok, line, col, "Unrecognized character '%d'", got);
+}
+
+static void tokenizer_error_unexpected(bt_Tokenizer* tok, bt_Token* got, bt_TokenType expected)
+{
+	tokenizer_error(tok, got->line, got->col, "Expected token '%s', got '%.*s'", get_tok_name(expected), got->source.length, got->source.source);
 }
 
 static bt_Token* make_token(bt_Context* ctx, bt_StrSlice source, uint16_t line, uint16_t col, uint16_t idx, bt_TokenType type)
@@ -50,6 +140,7 @@ bt_Tokenizer bt_open_tokenizer(bt_Context* context)
 	tok.source = tok.current = 0;
 	tok.source_name = 0;
 	tok.last_consumed = tok.line = tok.col = 0;
+	tok.has_errored = BT_FALSE;
 
 	bt_buffer_with_capacity(&tok.tokens, context, 32);
 	bt_buffer_empty(&tok.temp_tokens);
@@ -389,6 +480,9 @@ eat_whitespace:
 
 		if (*tok->current) {
 			tok->current++; tok->col++;
+		} else {
+			tokenizer_error(tok, tok->line, tok->col, "Unclosed string literal at EOF");
+			return &BT_TOKEN_EOF;
 		}
 
 		uint16_t length = (uint16_t)(tok->current - start - 1);
@@ -423,98 +517,13 @@ bt_Token* bt_tokenizer_peek(bt_Tokenizer* tok)
 	return tok->tokens.elements[tok->last_consumed];
 }
 
-static const char* get_tok_name(bt_TokenType type)
-{
-	switch (type) {
-	case BT_TOKEN_UNKNOWN: return "<unknown>";
-	case BT_TOKEN_EOS: return "<eos>";
-	case BT_TOKEN_IDENTIFIER: return "<identifier>";
-	case BT_TOKEN_FALSE_LITERAL: return "false";
-	case BT_TOKEN_TRUE_LITERAL: return "true";
-	case BT_TOKEN_STRING_LITERAL: return "<string literal>";
-	case BT_TOKEN_IDENTIFIER_LITERAL: return "<identifier>";
-	case BT_TOKEN_NUMBER_LITERAL: return "<number literal>";
-	case BT_TOKEN_NULL_LITERAL: return "<null>";
-	case BT_TOKEN_LEFTPAREN: return "(";
-	case BT_TOKEN_RIGHTPAREN: return ")";
-	case BT_TOKEN_LEFTBRACE: return "{";
-	case BT_TOKEN_RIGHTBRACE: return "}";
-	case BT_TOKEN_LEFTBRACKET: return "[";
-	case BT_TOKEN_RIGHTBRACKET: return "]";
-	case BT_TOKEN_COLON: return ":";
-	case BT_TOKEN_SEMICOLON: return ";";
-	case BT_TOKEN_PERIOD: return ".";
-	case BT_TOKEN_COMMA: return ",";
-	case BT_TOKEN_QUESTION: return "?";
-	case BT_TOKEN_VARARG: return "..";
-	case BT_TOKEN_NULLCOALESCE: return "??";
-	case BT_TOKEN_GT: return ">";
-	case BT_TOKEN_GTE: return ">=";
-	case BT_TOKEN_LT: return "<";
-	case BT_TOKEN_LTE: return "<=";
-	case BT_TOKEN_ASSIGN: return "=";
-	case BT_TOKEN_EQUALS: return "==";
-	case BT_TOKEN_BANG: return "!";
-	case BT_TOKEN_NOTEQ: return "!=";
-	case BT_TOKEN_PLUS: return "+";
-	case BT_TOKEN_PLUSEQ: return "+=";
-	case BT_TOKEN_MINUS: return "-";
-	case BT_TOKEN_MINUSEQ: return "-=";
-	case BT_TOKEN_MUL: return "*";
-	case BT_TOKEN_MULEQ: return "*=";
-	case BT_TOKEN_DIV: return "/";
-	case BT_TOKEN_DIVEQ: return "/=";
-	case BT_TOKEN_LET: return "let";
-	case BT_TOKEN_CONST: return "const";
-	case BT_TOKEN_FN: return "fn";
-	case BT_TOKEN_RETURN: return "return";
-	case BT_TOKEN_TYPE: return "type";
-	case BT_TOKEN_IF: return "if";
-	case BT_TOKEN_ELSE: return "else";
-	case BT_TOKEN_FOR: return "for";
-	case BT_TOKEN_IN: return "in";
-	case BT_TOKEN_TO: return "to";
-	case BT_TOKEN_BY: return "by";
-	case BT_TOKEN_IS: return "is";
-	case BT_TOKEN_AS: return "as";
-	case BT_TOKEN_DO: return "do";
-	case BT_TOKEN_THEN: return "then";
-	case BT_TOKEN_FINAL: return "final";
-	case BT_TOKEN_UNSEALED: return "unsealed";
-	case BT_TOKEN_FATARROW: return "=>";
-	case BT_TOKEN_ENUM: return "enum";
-	case BT_TOKEN_BREAK: return "break";
-	case BT_TOKEN_CONTINUE: return "continue";
-	case BT_TOKEN_OR: return "or";
-	case BT_TOKEN_AND: return "and";
-	case BT_TOKEN_NOT: return "not";
-	case BT_TOKEN_UNION: return "|";
-	case BT_TOKEN_TYPEOF: return "typeof";
-	case BT_TOKEN_IMPORT: return "import";
-	case BT_TOKEN_EXPORT: return "export";
-	case BT_TOKEN_FROM: return "from";
-	default: return "UNHANDLED TOKEN";
-	}
-}
-
-static void tokenizer_error(bt_Tokenizer* tok, bt_Token* got, bt_TokenType expected)
-{
-	char buffer[1024];
-#ifdef _MSC_VER
-	buffer[sprintf_s(buffer, sizeof(buffer), "Expected token '%s', got '%.*s'", get_tok_name(expected), got->source.length, got->source.source)] = 0;
-#else
-	buffer[sprintf(buffer, "Expected token '%s', got '%.*s'", get_tok_name(expected), got->source.length, got->source.source)] = 0;
-#endif
-	tok->context->on_error(BT_ERROR_PARSE, tok->source_name, buffer, got->line, got->col);
-}
-
 bt_bool bt_tokenizer_expect(bt_Tokenizer* tok, bt_TokenType type)
 {
 	bt_Token* token = bt_tokenizer_emit(tok);
 	bt_bool result = token->type == type;
 	
 	if (!result) {
-		tokenizer_error(tok, token, type);
+		tokenizer_error_unexpected(tok, token, type);
 	}
 	
 	return result;

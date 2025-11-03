@@ -3600,5 +3600,5 @@ bt_bool bt_parse(bt_Parser* parser)
     bt_debug_print_parse_tree(parser);
 #endif
 
-    return !parser->has_errored;
+    return !parser->has_errored && !parser->tokenizer->has_errored;
 }

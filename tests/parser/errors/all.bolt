@@ -2,5 +2,6 @@ import * from "../../test"
 import "_scope"
 
 import "garbage"
+import "unclosed"
 
 pop_scope()
