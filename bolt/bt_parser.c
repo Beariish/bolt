@@ -1946,7 +1946,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                 lhs_node = call;
             }
             else if (op->type == BT_TOKEN_FATARROW) {
-                if (lhs_node->type != BT_AST_NODE_IDENTIFIER) {
+                if (lhs_node->type != BT_AST_NODE_IDENTIFIER && lhs_node->type != BT_AST_NODE_IMPORT_REFERENCE) {
                     parse_error_token(parse, "Expected identifier, got '%.*s'", lhs_node->source);
                     return NULL;
                 }

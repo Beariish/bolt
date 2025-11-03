@@ -1,0 +1,19 @@
+import * from "../test"
+
+import Error, error from core
+
+push_scope("core")
+
+test("Can construct Error through error", fn {
+    let err = error("Test error")
+    expect(err is Error, "Expected construction to work")
+    expect(err.what == "Test error", "Expected field to be set")
+})
+
+test("Can construct Error through code", fn {
+    let err = Error => { what: "Test error" }
+    expect(err is Error, "Expected construction to work")
+    expect(err.what == "Test error", "Expected field to be set")
+})
+
+pop_scope()

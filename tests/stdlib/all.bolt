@@ -1,6 +1,7 @@
 import * from "../test"
 import "_scope"
 
+import "core"
 import "arrays"
 import "regex"
 
