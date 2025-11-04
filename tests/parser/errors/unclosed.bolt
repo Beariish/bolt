@@ -32,4 +32,32 @@ test("unclosed table literal", fn {
     expect(meta.try_compile("{ a: 10, b: true", "unclosed_table") is Error, "Expected unclosed table literal to error gracefully")
 })
 
+test("unclosed type() literal", fn {
+    expect(meta.try_compile("let x: type(number", "unclosed_type") is Error, "Expected unclosed type() literal to error gracefully")
+})
+
+test("unclosed typeof() literal", fn {
+    expect(meta.try_compile("let x: typeof(10", "unclosed_typeof") is Error, "Expected unclosed typeof() literal to error gracefully")
+})
+
+test("unclosed let binding", fn {
+    expect(meta.try_compile("let x:", "unclosed_let") is Error, "Expected unclosed let: binding to error gracefully")
+})
+
+test("unclosed if block", fn {
+    expect(meta.try_compile("if true {", "unclosed_if") is Error, "Expected unclosed if block to error gracefully")
+})
+
+test("unclosed else block", fn {
+    expect(meta.try_compile("if true { } else {", "unclosed_else") is Error, "Expected unclosed else block to error gracefully")
+})
+
+test("unclosed else if block", fn {
+    expect(meta.try_compile("if true { } else if true {", "unclosed_elseif") is Error, "Expected unclosed else if block to error gracefully")
+})
+
+test("unclosed for block", fn {
+    expect(meta.try_compile("for true {", "unclosed_for") is Error, "Expected unclosed for block to error gracefully")
+})
+
 pop_scope()
