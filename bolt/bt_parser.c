@@ -68,7 +68,11 @@ static void parse_error_fmt(bt_Parser* parse, const char* format, uint16_t line,
 
 static void parse_error_token(bt_Parser* parse, const char* format, bt_Token* source)
 {
-    parse_error_fmt(parse, format, source->line, source->col, source->source.length, source->source.source);
+    if (source->type == BT_TOKEN_EOS) {
+        parse_error_fmt(parse, format, source->line, source->col, 3, "EOF");
+    } else {
+        parse_error_fmt(parse, format, source->line, source->col, source->source.length, source->source.source);
+    }
 }
 
 static bt_StrSlice next_temp_name(bt_Parser* parse)
@@ -1101,7 +1105,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
     bt_Type* explicit_type = NULL;
 
     bt_Token* next = bt_tokenizer_peek(tok);
-    while (next && next->type != BT_TOKEN_RIGHTBRACKET) {
+    while (next && next->type != BT_TOKEN_RIGHTBRACKET && next->type != BT_TOKEN_EOS) {
         if (next->type == BT_TOKEN_COMMA) {
             bt_tokenizer_emit(tok);
             next = bt_tokenizer_peek(tok);

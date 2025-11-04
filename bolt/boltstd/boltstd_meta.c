@@ -243,6 +243,7 @@ static void btstd_try_compile(bt_Context* ctx, bt_Thread* thread)
 	} else {
 		bt_remove_ref(ctx, (bt_Object*)btstd_safe_error_string);
 		bt_return(thread, boltstd_make_error(ctx, BT_STRING_STR(btstd_safe_error_string)));
+		btstd_safe_error_string = NULL;
 	}
 }
 

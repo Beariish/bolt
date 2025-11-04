@@ -9,4 +9,27 @@ test("unclosed string", fn {
     expect(meta.try_compile("\"this is a string", "unclosed_string") is Error, "Expected unclosed string to error gracefully")
 })
 
+test("unclosed paren", fn {
+    expect(meta.try_compile("
+        fn add(a: number, b: number): number { return a + b }
+        add(10, 20
+    ", "unclosed_paren") is Error, "Expected unclosed paren to error gracefully")
+})
+
+test("unclosed paren in param list", fn {
+    expect(meta.try_compile("fn add(a: number, b: number", "unclosed_paren_param_list") is Error, "Expected unclosed paren in param list to error gracefully")
+})
+
+test("unclosed function body", fn {
+    expect(meta.try_compile("fn add(a: number, b: number) { return a + b", "unclosed_fn_body") is Error, "Expected unclosed function body to error gracefully")
+})
+
+test("unclosed array literal", fn {
+    expect(meta.try_compile("[1, 2, 3, 4", "unclosed_array") is Error, "Expected unclosed array literal to error gracefully")
+})
+
+test("unclosed table literal", fn {
+    expect(meta.try_compile("{ a: 10, b: true", "unclosed_table") is Error, "Expected unclosed table literal to error gracefully")
+})
+
 pop_scope()
