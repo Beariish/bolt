@@ -60,4 +60,13 @@ test("unclosed for block", fn {
     expect(meta.try_compile("for true {", "unclosed_for") is Error, "Expected unclosed for block to error gracefully")
 })
 
+test("unclosed expression into block", fn {
+    expect(meta.try_compile("if 10 + {}", "unclosed_expr_into_block") is Error, "Expected unclosed expression into block to error gracefully")
+})
+
+
+test("unclosed paren into block", fn {
+    expect(meta.try_compile("fn f() {} if f( {}", "unclosed_paren_into_block") is Error, "Expected unclosed paren into block to error gracefully")
+})
+
 pop_scope()
