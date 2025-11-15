@@ -1,0 +1,91 @@
+import bench from "bench"
+
+import core
+
+bench("400k small-string concatenations", 75, fn {
+    for i in 100000 {
+        let a = "x" + "y" + "z" + "w"
+    }
+})
+
+bench("400k medium-string concatenations", 75, fn {
+    for i in 100000 {
+        let a = "xxxxxxx" + "yyyyyyyyyyyyyyy" + "zzzzzzzzzzzzzzzzzzzzzz" + "wwwwwwwwwwwwwwwwwww"
+    }
+})
+
+bench("400k number-string conversions", 75, fn {
+    for i in 100000 {
+        let a = core.to_string(i) + core.to_string(i*2) + core.to_string(i*3)
+    }
+})
+
+type E = {}
+type E1 = { x: number }
+type E2 = { x: number, y: number }
+type E3 = { x: number, y: number, z: number }
+
+bench("100k empty table constructions", 75, fn {
+    for i in 100000 {
+        let a = E => {}
+    }
+})
+
+bench("100k one-element table constructions", 75, fn {
+    for i in 100000 {
+        let a = E1 => { x: 10 }
+    }
+})
+
+bench("100k three-element table constructions", 75, fn {
+    for i in 100000 {
+        let a = E3 => { x: 10, y: 5, z: 10 }
+    }
+})
+
+bench("300k alternating-element table constructions", 75, fn {
+    for i in 100000 {
+        let a = E1 => { x: 10 }
+        let b = E2 => { x: 5, y: 10 }
+        let c = E3 => { x: 10, y: 5, z: 10 }
+    }
+})
+
+bench("100k single upval closures", 75, fn {
+    let x = 10
+    for i in 100000 {
+        let y = fn { return x }
+    }
+})
+
+bench("100k 8-upval closures", 75, fn {
+    let a = 10
+    let b = 10
+    let c = 10
+    let d = 10
+    let e = 10
+    let f = 10
+    let g = 10
+    let h = 10
+    for i in 100000 {
+        let y = fn { return a + b + c + d + e + f + g + h }
+    }
+})
+
+bench("500k mixed-upval closures", 75, fn {
+    let a = 10
+    let b = 10
+    let c = 10
+    let d = 10
+    let e = 10
+    let f = 10
+    let g = 10
+    let h = 10
+    for i in 100000 {
+        let y1 = fn { return a }
+        let y2 = fn { return a + b }
+        let y3 = fn { return a + b + c + d }
+        let y4 = fn { return a + b + c + d + e + f }
+        let y5 = fn { return a + b + c + d + e + f + g + h }
+    }
+})
