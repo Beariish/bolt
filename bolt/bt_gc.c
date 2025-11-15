@@ -11,27 +11,6 @@
 #include "bt_compiler.h"
 #include "bt_userdata.h"
 
-#include <intrin.h>
-#include <math.h>
-#include <stdio.h>
-
-uint32_t __inline clz(uint32_t value)
-{
-	uint32_t leading_zero = 0;
-	_BitScanReverse(&leading_zero, value);
-	return leading_zero;
-}
-
-static __inline bt_bool is_pow2(uint32_t n)
-{
-	return n && !(n & (n - 1));
-}
-
-static __inline uint32_t nth_pow2(uint32_t n)
-{
-	return clz(n);
-}
-
 /** Specifically returns the inline allocation size of the object, not that of owned allocations */
 static size_t get_object_size(bt_Object* obj)
 {
@@ -88,16 +67,6 @@ void bt_gc_free(bt_Context* ctx, void* ptr, size_t size)
 	ctx->free(ptr);
 }
 
-static uint32_t get_index_log(uint32_t n)
-{
-	return is_pow2(n) ? (clz(n)) : ((uint32_t)log2f((float)n) + 1);
-}
-
-static uint32_t store_index_log(uint32_t n)
-{
-	return is_pow2(n) ? (clz(n)) : ((uint32_t)log2f((float)n));
-}
-
 static bt_Object* get_from_list_lin(bt_GC* gc, bt_FreeList* list, size_t n)
 {
 	bt_Object* result = list->buckets[n];
@@ -106,28 +75,9 @@ static bt_Object* get_from_list_lin(bt_GC* gc, bt_FreeList* list, size_t n)
 		
 		size_t size = get_object_size(result);
 		gc->freelist_size -= size;
-		//gc->bytes_allocated += size;
 	}
 
 	return result;
-}
-
-static bt_Object* get_from_list_log(bt_GC* gc, bt_FreeList* list, size_t n)
-{
-	uint32_t bucket_idx = get_index_log(n);
-	
-	if (list->buckets[bucket_idx] != 0) {
-		bt_Object* result = list->buckets[bucket_idx];
-		list->buckets[bucket_idx] = BT_OBJECT_NEXT_FREE(result);
-		
-		size_t size = get_object_size(result);
-		gc->freelist_size -= size;
-		//gc->bytes_allocated += size;
-		
-		return result;
-	}
-
-	return NULL;
 }
 
 static bt_Object* attempt_from_freelist(bt_Context* context, uint32_t full_size, bt_ObjectType type)
@@ -138,7 +88,7 @@ static bt_Object* attempt_from_freelist(bt_Context* context, uint32_t full_size,
 	case BT_OBJECT_TYPE_STRING: {
 		size_t len = full_size - sizeof(bt_String);
 		if (len > BT_FREELIST_STRING_LEN) return NULL;
-		return get_from_list_log(&context->gc, &context->gc.free_strings, len);
+		return get_from_list_lin(&context->gc, &context->gc.free_strings, len);
 	}
 	case BT_OBJECT_TYPE_TABLE: {
 		size_t len = ((full_size - sizeof(bt_Table)) / sizeof(bt_TablePair)) + 1;
@@ -254,22 +204,11 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 /** Append an object to freelist using `n` qualifier */
 static void add_to_freelist_lin(bt_GC* gc, bt_FreeList* list, bt_Object* obj, size_t n, size_t size)
 {
+	BT_OBJECT_SET_NEXT(obj, 0);
 	BT_OBJECT_SET_NEXT_FREE(obj, list->buckets[n]);
 	list->buckets[n] = obj;
 	
 	gc->freelist_size += size;
-	//gc->bytes_allocated -= size;
-}
-
-static void add_to_freelist_log(bt_GC* gc, bt_FreeList* list, bt_Object* obj, size_t n, size_t size)
-{
-	size_t bucket_idx = store_index_log(n);
-
-	BT_OBJECT_SET_NEXT_FREE(obj, list->buckets[bucket_idx]);
-	list->buckets[bucket_idx] = obj;
-	
-	gc->freelist_size += size;
-	//gc->bytes_allocated -= size;
 }
 
 /** Attempt to store obj in a freelist instead of actually freeing it */
@@ -285,7 +224,7 @@ static bt_bool attempt_freelist(bt_GC* gc, bt_Object* obj)
 		size_t size = get_object_size(obj);
 		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
 
-		add_to_freelist_log(gc, &gc->free_strings, obj, str->cap, size);
+		add_to_freelist_lin(gc, &gc->free_strings, obj, str->cap, size);
 		return BT_TRUE;
 	}
 	case BT_OBJECT_TYPE_TABLE: {
@@ -330,18 +269,9 @@ static void bt_force_free(bt_Context* context, bt_Object* obj)
 	bt_gc_free(context, obj, get_object_size(obj));
 }
 
-#ifdef BT_DEBUG                                       
-#define ENSURE_POW2(n)                                        \
-	if (!is_pow2(n)) {                                        \
-		assert(0 && "Freelist size must be power of two!");   \
-	}
-#else
-#define ENSURE_POW2(n)
-#endif                                                
-
-static void setup_freelist(bt_GC* gc, bt_FreeList* list, uint32_t size, const size_t is_lin)
+static void setup_freelist(bt_GC* gc, bt_FreeList* list, uint32_t size)
 {
-	list->n_buckets = is_lin ? (size + 1) : nth_pow2(size);
+	list->n_buckets = size + 1;
 	list->buckets = (bt_Object**)bt_gc_alloc(gc->ctx, sizeof(bt_Object*) * list->n_buckets);
 	memset(list->buckets, 0, sizeof(bt_Object*) * list->n_buckets);
 }
@@ -351,11 +281,9 @@ void bt_make_gc(bt_Context* ctx)
 	bt_GC result = { 0 };
 	result.ctx = ctx;
 
-	ENSURE_POW2(BT_FREELIST_STRING_LEN)
-
-	setup_freelist(&result, &result.free_strings, BT_FREELIST_STRING_LEN, BT_FALSE);
-	setup_freelist(&result, &result.free_tables, BT_FREELIST_TABLE_LEN, BT_TRUE);
-	setup_freelist(&result, &result.free_closures, BT_FREELIST_CLOSURE_LEN, BT_TRUE);
+	setup_freelist(&result, &result.free_strings, BT_FREELIST_STRING_LEN);
+	setup_freelist(&result, &result.free_tables, BT_FREELIST_TABLE_LEN);
+	setup_freelist(&result, &result.free_closures, BT_FREELIST_CLOSURE_LEN);
 	
 	ctx->gc = result;
 
@@ -656,7 +584,6 @@ static void clear_freelist(bt_GC* gc, bt_FreeList* list)
 
 			size_t size = get_object_size(current);
 			gc->freelist_size -= size;
-			//gc->bytes_allocated += size;
 			bt_force_free(gc->ctx, current);
 			current = next;
 		}
