@@ -116,6 +116,7 @@ typedef struct bt_String {
 	uint64_t hash;
 	uint32_t interned : 1;
 	uint32_t len : 31;
+	uint32_t cap;
 } bt_String;
 
 /** Gets a pointer to the first character of the string data's inline allocation */
@@ -180,7 +181,7 @@ typedef struct bt_Fn {
 typedef struct bt_Closure {
 	bt_Object obj;
 	bt_Fn* fn;
-	uint32_t num_upv;
+	uint32_t num_upv, cap_upv;
 } bt_Closure;
 
 /** Returns a pointer to the first upvalue contained in closure `c` */

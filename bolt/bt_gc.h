@@ -8,6 +8,16 @@ extern "C" {
 
 #include <stdint.h>
 
+/**
+ * A structure that holds information about the freelists for a given type of object
+ * Bucket indices correspond to powers of 2, such that: 0->1, 1->2, 2->4, 3->8 etc
+ * `mask` tells you whether a bucket has any entries
+ */
+typedef struct bt_FreeList {
+	uint32_t mask, n_buckets;
+	uint64_t* buckets;
+} bt_FreeList;
+	
 /** Contains all internal state for the garbage collector, such as memory stats and pending greys */
 typedef struct bt_GC {
 	size_t next_cycle, bytes_allocated, min_size;
@@ -16,6 +26,12 @@ typedef struct bt_GC {
 	bt_Object** greys;
 	uint32_t pause_count;
 
+	size_t freelist_size, freelist_min, freelist_cap, freelist_max, freelist_growth_pct;
+	bt_FreeList free_strings;
+	bt_FreeList free_tables;
+	bt_FreeList free_closures;
+	bt_bool enable_freelist;
+	
 	bt_Context* ctx;
 } bt_GC;
 
@@ -86,6 +102,27 @@ BOLT_API uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);
 BOLT_API void bt_gc_pause(bt_Context* ctx);
 /** Unpauses the gc, allowing it to cycle. Uses a counter internally to allow safe nesting */
 BOLT_API void bt_gc_unpause(bt_Context* ctx);
+
+/** Get the current capacity for the freelist */
+BOLT_API size_t bt_gc_get_freelist_cap(bt_Context* ctx);
+/** Set the current capacity for the freelist */
+BOLT_API void bt_gc_set_freelist_cap(bt_Context* ctx, size_t freelist_cap);
+
+
+/** Get the current minimum capacity for the freelist */
+BOLT_API size_t bt_gc_get_freelist_min(bt_Context* ctx);
+/** Set the current minimum capacity for the freelist */
+BOLT_API void bt_gc_set_freelist_min(bt_Context* ctx, size_t freelist_min);
+	
+/** Get the current max capacity for the freelist */
+BOLT_API size_t bt_gc_get_freelist_max(bt_Context* ctx);
+/** Set the max capacity for the freelist */
+BOLT_API void bt_gc_set_freelist_max(bt_Context* ctx, size_t freelist_max);
+
+/** Get the freelist growth pct */
+BOLT_API size_t bt_gc_get_freelist_growth_pct(bt_Context* ctx);
+/** Set the freelist growth pct */
+BOLT_API void bt_gc_set_freelist_growth_pct(bt_Context* ctx, size_t growth_pct);
 
 #if __cplusplus
 }

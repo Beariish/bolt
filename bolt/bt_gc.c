@@ -4,12 +4,57 @@
 #include <assert.h>
 #endif
 
+#include <stdio.h>
 #include <string.h>
 
 #include "bt_type.h"
 #include "bt_context.h"
 #include "bt_compiler.h"
 #include "bt_userdata.h"
+
+#include <intrin.h>
+#include <math.h>
+
+uint32_t __inline clz(uint32_t value)
+{
+	uint32_t leading_zero = 0;
+	_BitScanReverse(&leading_zero, value);
+	return leading_zero;
+}
+
+static __inline bt_bool is_pow2(uint32_t n)
+{
+	return n && !(n & (n - 1));
+}
+
+static __inline uint32_t nth_pow2(uint32_t n)
+{
+	return clz(n);
+}
+
+/** Specifically returns the inline allocation size of the object, not that of owned allocations */
+static size_t get_object_size(bt_Object* obj)
+{
+	switch (BT_OBJECT_GET_TYPE(obj)) {
+	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
+	case BT_OBJECT_TYPE_TYPE: return sizeof(bt_Type);
+	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->cap;
+	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
+	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
+	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
+	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
+	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->cap_upv * sizeof(bt_Value);
+	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
+	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity - sizeof(bt_Value);
+	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata) + ((bt_Userdata*)obj)->size;
+	case BT_OBJECT_TYPE_ANNOTATION: return sizeof(bt_Annotation);
+	default:
+#ifdef BT_DEBUG
+		assert(0 && "Attempted to get size of unrecognized type!");
+#endif
+		return 0;
+	}
+}
 
 void* bt_gc_alloc(bt_Context* ctx, size_t size)
 {
@@ -43,16 +88,76 @@ void bt_gc_free(bt_Context* ctx, void* ptr, size_t size)
 	ctx->free(ptr);
 }
 
+static uint32_t get_index(uint32_t n)
+{
+	return is_pow2(n) ? (clz(n)) : ((uint32_t)log2f((float)n) + 1);
+}
+
+static uint32_t store_index(uint32_t n)
+{
+	return is_pow2(n) ? (clz(n)) : ((uint32_t)log2f((float)n));
+}
+
+static bt_Object* get_from_list(bt_GC* gc, bt_FreeList* list, size_t n)
+{
+	if (list->mask == 0) return NULL;
+
+	uint32_t bucket_idx = get_index(n);
+	
+	if (list->mask & (1 << bucket_idx)) {
+		if (list->buckets[bucket_idx] != 0) {
+			uint64_t result = list->buckets[bucket_idx];
+			list->buckets[bucket_idx] = result & BT_OBJ_PTR_BITS;
+			gc->freelist_size -= get_object_size((bt_Object*)result);
+
+			if (list->buckets[bucket_idx] == 0) {
+				list->mask &= ~(1 << bucket_idx);
+			}
+			
+			return (bt_Object*)result;
+		}
+	}
+
+	return NULL;
+}
+
+static bt_Object* attempt_from_freelist(bt_Context* context, uint32_t full_size, bt_ObjectType type)
+{
+	if (!context->gc.enable_freelist) return NULL;
+	
+	switch (type) {
+	case BT_OBJECT_TYPE_STRING: {
+		size_t len = full_size - sizeof(bt_String);
+		return get_from_list(&context->gc, &context->gc.free_strings, len);
+	}
+	case BT_OBJECT_TYPE_TABLE: {
+		size_t len = ((full_size - sizeof(bt_Table)) / sizeof(bt_TablePair)) + 1;
+		return get_from_list(&context->gc, &context->gc.free_tables, len);
+	}
+	case BT_OBJECT_TYPE_CLOSURE: {
+		size_t len = (full_size - sizeof(bt_Closure)) / sizeof(bt_Value);
+		return get_from_list(&context->gc, &context->gc.free_closures, len);
+	}
+	}
+
+	return NULL;
+}
+
 bt_Object* bt_allocate(bt_Context* context, uint32_t full_size, bt_ObjectType type)
 {
-	if (context->gc.bytes_allocated >= context->gc.next_cycle) {
-		bt_collect(&context->gc, 0);
+	bt_Object* obj = attempt_from_freelist(context, full_size, type);
+
+	if (obj == NULL) {
+		if (context->gc.bytes_allocated >= context->gc.next_cycle) {
+			bt_collect(&context->gc, 0);
+		}
+		
+		obj = bt_gc_alloc(context, full_size);
+		memset(obj, 0, full_size); // TODO: Why do we need this?
+
+		BT_OBJECT_SET_TYPE(obj, type);
 	}
 	
-	bt_Object* obj = bt_gc_alloc(context, full_size);
-	memset(obj, 0, full_size);
-
-	BT_OBJECT_SET_TYPE(obj, type);
 	if (context->next) BT_OBJECT_SET_NEXT(context->next, obj);
 	context->next = obj;
 	
@@ -85,6 +190,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		bt_buffer_destroy(context, &mod->constants);
 		bt_buffer_destroy(context, &mod->instructions);
 		bt_buffer_destroy(context, &mod->imports);
+		bt_buffer_destroy(context, &mod->tops);
 
 		if (mod->debug_locs) {
 			bt_buffer_destroy(context, mod->debug_locs);
@@ -102,6 +208,7 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 		bt_Fn* fn = (bt_Fn*)obj;
 		bt_buffer_destroy(context, &fn->constants);
 		bt_buffer_destroy(context, &fn->instructions);
+		bt_buffer_destroy(context, &fn->tops);
 		if (fn->debug) {
 			bt_buffer_destroy(context, fn->debug);
 			bt_gc_free(context, fn->debug, sizeof(bt_DebugLocBuffer));
@@ -132,41 +239,104 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 	}
 }
 
-/** Specifically returns the inline allocation size of the object, not that of owned allocations */
-static size_t get_object_size(bt_Object* obj)
+/** Append an object to freelist using `n` qualifier */
+static void add_to_freelist(bt_GC* gc, bt_FreeList* list, bt_Object* obj, size_t n, size_t size)
 {
-	switch (BT_OBJECT_GET_TYPE(obj)) {
-	case BT_OBJECT_TYPE_NONE: return sizeof(bt_Object);
-	case BT_OBJECT_TYPE_TYPE: return sizeof(bt_Type);
-	case BT_OBJECT_TYPE_STRING: return sizeof(bt_String) + ((bt_String*)obj)->len;
-	case BT_OBJECT_TYPE_MODULE: return sizeof(bt_Module);
-	case BT_OBJECT_TYPE_IMPORT: return sizeof(bt_ModuleImport);
-	case BT_OBJECT_TYPE_FN: return sizeof(bt_Fn);
-	case BT_OBJECT_TYPE_NATIVE_FN: return sizeof(bt_NativeFn);
-	case BT_OBJECT_TYPE_CLOSURE: return sizeof(bt_Closure) + ((bt_Closure*)obj)->num_upv * sizeof(bt_Value);
-	case BT_OBJECT_TYPE_ARRAY: return sizeof(bt_Array);
-	case BT_OBJECT_TYPE_TABLE: return sizeof(bt_Table) + sizeof(bt_TablePair) * ((bt_Table*)obj)->inline_capacity - sizeof(bt_Value);
-	case BT_OBJECT_TYPE_USERDATA: return sizeof(bt_Userdata) + ((bt_Userdata*)obj)->size;
-	case BT_OBJECT_TYPE_ANNOTATION: return sizeof(bt_Annotation);
-	default:
-#ifdef BT_DEBUG
-		assert(0 && "Attempted to get size of unrecognized type!");
-#endif
-		return 0;
-	}
+	size_t bucket_idx = store_index(n);
+	bucket_idx = bucket_idx < list->n_buckets ? bucket_idx : (list->n_buckets - 1);
+	BT_OBJECT_SET_NEXT(obj, list->buckets[bucket_idx]);
+	list->buckets[bucket_idx] = (uint64_t)obj;
+	list->mask |= (1 << bucket_idx);
+	gc->freelist_size += size;
+}
 
+/** Attempt to store obj in a freelist instead of actually freeing it */
+static bt_bool attempt_freelist(bt_GC* gc, bt_Object* obj)
+{
+	if (!gc->enable_freelist) return BT_FALSE;
+	
+	switch (BT_OBJECT_GET_TYPE(obj)) {
+	case BT_OBJECT_TYPE_STRING: {
+		bt_String* str = (bt_String*)obj;
+		if (str->cap > BT_FREELIST_STRING_LEN) return BT_FALSE;
+		
+		size_t size = get_object_size(obj);
+		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
+
+		add_to_freelist(gc, &gc->free_strings, obj, str->cap, size);
+		return BT_TRUE;
+	}
+	case BT_OBJECT_TYPE_TABLE: {
+		bt_Table* tbl = (bt_Table*)obj;
+		if (!tbl->is_inline || tbl->inline_capacity > BT_FREELIST_TABLE_LEN) return BT_FALSE;
+		
+		size_t size = get_object_size(obj);
+		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
+
+		add_to_freelist(gc, &gc->free_tables, obj, tbl->inline_capacity, size);
+		return BT_TRUE;
+	}
+	case BT_OBJECT_TYPE_CLOSURE: {
+		bt_Closure* cls = (bt_Closure*)obj;
+		if (cls->cap_upv > BT_FREELIST_CLOSURE_LEN) return BT_FALSE;
+		
+		size_t size = get_object_size(obj);
+		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
+
+		add_to_freelist(gc, &gc->free_closures, obj, cls->cap_upv, size);
+		return BT_TRUE;
+	}
+	}
+	
+	return BT_FALSE;
 }
 
 void bt_free(bt_Context* context, bt_Object* obj)
 {
+	if (!attempt_freelist(&context->gc, obj)) {
+		free_subobjects(context, obj);
+		bt_gc_free(context, obj, get_object_size(obj));
+	}
+}
+
+/** Frees wihtout freelisting */
+static void bt_force_free(bt_Context* context, bt_Object* obj)
+{
 	free_subobjects(context, obj);
 	bt_gc_free(context, obj, get_object_size(obj));
+}
+
+#ifdef BT_DEBUG                                       
+#define ENSURE_POW2(n)                                        \
+	if (!is_pow2(n)) {                                        \
+		assert(0 && "Freelist size must be power of two!");   \
+	}
+#else
+#define ENSURE_POW2(n)
+#endif                                                
+
+static void setup_freelist(bt_GC* gc, bt_FreeList* list, size_t size)
+{
+	list->n_buckets = nth_pow2(size);
+	list->buckets = bt_gc_alloc(gc->ctx, sizeof(uint64_t) * list->n_buckets);
+	memset(list->buckets, 0, sizeof(uint64_t) * list->n_buckets);
+	list->mask = 0;
 }
 
 void bt_make_gc(bt_Context* ctx)
 {
 	bt_GC result = { 0 };
 	result.ctx = ctx;
+
+	ENSURE_POW2(BT_FREELIST_STRING_LEN);
+	ENSURE_POW2(BT_FREELIST_TABLE_LEN);
+	ENSURE_POW2(BT_FREELIST_CLOSURE_LEN);
+
+	setup_freelist(&result, &result.free_strings, BT_FREELIST_STRING_LEN);
+	setup_freelist(&result, &result.free_tables, BT_FREELIST_TABLE_LEN);
+	setup_freelist(&result, &result.free_closures, BT_FREELIST_CLOSURE_LEN);
+	result.enable_freelist = BT_TRUE;
+	
 	ctx->gc = result;
 
 	bt_gc_set_grey_cap(ctx, 256);
@@ -174,6 +344,11 @@ void bt_make_gc(bt_Context* ctx)
 	bt_gc_set_min_size(ctx, ctx->gc.next_cycle);
 	bt_gc_set_growth_pct(ctx, 150);
 	bt_gc_set_pause_growth_pct(ctx, 115);
+	
+	bt_gc_set_freelist_min(ctx, 1024 * 1024 * 8); // 16mb
+	bt_gc_set_freelist_cap(ctx, 1024 * 1024 * 8); // 16mb
+	bt_gc_set_freelist_max(ctx, 1024 * 1024 * 32); // 128mb
+	bt_gc_set_freelist_growth_pct(ctx, 125);
 }
 
 void bt_destroy_gc(bt_Context* ctx, bt_GC* gc)
@@ -231,6 +406,46 @@ size_t bt_gc_get_pause_growth_pct(bt_Context* ctx)
 void bt_gc_set_pause_growth_pct(bt_Context* ctx, size_t growth_pct)
 {
 	ctx->gc.pause_growth_pct = (uint32_t)growth_pct;
+}
+
+size_t bt_gc_get_freelist_cap(bt_Context* ctx)
+{
+	return ctx->gc.freelist_cap;	
+}
+
+void bt_gc_set_freelist_cap(bt_Context* ctx, size_t freelist_cap)
+{
+	ctx->gc.freelist_cap = freelist_cap;
+}
+
+size_t bt_gc_get_freelist_min(bt_Context* ctx)
+{
+	return ctx->gc.freelist_min;	
+}
+
+void bt_gc_set_freelist_min(bt_Context* ctx, size_t freelist_min)
+{
+	ctx->gc.freelist_min = freelist_min;
+}
+
+size_t bt_gc_get_freelist_max(bt_Context* ctx)
+{
+	return ctx->gc.freelist_max;
+}
+
+void bt_gc_set_freelist_max(bt_Context* ctx, size_t freelist_max)
+{
+	ctx->gc.freelist_max = freelist_max;
+}
+
+size_t bt_gc_get_freelist_growth_pct(bt_Context* ctx)
+{
+	return ctx->gc.freelist_growth_pct;
+}
+
+void bt_gc_set_freelist_growth_pct(bt_Context* ctx, size_t growth_pct)
+{
+	ctx->gc.freelist_growth_pct = growth_pct;
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
@@ -390,6 +605,22 @@ static void calc_next_cycle(bt_GC* gc, size_t growth_factor)
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
 }
 
+static void clear_freelist(bt_GC* gc, bt_FreeList* list)
+{
+	list->mask = 0;
+	for (size_t i = 0; i < list->n_buckets; i++) {
+		bt_Object* current = (bt_Object*)list->buckets[i];
+		while (current) {
+			bt_Object*restrict next = (bt_Object*restrict)BT_OBJECT_NEXT(current);
+			gc->freelist_size -= get_object_size(current);
+			bt_force_free(gc->ctx, current);
+			current = next;
+		}
+
+		list->buckets[i] = 0;
+	}
+}
+
 uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 {
 	if (gc->pause_count > 0) {
@@ -471,11 +702,19 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 			}
 		}
 	}
+
+	// Clear any remaining temps in freelists
+	clear_freelist(gc, &gc->free_strings);
+	clear_freelist(gc, &gc->free_tables);
+	clear_freelist(gc, &gc->free_closures);
+	#ifdef BT_DEBUG
+	assert(gc->freelist_size == 0 && "Expxected freelist to be empty!");
+	#endif
 	
 	uint32_t n_collected = 0;
 
 	bt_Object* prev = ctx->root;
-	bt_Object* current = (bt_Object*)BT_OBJECT_NEXT(prev);
+	bt_Object *restrict current = (bt_Object*restrict)BT_OBJECT_NEXT(prev);
 
 	bt_Thread gc_thread = { 0 };
 	gc_thread.context = ctx;
@@ -489,7 +728,7 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 			BT_OBJECT_CLEAR(current);
 
 			prev = current;
-			current = (bt_Object*)BT_OBJECT_NEXT(current);
+			current = (bt_Object*restrict)BT_OBJECT_NEXT(current);
 		}
 		else {
 			bt_Object* to_free = current;
@@ -509,6 +748,11 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	}
 
 	calc_next_cycle(gc, gc->cycle_growth_pct);
+
+	gc->freelist_cap = (gc->freelist_size * gc->freelist_growth_pct) / 100;
+	if (gc->freelist_cap < gc->freelist_min) gc->freelist_cap = gc->freelist_min;
+	if (gc->freelist_cap > gc->freelist_max) gc->freelist_cap = gc->freelist_max;
+	
 	ctx->current_thread = old_thr;
 
 	return n_collected;

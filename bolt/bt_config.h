@@ -4,7 +4,7 @@
 // Whether or not these are enabled shouldn't intergere with ABI boundary, but behvaiour may vary between compilers
 
 // Enabling this dots a lot of the bolt internals with assertions, useful to hunt down unwanted behavour
-//#define BT_DEBUG
+#define BT_DEBUG
 
 // Use explicit butmasking in order to utilize otherwise-zero'd bits inside the GC next pointer
 // This reduces the size of ALL BOLT OBJECTS by 8 bytes, but does make debugging more challenging
@@ -86,4 +86,19 @@
 // The stack size for the temporary string that bt_to_string uses during conversion
 #ifndef BT_TO_STRING_BUF_LENGTH
 #define BT_TO_STRING_BUF_LENGTH 1024
+#endif
+
+// The maximum length of a string to be cached in the gc freelist (must be power of 2)
+#ifndef BT_FREELIST_STRING_LEN
+#define BT_FREELIST_STRING_LEN 256
+#endif
+
+// The maximum length of an inline table to be cached in the gc freelist (must be power of 2)
+#ifndef BT_FREELIST_TABLE_LEN
+#define BT_FREELIST_TABLE_LEN 256
+#endif
+
+// The maximum number of upvalues in a closure for it to be cached in the gc freelist (must be power of 2)
+#ifndef BT_FREELIST_CLOSURE_LEN
+#define BT_FREELIST_CLOSURE_LEN 256
 #endif
