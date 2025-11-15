@@ -13,6 +13,7 @@
 
 #include <intrin.h>
 #include <math.h>
+#include <stdio.h>
 
 uint32_t __inline clz(uint32_t value)
 {
@@ -92,39 +93,38 @@ static uint32_t get_index_log(uint32_t n)
 	return is_pow2(n) ? (clz(n)) : ((uint32_t)log2f((float)n) + 1);
 }
 
-static uint32_t get_index_lin(uint32_t n)
-{
-	return n;
-}
-
 static uint32_t store_index_log(uint32_t n)
 {
 	return is_pow2(n) ? (clz(n)) : ((uint32_t)log2f((float)n));
 }
 
-static uint32_t store_index_lin(uint32_t n)
+static bt_Object* get_from_list_lin(bt_GC* gc, bt_FreeList* list, size_t n)
 {
-	return n;
+	bt_Object* result = list->buckets[n];
+	if (result != 0) {
+		list->buckets[n] = BT_OBJECT_NEXT_FREE(result);
+		
+		size_t size = get_object_size(result);
+		gc->freelist_size -= size;
+		//gc->bytes_allocated += size;
+	}
+
+	return result;
 }
 
-static bt_Object* get_from_list(bt_GC* gc, bt_FreeList* list, size_t n, const size_t is_lin)
+static bt_Object* get_from_list_log(bt_GC* gc, bt_FreeList* list, size_t n)
 {
-	if (list->mask == 0) return NULL;
-
-	uint32_t bucket_idx = is_lin ? get_index_lin(n) : get_index_log(n);
+	uint32_t bucket_idx = get_index_log(n);
 	
-	if (list->mask & (1 << bucket_idx)) {
-		if (list->buckets[bucket_idx] != 0) {
-			uint64_t result = list->buckets[bucket_idx];
-			list->buckets[bucket_idx] = result & BT_OBJ_PTR_BITS;
-			gc->freelist_size -= get_object_size((bt_Object*)result);
-
-			if (list->buckets[bucket_idx] == 0) {
-				list->mask &= ~(1 << bucket_idx);
-			}
-			
-			return (bt_Object*)result;
-		}
+	if (list->buckets[bucket_idx] != 0) {
+		bt_Object* result = list->buckets[bucket_idx];
+		list->buckets[bucket_idx] = BT_OBJECT_NEXT_FREE(result);
+		
+		size_t size = get_object_size(result);
+		gc->freelist_size -= size;
+		//gc->bytes_allocated += size;
+		
+		return result;
 	}
 
 	return NULL;
@@ -137,15 +137,18 @@ static bt_Object* attempt_from_freelist(bt_Context* context, uint32_t full_size,
 	switch (type) {
 	case BT_OBJECT_TYPE_STRING: {
 		size_t len = full_size - sizeof(bt_String);
-		return get_from_list(&context->gc, &context->gc.free_strings, len, BT_FALSE);
+		if (len > BT_FREELIST_STRING_LEN) return NULL;
+		return get_from_list_log(&context->gc, &context->gc.free_strings, len);
 	}
 	case BT_OBJECT_TYPE_TABLE: {
 		size_t len = ((full_size - sizeof(bt_Table)) / sizeof(bt_TablePair)) + 1;
-		return get_from_list(&context->gc, &context->gc.free_tables, len, BT_TRUE);
+		if (len > BT_FREELIST_TABLE_LEN) return NULL;
+		return get_from_list_lin(&context->gc, &context->gc.free_tables, len);
 	}
 	case BT_OBJECT_TYPE_CLOSURE: {
 		size_t len = (full_size - sizeof(bt_Closure)) / sizeof(bt_Value);
-		return get_from_list(&context->gc, &context->gc.free_closures, len, BT_TRUE);
+		if (len > BT_FREELIST_CLOSURE_LEN) return NULL;
+		return get_from_list_lin(&context->gc, &context->gc.free_closures, len);
 	}
 	}
 
@@ -249,14 +252,24 @@ static void free_subobjects(bt_Context* context, bt_Object* obj)
 }
 
 /** Append an object to freelist using `n` qualifier */
-static void add_to_freelist(bt_GC* gc, bt_FreeList* list, bt_Object* obj, size_t n, size_t size, const size_t is_lin)
+static void add_to_freelist_lin(bt_GC* gc, bt_FreeList* list, bt_Object* obj, size_t n, size_t size)
 {
-	size_t bucket_idx = is_lin ? store_index_lin(n) : store_index_log(n);
-	bucket_idx = bucket_idx < list->n_buckets ? bucket_idx : (list->n_buckets - 1);
-	BT_OBJECT_SET_NEXT(obj, list->buckets[bucket_idx]);
-	list->buckets[bucket_idx] = (uint64_t)obj;
-	list->mask |= (1 << bucket_idx);
+	BT_OBJECT_SET_NEXT_FREE(obj, list->buckets[n]);
+	list->buckets[n] = obj;
+	
 	gc->freelist_size += size;
+	//gc->bytes_allocated -= size;
+}
+
+static void add_to_freelist_log(bt_GC* gc, bt_FreeList* list, bt_Object* obj, size_t n, size_t size)
+{
+	size_t bucket_idx = store_index_log(n);
+
+	BT_OBJECT_SET_NEXT_FREE(obj, list->buckets[bucket_idx]);
+	list->buckets[bucket_idx] = obj;
+	
+	gc->freelist_size += size;
+	//gc->bytes_allocated -= size;
 }
 
 /** Attempt to store obj in a freelist instead of actually freeing it */
@@ -272,7 +285,7 @@ static bt_bool attempt_freelist(bt_GC* gc, bt_Object* obj)
 		size_t size = get_object_size(obj);
 		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
 
-		add_to_freelist(gc, &gc->free_strings, obj, str->cap, size, BT_FALSE);
+		add_to_freelist_log(gc, &gc->free_strings, obj, str->cap, size);
 		return BT_TRUE;
 	}
 	case BT_OBJECT_TYPE_TABLE: {
@@ -280,9 +293,11 @@ static bt_bool attempt_freelist(bt_GC* gc, bt_Object* obj)
 		if (!tbl->is_inline || tbl->inline_capacity > BT_FREELIST_TABLE_LEN) return BT_FALSE;
 		
 		size_t size = get_object_size(obj);
-		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
+		if (gc->freelist_cap - gc->freelist_size < size) {
+			return BT_FALSE;
+		}
 
-		add_to_freelist(gc, &gc->free_tables, obj, tbl->inline_capacity, size, BT_TRUE);
+		add_to_freelist_lin(gc, &gc->free_tables, obj, tbl->inline_capacity, size);
 		return BT_TRUE;
 	}
 	case BT_OBJECT_TYPE_CLOSURE: {
@@ -292,7 +307,7 @@ static bt_bool attempt_freelist(bt_GC* gc, bt_Object* obj)
 		size_t size = get_object_size(obj);
 		if (gc->freelist_cap - gc->freelist_size < size) return BT_FALSE;
 
-		add_to_freelist(gc, &gc->free_closures, obj, cls->cap_upv, size, BT_TRUE);
+		add_to_freelist_lin(gc, &gc->free_closures, obj, cls->cap_upv, size);
 		return BT_TRUE;
 	}
 	}
@@ -327,9 +342,8 @@ static void bt_force_free(bt_Context* context, bt_Object* obj)
 static void setup_freelist(bt_GC* gc, bt_FreeList* list, uint32_t size, const size_t is_lin)
 {
 	list->n_buckets = is_lin ? (size + 1) : nth_pow2(size);
-	list->buckets = bt_gc_alloc(gc->ctx, sizeof(uint64_t) * list->n_buckets);
-	memset(list->buckets, 0, sizeof(uint64_t) * list->n_buckets);
-	list->mask = 0;
+	list->buckets = (bt_Object**)bt_gc_alloc(gc->ctx, sizeof(bt_Object*) * list->n_buckets);
+	memset(list->buckets, 0, sizeof(bt_Object*) * list->n_buckets);
 }
 
 void bt_make_gc(bt_Context* ctx)
@@ -342,7 +356,6 @@ void bt_make_gc(bt_Context* ctx)
 	setup_freelist(&result, &result.free_strings, BT_FREELIST_STRING_LEN, BT_FALSE);
 	setup_freelist(&result, &result.free_tables, BT_FREELIST_TABLE_LEN, BT_TRUE);
 	setup_freelist(&result, &result.free_closures, BT_FREELIST_CLOSURE_LEN, BT_TRUE);
-	result.enable_freelist = BT_TRUE;
 	
 	ctx->gc = result;
 
@@ -350,12 +363,14 @@ void bt_make_gc(bt_Context* ctx)
 	bt_gc_set_next_cycle(ctx, 1024 * 1024 * 32); // 32mb
 	bt_gc_set_min_size(ctx, ctx->gc.next_cycle);
 	bt_gc_set_growth_pct(ctx, 150);
+	bt_gc_set_min_growth_pct(ctx, 101);
 	bt_gc_set_pause_growth_pct(ctx, 115);
 	
-	bt_gc_set_freelist_min(ctx, 1024 * 1024 * 8); // 16mb
-	bt_gc_set_freelist_cap(ctx, 1024 * 1024 * 8); // 16mb
-	bt_gc_set_freelist_max(ctx, 1024 * 1024 * 32); // 128mb
-	bt_gc_set_freelist_growth_pct(ctx, 125);
+	bt_gc_set_freelist_enabled(ctx, BT_TRUE);
+	bt_gc_set_freelist_min(ctx, 1024 * 1024 * 4); // 4mb
+	bt_gc_set_freelist_cap(ctx, 1024 * 1024 * 8); // 8mb
+	bt_gc_set_freelist_max(ctx, 1024 * 1024 * 32); // 32mb
+	bt_gc_set_freelist_growth_pct(ctx, 175);
 }
 
 void bt_destroy_gc(bt_Context* ctx, bt_GC* gc)
@@ -415,6 +430,16 @@ void bt_gc_set_pause_growth_pct(bt_Context* ctx, size_t growth_pct)
 	ctx->gc.pause_growth_pct = (uint32_t)growth_pct;
 }
 
+bt_bool bt_gc_get_freelist_enabled(bt_Context* ctx)
+{
+	return ctx->gc.enable_freelist;
+}
+
+void bt_gc_set_freelist_enabled(bt_Context* ctx, bt_bool enabled)
+{
+	ctx->gc.enable_freelist = enabled;	
+}
+
 size_t bt_gc_get_freelist_cap(bt_Context* ctx)
 {
 	return ctx->gc.freelist_cap;	
@@ -453,6 +478,16 @@ size_t bt_gc_get_freelist_growth_pct(bt_Context* ctx)
 void bt_gc_set_freelist_growth_pct(bt_Context* ctx, size_t growth_pct)
 {
 	ctx->gc.freelist_growth_pct = growth_pct;
+}
+
+size_t bt_gc_get_min_growth_pct(bt_Context* ctx)
+{
+	return ctx->gc.min_cycle_growth;
+}
+
+void bt_gc_set_min_growth_pct(bt_Context* ctx, size_t growth_pct)
+{
+	ctx->gc.min_cycle_growth = growth_pct;	
 }
 
 static void grey(bt_GC* gc, bt_Object* obj) {
@@ -608,18 +643,20 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 
 static void calc_next_cycle(bt_GC* gc, size_t growth_factor)
 {
-	gc->next_cycle = (gc->bytes_allocated * growth_factor) / 100;
+	gc->next_cycle = ((gc->bytes_allocated) * growth_factor) / 100;
 	if (gc->next_cycle < gc->min_size) gc->next_cycle = gc->min_size;
 }
 
 static void clear_freelist(bt_GC* gc, bt_FreeList* list)
 {
-	list->mask = 0;
 	for (size_t i = 0; i < list->n_buckets; i++) {
 		bt_Object* current = (bt_Object*)list->buckets[i];
 		while (current) {
-			bt_Object*restrict next = (bt_Object*restrict)BT_OBJECT_NEXT(current);
-			gc->freelist_size -= get_object_size(current);
+			bt_Object*restrict next = (bt_Object*restrict)BT_OBJECT_NEXT_FREE(current);
+
+			size_t size = get_object_size(current);
+			gc->freelist_size -= size;
+			//gc->bytes_allocated += size;
 			bt_force_free(gc->ctx, current);
 			current = next;
 		}
@@ -754,7 +791,11 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		}
 	}
 
-	calc_next_cycle(gc, gc->cycle_growth_pct);
+	double churn = (double)gc->freelist_size / (double)gc->bytes_allocated;
+	size_t next_cycle = (size_t)(100.0 + ((double)gc->cycle_growth_pct - 100.0) * (1.0 - churn));
+	if (next_cycle <= 100) next_cycle = gc->min_cycle_growth;
+	
+	calc_next_cycle(gc, next_cycle);
 
 	gc->freelist_cap = (gc->freelist_size * gc->freelist_growth_pct) / 100;
 	if (gc->freelist_cap < gc->freelist_min) gc->freelist_cap = gc->freelist_min;

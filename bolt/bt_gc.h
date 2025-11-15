@@ -10,23 +10,21 @@ extern "C" {
 
 /**
  * A structure that holds information about the freelists for a given type of object
- * Bucket indices correspond to powers of 2, such that: 0->1, 1->2, 2->4, 3->8 etc
- * `mask` tells you whether a bucket has any entries
  */
 typedef struct bt_FreeList {
-	uint32_t mask, n_buckets;
-	uint64_t* buckets;
+	uint32_t n_buckets;
+	bt_Object** buckets;
 } bt_FreeList;
 	
 /** Contains all internal state for the garbage collector, such as memory stats and pending greys */
 typedef struct bt_GC {
 	size_t next_cycle, bytes_allocated, min_size;
-	uint32_t pause_growth_pct, cycle_growth_pct;
+	uint32_t pause_growth_pct, cycle_growth_pct, min_cycle_growth;
 	uint32_t grey_cap, grey_count;
 	bt_Object** greys;
 	uint32_t pause_count;
 
-	size_t freelist_size, freelist_min, freelist_cap, freelist_max, freelist_growth_pct;
+	int64_t freelist_size, freelist_min, freelist_cap, freelist_max, freelist_growth_pct;
 	bt_FreeList free_strings;
 	bt_FreeList free_tables;
 	bt_FreeList free_closures;
@@ -87,7 +85,12 @@ BOLT_API void bt_gc_set_grey_cap(bt_Context* ctx, uint32_t grey_cap);
 BOLT_API size_t bt_gc_get_growth_pct(bt_Context* ctx);
 /** Set the percentage of slack required for the next cycle after one finishes, expressed as an integer */
 BOLT_API void bt_gc_set_growth_pct(bt_Context* ctx, size_t growth_pct);
-
+	
+/** Get the minimum percentage of slack required for the next cycle if churn is at maximum, expressed as an integer */
+BOLT_API size_t bt_gc_get_min_growth_pct(bt_Context* ctx);
+/** Get the minimum percentage of slack required for the next cycle if churn is at maximum, expressed as an integer */
+BOLT_API void bt_gc_set_min_growth_pct(bt_Context* ctx, size_t growth_pct);
+	
 /** Get the percentage of slack given if the gc hits the threshold during a pause, expressed as an integer */
 BOLT_API size_t bt_gc_get_pause_growth_pct(bt_Context* ctx);
 /** Set the percentage of slack given if the gc hits the threshold during a pause, expressed as an integer */
@@ -102,12 +105,16 @@ BOLT_API uint32_t bt_collect(bt_GC* gc, uint32_t max_collect);
 BOLT_API void bt_gc_pause(bt_Context* ctx);
 /** Unpauses the gc, allowing it to cycle. Uses a counter internally to allow safe nesting */
 BOLT_API void bt_gc_unpause(bt_Context* ctx);
-
+	
+/** Get whether the gc freelist is enabled */
+BOLT_API bt_bool bt_gc_get_freelist_enabled(bt_Context* ctx);
+/** Set whether the gc freelist is enabled */
+BOLT_API void bt_gc_set_freelist_enabled(bt_Context* ctx, bt_bool enabled);
+	
 /** Get the current capacity for the freelist */
 BOLT_API size_t bt_gc_get_freelist_cap(bt_Context* ctx);
 /** Set the current capacity for the freelist */
 BOLT_API void bt_gc_set_freelist_cap(bt_Context* ctx, size_t freelist_cap);
-
 
 /** Get the current minimum capacity for the freelist */
 BOLT_API size_t bt_gc_get_freelist_min(bt_Context* ctx);
