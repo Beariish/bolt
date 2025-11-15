@@ -93,12 +93,12 @@
 #define BT_FREELIST_STRING_LEN 256
 #endif
 
-// The maximum length of an inline table to be cached in the gc freelist (must be power of 2)
+// The maximum length of an inline table to be cached in the gc freelist
 #ifndef BT_FREELIST_TABLE_LEN
-#define BT_FREELIST_TABLE_LEN 256
+#define BT_FREELIST_TABLE_LEN 15
 #endif
 
-// The maximum number of upvalues in a closure for it to be cached in the gc freelist (must be power of 2)
+// The maximum number of upvalues in a closure for it to be cached in the gc freelist
 #ifndef BT_FREELIST_CLOSURE_LEN
-#define BT_FREELIST_CLOSURE_LEN 256
+#define BT_FREELIST_CLOSURE_LEN 15
 #endif
