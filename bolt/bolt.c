@@ -885,7 +885,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 	BT_PREFETCH_READ_MODERATE((const char*)stack);
 	bt_Value* upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
 	bt_Object* obj, * obj2;
-
+	int16_t tmp;
 
 #ifndef BOLT_USE_INLINE_THREADING
 	register bt_Op op;
@@ -985,30 +985,32 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			NEXT;
 			
 		CASE(LOAD_IDX):
-			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			tmp = BT_GET_B(op);
+			obj = BT_AS_OBJECT(stack[tmp]);
 			if (BT_IS_ACCELERATED(op)) {
-				if (BT_IS_FAST(stack[BT_GET_B(op)])) {
+				if (BT_IS_FAST(stack[tmp])) {
 					stack[BT_GET_A(op)] = (BT_TABLE_PAIRS(obj) + BT_GET_C(op))->value;
 					ip++; // skip the ext op
 				}
 				else {
-					obj2 = (bt_Object*)(uintptr_t)BT_GET_A(op); // save this, as we modify op
-					stack[(uint8_t)obj2] = bt_get(context, obj, constants[BT_GET_IBC(*(++ip))]);
+					tmp = BT_GET_A(op); // save this, as we modify op
+					stack[tmp] = bt_get(context, obj, constants[BT_GET_IBC((*(++ip)))]);
 				}
 			} else stack[BT_GET_A(op)] = bt_get(context, obj, stack[BT_GET_C(op)]); 
 		NEXT;
 
 		CASE(STORE_IDX):
-			obj = BT_AS_OBJECT(stack[BT_GET_A(op)]);
+			tmp = BT_GET_A(op);
+			obj = BT_AS_OBJECT(stack[tmp]);
 
 			if (BT_IS_ACCELERATED(op))	{
-				if (BT_IS_FAST(stack[BT_GET_A(op)])) {
+				if (BT_IS_FAST(stack[tmp])) {
 					(BT_TABLE_PAIRS(obj) + BT_GET_B(op))->value = stack[BT_GET_C(op)];
 					ip++; // skip the ext op
 				}
 				else {
-					obj2 = (bt_Object*)(intptr_t)BT_GET_C(op); // save this, as we modify op
-					bt_set(context, obj, constants[BT_GET_IBC(*(++ip))], stack[(uint8_t)obj2]);
+					tmp = BT_GET_C(op); // save this, as we modify op
+					bt_set(context, obj, constants[BT_GET_IBC((*(++ip)))], stack[tmp]);
 				}
 			}
 			else bt_set(context, obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
@@ -1018,33 +1020,35 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			if (BT_IS_ACCELERATED(op)) {
 				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
 				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, (sizeof(bt_TablePair) * BT_GET_B(op)) - sizeof(bt_Value));
-				uint16_t inl = ((bt_Table*)obj2)->inline_capacity;
+				tmp = ((bt_Table*)obj2)->inline_capacity;
 				memcpy((char*)obj2 + sizeof(bt_Object), 
 					((char*)((bt_Type*)obj)->as.table_shape.tmpl) + sizeof(bt_Object),
 					(sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Value));
-				if (inl) ((bt_Table*)obj2)->inline_capacity = inl;
+				if (tmp) ((bt_Table*)obj2)->inline_capacity = tmp;
 				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 			}
 			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
 		NEXT;
 
 		CASE(ARRAY):
-			obj = (bt_Object*)bt_make_array(context, BT_GET_IBC(op));
-			((bt_Array*)obj)->length = BT_GET_IBC(op);
+			tmp = BT_GET_IBC(op);
+			obj = (bt_Object*)bt_make_array(context, tmp);
+			((bt_Array*)obj)->length = tmp;
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
 		NEXT;
 
 		CASE(EXPORT): bt_module_export(context, module, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
 
 		CASE(CLOSE):
-			obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * BT_GET_C(op));
+			tmp = BT_GET_C(op);
+			obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * tmp);
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
-			for (uint8_t i = 0; i < BT_GET_C(op); i++) {
+			for (uint8_t i = 0; i < tmp; i++) {
 				BT_CLOSURE_UPVALS(obj2)[i] = stack[BT_GET_B(op) + 1 + i];
 			}
 			((bt_Closure*)obj2)->fn = (bt_Fn*)obj;
-			((bt_Closure*)obj2)->num_upv = BT_GET_C(op);
-			if (((bt_Closure*)obj2)->cap_upv == 0) ((bt_Closure*)obj2)->cap_upv = BT_GET_C(op);
+			((bt_Closure*)obj2)->num_upv = tmp;
+			if (((bt_Closure*)obj2)->cap_upv == 0) ((bt_Closure*)obj2)->cap_upv = tmp;
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 		NEXT;
 
@@ -1058,11 +1062,12 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		CASE(TCHECK): stack[BT_GET_A(op)] = bt_is_type(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)])) ? BT_VALUE_TRUE : BT_VALUE_FALSE; NEXT;
 		CASE(TCAST):
-			if (bt_can_cast(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
-				if (BT_IS_OBJECT(stack[BT_GET_B(op)])) {
-					stack[BT_GET_A(op)] = BT_MAKE_SLOW(stack[BT_GET_B(op)]);
+			tmp = BT_GET_B(op);
+			if (bt_can_cast(stack[tmp], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]))) {
+				if (BT_IS_OBJECT(stack[tmp])) {
+					stack[BT_GET_A(op)] = BT_MAKE_SLOW(stack[tmp]);
 				} else {
-					stack[BT_GET_A(op)] = bt_value_cast(stack[BT_GET_B(op)], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
+					stack[BT_GET_A(op)] = bt_value_cast(stack[tmp], (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]));
 				}
 			} else {
 				stack[BT_GET_A(op)] = BT_VALUE_NULL;
@@ -1080,27 +1085,28 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 			obj2 = (bt_Object*)(uint64_t)thread->top;
 
-			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
+			tmp = BT_GET_B(op);
+			obj = BT_AS_OBJECT(stack[tmp]);
 
-			thread->top += BT_GET_B(op) + 1;
+			thread->top += tmp + 1;
 
 			switch (BT_OBJECT_GET_TYPE(obj)) {
 			case BT_OBJECT_TYPE_FN:
 				if (thread->top + ((bt_Fn*)obj)->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Fn*)obj)->stack_size, 0);
-				call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
+				call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (tmp + 1));
 			break;
 			case BT_OBJECT_TYPE_CLOSURE:
 				switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
 				case BT_OBJECT_TYPE_FN:
 					if (thread->top + ((bt_Closure*)obj)->fn->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 					thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
-					call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (BT_GET_B(op) + 1));
+					call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (tmp + 1));
 					break;
 				case BT_OBJECT_TYPE_NATIVE_FN:
 					thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
 
-					thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
+					thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (tmp + 1);
 					thread->native_stack[thread->native_depth].argc = BT_GET_C(op);
 					thread->native_depth++;
 
@@ -1113,7 +1119,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			case BT_OBJECT_TYPE_NATIVE_FN:
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, 0, 0);
 
-				thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (BT_GET_B(op) + 1);
+				thread->native_stack[thread->native_depth].return_loc = BT_GET_A(op) - (tmp + 1);
 				thread->native_stack[thread->native_depth].argc = BT_GET_C(op);
 				thread->native_depth++;
 
@@ -1136,20 +1142,21 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 
 		obj = (bt_Object*)BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]);
 
-		thread->top += BT_GET_B(op);
+		tmp = BT_GET_B(op);
+		thread->top += tmp;
 
 		switch (BT_OBJECT_GET_TYPE(obj)) {
 		case BT_OBJECT_TYPE_FN:
 			if (thread->top + ((bt_Fn*)obj)->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 			thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Fn*)obj)->stack_size, 0);
-			call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - (BT_GET_B(op)));
+			call(context, thread, ((bt_Fn*)obj)->module, ((bt_Fn*)obj)->instructions.elements, ((bt_Fn*)obj)->constants.elements, BT_GET_A(op) - tmp);
 			break;
 		case BT_OBJECT_TYPE_CLOSURE:
 			switch (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn)) {
 			case BT_OBJECT_TYPE_FN:
 				if (thread->top + ((bt_Closure*)obj)->fn->stack_size >= BT_STACK_SIZE) bt_runtime_error(thread, "Value stack overflow!", ip);
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
-				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - (BT_GET_B(op)));
+				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, BT_GET_A(op) - tmp);
 				break;
 			default: bt_runtime_error(thread, "Closure contained unsupported callable type.", ip);
 			}
@@ -1168,17 +1175,19 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 		CASE(END): RETURN;
 
 		CASE(NUMFOR):
-			stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_A(op)]) + BT_AS_NUMBER(stack[BT_GET_A(op) + 1]));
-			if (stack[BT_GET_A(op) + 3] == BT_VALUE_TRUE) {
-				if (BT_AS_NUMBER(stack[BT_GET_A(op)]) >= BT_AS_NUMBER(stack[BT_GET_A(op) + 2])) ip += BT_GET_IBC(op);
+			tmp = BT_GET_A(op);
+			stack[tmp] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[tmp]) + BT_AS_NUMBER(stack[tmp + 1]));
+			if (stack[tmp + 3] == BT_VALUE_TRUE) {
+				if (BT_AS_NUMBER(stack[tmp]) >= BT_AS_NUMBER(stack[tmp + 2])) ip += BT_GET_IBC(op);
 			} else {
-				if (BT_AS_NUMBER(stack[BT_GET_A(op)]) <= BT_AS_NUMBER(stack[BT_GET_A(op) + 2])) ip += BT_GET_IBC(op);
+				if (BT_AS_NUMBER(stack[tmp]) <= BT_AS_NUMBER(stack[tmp + 2])) ip += BT_GET_IBC(op);
 			}
 		NEXT;
 
 		CASE(ITERFOR):
-			obj = BT_AS_OBJECT(stack[BT_GET_A(op) + 1]);
-			thread->top += BT_GET_A(op) + 2;
+			tmp = BT_GET_A(op);
+			obj = BT_AS_OBJECT(stack[tmp + 1]);
+			thread->top += tmp + 2;
 			if (BT_OBJECT_GET_TYPE(((bt_Closure*)obj)->fn) == BT_OBJECT_TYPE_FN) {
 				thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(obj, ((bt_Closure*)obj)->fn->stack_size, 0);
 				call(context, thread, ((bt_Closure*)obj)->fn->module, ((bt_Closure*)obj)->fn->instructions.elements, ((bt_Closure*)obj)->fn->constants.elements, -2);
@@ -1192,8 +1201,8 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			}
 
 			thread->depth--;
-			thread->top -= BT_GET_A(op) + 2;
-			if (stack[BT_GET_A(op)] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
+			thread->top -= tmp + 2;
+			if (stack[tmp] == BT_VALUE_NULL) { ip += BT_GET_IBC(op); }
 		NEXT;
 
 		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
