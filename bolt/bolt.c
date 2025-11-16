@@ -879,12 +879,12 @@ static BT_NO_INLINE void bt_mfneq(bt_Thread* thread, bt_Value* __restrict result
 	bt_runtime_error(thread, "Cannot neq non-number value!", ip);
 }
 
-static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_Op* ip, bt_Value* constants, int8_t return_loc)
+static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, bt_Module* __restrict module, bt_Op* __restrict ip, bt_Value* __restrict constants, int8_t return_loc)
 {
-	bt_Value* stack = thread->stack + thread->top;
+	bt_Value* __restrict stack = thread->stack + thread->top;
 	BT_PREFETCH_READ_MODERATE((const char*)stack);
-	bt_Value* upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
-	bt_Object* obj, * obj2;
+	bt_Value* __restrict upv = BT_CLOSURE_UPVALS(BT_STACKFRAME_GET_CALLABLE(thread->callstack[thread->depth - 1]));
+	bt_Object* __restrict obj, * __restrict obj2;
 	int16_t tmp;
 
 #ifndef BOLT_USE_INLINE_THREADING
