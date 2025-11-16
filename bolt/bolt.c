@@ -905,12 +905,13 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 	ip++;                             \
 	switch (BT_GET_OPCODE(op)) {      \
 		BT_OPS_X                      \
-	}
+		default: BT_ASSUME(0);        \
+	}                                 
 #define DISPATCH                      \
-	/*thread->ip = ip;      */            \
 	switch (BT_GET_OPCODE(op)) {	  \
 		BT_OPS_X                      \
-	}
+	}                                 \
+	BT_ASSUME(0);
 #endif
 #ifndef BOLT_USE_INLINE_THREADING
 	for (;;) 
