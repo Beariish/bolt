@@ -800,7 +800,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             uint32_t jmp_loc = op_count(ctx);
 
             *test_op = BT_MAKE_OP_AIBC(BT_OP_TEST, result_loc, jmp_loc - instruction_idx - 1);
-            if (!test) *test_op = BT_ACCELERATE_OP(*test_op);
+            if (!test) *test_op = BT_ACCELERATE_OP((*test_op));
             handled = 1;
             break;
         }
@@ -956,9 +956,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             bt_Op* test_op = op_at(ctx, question_loc);
             uint32_t jmp_loc = op_count(ctx);
 
-            uint8_t test_loc = BT_GET_A(*test_op);
+            uint8_t test_loc = BT_GET_A((*test_op));
             *test_op = BT_MAKE_OP_AIBC(BT_OP_TEST, test_loc, jmp_loc - question_loc - 1);
-            *test_op = BT_ACCELERATE_OP(*test_op);
+            *test_op = BT_ACCELERATE_OP((*test_op));
 
             emit_a(ctx, BT_OP_LOAD_NULL, result_loc);
         }
