@@ -902,12 +902,12 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 #define X(op) case BT_OP_##op: goto lbl_##op;
 #define op (*ip)
 #define NEXT                          \
-	thread->ip = ip++;                \
+	ip++;                             \
 	switch (BT_GET_OPCODE(op)) {      \
 		BT_OPS_X                      \
 	}
 #define DISPATCH                      \
-	thread->ip = ip;                  \
+	/*thread->ip = ip;      */            \
 	switch (BT_GET_OPCODE(op)) {	  \
 		BT_OPS_X                      \
 	}
@@ -930,27 +930,27 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 
 		CASE(NEG):
 			if(BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(-BT_AS_NUMBER(stack[BT_GET_B(op)]));
-			else bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip);                      
+			else { thread->ip = ip; bt_neg(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], ip); }                      
 		NEXT;
 		
 		CASE(ADD): 
 			if(BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) + BT_AS_NUMBER(stack[BT_GET_C(op)]));
-			else bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+			else { thread->ip = ip; bt_add(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); } 
 		NEXT;
 		
 		CASE(SUB): 
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) - BT_AS_NUMBER(stack[BT_GET_C(op)]));
-			else bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+			else { thread->ip = ip; bt_sub(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); }
 		NEXT;
 
 		CASE(MUL): 
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) * BT_AS_NUMBER(stack[BT_GET_C(op)])); 
-			else bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+			else { thread->ip = ip; bt_mul(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); }
 		NEXT;
 
 		CASE(DIV): 
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_NUMBER(BT_AS_NUMBER(stack[BT_GET_B(op)]) / BT_AS_NUMBER(stack[BT_GET_C(op)])); 
-			else bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); 
+			else { thread->ip = ip; bt_div(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); }
 		NEXT;
 
 		CASE(EQ):
@@ -963,17 +963,23 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			else stack[BT_GET_A(op)] = BT_VALUE_TRUE - bt_value_is_equal(stack[BT_GET_B(op)], stack[BT_GET_C(op)]);  
 		NEXT;
 
-		CASE(MFEQ):  bt_mfeq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
-		CASE(MFNEQ): bt_mfneq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); NEXT;
+		CASE(MFEQ):
+			thread->ip = ip;
+			bt_mfeq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+			NEXT;
+		CASE(MFNEQ):
+			thread->ip = ip;
+			bt_mfneq(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+			NEXT;
 			
 		CASE(LT): 
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) < BT_AS_NUMBER(stack[BT_GET_C(op)]));
-			else bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+			else { thread->ip = ip; bt_lt(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); }
 		NEXT;
 
 		CASE(LTE):
 			if (BT_IS_ACCELERATED(op)) stack[BT_GET_A(op)] = BT_VALUE_FALSE + (BT_AS_NUMBER(stack[BT_GET_B(op)]) <= BT_AS_NUMBER(stack[BT_GET_C(op)]));
-			else bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip);
+			else { thread->ip = ip; bt_lte(thread, stack + BT_GET_A(op), stack[BT_GET_B(op)], stack[BT_GET_C(op)], ip); }
 		NEXT;
 
 		CASE(NOT): stack[BT_GET_A(op)] = BT_VALUE_BOOL(BT_IS_FALSE(stack[BT_GET_B(op)])); NEXT;
@@ -1009,14 +1015,19 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 					ip++; // skip the ext op
 				}
 				else {
+					thread->ip = ip;
 					tmp = BT_GET_C(op); // save this, as we modify op
 					bt_set(context, obj, constants[BT_GET_IBC((*(++ip)))], stack[tmp]);
 				}
 			}
-			else bt_set(context, obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]); 
+			else {
+				thread->ip = ip;
+				bt_set(context, obj, stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
+			}
 		NEXT;
 			
 		CASE(TABLE): 
+			thread->ip = ip;
 			if (BT_IS_ACCELERATED(op)) {
 				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
 				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, (sizeof(bt_TablePair) * BT_GET_B(op)) - sizeof(bt_Value));
@@ -1031,15 +1042,20 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		NEXT;
 
 		CASE(ARRAY):
+			thread->ip = ip;
 			tmp = BT_GET_IBC(op);
 			obj = (bt_Object*)bt_make_array(context, tmp);
 			((bt_Array*)obj)->length = tmp;
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj);
 		NEXT;
 
-		CASE(EXPORT): bt_module_export(context, module, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]); NEXT;
+		CASE(EXPORT):
+			thread->ip = ip;
+			bt_module_export(context, module, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_C(op)]), stack[BT_GET_A(op)], stack[BT_GET_B(op)]);
+			NEXT;
 
 		CASE(CLOSE):
+			thread->ip = ip;
 			tmp = BT_GET_C(op);
 			obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, CLOSURE, bt_Closure, sizeof(bt_Value) * tmp);
 			obj = BT_AS_OBJECT(stack[BT_GET_B(op)]);
@@ -1053,7 +1069,10 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		NEXT;
 
 		CASE(LOAD_IDX_K): stack[BT_GET_A(op)] = bt_get(context, BT_AS_OBJECT(stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
-		CASE(STORE_IDX_K): bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]); NEXT;
+		CASE(STORE_IDX_K):
+			thread->ip = ip;
+			bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]);
+			NEXT;
 
 		CASE(LOAD_PROTO): stack[BT_GET_A(op)] = bt_table_get(((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->prototype, constants[BT_GET_C(op)]); NEXT;
 
@@ -1075,6 +1094,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		NEXT;
 
 		CASE(TSET):
+			thread->ip = ip;
 			bt_type_set_field(context, (bt_Type*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)], stack[BT_GET_C(op)]);
 		NEXT;
 
@@ -1206,8 +1226,15 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 		NEXT;
 
 		CASE(LOAD_SUB_F): stack[BT_GET_A(op)] = bt_array_get(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_B(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_C(op)])); NEXT;
-		CASE(STORE_SUB_F): bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]); NEXT;
-		CASE(APPEND_F): bt_array_push(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)]); NEXT;
+		CASE(STORE_SUB_F):
+			thread->ip = ip;
+			bt_array_set(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), (uint64_t)BT_AS_NUMBER(stack[BT_GET_B(op)]), stack[BT_GET_C(op)]);
+			NEXT;
+			
+		CASE(APPEND_F):
+			thread->ip = ip;
+			bt_array_push(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)]);
+			NEXT;
 
 		CASE(IDX_EXT):;
 #ifndef BOLT_USE_INLINE_THREADING
