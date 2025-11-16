@@ -104,31 +104,36 @@ typedef uint32_t bt_Op;
 #define BT_SET_IBC(op, ibc) (op) = (((op) & (~(bt_Op)0xFFFF0000)) | (((uint32_t)((uint16_t)ibc)) << 16))
 #else
 typedef struct bt_Op {
-	uint8_t op, a;
 	union {
-		struct { uint8_t b, c; };
+		struct { uint8_t c, b; };
 		struct { uint16_t ubc; };
 		struct { int16_t ibc; };
 	};
+	uint8_t a, code;
 } bt_Op;
 
-#define BT_MAKE_OP_ABC(code, a, b, c) \
-	((bt_Op){ .op = code, .a = a, .b = b, .c = c })
+#define BT_MAKE_OP_ABC(_op, _a, _b, _c) \
+	((bt_Op){ .code = _op, .a = _a, .b = _b, .c = _c })
 
-#define BT_MAKE_OP_AIBC(code, a, ibc) \
-	((bt_Op){ .op = code, .a = a, .ibc = ibc })
+#define BT_MAKE_OP_AIBC(_op, _a, _ibc) \
+	((bt_Op){ .code = _op, .a = _a, .ibc = _ibc })
 
-#define BT_MAKE_OP_AUBC(code, a, ubc) \
-	((bt_Op){ .op = code, .a = a, .ubc = ubc })
+#define BT_MAKE_OP_AUBC(_op, _a, _ubc) \
+	((bt_Op){ .code = _op, .a = _a, .ubc = _ubc })
 
-#define BT_GET_OPCODE(op) op.op
-#define BT_GET_A(op) op.a
-#define BT_GET_B(op) op.b
-#define BT_GET_C(op) op.c
-#define BT_GET_IBC(op) op.ibc
-#define BT_GET_UBC(op) op.ubc
+#define BT_OP_ACCELERATE_BIT (0b01000000)
 
-#define BT_SET_IBC(op, _ibc) ((op).ibc = (_ibc))
+#define BT_ACCELERATE_OP(_op) ((bt_Op){ .code = _op.code | BT_OP_ACCELERATE_BIT, .a = _op.a, .b = _op.b, .c = _op.c })
+
+#define BT_IS_ACCELERATED(_op) (_op.code & BT_OP_ACCELERATE_BIT)
+#define BT_GET_OPCODE(_op) (_op.code & 0b00111111)
+#define BT_GET_A(_op) _op.a
+#define BT_GET_B(_op) _op.b
+#define BT_GET_C(_op) _op.c
+#define BT_GET_IBC(_op) _op.ibc
+#define BT_GET_UBC(_op) _op.ubc
+
+#define BT_SET_IBC(_op, _ibc) ((_op).ibc = (_ibc))
 #endif
 
 #if __cplusplus
