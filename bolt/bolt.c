@@ -796,7 +796,7 @@ static BT_NO_INLINE void bt_add(bt_Thread* thread, bt_Value* __restrict result, 
 	bt_runtime_error(thread, "Unable to add values", ip);
 }
 
-static BT_FORCE_INLINE void bt_neg(bt_Thread* thread, bt_Value* __restrict result, bt_Value rhs, bt_Op* ip)
+static BT_NO_INLINE void bt_neg(bt_Thread* thread, bt_Value* __restrict result, bt_Value rhs, bt_Op* ip)
 {
 	if (BT_IS_NUMBER(rhs)) {
 		*result = BT_VALUE_NUMBER(-BT_AS_NUMBER(rhs));
