@@ -160,7 +160,7 @@ static void bt_string_format(bt_Context* ctx, bt_Thread* thread)
 
 	bt_buffer_push(ctx, &output, '\0');
 
-	bt_String* result = bt_make_string_len(ctx, output.elements, output.length);
+	bt_String* result = bt_make_string_len(ctx, output.elements, output.length - 1);
 	bt_buffer_destroy(ctx, &output);
 
 	bt_return(thread, BT_VALUE_OBJECT(result));
