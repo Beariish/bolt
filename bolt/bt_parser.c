@@ -40,6 +40,7 @@ bt_Parser bt_open_parser(bt_Tokenizer* tkn)
     result.annotation_tail = NULL;
     result.temp_name_counter = 0;
     bt_buffer_empty(&result.temp_names);
+    bt_buffer_empty(&result.owned_objects);
 
     return result;
 }
@@ -3578,6 +3579,8 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
 
 bt_bool bt_parse(bt_Parser* parser)
 {
+    bt_gc_register_parser(parser->context, parser);
+    
     parser->root = (bt_AstNode*)bt_gc_alloc(parser->context, sizeof(bt_AstNode));
     parser->root->type = BT_AST_NODE_MODULE;
     bt_buffer_empty(&parser->root->as.module.body);
@@ -3603,6 +3606,8 @@ bt_bool bt_parse(bt_Parser* parser)
 #ifdef BOLT_PRINT_DEBUG
     bt_debug_print_parse_tree(parser);
 #endif
+    
+    bt_gc_unregister_parser(parser->context, parser);
 
     return !parser->has_errored && !parser->tokenizer->has_errored;
 }

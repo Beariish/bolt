@@ -16,6 +16,9 @@ typedef struct bt_GC {
 	bt_Object** greys;
 	uint32_t pause_count;
 
+	/** Parsers that are currently in flight, so we can reference all their active objects */
+	bt_Buffer(struct bt_Parser*) active_parsers;
+	
 	bt_Context* ctx;
 } bt_GC;
 
@@ -87,6 +90,9 @@ BOLT_API void bt_gc_pause(bt_Context* ctx);
 /** Unpauses the gc, allowing it to cycle. Uses a counter internally to allow safe nesting */
 BOLT_API void bt_gc_unpause(bt_Context* ctx);
 
+void bt_gc_register_parser(bt_Context* ctx, struct bt_Parser* parse);
+void bt_gc_unregister_parser(bt_Context* ctx, struct bt_Parser* parse);
+	
 #if __cplusplus
 }
 #endif

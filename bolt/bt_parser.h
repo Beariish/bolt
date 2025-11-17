@@ -244,6 +244,7 @@ typedef struct bt_Parser {
 	bt_Annotation* annotation_base;
 	bt_Annotation* annotation_tail;
 
+	bt_ObjectBuffer owned_objects;
 	bt_Buffer(char*) temp_names;
 	bt_bool has_errored;
 	int32_t temp_name_counter;

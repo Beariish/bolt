@@ -167,6 +167,7 @@ void bt_make_gc(bt_Context* ctx)
 {
 	bt_GC result = { 0 };
 	result.ctx = ctx;
+	bt_buffer_empty(&result.active_parsers);
 	ctx->gc = result;
 
 	bt_gc_set_grey_cap(ctx, 256);
@@ -428,6 +429,13 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	for (uint32_t i = 0; i < gc->ctx->troot_top; ++i) {
 		grey(gc, (bt_Object*)gc->ctx->troots[i]);
 	}
+
+	for (uint32_t i = 0; i < gc->active_parsers.length; ++i) {
+		bt_ObjectBuffer* objects = &gc->active_parsers.elements[i]->owned_objects;
+		for (uint32_t j = 0; j < objects->length; ++j) {
+			grey(gc, objects->elements[j]);
+		}
+	}
 	
 	if (gc->ctx->current_thread) {
 		bt_Thread* thr = gc->ctx->current_thread;
@@ -526,4 +534,30 @@ BOLT_API void bt_gc_unpause(bt_Context* ctx)
 	} else {
 		bt_runtime_error(ctx->current_thread, "GC unpause requested with zero pending pauses!", 0);
 	}
+}
+
+void bt_gc_register_parser(bt_Context* ctx, struct bt_Parser* parse)
+{
+	bt_buffer_push(ctx, &ctx->gc.active_parsers, parse);	
+}
+
+void bt_gc_unregister_parser(bt_Context* ctx, struct bt_Parser* parse)
+{
+	int32_t idx = -1;
+	for (int32_t i = 0; i < ctx->gc.active_parsers.length; ++i) {
+		if (parse == ctx->gc.active_parsers.elements[i]) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		#ifdef BT_DEBUG
+		assert(0 && "Failed to find parser!");
+		#endif
+		return;
+	}
+
+	ctx->gc.active_parsers.elements[idx] = bt_buffer_last(&ctx->gc.active_parsers);
+	bt_buffer_pop(&ctx->gc.active_parsers);
 }
