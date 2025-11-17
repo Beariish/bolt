@@ -26,6 +26,11 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* parse_match(bt_Parser* parse);
 static bt_AstNode* parse_match_expression(bt_Parser* parse);
 
+static void own(bt_Parser* parse, bt_Object* obj)
+{
+    bt_buffer_push(parse->context, &parse->owned_objects, obj);
+}
+
 bt_Parser bt_open_parser(bt_Tokenizer* tkn)
 {
     bt_Parser result;
@@ -493,10 +498,12 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
             switch (node->source->type) {
             case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
                     result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
+                    own(parse, BT_AS_OBJECT(result));
             } break;
             case BT_TOKEN_STRING_LITERAL: {
                     // Cut off the quotes!
                     result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
+                    own(parse, BT_AS_OBJECT(result));
             } break;
             case BT_TOKEN_NUMBER_LITERAL: {
                     bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
@@ -528,10 +535,12 @@ static bt_Value node_to_literal_value(bt_Parser* parse, bt_AstNode* node)
             switch (node->source->type) {
             case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
                     result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
+                    own(parse, BT_AS_OBJECT(result));
             } break;
             case BT_TOKEN_STRING_LITERAL: {
                     // Cut off the quotes!
                     result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
+                    own(parse, BT_AS_OBJECT(result));
             } break;
             case BT_TOKEN_NUMBER_LITERAL: {
                     bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
@@ -555,11 +564,13 @@ static bt_Value node_to_literal_value(bt_Parser* parse, bt_AstNode* node)
 }
 
 // Convert temporary inferable types into storable types
-static bt_Type* to_storable_type(bt_Context* ctx, bt_Type* type)
+static bt_Type* to_storable_type(bt_Parser* parse, bt_Type* type)
 {
     // Promote empty array literals to arrays of any for storage 
     if (type && type->category == BT_TYPE_CATEGORY_ARRAY && type->as.array.inner == 0) {
-        return bt_make_array_type(ctx, ctx->types.any);
+        bt_Type* result = bt_make_array_type(parse->context, parse->context->types.any);
+        own(parse, (bt_Object*)result);
+        return result;
     }
     
     return type;
@@ -581,6 +592,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
     bt_buffer_empty(&result->as.table.fields);
     result->as.table.typed = type ? BT_TRUE : BT_FALSE;
     result->resulting_type = type ? type : bt_make_tableshape_type(ctx, "<anonymous>", is_sealed);
+    own(parse, (bt_Object*)result->resulting_type);
 
     bt_bool is_map = BT_TRUE;
     bt_Type* map_key_type = NULL;
@@ -640,12 +652,15 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         }
         else {
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
-            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, to_storable_type(parse->context, field->as.table_field.value_type));
+            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, to_storable_type(parse, field->as.table_field.value_type));
 
-            bt_Type* value_type = to_storable_type(parse->context, value_checked ? value_checked->resulting_type : NULL);
+            bt_Type* value_type = to_storable_type(parse, value_checked ? value_checked->resulting_type : NULL);
 
             map_key_type = bt_make_or_extend_union(parse->context, map_key_type, key_type);
+            own(parse, (bt_Object*)map_key_type);
+
             map_value_type = bt_make_or_extend_union(parse->context, map_value_type, value_type);
+            own(parse, (bt_Object*)map_value_type);
 
             if (key_expr->type == BT_AST_NODE_IDENTIFIER) {
                 is_map = BT_FALSE;
@@ -654,6 +669,8 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
         if (is_map && !type) {
             result->resulting_type = bt_make_map(parse->context, map_key_type, bt_type_make_nullable(parse->context, map_value_type));
+            own(parse, (bt_Object*)result->resulting_type);
+
         }
 
         token = bt_tokenizer_peek(parse->tokenizer);
@@ -743,6 +760,7 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier, 
                 }
 
                 bt_Value as_key = BT_VALUE_OBJECT(bt_make_string_len(parse->context, name->source.source, name->source.length));
+                own(parse, BT_AS_OBJECT(as_key));
 
                 bt_Table* exports = (bt_Table*)BT_AS_OBJECT(import->value);
                 bt_Value found_type = bt_table_get(exports, as_key);
@@ -765,6 +783,8 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier, 
 
     if (!result) {
         bt_String* name = bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length);
+        own(parse, (bt_Object*)name);
+        
         result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
     }
 
@@ -816,6 +836,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
 
             bt_Type* lhs = result;
             result = bt_make_tableshape_type(ctx, "?", rhs->as.table_shape.sealed && lhs->as.table_shape.sealed);
+            own(parse, (bt_Object*)result);
+
             result->annotations = anno;
             
             bt_Table* lhs_fields = lhs->as.table_shape.layout;
@@ -846,6 +868,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
         }
         else if (token->type == BT_TOKEN_UNION && recurse) {
             bt_Type* selector = bt_make_union(ctx);
+            own(parse, (bt_Object*)selector);
+
             selector->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
 
@@ -895,6 +919,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
         }
 
         bt_Type* sig = bt_make_signature_type(ctx, return_type, args, arg_top);
+        own(parse, (bt_Object*)sig);
+
         sig->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
         return sig;
@@ -929,7 +955,11 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
             bt_Type* nullable_value = bt_type_make_nullable(parse->context, value_type);
+            own(parse, (bt_Object*)nullable_value);
+
             bt_Type* result = bt_make_map(parse->context, key_type, nullable_value);
+            own(parse, (bt_Object*)result);
+            
             result->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
             return result;
@@ -945,6 +975,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
         }
 
         bt_Type* result = bt_make_tableshape_type(ctx, name, is_sealed);
+        own(parse, (bt_Object*)result);
+
         result->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
         result->as.table_shape.final = is_final;
@@ -968,6 +1000,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             }
 
             bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
+            own(parse, (bt_Object*)name);
+
             bt_Type* type = 0;
 
             token = bt_tokenizer_peek(tok);
@@ -1015,6 +1049,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
         bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
         bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACKET);
         bt_Type* result = bt_make_array_type(parse->context, inner);
+        own(parse, (bt_Object*)result);
+
         result->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
         return result;
@@ -1029,6 +1065,8 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
         }
             
         bt_Type* result = bt_make_enum_type(parse->context, name, is_sealed);
+        own(parse, (bt_Object*)result);
+
         result->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
             
@@ -1082,11 +1120,13 @@ static bt_Type* parse_type(bt_Parser* parse, bt_bool recurse, bt_AstNode* alias)
         case BT_TOKEN_UNION:
             bt_tokenizer_emit(tok);
             first = bt_make_or_extend_union(ctx, first, parse_type_single(parse, recurse, alias));
+            own(parse, (bt_Object*)first);
             cont = BT_TRUE;
             break;
         case BT_TOKEN_QUESTION:
             bt_tokenizer_emit(tok);
             first = bt_type_make_nullable(ctx, first);
+            own(parse, (bt_Object*)first);
             cont = BT_TRUE;
             break;
         }
@@ -1151,6 +1191,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
             if (result->as.arr.inner_type) {
                 if (!result->as.arr.inner_type->satisfier(result->as.arr.inner_type, item_type)) {
                     result->as.arr.inner_type = bt_make_or_extend_union(parse->context, result->as.arr.inner_type, item_type);
+                    own(parse, (bt_Object*)result->as.arr.inner_type);
                 }
             }
             else {
@@ -1160,6 +1201,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
     }
 
     result->resulting_type = bt_make_array_type(parse->context, result->as.arr.inner_type);
+    own(parse, (bt_Object*)result->resulting_type);
 
     return result;
 }
@@ -1328,6 +1370,7 @@ static bt_Type* find_type_or_shadow(bt_Parser* parse, bt_Token* identifier)
 
     if (!result) {
         bt_String* name = bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length);
+        own(parse, (bt_Object*)name);
         result = bt_find_type(parse->context, BT_VALUE_OBJECT(name));
     }
 
@@ -1359,11 +1402,13 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
 
             if (!expected && expr) {
                 expected = bt_make_or_extend_union(ctx, expected, expr->resulting_type);
+                own(parse, (bt_Object*)expected);
             }
 
             if (expected && !expected->satisfier(expected, expr->resulting_type)) {
                 if (is_inferable) {
                     expected = bt_make_or_extend_union(ctx, expected, expr->resulting_type);
+                    own(parse, (bt_Object*)expected);
                 }
                 else {
                     parse_error(parse, "Invalid return type for uninferable function type", expr->source->line, expr->source->col);
@@ -1521,12 +1566,16 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             }
 
             result->resulting_type = bt_make_signature_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+            own(parse, (bt_Object*)result->resulting_type);
+
             result->resulting_type->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
             
             if (prototype) {
                 // forward-declare fully typed method for recursion in tableshape functions
                 bt_Value name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length));
+                own(parse, BT_AS_OBJECT(name));
+
                 bt_type_add_field(parse->context, prototype, result->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);
             } else {
                 bt_AstNode* alias = make_node(parse, BT_AST_NODE_RECURSE_ALIAS);
@@ -1565,6 +1614,8 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
         }
 
         result->resulting_type = bt_make_signature_type(parse->context, result->as.fn.ret_type, args, result->as.fn.args.length);
+        own(parse, (bt_Object*)result->resulting_type);
+
         result->resulting_type->annotations = parse->annotation_base;
         parse->annotation_base = parse->annotation_tail = 0;
     }
@@ -1662,11 +1713,13 @@ static void try_parse_annotations(bt_Parser* parse)
 
             bt_tokenizer_emit(tok); // consume identifier
             bt_String* as_name = bt_make_string_hashed_len(parse->context, next->source.source, next->source.length);
+            own(parse, (bt_Object*)as_name);
 
             parse->annotation_tail = bt_annotation_next(parse->context, parse->annotation_tail, as_name);
             if (!parse->annotation_base) parse->annotation_base = parse->annotation_tail;
             bt_Annotation* anno = parse->annotation_tail;
-            
+            own(parse, (bt_Object*)anno);
+
             next = bt_tokenizer_peek(tok);
             if (next->type == BT_TOKEN_LEFTPAREN) {
                 bt_tokenizer_emit(tok);
@@ -1747,6 +1800,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             lhs_node = make_node(parse, BT_AST_NODE_TYPE);
             lhs_node->source = inner->source;
             lhs_node->resulting_type = bt_make_alias_type(parse->context, result->name, result);
+            own(parse, (bt_Object*)lhs_node->resulting_type);
         }
         else if (lhs->type == BT_TOKEN_TYPE) {
             bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
@@ -1756,6 +1810,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             lhs_node = make_node(parse, BT_AST_NODE_TYPE);
             lhs_node->source = lhs;
             lhs_node->resulting_type = bt_make_alias_type(parse->context, inner->name, inner);
+            own(parse, (bt_Object*)lhs_node->resulting_type);
         }
         else if (lhs->type == BT_TOKEN_IF) {
             lhs_node = parse_if_expression(parse);
@@ -2198,6 +2253,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             lhs = bt_type_remove_nullable(parse->context, lhs);
+            own(parse, (bt_Object*)lhs);
 
             if(!lhs->satisfier(node->resulting_type, lhs)) {
                 parse_error(parse, "Unable to coalesce rhs into lhs", node->source->line, node->source->col);
@@ -2244,6 +2300,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 
             bt_Type* indexed_type = resolve_index_type(parse, nonnull_type, node, node->as.binary_op.right);
             node->resulting_type = bt_type_make_nullable(parse->context, indexed_type);
+            own(parse, (bt_Object*)node->resulting_type);
         } break;
         case BT_TOKEN_IS: {
             if (!resolve_to_type(parse, node->as.binary_op.right))
@@ -2309,6 +2366,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
 
             node->resulting_type = bt_type_make_nullable(parse->context, bt_type_dealias(type));
+            own(parse, (bt_Object*)node->resulting_type);
         } break;
         // TODO(bearish): This should really be a lot more sophisticated
 #define XSTR(x) #x
@@ -2566,7 +2624,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
             if (!rhs) {
                 parse_error_token(parse, "Assignment failed to evaluate to type", node->source); return NULL;
             }
-            node->resulting_type = to_storable_type(parse->context, type_check(parse, rhs)->resulting_type);
+            node->resulting_type = to_storable_type(parse, type_check(parse, rhs)->resulting_type);
             
             if (!node->resulting_type) {
                 parse_error_token(parse, "Assignment failed to evaluate to type", node->source); return NULL;
@@ -2634,6 +2692,8 @@ static bt_AstNode* attempt_narrowing(bt_Parser* parser, bt_AstNode* condition)
             shadow->as.let.is_const = BT_FALSE;
             shadow->as.let.name = operand->source->source;
             shadow->resulting_type = bt_type_remove_nullable(parser->context, op_type);
+            own(parser, (bt_Object*)shadow->resulting_type);
+
             return shadow;
         }
     }
@@ -2705,7 +2765,9 @@ static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
         path_len += literal->as_str.length;
         path_buf[path_len] = 0;
 
-        return bt_make_string_hashed_len(parse->context, path_buf, path_len);
+        bt_String* name = bt_make_string_hashed_len(parse->context, path_buf, path_len);
+        own(parse, (bt_Object*)name);
+        return name;
     }
 
     while (bt_tokenizer_peek(tok)->type == BT_TOKEN_PERIOD) {
@@ -2713,7 +2775,6 @@ static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
 
         tokens[token_top++] = bt_tokenizer_emit(tok);
     }
-
 
     for (uint8_t i = 0; i < token_top; ++i) {
         memcpy(path_buf + path_len, tokens[i]->source.source, tokens[i]->source.length);
@@ -2724,7 +2785,10 @@ static bt_String* parse_module_name(bt_Parser* parse, bt_Token* first)
 
     path_buf[path_len] = '\0';
 
-    return bt_make_string_len(parse->context, path_buf, path_len);
+    bt_String* name = bt_make_string_len(parse->context, path_buf, path_len);
+    own(parse, (bt_Object*)name);
+
+    return name;
 }
 
 static bt_AstNode* parse_import(bt_Parser* parse)
@@ -2761,12 +2825,12 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             bt_TablePair* item = BT_TABLE_PAIRS(values) + i;
             bt_Value type_val = bt_table_get(types, item->key);
 
-            bt_ModuleImport * import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            own(parse, (bt_Object*)import);
             import->name = (bt_String*)BT_AS_OBJECT(item->key);
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = item->value;
 
-            bt_add_ref(parse->context, (bt_Object*)import);
             bt_buffer_push(parse->context, & parse->root->as.module.imports, import);
         }
 
@@ -2820,13 +2884,13 @@ static bt_AstNode* parse_import(bt_Parser* parse)
         for (uint32_t i = 0; i < items.length; ++i) {
             bt_StrSlice* item = items.elements + i;
 
-            bt_ModuleImport * import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+            own(parse, (bt_Object*)import);
+
             import->name = bt_make_string_hashed_len(parse->context, item->source, item->length);
 
             bt_Value type_val = bt_table_get(types, BT_VALUE_OBJECT(import->name));
             bt_Value value = bt_table_get(values, BT_VALUE_OBJECT(import->name));
-
-            bt_Type* type = (bt_Type*)BT_AS_OBJECT(type_val);
 
             if (type_val == BT_VALUE_NULL || value == BT_VALUE_NULL) {
                 bt_String* mod_name_str = (bt_String*)BT_AS_OBJECT(module_name);
@@ -2838,8 +2902,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
             import->type = (bt_Type*)BT_AS_OBJECT(type_val);
             import->value = value;
 
-            bt_add_ref(parse->context, (bt_Object*)import);
-            bt_buffer_push(parse->context, & parse->root->as.module.imports, import);
+            bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
         }
 
         bt_buffer_destroy(parse->context, &items);
@@ -2847,6 +2910,7 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     }
 
     bt_Value module_name = BT_VALUE_OBJECT(parse_module_name(parse, name_or_first_item));
+    own(parse, BT_AS_OBJECT(module_name));
 
     peek = bt_tokenizer_peek(tok);
     if (peek->type == BT_TOKEN_AS) {
@@ -2874,11 +2938,12 @@ static bt_AstNode* parse_import(bt_Parser* parse)
     }
 
     bt_ModuleImport* import = BT_ALLOCATE(parse->context, IMPORT, bt_ModuleImport);
+    own(parse, (bt_Object*)import);
+
     import->name = bt_make_string_hashed_len(parse->context, output_name->source.source, output_name->source.length);
     import->type = mod_to_import->type;
     import->value = BT_VALUE_OBJECT(mod_to_import->exports);
 
-    bt_add_ref(parse->context, (bt_Object*)import);
     bt_buffer_push(parse->context, &parse->root->as.module.imports, import);
 
     return NULL;
@@ -2898,6 +2963,7 @@ static bt_AstNode* parse_export(bt_Parser* parse)
     else if (to_export->type == BT_AST_NODE_ALIAS) {
         name = to_export->source->source;
         type = bt_make_alias_type(parse->context, to_export->as.alias.type->name, to_export->as.alias.type);
+        own(parse, (bt_Object*)type);
     }
     else if (to_export->type == BT_AST_NODE_IDENTIFIER) {
         name = to_export->source->source;
@@ -2938,6 +3004,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         bt_tokenizer_emit(tok);
 
         bt_Type* type = find_type_or_shadow(parser, ident);
+        own(parser, (bt_Object*)type);
 
         if (type && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
             ident = bt_tokenizer_emit(tok);
@@ -2950,6 +3017,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
             }
 
             bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
+            own(parser, (bt_Object*)name);
 
             bt_Type* existing_field = bt_type_get_field_type(parser->context, type, BT_VALUE_OBJECT(name));
             if (existing_field && bt_type_is_methodic(existing_field, type)) {
@@ -3024,6 +3092,7 @@ static bt_AstNode* parse_if(bt_Parser* parser)
         }
 
         bt_Type* binding_type = bt_type_remove_nullable(parser->context, result_type);
+        own(parser, (bt_Object*)binding_type);
 
         result->source = ident;
         result->as.branch.is_let = BT_TRUE;
@@ -3091,7 +3160,7 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
 
     bt_bool has_else = BT_FALSE;
 
-    bt_AstNode* last = branch;
+    bt_AstNode* last = NULL;
     bt_AstNode* current = branch;
     while (current) {
         current->as.branch.is_expr = BT_TRUE;
@@ -3108,6 +3177,8 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
         }
 
         aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, branch_type);
+        own(parse, (bt_Object*)aggregate_type);
+
         last = current;
         current = current->as.branch.next;
     }
@@ -3119,11 +3190,15 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
         new_else->as.branch.is_let = BT_FALSE;
         new_else->as.branch.is_expr = BT_TRUE;
         bt_buffer_empty(&new_else->as.branch.body);
+
         bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
         bt_buffer_push(parse->context, &new_else->as.branch.body, new_last);
+
         if (last) { last->as.branch.next = new_else; }
         else { parse_error(parse, "Failed to insert default else branch", parse->tokenizer->line, parse->tokenizer->col); }
+
         aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, parse->context->types.null);
+        own(parse, (bt_Object*)aggregate_type);
     }
 
     if (branch) branch->resulting_type = aggregate_type;
@@ -3247,6 +3322,7 @@ static bt_AstNode* parse_for(bt_Parser* parse)
 
     bt_Type* it_type = bt_type_remove_nullable(parse->context, generated_type);
     identifier->resulting_type = it_type;
+    own(parse, (bt_Object*)it_type);
 
     bt_AstNode* ident_as_let = make_node(parse, BT_AST_NODE_LET);
     ident_as_let->source = identifier->source;
@@ -3280,6 +3356,7 @@ static bt_AstNode* parse_for_expression(bt_Parser* parse)
     }
 
     bt_Type* result = bt_make_array_type(parse->context, item_type);
+    own(parse, (bt_Object*)result);
     loop->resulting_type = result;
 
     return loop;
@@ -3304,6 +3381,7 @@ static bt_AstNode* parse_alias(bt_Parser* parse)
     bt_tokenizer_expect(parse->tokenizer, BT_TOKEN_ASSIGN);
 
     bt_Type* type = parse_type(parse, BT_TRUE, result);
+    own(parse, (bt_Object*)type);
 
     result->as.alias.type = type;
 
@@ -3499,6 +3577,7 @@ static bt_AstNode* parse_match_expression(bt_Parser* parse)
         }
 
         aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, branch_type);
+        own(parse, (bt_Object*)aggregate_type);
     }
     
     bt_AstNode* last = get_last_expr(&match->as.match.else_branch);
@@ -3511,6 +3590,7 @@ static bt_AstNode* parse_match_expression(bt_Parser* parse)
     }
 
     aggregate_type = bt_make_or_extend_union(parse->context, aggregate_type, branch_type);
+    own(parse, (bt_Object*)aggregate_type);
 
     match->resulting_type = aggregate_type;
     return match;
@@ -3598,10 +3678,6 @@ bt_bool bt_parse(bt_Parser* parser)
     }
 
     pop_scope(parser);
-
-    for (uint32_t i = 0; i < parser->root->as.module.imports.length; ++i) {
-        bt_remove_ref(parser->context, (bt_Object*)parser->root->as.module.imports.elements[i]);
-    }
 
 #ifdef BOLT_PRINT_DEBUG
     bt_debug_print_parse_tree(parser);
