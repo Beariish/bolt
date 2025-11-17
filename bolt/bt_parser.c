@@ -3161,15 +3161,15 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
 
     bt_bool has_else = BT_FALSE;
 
-    bt_AstNode* last = NULL;
+    bt_AstNode* last = branch;
     bt_AstNode* current = branch;
     while (current) {
         current->as.branch.is_expr = BT_TRUE;
 
         if (!current->as.branch.condition) has_else = BT_TRUE;
         
-        bt_AstNode* last = get_last_expr(&current->as.branch.body);
-        bt_Type* branch_type = last ? type_check(parse, last)->resulting_type : NULL;
+        bt_AstNode* last_expr = get_last_expr(&current->as.branch.body);
+        bt_Type* branch_type = last_expr ? type_check(parse, last_expr)->resulting_type : NULL;
 
         if (!branch_type) {
             bt_AstNode* new_last = token_to_node(parse, parse->tokenizer->literal_null);
