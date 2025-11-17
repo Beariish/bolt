@@ -530,6 +530,38 @@ static uint8_t find_binding_or_compile_temp(FunctionContext* ctx, bt_AstNode* ex
     return loc;
 }
 
+
+static uint8_t find_binding_or_compile_to(FunctionContext* ctx, bt_AstNode* expr, uint8_t rloc)
+{
+    uint8_t loc = INVALID_BINDING;
+
+    if(expr->type == BT_AST_NODE_IDENTIFIER) {
+        loc = find_named(ctx, expr->source->source);
+        if (loc != INVALID_BINDING) {
+            emit_ab(ctx, BT_OP_LOAD, rloc, loc, BT_FALSE);
+            return rloc;
+        }
+
+        loc = find_binding(ctx, expr->source->source);
+        
+        if (loc == INVALID_BINDING) {
+            loc = get_register(ctx);
+            if (!compile_expression(ctx, expr, loc)) compile_error_token(ctx->compiler, "Failed to compile operand", expr->source);
+        }
+    }
+
+    if (loc == INVALID_BINDING) {
+        loc = rloc;
+        if (!compile_expression(ctx, expr, loc)) compile_error_token(ctx->compiler, "Failed to compile operand", expr->source);
+    }
+
+    if (loc == INVALID_BINDING) {
+        compile_error_token(ctx->compiler, "Cannot find binding '%.*s'", expr->source);
+    }
+
+    return loc;
+}
+
 static StorageClass get_storage(FunctionContext* ctx, bt_AstNode* expr)
 {
     uint8_t loc = find_binding(ctx, expr->source->source);
@@ -810,6 +842,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         if (handled) break;
             
         StorageClass storage = STORAGE_REGISTER;
+        bt_bool can_elide_store = BT_FALSE;
         if (is_assigning(expr->source->type)) {
             storage = get_storage(ctx, lhs);
             if (storage == STORAGE_INVALID) {
@@ -817,6 +850,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
             else if (storage == STORAGE_REGISTER || storage == STORAGE_INDEX) {
                 result_loc = lhs_loc;
+                if (storage == STORAGE_REGISTER && expr->source->type == BT_TOKEN_ASSIGN) {
+                    can_elide_store = BT_TRUE;
+                }
             }
         }
 
@@ -863,7 +899,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
         }
             
-        uint8_t rhs_loc = find_binding_or_compile_temp(ctx, rhs);
+        uint8_t rhs_loc = can_elide_store ? find_binding_or_compile_to(ctx, rhs, result_loc) : find_binding_or_compile_temp(ctx, rhs);
 
 #define HOISTABLE_OP(unhoisted) \
         if (expr->as.binary_op.hoistable && ctx->compiler->options.allow_method_hoisting) {                                                                        \
@@ -943,7 +979,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             emit_abc(ctx, BT_OP_LTE, result_loc, rhs_loc, lhs_loc, expr->as.binary_op.accelerated && ctx->compiler->options.accelerate_arithmetic);
             break;
         case BT_TOKEN_ASSIGN:
-            emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc, BT_FALSE);
+            if (result_loc != rhs_loc) {
+                emit_ab(ctx, BT_OP_MOVE, result_loc, rhs_loc, BT_FALSE);
+            }
             break;
         default:
             compile_error_token(ctx->compiler, "Invalid binary operator '%*s'", expr->source);
