@@ -86,6 +86,8 @@ typedef struct bt_Object {
 #define BT_OBJECT_CLEAR(__obj) (__obj)->mark = 0
 #endif
 
+typedef bt_Buffer(bt_Object*) bt_ObjectBuffer;
+	
 typedef struct bt_TablePair {
 	bt_Value key, value;
 } bt_TablePair;

@@ -24,6 +24,9 @@ typedef struct bt_GC {
 	bt_Object** greys;
 	uint32_t pause_count;
 
+	/** Parsers that are currently in flight, so we can reference all their active objects */
+	bt_Buffer(struct bt_Parser*) active_parsers;
+	
 	int64_t freelist_size, freelist_min, freelist_cap, freelist_max, freelist_growth_pct;
 	bt_FreeList free_strings;
 	bt_FreeList free_tables;
@@ -131,6 +134,9 @@ BOLT_API size_t bt_gc_get_freelist_growth_pct(bt_Context* ctx);
 /** Set the freelist growth pct */
 BOLT_API void bt_gc_set_freelist_growth_pct(bt_Context* ctx, size_t growth_pct);
 
+void bt_gc_register_parser(bt_Context* ctx, struct bt_Parser* parse);
+void bt_gc_unregister_parser(bt_Context* ctx, struct bt_Parser* parse);
+	
 #if __cplusplus
 }
 #endif
