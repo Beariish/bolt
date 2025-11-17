@@ -45,6 +45,7 @@ typedef enum {
 	BT_AST_NODE_ALIAS,
 	BT_AST_NODE_MATCH,
 	BT_AST_NODE_MATCH_BRANCH,
+	BT_AST_NODE_DO,
 
 	BT_AST_NODE_BREAK,
 	BT_AST_NODE_CONTINUE,
@@ -210,6 +211,11 @@ typedef struct bt_AstNode {
 			bt_AstNode* condition;
 			bt_AstBuffer body;
 		} match_branch;
+
+		struct {
+			bt_AstBuffer body;
+			bt_bool is_expr;
+		} do_block;
 	} as; 
 
 	bt_Token* source;
