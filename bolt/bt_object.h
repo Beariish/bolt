@@ -11,6 +11,8 @@ extern "C" {
 #include "bt_op.h"
 #include "bt_tokenizer.h"
 
+#include <memory.h>
+
 typedef struct bt_Type bt_Type;
 
 /** Denotes the discriminated type of object. `BT_OBJECT_TYPE_NONE` is used to represent a base `bt_Object*` */
@@ -47,6 +49,11 @@ typedef struct bt_Object {
 	uint64_t mask;
 } bt_Object;
 
+typedef struct bt_FreeObject {
+	uint64_t mask;
+	bt_Object* free_next;
+} bt_FreeObject;
+
 #define BT_OBJ_PTR_BITS 0b0000000000000000111111111111111111111111111111111111111111111100ull
 
 #define BT_OBJECT_SET_TYPE(__obj, __type) ((bt_Object*)(__obj))->mask &= (BT_OBJ_PTR_BITS | 1ull); ((bt_Object*)(__obj))->mask |= (uint64_t)(__type) << 56ull
@@ -54,6 +61,9 @@ typedef struct bt_Object {
 
 #define BT_OBJECT_NEXT(__obj) (((bt_Object*)(__obj))->mask & BT_OBJ_PTR_BITS)
 #define BT_OBJECT_SET_NEXT(__obj, __next) ((__obj)->mask = ((__obj)->mask & ~BT_OBJ_PTR_BITS) | ((uint64_t)(__next)))
+
+#define BT_OBJECT_NEXT_FREE(__obj) (((bt_FreeObject*)(__obj))->free_next)
+#define BT_OBJECT_SET_NEXT_FREE(__obj, __next) (((bt_FreeObject*)(__obj))->free_next = (__next))
 
 #define BT_OBJECT_GET_MARK(__obj) ((__obj)->mask & 1ull)
 #define BT_OBJECT_MARK(__obj) (__obj)->mask |= 1ull
@@ -116,6 +126,7 @@ typedef struct bt_String {
 	uint64_t hash;
 	uint32_t interned : 1;
 	uint32_t len : 31;
+	uint32_t cap;
 } bt_String;
 
 /** Gets a pointer to the first character of the string data's inline allocation */
@@ -180,7 +191,7 @@ typedef struct bt_Fn {
 typedef struct bt_Closure {
 	bt_Object obj;
 	bt_Fn* fn;
-	uint32_t num_upv;
+	uint32_t num_upv, cap_upv;
 } bt_Closure;
 
 /** Returns a pointer to the first upvalue contained in closure `c` */

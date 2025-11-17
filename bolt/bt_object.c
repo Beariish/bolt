@@ -129,6 +129,7 @@ bt_String* bt_make_string_len(bt_Context* ctx, const char* str, uint32_t len)
 bt_String* bt_make_string_len_uninterned(bt_Context* ctx, const char* str, uint32_t len)
 {
     bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
+    if (result->cap == 0) result->cap = len + 1;
     memcpy(BT_STRING_STR(result), str, len);
     BT_STRING_STR(result)[len] = 0;
     result->len = len;
@@ -180,6 +181,7 @@ bt_String* bt_make_string_hashed_len_escape(bt_Context* ctx, const char* str, ui
 bt_String* bt_make_string_empty(bt_Context* ctx, uint32_t len)
 {
     bt_String* result = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
+    if (result->cap == 0) result->cap = len + 1;
     memset(BT_STRING_STR(result), 0, len + 1);
     result->len = len;
     result->hash = 0;
@@ -253,7 +255,7 @@ bt_Table* bt_make_table(bt_Context* ctx, uint16_t initial_size)
     
     table->length = 0;
     table->capacity = initial_size;
-    table->inline_capacity = initial_size;
+    if (table->inline_capacity == 0) table->inline_capacity = initial_size;
     table->prototype = NULL;
     table->outline = NULL;
 
@@ -264,11 +266,13 @@ bt_Table* bt_make_table_from_proto(bt_Context* ctx, bt_Type* prototype)
 {
     bt_Table* layout = prototype->as.table_shape.layout;
     bt_Table* result = BT_ALLOCATE_INLINE_STORAGE(ctx, TABLE, bt_Table, (sizeof(bt_TablePair) * layout->length) - sizeof(bt_Value));
-
+    uint32_t old_cap = result->inline_capacity;
+    
     if (prototype->as.table_shape.tmpl) {
         memcpy((char*)result + sizeof(bt_Object), 
             ((char*)prototype->as.table_shape.tmpl) + sizeof(bt_Object),
             (sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * layout->length) - sizeof(bt_Value));
+        if (old_cap != 0) { result->inline_capacity = old_cap; }
     } else {
         for (uint32_t i = 0; i < layout->length; ++i) {
             bt_table_set(ctx, result, BT_TABLE_PAIRS(layout)[i].key,

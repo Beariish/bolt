@@ -221,7 +221,8 @@ void bt_close(bt_Context* context)
 		bt_buffer_empty(&context->string_table[i]);
 	}
 
-	while (bt_collect(&context->gc, 0));
+	context->gc.enable_freelist = BT_FALSE;
+	while(bt_collect(&context->gc, 0));
 
 	bt_free(context, context->root);
 
@@ -574,6 +575,7 @@ bt_Value bt_make_closure(bt_Thread* thread, uint8_t num_upvals)
 
 	bt_Closure* cl = BT_ALLOCATE_INLINE_STORAGE(thread->context, CLOSURE, bt_Closure, sizeof(bt_Value) * num_upvals);
 	cl->num_upv = num_upvals;
+	if (cl->cap_upv == 0) cl->cap_upv = num_upvals;
 	bt_Value* upv = BT_CLOSURE_UPVALS(cl);
 	for (bt_Value* top = true_top - (num_upvals - 1); top <= true_top; top++) {
 		*upv = *top;
@@ -727,6 +729,7 @@ bt_String* bt_get_or_make_interned(bt_Context* ctx, const char* str, uint32_t le
 	bt_StringTableEntry new_entry;
 	new_entry.hash = hash;
 	new_entry.string = BT_ALLOCATE_INLINE_STORAGE(ctx, STRING, bt_String, len + 1);
+	if (new_entry.string->cap == 0) new_entry.string->cap = len + 1;
 	memcpy(BT_STRING_STR(new_entry.string), str, len);
 	BT_STRING_STR(new_entry.string)[len] = 0;
 	new_entry.string->len = len;
@@ -1015,9 +1018,11 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			if (BT_IS_ACCELERATED(op)) {
 				obj = (bt_Object*)BT_AS_OBJECT(stack[BT_GET_C(op)]);
 				obj2 = (bt_Object*)BT_ALLOCATE_INLINE_STORAGE(context, TABLE, bt_Table, (sizeof(bt_TablePair) * BT_GET_B(op)) - sizeof(bt_Value));
+				uint16_t inl = ((bt_Table*)obj2)->inline_capacity;
 				memcpy((char*)obj2 + sizeof(bt_Object), 
 					((char*)((bt_Type*)obj)->as.table_shape.tmpl) + sizeof(bt_Object),
 					(sizeof(bt_Table) - sizeof(bt_Object)) + (sizeof(bt_TablePair) * (BT_GET_B(op))) - sizeof(bt_Value));
+				if (inl) ((bt_Table*)obj2)->inline_capacity = inl;
 				stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 			}
 			else stack[BT_GET_A(op)] = BT_VALUE_OBJECT(bt_make_table(context, BT_GET_IBC(op))); 
@@ -1039,6 +1044,7 @@ static void call(bt_Context* context, bt_Thread* thread, bt_Module* module, bt_O
 			}
 			((bt_Closure*)obj2)->fn = (bt_Fn*)obj;
 			((bt_Closure*)obj2)->num_upv = BT_GET_C(op);
+			if (((bt_Closure*)obj2)->cap_upv == 0) ((bt_Closure*)obj2)->cap_upv = BT_GET_C(op);
 			stack[BT_GET_A(op)] = BT_VALUE_OBJECT(obj2);
 		NEXT;
 

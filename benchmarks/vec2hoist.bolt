@@ -1,9 +1,7 @@
-import print from core
-
 import Vec2 from "vec2" 
 import bench from "bench"
 
-bench("hoisted 100k vec2 create, create, add", 35, fn {
+bench("hoisted 100k vec2 create, create, add", 50, fn {
     for i in 100000 {
         let a = Vec2.new(5, 5)
         let b = Vec2.new(10, 10)   
@@ -11,7 +9,7 @@ bench("hoisted 100k vec2 create, create, add", 35, fn {
     }
 })
 
-bench("hoisted 100k vec2 add", 50, fn {
+bench("hoisted 100k vec2 add", 250, fn {
     let a = Vec2.new(5, 5)
     let b = Vec2.new(10, 10)   
     for i in 100000 {

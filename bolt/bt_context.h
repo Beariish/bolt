@@ -95,6 +95,8 @@ typedef struct bt_Handlers {
 	bt_FreeSource free_source;
 } bt_Handlers;
 
+
+	
 /**
  * A context holds all the relevant information for bolt execution.
  * Each context owns its own garbage collector, all compiled modules, and all allocated objects.
@@ -118,7 +120,7 @@ struct bt_Context {
 	bt_Object* next;
 	bt_Object* troots[BT_TEMPROOTS_SIZE];
 	uint32_t troot_top;
-
+	
 	bt_GC gc;
 	uint32_t n_allocated;
 
