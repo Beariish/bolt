@@ -4,9 +4,9 @@ name: Build Status
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "0.2" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "0.2" ]
 
 jobs:
   build:
