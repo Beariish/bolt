@@ -1,5 +1,37 @@
 import time, write, sameline, to_string, print from core
 
+import meta
+import io
+import Error, error, to_string from core
+import print, assert from core
+
+type File = io.File
+
+let log_state = {
+    csv_log: ""
+    should_log: false
+}
+
+if let cli = meta.find_module("cli") {
+    let const args = cli.args as type([string])!
+    if args[1] == "-csv" {
+        log_state.csv_log += "name,runs,total,avg\n"
+        log_state.should_log = true
+    }
+}
+
+/** Reads an entire file into a string, or returns an error */
+export fn read_file(path: string): string | Error {
+    return match let file = io.open(path, "r") {
+        is File then match let size = io.get_size(file) {
+            is number then io.read(file, size),
+            is Error then size
+        },
+
+        is Error then file
+    }!
+}
+
 export fn bench_with_pre_work(name: string, iter: number, body: fn: fn) {
     let total_time = 0
 
@@ -26,8 +58,14 @@ export fn bench_with_pre_work(name: string, iter: number, body: fn: fn) {
     }
 
     print()
+
+    if log_state.should_log {
+        log_state.csv_log += "%s,%d,%v,%v\n".format(name, iter, total_time, total_time / iter)
+    }
 }
 
 export fn bench(name: string, iter: number, body: fn) {
     bench_with_pre_work(name, iter, fn { return body })
 }
+
+export log_state

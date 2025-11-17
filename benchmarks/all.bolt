@@ -1,5 +1,5 @@
 import "mandel"
-import "vec2hoist"
+/*import "vec2hoist"
 import "loops"
 import "array"
 import "heap"
@@ -10,4 +10,15 @@ import "delta_blue"
 import "fannkuch"
 import "nbodies"
 import "spectral"
-import "alloc"
+import "alloc"*/
+
+import * from "bench"
+import io
+
+type File = io.File
+
+if log_state.should_log {
+    let f = io.open("benchmarks.csv", "w") as File!
+    io.write(f, log_state.csv_log)
+    io.close(f)
+}
