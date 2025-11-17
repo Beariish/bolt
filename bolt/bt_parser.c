@@ -302,6 +302,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
     default: parse_error_token(parse, "Internal parser error: Unexpected local at '%.*s'", node->source);
     }
 
+
     bt_ParseScope* topmost = parse->scope;
     for (uint32_t i = 0; i < topmost->bindings.length; ++i) {
         bt_ParseBinding* binding = topmost->bindings.elements + i;
@@ -311,6 +312,7 @@ static void push_local(bt_Parser* parse, bt_AstNode* node)
         }
     }
 
+    own(parse, (bt_Object*)new_binding.type);
     bt_buffer_push(parse->context, &topmost->bindings, new_binding);
 }
 
@@ -3004,7 +3006,6 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         bt_tokenizer_emit(tok);
 
         bt_Type* type = find_type_or_shadow(parser, ident);
-        own(parser, (bt_Object*)type);
 
         if (type && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
             ident = bt_tokenizer_emit(tok);
