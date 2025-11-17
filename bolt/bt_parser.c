@@ -3684,6 +3684,7 @@ bt_bool bt_parse(bt_Parser* parser)
 #endif
     
     bt_gc_unregister_parser(parser->context, parser);
+    bt_buffer_destroy(parser->context, &parser->owned_objects);
 
     return !parser->has_errored && !parser->tokenizer->has_errored;
 }
