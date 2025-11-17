@@ -25,6 +25,7 @@ static void try_parse_annotations(bt_Parser* parse);
 static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* parse_match(bt_Parser* parse);
 static bt_AstNode* parse_match_expression(bt_Parser* parse);
+static bt_AstNode* parse_do_expression(bt_Parser* parser);
 
 static void own(bt_Parser* parse, bt_Object* obj)
 {
@@ -1822,6 +1823,10 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             lhs_node = parse_match_expression(parse);
             type_check(parse, lhs_node);
         }
+        else if (lhs->type == BT_TOKEN_DO) {
+            lhs_node = parse_do_expression(parse);
+            type_check(parse, lhs_node);
+        }
         else if (lhs->type == BT_TOKEN_FOR) {
             lhs_node = parse_for_expression(parse);
             type_check(parse, lhs_node);
@@ -3206,6 +3211,33 @@ static bt_AstNode* parse_if_expression(bt_Parser* parse)
     return branch;
 }
 
+static bt_AstNode* parse_do(bt_Parser* parser)
+{
+    bt_Tokenizer* tok = parser->tokenizer;
+
+    bt_Token* next = bt_tokenizer_peek(tok);
+
+    bt_AstNode* result = make_node(parser, BT_AST_NODE_DO);
+    result->source = next;
+    result->as.do_block.is_expr = BT_FALSE;
+    result->as.do_block.body = parse_block_or_single(parser, 0, 0);
+
+    return result;
+}
+
+static bt_AstNode* parse_do_expression(bt_Parser* parser)
+{
+    bt_AstNode* result = parse_do(parser);
+    result->as.do_block.is_expr = BT_TRUE;
+
+    bt_AstNode* last_expr = get_last_expr(&result->as.do_block.body);
+    bt_Type* block_type = last_expr ? type_check(parser, last_expr)->resulting_type : NULL;
+
+    result->resulting_type = block_type;
+    
+    return result;
+}
+
 static bt_AstNode* parse_for(bt_Parser* parse)
 {
     bt_Tokenizer* tok = parse->tokenizer;
@@ -3649,6 +3681,10 @@ static bt_AstNode* parse_statement(bt_Parser* parse)
     case BT_TOKEN_MATCH: {
         bt_tokenizer_emit(tok);
         return parse_match(parse);
+    } break;
+    case BT_TOKEN_DO: {
+        bt_tokenizer_emit(tok);
+        return parse_do(parse);
     } break;
     case BT_TOKEN_EOS: {
         return NULL;

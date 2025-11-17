@@ -1,0 +1,40 @@
+import * from "../../test"
+
+push_scope("do-block")
+
+test("statement do block", fn {
+    do {
+        let x = 0
+        let y = x * x
+    }
+})
+
+test("statement do block - single", fn {
+    do 10
+})
+
+test("expression do block", fn {
+    let x = do {
+        let inner = 10
+        inner * 2
+    }
+
+    expect(x == 20, "Expected 'x' to be '20'")
+})
+
+test("expression do block - single", fn {
+    let x = do 10
+    expect(x == 10, "Expected 'x' to be '10'")
+})
+
+test("expression do block - shadowing", fn {
+    let x: number = do {
+        let x = if true then 20 else null
+        x ?? 10
+    }
+
+    expect(x == 20, "Expected 'x' to be '20'")
+    expect(typeof(x) == type(number), "Expected 'x' to be 'number'")
+})
+
+pop_scope()

@@ -81,6 +81,7 @@ static uint8_t push_load(FunctionContext* ctx, bt_Value value);
 static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 static bt_bool compile_match(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
+static bt_bool compile_do(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc);
 
 // ffsll intrinsic isn't on all platforms. some complicated platform defines could speed this up
 // but it's good enough for now
@@ -1109,6 +1110,9 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
     case BT_AST_NODE_MATCH: {
             compile_match(ctx, expr, BT_TRUE, result_loc);
     } break;
+    case BT_AST_NODE_DO: {
+        compile_do(ctx, expr, BT_TRUE, 0);
+    } break;
     case BT_AST_NODE_LOOP_ITERATOR:
     case BT_AST_NODE_LOOP_NUMERIC:
     case BT_AST_NODE_LOOP_WHILE: {
@@ -1319,6 +1323,26 @@ static bt_bool compile_if(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_exp
     return BT_TRUE;
 }
 
+static bt_bool compile_do(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc)
+{
+    if (is_expr && !stmt->as.do_block.is_expr) {
+        compile_error_token(ctx->compiler, "Expected 'do' expression, but got statement", stmt->source);
+        return BT_FALSE;
+    }
+
+    if (is_expr) {
+        uint8_t result_loc = expr_loc;
+        compile_expression_body(ctx, &stmt->as.do_block.body, BT_TRUE, &result_loc);
+        if (result_loc != expr_loc) {
+            emit_ab(ctx, BT_OP_MOVE, expr_loc, result_loc, BT_FALSE);
+        }
+    } else {
+        compile_body(ctx, &stmt->as.do_block.body);
+    }
+
+    return BT_TRUE;
+}
+
 static bt_bool compile_for(FunctionContext* ctx, bt_AstNode* stmt, bt_bool is_expr, uint8_t expr_loc)
 {
     push_registers(ctx);
@@ -1477,7 +1501,10 @@ static bt_bool compile_statement(FunctionContext* ctx, bt_AstNode* stmt)
             compile_if(ctx, stmt, BT_FALSE, 0);
     } break;
     case BT_AST_NODE_MATCH: {
-            compile_match(ctx, stmt, BT_FALSE, 0);
+        compile_match(ctx, stmt, BT_FALSE, 0);
+    } break;
+    case BT_AST_NODE_DO: {
+        compile_do(ctx, stmt, BT_FALSE, 0);
     } break;
     case BT_AST_NODE_LOOP_ITERATOR:
     case BT_AST_NODE_LOOP_NUMERIC:

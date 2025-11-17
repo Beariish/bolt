@@ -19,5 +19,6 @@ import "type-narrowing"
 import "match"
 import "match-expr"
 import "match-let"
+import "do-block"
 
 pop_scope()
