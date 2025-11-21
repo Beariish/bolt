@@ -1,0 +1,45 @@
+import * from "../test"
+import Error from core
+import meta
+
+/*
+Casting to table and attempting to access a field:
+
+let original_table = { a: 10 }
+let unknown_table = original_table as table
+
+let a = unknown_table["a"] as number
+[1]    369747 segmentation fault (core dumped)  ../bolt/build/bolt-cli/bolt-cli foo
+
+---------------------------------------------------------------------------------------------
+
+Casting to dictionary and attempting to access a field:
+
+let original_table = { a: 10 }
+let unknown_table = original_table as type({ ..string: any })
+
+let a = unknown_table["a"] as number
+[1]    372600 segmentation fault (core dumped)  ../bolt/build/bolt-cli/bolt-cli foo
+*/
+
+push_scope("67")
+
+test("doesn't segfault (table)", fn {
+    let original_table = { a: 10 }
+    let unknown_table = original_table as table!
+    let a = unknown_table["a"] as number
+})
+
+test("doesn't segfault ({})", fn {
+    let original_table = { a: 10 }
+    let unknown_table = original_table as type(unsealed {})!
+    let a = unknown_table["a"] as number
+})
+
+test("doesn't segfault (map)", fn {
+    let original_table = { a: 10 }
+    let unknown_table = original_table as type({ ..string: any })!
+    let a = unknown_table["a"] as number
+})
+
+pop_scope()

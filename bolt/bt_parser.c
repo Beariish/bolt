@@ -2266,26 +2266,19 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             type = bt_type_dealias(type);
 
             if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                if (type->as.table_shape.sealed && from->as.table_shape.layout->length != type->as.table_shape.layout->length) {
-                    parse_error(parse, "Lhs has too many fields to conform to rhs", node->source->line, node->source->col);
-                    return node;
-                }
-
-                node->as.binary_op.accelerated = 1;
-
                 bt_Table* lhs = from->as.table_shape.layout;
                 bt_Table* rhs = type->as.table_shape.layout;
-                
-                for (uint32_t i = 0; i < lhs->length; ++i) {
-                    bt_TablePair* current = BT_TABLE_PAIRS(lhs) + i;
+
+                for (uint32_t i = 0; rhs && i < rhs->length; ++i) {
+                    bt_TablePair* current = BT_TABLE_PAIRS(rhs) + i;
                     bt_bool found = BT_FALSE;
 
-                    for (uint32_t j = 0; j < rhs->length; j++) {
-                        bt_TablePair* inner = BT_TABLE_PAIRS(rhs) + j;
+                    for (uint32_t j = 0; j < lhs->length; j++) {
+                        bt_TablePair* inner = BT_TABLE_PAIRS(lhs) + j;
                         if (bt_value_is_equal(inner->key, current->key)) {
                             found = BT_TRUE;
-                            bt_Type* left = (bt_Type*)BT_AS_OBJECT(current->value);
-                            bt_Type* right = (bt_Type*)BT_AS_OBJECT(inner->value);
+                            bt_Type* right = (bt_Type*)BT_AS_OBJECT(current->value);
+                            bt_Type* left = (bt_Type*)BT_AS_OBJECT(inner->value);
 
                             if (!right->satisfier(right, left)) {
                                 bt_String* as_str = bt_to_string(parse->context, current->key);
@@ -2293,12 +2286,10 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                                     as_str->len, BT_STRING_STR(as_str));
                                 break;
                             }
-
-                            if (i != j) node->as.binary_op.accelerated = 0;
                         }
                     }
 
-                    if (!found && from->as.table_shape.sealed) {
+                    if (!found) {
                         bt_String* as_str = bt_to_string(parse->context, current->key);
                         parse_error_fmt(parse, "Field '%.*s' missing from rhs", node->source->line, node->source->col,
                             as_str->len, BT_STRING_STR(as_str));
