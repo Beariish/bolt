@@ -21,6 +21,9 @@ bt_bool bt_value_is_equal(bt_Value a, bt_Value b)
 		bt_Object* obja = BT_AS_OBJECT(a);
 		bt_Object* objb = BT_AS_OBJECT(b);
 
+		// Slow vs unslow object reference comparison, missed by fast path above
+		if (obja == objb) return BT_TRUE;
+
 		uint8_t type = BT_OBJECT_GET_TYPE(obja);
 		if (type == BT_OBJECT_GET_TYPE(objb)) {
 			if (type == BT_OBJECT_TYPE_STRING) {

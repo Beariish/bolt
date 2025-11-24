@@ -781,15 +781,17 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	case BT_TYPE_CATEGORY_TYPE:
 		return BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
-		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_FN) {
+		switch (BT_OBJECT_GET_TYPE(as_obj)) {
+		case BT_OBJECT_TYPE_FN:
 			bt_Fn* as_fn = (bt_Fn*)as_obj;
 			return type->satisfier(type, as_fn->signature);
-		}
-		else if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) {
+		case BT_OBJECT_TYPE_CLOSURE:
 			bt_Closure* cl = (bt_Closure*)as_obj;
-			return type->satisfier(type, cl->fn->signature);
-		}
-		else {
+				return type->satisfier(type, cl->fn->signature);
+		case BT_OBJECT_TYPE_NATIVE_FN:
+			bt_NativeFn* native = (bt_NativeFn*)as_obj;
+			return type->satisfier(type, native->type);
+		default:
 			return BT_FALSE;
 		}
 	case BT_TYPE_CATEGORY_TABLESHAPE: {
