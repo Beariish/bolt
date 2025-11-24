@@ -6,6 +6,7 @@ import "assignment"
 import "branching"
 import "short_circuit"
 import "soft_casting"
+import "signature_casting"
 import "virtual/all"
 
 pop_scope()

@@ -24,8 +24,9 @@ static bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 	if (left->as.fn.return_type == 0 && right->as.fn.return_type) return BT_FALSE;
 	if (left->as.fn.return_type && right->as.fn.return_type == 0) return BT_FALSE;
 
+	// Return types are inferred "backwards", narrow types can bind to wider ones
 	if (left->as.fn.return_type) {
-		if (!left->as.fn.return_type->satisfier(left->as.fn.return_type, right->as.fn.return_type))
+		if (!left->as.fn.return_type->satisfier(right->as.fn.return_type, left->as.fn.return_type))
 			return BT_FALSE;
 	}
 
@@ -784,13 +785,13 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		switch (BT_OBJECT_GET_TYPE(as_obj)) {
 		case BT_OBJECT_TYPE_FN:
 			bt_Fn* as_fn = (bt_Fn*)as_obj;
-			return type->satisfier(type, as_fn->signature);
+			return type->satisfier(as_fn->signature, type);
 		case BT_OBJECT_TYPE_CLOSURE:
 			bt_Closure* cl = (bt_Closure*)as_obj;
-				return type->satisfier(type, cl->fn->signature);
+				return type->satisfier(cl->fn->signature, type);
 		case BT_OBJECT_TYPE_NATIVE_FN:
 			bt_NativeFn* native = (bt_NativeFn*)as_obj;
-			return type->satisfier(type, native->type);
+			return type->satisfier(native->type, type);
 		default:
 			return BT_FALSE;
 		}

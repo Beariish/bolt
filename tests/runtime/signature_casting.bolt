@@ -1,0 +1,252 @@
+import * from "../test"
+
+import math
+import core
+import strings
+
+push_scope("signature-casting")
+
+// EMPTY SIGNATURE
+
+test("empty signature cast to-from any", fn {
+    let f1 = fn {}
+    expect(typeof(f1) == type(fn), "Expected f1 to be 'fn'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn?), "Expected cast inference to be valid")
+})
+
+test("empty closure signature cast to-from any", fn {
+    let upval = 0
+    let f1 = fn { upval += 1 }
+    expect(typeof(f1) == type(fn), "Expected f1 to be 'fn'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn?), "Expected cast inference to be valid")
+})
+
+test("empty native signature cast to-from any", fn {
+    let f1 = core.sameline
+    expect(typeof(f1) == type(fn), "Expected f1 to be 'fn'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn?), "Expected cast inference to be valid")
+})
+
+// ONE-PARAM SIGNATURE
+
+test("single parameter signature cast to-from any", fn {
+    let f1 = fn(n: number) {}
+    expect(typeof(f1) == type(fn(number)), "Expected f1 to be 'fn(number)'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number))
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn(number)?), "Expected cast inference to be valid")
+})
+
+test("single parameter closure signature cast to-from any", fn {
+    let upval = 0
+    let f1 = fn(n: number) { upval += 1 }
+    expect(typeof(f1) == type(fn(number)), "Expected f1 to be 'fn(number)'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number))
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn(number)?), "Expected cast inference to be valid")
+})
+
+test("single parameter native signature cast to-from any", fn {
+    let f1 = core.throw
+    expect(typeof(f1) == type(fn(string)), "Expected f1 to be 'fn(string)'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(string))
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn(string)?), "Expected cast inference to be valid")
+})
+
+// MANY-PARAM SIGNATURE
+
+test("multiple parameter signature cast to-from any", fn {
+    let f1 = fn(n: number, s: string, b: bool) {}
+    expect(typeof(f1) == type(fn(number, string, bool)), "Expected f1 to be 'fn(number, string, bool)'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number, string, bool))
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn(number, string, bool)?), "Expected cast inference to be valid")
+})
+
+test("multiple parameter closure signature cast to-from any", fn {
+    let upval = 0
+    let f1 = fn(n: number, s: string, b: bool) { upval += 1 }
+    expect(typeof(f1) == type(fn(number, string, bool)), "Expected f1 to be 'fn(number, string, bool)'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number, string, bool))
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(fn(number, string, bool)?), "Expected cast inference to be valid")
+})
+
+test("multiple parameter native signature cast to-from any", fn {
+    // NO STDLIB FUNCTION MATCHES THIS SIGNATURE
+})
+
+// ZERO PARAM SIGNATURE WITH RETURN 
+
+test("zero parameter signature with return cast to-from any", fn {
+    let f1 = fn(): number { return 5 }
+    expect(typeof(f1) == type(fn: number), "Expected f1 to be 'fn: number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn: number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn: number), "Expected cast inference to be valid")
+})
+
+test("zero parameter closure signature with return cast to-from any", fn {
+    let upval = 0
+    let f1 = fn(): number { return upval + 1 }
+    expect(typeof(f1) == type(fn: number), "Expected f1 to be 'fn: number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn: number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn: number), "Expected cast inference to be valid")
+})
+
+test("zero parameter native signature with return cast to-from any", fn {
+    let f1 = math.random
+    expect(typeof(f1) == type(fn: number), "Expected f1 to be 'fn: number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn: number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn: number), "Expected cast inference to be valid")
+})
+
+// SINGLE PARAM SIGNATURE WITH RETURN 
+
+test("single parameter signature with return cast to-from any", fn {
+    let f1 = fn(n: number): number { return 5 }
+    expect(typeof(f1) == type(fn(number): number), "Expected f1 to be 'fn(number): number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number): number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn(number): number), "Expected cast inference to be valid")
+})
+
+test("single parameter closure signature with return cast to-from any", fn {
+    let upval = 0
+    let f1 = fn(n: number): number { return upval + 1 }
+    expect(typeof(f1) == type(fn(number): number), "Expected f1 to be 'fn(number): number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number): number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn(number): number), "Expected cast inference to be valid")
+})
+
+test("single parameter native signature with return cast to-from any", fn {
+    let f1 = math.sin
+    expect(typeof(f1) == type(fn(number): number), "Expected f1 to be 'fn(number): number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number): number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn(number): number), "Expected cast inference to be valid")
+})
+
+// MULTIPLE PARAM SIGNATURE WITH RETURN 
+
+test("multiple parameter signature with return cast to-from any", fn {
+    let f1 = fn(n: number, s: string, b: bool): number { return 5 }
+    expect(typeof(f1) == type(fn(number, string, bool): number), "Expected f1 to be 'fn(number, string, bool): number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number, string, bool): number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn(number, string, bool): number), "Expected cast inference to be valid")
+})
+
+test("multiple parameter closure signature with return cast to-from any", fn {
+    let upval = 0
+    let f1 = fn(n: number, s: string, b: bool): number { return upval + 1 }
+    expect(typeof(f1) == type(fn(number, string, bool): number), "Expected f1 to be 'fn(number, string, bool): number'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(number, string, bool): number)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn(number, string, bool): number), "Expected cast inference to be valid")
+})
+
+test("multiple parameter native signature with return cast to-from any", fn {
+    let f1 = strings.substring
+    expect(typeof(f1) == type(fn(string, number, number): string), "Expected f1 to be 'fn(string, number, number): string'")
+
+    let f2: any = f1
+    let f3 = f2 as type(fn(string, number, number): string)
+
+    expect(f3 == f1, "Expected cast back to be valid")
+    expect(typeof(f3) == type(null | fn(string, number, number): string), "Expected cast inference to be valid")
+})
+
+// NARROWING
+
+test("casting to narrowed parameter signature type", fn {
+    let f1 = fn(a: number | string) {}
+    let f2 = f1 as type(fn(number))
+
+    expect(f2 == f1, "Expected cast to be valid")
+    expect(typeof(f2) == type(null | fn(number)), "Expected inference to be valid")
+})
+
+test("casting to widened parameter signature type", fn {
+    let f1 = fn(a: number | string) {}
+    let f2 = f1 as type(fn(number | string | bool))
+
+    expect(f2 == null, "Expected cast not to be valid")
+    expect(typeof(f2) == type(null | fn(number | string | bool)), "Expected inference to be valid")
+})
+
+test("casting to narrowed return signature type", fn {
+    let f1 = fn: number | string { return 10 }
+    let f2 = f1 as type(fn: number)
+
+    expect(f2 == null, "Expected cast not to be valid")
+    expect(typeof(f2) == type(null | fn: number), "Expected inference to be valid")
+})
+
+test("casting to widened return signature type", fn {
+    let f1 = fn: number | string { return 10 }
+    let f2 = f1 as type(fn: number | string | bool)
+
+    expect(f2 == f1, "Expected cast to be valid")
+    expect(typeof(f2) == type(null | fn: number | string | bool), "Expected inference to be valid")
+})
+
+pop_scope()
