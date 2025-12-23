@@ -716,7 +716,7 @@ static bt_Type* resolve_type_identifier(bt_Parser* parse, bt_Token* identifier, 
 
     bt_Type* result = 0;
     if (binding && binding->source) {
-        if (binding->source->resulting_type != parse->context->types.type) {
+        if (binding->source->type != BT_AST_NODE_ALIAS) {
             if (should_error) parse_error_token(parse, "Identifier '%.*s' didn't resolve to type", identifier);
             return NULL;
         }
@@ -1752,9 +1752,11 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
             bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
 
-            lhs_node = make_node(parse, BT_AST_NODE_TYPE);
-            lhs_node->source = lhs;
-            lhs_node->resulting_type = bt_make_alias_type(parse->context, inner->name, inner);
+            if (inner) {
+                lhs_node = make_node(parse, BT_AST_NODE_TYPE);
+                lhs_node->source = lhs;
+                lhs_node->resulting_type = bt_make_alias_type(parse->context, inner->name, inner);
+            }
         }
         else if (lhs->type == BT_TOKEN_IF) {
             lhs_node = parse_if_expression(parse);

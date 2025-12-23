@@ -1,0 +1,46 @@
+import * from "../test"
+import Error from core
+import meta
+
+/*
+On main (3be135ad) and 0.2 (58964f73)
+
+let Number = number
+
+type Foo = {
+	key: Number
+}
+
+Foo => { key: 1 }
+
+$ ./bolt-cli demo
+segmentation fault (core dumped)  ./bolt-cli demo
+
+Replacing let Number = number with type Number = number makes the above example work just fine
+
+This also results in a segfault:
+
+let Number = number
+let a = type(Number)
+*/
+
+push_scope("70")
+
+test("type() doesn't segfault", fn {
+    expect(meta.try_compile("
+        let Number = number
+        let a = type(Number)", "test") is Error, "Expected code not to segfault and produce an error")
+})
+
+test("key type doesn't segfault", fn {
+    expect(meta.try_compile("
+        let Number = number
+
+        type Foo = {
+            key: Number
+        }
+
+        Foo => { key: 1 }", "test") is Error, "Expected code not to segfault and produce an error")
+})
+
+pop_scope()
