@@ -1,0 +1,43 @@
+import * from "../test"
+
+/*
+On main (3be135ad) and 0.2 (58964f73)
+
+Tableshape containing function returning a union:
+
+type Foo = {
+	a: fn(): string | number
+}
+$ ./bolt-cli demo
+parse error [demo.bolt (2:10)]: Expected identifier name for tableshape field, got ')'
+ERROR: Failed to import module 'demo'!
+
+
+
+Tableshape containing function returning a union array:
+
+type Foo = {
+	a: fn(): [string | number]
+}
+
+$ ./bolt-cli demo
+parse error [demo.bolt (2:10)]: Expected identifier name for tableshape field, got ')'
+ERROR: Failed to import module 'demo'!
+
+*/
+
+push_scope("73")
+
+test("key with empty param list compiles", fn {
+    type Foo = {
+	    a: fn(): string | number
+    }
+})
+
+test("key with empty param list and complex return type compiles", fn {
+    type Foo = {
+        a: fn(): [string | number]
+    }
+})
+
+pop_scope()

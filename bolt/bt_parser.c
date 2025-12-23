@@ -870,11 +870,14 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
     case BT_TOKEN_FN: {
         bt_Type* args[16];
         uint8_t arg_top = 0;
+        bt_bool has_param_list = BT_FALSE;
 
         token = bt_tokenizer_peek(tok);
         if (token->type == BT_TOKEN_LEFTPAREN) {
+            has_param_list = BT_TRUE;
             bt_tokenizer_emit(tok);
             token = bt_tokenizer_peek(tok);
+            
             while (token->type != BT_TOKEN_RIGHTPAREN) {
                 args[arg_top++] = parse_type(parse, BT_TRUE, NULL);
                 token = bt_tokenizer_emit(tok);
@@ -885,6 +888,11 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             }
         }
 
+        // empty arg list leaves the right paren on there, so let's get rid of it
+        if (has_param_list && arg_top == 0 && token->type == BT_TOKEN_RIGHTPAREN) {
+            bt_tokenizer_emit(tok); 
+        }
+        
         bt_Type* return_type = 0;
         token = bt_tokenizer_peek(tok);
 
