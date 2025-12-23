@@ -1,0 +1,20 @@
+import * from "../test"
+import Error from core
+import meta
+
+/*
+Bug: Segfault when casting to un-declared type
+
+let a = 1 as Foo
+
+./bolt-cli demo
+segmentation fault (core dumped)  ./bolt-cli demo
+*/
+
+push_scope("77")
+
+test("doesn't segfault", fn {
+    expect(meta.try_compile("let a = 1 as Foo", "test") is Error, "Expected code not to segfault and produce an error")
+})
+
+pop_scope()

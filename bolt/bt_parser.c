@@ -2257,7 +2257,8 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return node;
             }
 
-            if (type_check(parse, node->as.binary_op.right)->resulting_type->category != BT_TYPE_CATEGORY_TYPE) {
+            bt_Type* to = type_check(parse, node->as.binary_op.right)->resulting_type;
+            if (to == NULL || to->category != BT_TYPE_CATEGORY_TYPE) {
                 parse_error(parse, "Expected right hand of 'as' to be Type", node->source->line, node->source->col);
                 return node;
             }
