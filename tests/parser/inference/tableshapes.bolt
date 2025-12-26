@@ -156,4 +156,67 @@ test("expression access tableshape", fn {
     expect(elements["hello!"] == true, "Expected 'elements[\"hello!\"] to be 'true'")
 })
 
+test("field indexing on tableshape type", fn {
+    type T = {
+        a: number,
+        b: string,
+        c: fn(number | bool): [bool]
+    }
+
+    expect(T.a == number, "Expected 'T.a' to be 'number'")
+    expect(T.b == string, "Expected 'T.b' to be 'string'")
+    expect(T.c == type(fn(number | bool): [bool]), "Expected 'T.c' to be 'fn(number | bool): [bool]'")
+})
+
+test("field indexing inference on tableshape type", fn {
+    type T = {
+        a: number,
+        b: string,
+        c: fn(number | bool): [bool]
+    }
+
+    expect(typeof(T.a) == Type, "Expected 'T.a' to resolve to 'Type'")
+    expect(typeof(T.b) == Type, "Expected 'T.b' to resolve to 'Type'")
+    expect(typeof(T.c) == Type, "Expected 'T.c' to resolve to 'Type'")
+})
+
+test("field indexing inference on tableshape type into local", fn {
+    type T = {
+        a: number,
+        b: string,
+        c: fn(number | bool): [bool]
+    }
+
+    let x = T.a
+
+    expect(typeof(x) == Type, "Expected 'x' to resolve to 'Type'")
+    expect(x == number, "Expected 'x' to be 'number'")
+})
+
+test("field indexing inference with bracket operator", fn {
+    type T = {
+        a: number,
+        b: string,
+        c: fn(number | bool): [bool]
+    }
+
+    let x = T["a"]
+    expect(typeof(x) == Type, "Expected 'x' to resolve to 'Type'")
+    expect(x == number, "Expected 'x' to be 'number'")
+})
+
+test("field indexing inference prioritizes prototype", fn {
+    type T = {
+        a: number,
+        b: string,
+        c: fn(number | bool): [bool]
+    }
+
+    fn T.a { return 10 }
+
+    let x = T["a"]
+    expect(typeof(x) == type(fn: number), "Expected 'x' to resolve to 'Type'")
+    expect(x == T.a, "Expected 'x' to be 'number'")
+})
+
 pop_scope()
