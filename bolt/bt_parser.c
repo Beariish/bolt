@@ -132,18 +132,19 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
 
     bt_Value rhs_key = node_to_key(parse, node->as.binary_op.right);
 
-    bt_Table* proto = lhs->prototype_types;
-    if (!proto && lhs->prototype) proto = lhs->prototype->prototype_types;
+    bt_Type* base_lhs = bt_type_dealias(lhs);
+    bt_Table* proto = base_lhs->prototype_types;
+    if (!proto && base_lhs->prototype) proto = base_lhs->prototype->prototype_types;
     if (proto) {
         bt_Value proto_entry = bt_table_get(proto, rhs_key);
         if (proto_entry != BT_VALUE_NULL) {
             bt_Type* entry = (bt_Type*)BT_AS_OBJECT(proto_entry);
 
-            if (lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
+            if (base_lhs->category != BT_TYPE_CATEGORY_TABLESHAPE) {
                 node->as.binary_op.hoistable = BT_TRUE;
                 node->as.binary_op.from = lhs;
                 node->as.binary_op.key = rhs_key;
-            } else if (lhs->as.table_shape.final) {
+            } else if (base_lhs->as.table_shape.final) {
                 node->as.binary_op.hoistable = BT_TRUE;
                 node->as.binary_op.from = lhs;
                 node->as.binary_op.key = rhs_key;
@@ -153,6 +154,23 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
         }
     }
 
+    if (bt_is_alias(lhs)) {
+        bt_Type* base = bt_type_dealias(lhs);
+        if (base->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+            if (base->as.table_shape.layout) {
+                if (bt_table_get(base->as.table_shape.layout, rhs_key) != BT_VALUE_NULL) {
+                    node->as.binary_op.key = rhs_key;
+                    return parse->context->types.type;
+                }
+            }
+            
+            bt_String* key = bt_to_string(parse->context, rhs_key);
+            parse_error_fmt(parse, "Can't index field '%.*s' in type '%s'", node->source->line, node->source->col, key->len, BT_STRING_STR(key), lhs->name);
+            return NULL;
+        }
+    }
+
+    lhs = bt_type_dealias(lhs);
     if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
         if (lhs->as.table_shape.map) {
             if (!lhs->as.table_shape.key_type->satisfier(lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type)) {
@@ -2221,11 +2239,12 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             }
         }
         case BT_TOKEN_LEFTBRACKET: {
-            bt_Type* lhs = bt_type_dealias(type_check(parse, node->as.binary_op.left)->resulting_type);
+            bt_Type* lhs = type_check(parse, node->as.binary_op.left)->resulting_type;
             if (!lhs) {
                 parse_error(parse, "Lhs has no discernable type", node->source->line, node->source->col);
                 return node;
             }
+
             node->resulting_type = resolve_index_type(parse, lhs, node, node->as.binary_op.right);
             node->source->type = BT_TOKEN_PERIOD;
         } break;

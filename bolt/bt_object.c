@@ -590,7 +590,13 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         return bt_table_get((bt_Table*)obj, key);
     case BT_OBJECT_TYPE_TYPE: {
         bt_Type* type = (bt_Type*)obj;
-        return bt_table_get(type->prototype_values, key);
+        bt_Value result =  bt_table_get(type->prototype_values, key);
+
+        if (result == BT_VALUE_NULL && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+            result = bt_table_get(type->as.table_shape.layout, key);
+        }
+
+        return result;
     } break;
     case BT_OBJECT_TYPE_ARRAY: {
         if (!BT_IS_NUMBER(key)) {
