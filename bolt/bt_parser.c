@@ -995,6 +995,11 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             bt_String* name = bt_make_string_hashed_len(ctx, token->source.source, token->source.length);
             bt_Type* type = 0;
 
+            if (parse->annotation_base) {
+                bt_tableshape_set_field_annotations(ctx, result, BT_VALUE_OBJECT(name), parse->annotation_base);
+                parse->annotation_base = parse->annotation_tail = 0;
+            }
+            
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COLON) {
                 bt_tokenizer_emit(tok);
@@ -1015,10 +1020,6 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             }
 
             bt_tableshape_add_layout(ctx, result, ctx->types.string, BT_VALUE_OBJECT(name), (bt_Type*)BT_AS_OBJECT(type));
-            if (parse->annotation_base) {
-                bt_tableshape_set_field_annotations(ctx, result, BT_VALUE_OBJECT(name), parse->annotation_base);
-                parse->annotation_base = parse->annotation_tail = 0;
-            }
             
             token = bt_tokenizer_peek(tok);
             if (token->type == BT_TOKEN_COMMA) {

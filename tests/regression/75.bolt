@@ -1,0 +1,43 @@
+import * from "../test"
+
+import field_annotations, annotations from meta
+
+/*
+On main (3be135a) and 0.2 (58964f7)
+
+For some reason, field annotations on function fields won't get picked up:
+
+import print from core
+import field_annotations from meta
+
+type Table = {
+	#[attr1, attr2, attr3]
+	a: string
+	#[attr1, attr2, attr3]
+	b: fn(string)
+}
+
+print("annotations on a:", field_annotations(Table, "a"))
+print("annotations on b:", field_annotations(Table, "b"))
+
+./bolt-cli demo.bolt
+annotations on a: <0xfffb55a53e0b9350: array[3]>
+annotations on b: <0xfffb55a53e0c0d90: array[0]>
+*/
+
+type Table = {
+	#[attr1, attr2, attr3]
+	a: string
+	#[attr1, attr2, attr3]
+	b: fn(string)
+}
+
+push_scope("75")
+
+test("field annotations are correctly applied", fn {
+    expect(field_annotations(Table, "a").length() == 3, "Expected field 'a' to have three annotations")
+    expect(field_annotations(Table, "b").length() == 3, "Expected field 'b' to have three annotations")
+    expect(annotations(Table.b).length() == 0, "Expected type of field 'b' to have zero annotations")
+})
+
+pop_scope()

@@ -73,7 +73,24 @@ type FieldAnnos = {
     multiple_args: null,
 
     #args(10, 20, "hello!") #even(true)
-    inline_multiple_args: Type
+    inline_multiple_args: Type,
+
+    #annotated
+    complex_type_simple: fn(string): bool,
+    
+    #[annotated, rpc]
+    complex_type_multiple: fn(string): bool,
+    
+    #args(10, 20, "hello!")
+    complex_type_args: fn(string): bool,
+    
+    #[args(10, 20, "hello!"), even(true)]
+    complex_type_multiple_args: fn(string): bool,
+
+    #args(10, 20, "hello!") #even(true)
+    complex_type_inline_multiple_args: fn(string): bool,
+    
+    complex_type_internal_annos: #args(10, 20, "hello!") #even(true) fn(string): bool,
 }
 
 type SparseAnnos = {
@@ -169,6 +186,14 @@ field_annotations("single field annotation with args",          FieldAnnos, "arg
 field_annotations("multiple field annotations with args",       FieldAnnos, "multiple_args",        { "args": [10, 20, "hello!"], "even": [true] })
 field_annotations("multiple split field annotations with args", FieldAnnos, "inline_multiple_args", { "args": [10, 20, "hello!"], "even": [true] })
 
+field_annotations("complex field single field annotation with no args",       FieldAnnos, "complex_type_simple",               { "annotated": [] })
+field_annotations("complex field multiple field annotations with no args",    FieldAnnos, "complex_type_multiple",             { "annotated": [], "rpc": [] })
+field_annotations("complex field single field annotation with args",          FieldAnnos, "complex_type_args",                 { "args": [10, 20, "hello!"] })
+field_annotations("complex field multiple field annotations with args",       FieldAnnos, "complex_type_multiple_args",        { "args": [10, 20, "hello!"], "even": [true] })
+field_annotations("complex field multiple split field annotations with args", FieldAnnos, "complex_type_inline_multiple_args", { "args": [10, 20, "hello!"], "even": [true] })
+field_annotations("complex field with internal annotations",                  FieldAnnos, "complex_type_internal_annos",       {  })
+
+field_annotations("sparse field with no annotations",               SparseAnnos, "simple",        { })
 field_annotations("multiple sparse field annotations with no args", SparseAnnos, "multiple",      { "annotated": [], "rpc": [] })
 field_annotations("multiple sparse field annotations with args",    SparseAnnos, "multiple_args", { "args": [10, 20, "hello!"], "even": [true] })
 
@@ -177,5 +202,9 @@ type_annotations("multiple method annotations with no args",    FieldAnnos.fn_mu
 type_annotations("single method annotation with args",          FieldAnnos.fn_args,                 { "args": [10, 20, "hello!"] })
 type_annotations("multiple method annotations with args",       FieldAnnos.fn_multiple_args,        { "args": [10, 20, "hello!"], "even": [true] })
 type_annotations("multiple split method annotations with args", FieldAnnos.fn_multiple_inline_args, { "args": [10, 20, "hello!"], "even": [true] })
+
+type_annotations("field type with no annotations",       FieldAnnos.simple,                      { })
+type_annotations("field type with external annotations", FieldAnnos.inline_multiple_args,        { })
+type_annotations("field type with internal annotations", FieldAnnos.complex_type_internal_annos, { "args": [10, 20, "hello!"], "even": [true] })
 
 pop_scope()
