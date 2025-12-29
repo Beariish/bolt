@@ -1,6 +1,6 @@
 import * from "../test"
 
-import to_string from core
+import to_string, Error from core
 import meta
 import tables
 
@@ -122,6 +122,11 @@ fn FieldAnnos.fn_multiple_args(this) { return this.simple }
 #args(10, 20, "hello!") #even(true)
 fn FieldAnnos.fn_multiple_inline_args(this) { return this.simple }
 
+type ToUseAsAnno = { a: number, b: string }
+
+#type_as_arg(ToUseAsAnno)
+type TypeAnnotated = [number]
+
 fn test_annotations(name: string, annos: [meta.Annotation], expected: { ..string: [any] }) {
     test(name, fn {
         expect(tables.length(expected) == annos.length(), "Wrong number of annotations!")
@@ -206,5 +211,15 @@ type_annotations("multiple split method annotations with args", FieldAnnos.fn_mu
 type_annotations("field type with no annotations",       FieldAnnos.simple,                      { })
 type_annotations("field type with external annotations", FieldAnnos.inline_multiple_args,        { })
 type_annotations("field type with internal annotations", FieldAnnos.complex_type_internal_annos, { "args": [10, 20, "hello!"], "even": [true] })
+
+type_annotations("annotation with type as argument", TypeAnnotated, { "type_as_arg": [ ToUseAsAnno ] })
+
+test("non-type identifier errors if used as annotation argument", fn {
+    expect(meta.try_compile("
+    let ident = 10
+    
+    #anno(ident)
+    type T = {}", "test") is Error, "Expected code not to compile")
+})
 
 pop_scope()

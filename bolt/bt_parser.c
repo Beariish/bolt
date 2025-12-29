@@ -1707,8 +1707,14 @@ static void try_parse_annotations(bt_Parser* parse)
                         bt_StrSlice slice = tok->literals.elements[next->idx].as_str;
                         bt_annotation_push(parse->context, anno, BT_VALUE_OBJECT(bt_make_string_len(parse->context, slice.source, slice.length)));
                     } break;
+                    case BT_TOKEN_IDENTIFIER: {
+                        bt_Type* type = resolve_type_identifier(parse, next, BT_TRUE);
+                        if (type) {
+                            bt_annotation_push(parse->context, anno, BT_VALUE_OBJECT(type));
+                        }
+                    } break;
                     default:
-                        parse_error_token(parse, "Expected literal, got '%.*s'", next);
+                        parse_error_token(parse, "Expected literal or type alias, got '%.*s'", next);
                         return;
                     }
 
