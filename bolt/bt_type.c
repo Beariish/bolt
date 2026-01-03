@@ -783,15 +783,18 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 		return BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
 		switch (BT_OBJECT_GET_TYPE(as_obj)) {
-		case BT_OBJECT_TYPE_FN:
+		case BT_OBJECT_TYPE_FN: {
 			bt_Fn* as_fn = (bt_Fn*)as_obj;
 			return type->satisfier(as_fn->signature, type);
-		case BT_OBJECT_TYPE_CLOSURE:
+		}
+		case BT_OBJECT_TYPE_CLOSURE: {
 			bt_Closure* cl = (bt_Closure*)as_obj;
 				return type->satisfier(cl->fn->signature, type);
-		case BT_OBJECT_TYPE_NATIVE_FN:
+		}
+		case BT_OBJECT_TYPE_NATIVE_FN: {
 			bt_NativeFn* native = (bt_NativeFn*)as_obj;
 			return type->satisfier(native->type, type);
+		}
 		default:
 			return BT_FALSE;
 		}
