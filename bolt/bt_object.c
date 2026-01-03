@@ -507,12 +507,14 @@ uint8_t bt_get_top_at(bt_Callable* callable, bt_Op* ip)
         bt_Fn* as_fn = ((bt_Closure*)callable)->fn;
         return as_fn->tops.elements[ip - as_fn->instructions.elements];
     }
-    case BT_OBJECT_TYPE_FN:
+    case BT_OBJECT_TYPE_FN: {
         bt_Fn* as_fn = (bt_Fn*)callable;
         return as_fn->tops.elements[ip - as_fn->instructions.elements];
-    case BT_OBJECT_TYPE_MODULE:
+    }
+    case BT_OBJECT_TYPE_MODULE: {
         bt_Module* as_mod = (bt_Module*)callable;
         return as_mod->tops.elements[ip - as_mod->instructions.elements];
+    }
     case BT_OBJECT_TYPE_NATIVE_FN:
         return 0;
     }
