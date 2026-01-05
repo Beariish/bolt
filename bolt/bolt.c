@@ -462,19 +462,24 @@ bt_Module* bt_find_module(bt_Context* context, bt_Value name, bt_bool suppress_e
 bt_Thread* bt_make_thread(bt_Context* context)
 {
 	bt_Thread* result = bt_gc_alloc(context, sizeof(bt_Thread));
-	result->depth = 0;
-	result->native_depth = 0;
-	result->top = 0;
 	result->context = context;
-	result->should_report = BT_TRUE;
-	result->last_error = 0;
-
-	result->native_stack[result->native_depth].return_loc = 0;
-	result->native_stack[result->native_depth].argc = 0;
-	
-	result->callstack[result->depth++] = BT_MAKE_STACKFRAME(0, 0, 0);
+	bt_reset_thread(result);
 
 	return result;
+}
+
+void bt_reset_thread(bt_Thread* thread)
+{
+	thread->depth = 0;
+	thread->native_depth = 0;
+	thread->top = 0;
+	thread->should_report = BT_TRUE;
+	thread->last_error = 0;
+
+	thread->native_stack[thread->native_depth].return_loc = 0;
+	thread->native_stack[thread->native_depth].argc = 0;
+	
+	thread->callstack[thread->depth++] = BT_MAKE_STACKFRAME(0, 0, 0);
 }
 
 void bt_destroy_thread(bt_Context* context, bt_Thread* thread)
@@ -502,6 +507,7 @@ bt_bool bt_execute_with_args(bt_Context* context, bt_Thread* thread, bt_Callable
 {
 	bt_Thread* old_thread = context->current_thread;
 
+	bt_reset_thread(thread);
 	context->current_thread = thread;
 
 	bt_push(thread, BT_VALUE_OBJECT(callable));

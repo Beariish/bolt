@@ -192,6 +192,8 @@ BOLT_API bt_Module* bt_find_module(bt_Context* context, bt_Value name, bt_bool s
 
 /** Allocates a new thread with an empty callstack */
 BOLT_API bt_Thread* bt_make_thread(bt_Context* context);
+/** Resets a thread for reuse without needing to reallocate it */
+BOLT_API void bt_reset_thread(bt_Thread* thread);
 /** Destroys a thread and frees all references within */
 BOLT_API void bt_destroy_thread(bt_Context* context, bt_Thread* thread);
 
