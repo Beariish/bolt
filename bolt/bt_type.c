@@ -1006,6 +1006,13 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	return BT_FALSE;
 }
 
+bt_bool bt_type_is_primitive(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_PRIMITIVE; }
+bt_bool bt_type_is_array(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ARRAY; }
+bt_bool bt_type_is_tableshape(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_TABLESHAPE; }
+bt_bool bt_type_is_signature(bt_Type* type) { return type && (type->category == BT_TYPE_CATEGORY_SIGNATURE || type->category == BT_TYPE_CATEGORY_NATIVE_FN); }
+bt_bool bt_type_is_union(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_UNION; }
+bt_bool bt_type_is_enum(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ENUM; }
+
 bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }
 bt_Type* bt_type_null(bt_Context* context) { return context->types.null; }
 bt_Type* bt_type_number(bt_Context* context) { return context->types.number; }
