@@ -395,6 +395,13 @@ bt_Type* bt_make_poly_signature_type(bt_Context* context, const char* name, bt_P
 	return result;
 }
 
+bt_Type* bt_signature_get_returned_type(bt_Type* type)
+{
+	if (!bt_type_is_signature(type)) return NULL;
+	if (type->is_polymorphic) return NULL;
+	return type->as.fn.return_type;
+}
+
 bt_Type* bt_make_tableshape_type(bt_Context* context, const char* name, bt_bool sealed)
 {
 	bt_Type* result = bt_make_type(context, name, bt_type_satisfier_table, BT_TYPE_CATEGORY_TABLESHAPE);
