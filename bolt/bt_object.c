@@ -321,6 +321,8 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
 
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
+    if (!tbl) return BT_VALUE_NULL;
+    
     for (uint32_t i = 0; i < tbl->length; ++i) {
         bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
@@ -509,12 +511,14 @@ uint8_t bt_get_top_at(bt_Callable* callable, bt_Op* ip)
         bt_Fn* as_fn = ((bt_Closure*)callable)->fn;
         return as_fn->tops.elements[ip - as_fn->instructions.elements];
     }
-    case BT_OBJECT_TYPE_FN:
+    case BT_OBJECT_TYPE_FN: {
         bt_Fn* as_fn = (bt_Fn*)callable;
         return as_fn->tops.elements[ip - as_fn->instructions.elements];
-    case BT_OBJECT_TYPE_MODULE:
+    }
+    case BT_OBJECT_TYPE_MODULE: {
         bt_Module* as_mod = (bt_Module*)callable;
         return as_mod->tops.elements[ip - as_mod->instructions.elements];
+    }
     case BT_OBJECT_TYPE_NATIVE_FN:
         return 0;
     }
@@ -594,7 +598,13 @@ bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key)
         return bt_table_get((bt_Table*)obj, key);
     case BT_OBJECT_TYPE_TYPE: {
         bt_Type* type = (bt_Type*)obj;
-        return bt_table_get(type->prototype_values, key);
+        bt_Value result =  bt_table_get(type->prototype_values, key);
+
+        if (result == BT_VALUE_NULL && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+            result = bt_table_get(type->as.table_shape.layout, key);
+        }
+
+        return result;
     } break;
     case BT_OBJECT_TYPE_ARRAY: {
         if (!BT_IS_NUMBER(key)) {

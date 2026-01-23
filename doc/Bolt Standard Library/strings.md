@@ -20,7 +20,7 @@ strings.length(str: string): number
     let sub = full.substring(2, 3)
     print(sub) // llo
 */
-strings.sustring(str: string, start: number, len: number): string
+strings.substring(str: string, start: number, len: number): string
 
 // Creates a substring from `str`, starting from `start` and going to the end of the original string
 strings.remainder(str: string, start: number): string
@@ -69,3 +69,4 @@ strings.ends_with(haystack: string, needle: string): bool
 strings.compare_at(haystack: string, needle: string, offset: number): bool
 
 ```
+

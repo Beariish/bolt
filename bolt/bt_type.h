@@ -73,6 +73,9 @@ BOLT_API bt_bool bt_type_is_methodic(bt_Type* signature, bt_Type* t);
  */
 BOLT_API bt_Type* bt_make_poly_signature_type(bt_Context* context, const char* name, bt_PolySignature applicator);
 
+/** Returns the return type of the given signature type. Will return NULL if return type is empty (function does not return anything), or type is non-signature */
+BOLT_API bt_Type* bt_signature_get_returned_type(bt_Type* type);
+    
 /** TABLESHAPE TYPES */
 
 /** Creates an empty tableshape type. If `sealed´ is BT_FALSE, assignments to undefined keys is allowed */
@@ -156,6 +159,24 @@ BOLT_API bt_bool bt_is_type(bt_Value value, bt_Type* type);
 BOLT_API bt_Value bt_transmute_type(bt_Value value, bt_Type* type);
 /** Returns whether types `a` and `b` are functionally equal */
 BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b);
+
+/** Returns whether `type` is in the primitive type set (number, string, bool, null) */
+BOLT_API bt_bool bt_type_is_primitive(bt_Type* type);
+/** Returns whether `type` is an array type */
+BOLT_API bt_bool bt_type_is_array(bt_Type* type);
+/** Returns whether `type` is a tableshape type */
+BOLT_API bt_bool bt_type_is_tableshape(bt_Type* type);
+/** Returns whether `type` is a signature type */
+BOLT_API bt_bool bt_type_is_signature(bt_Type* type);
+/** Returns whether `type` is an userdata type */
+BOLT_API bt_bool bt_type_is_userdata(bt_Type* type);
+/** Returns whether `type` is a union type */
+BOLT_API bt_bool bt_type_is_union(bt_Type* type);
+/** Returns whether `type` is an enum type */
+BOLT_API bt_bool bt_type_is_enum(bt_Type* type);
+
+/** Returns a NULL-terminated string containing the type's name, if known */
+BOLT_API char* bt_type_get_name(bt_Type* type);
     
 static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return left && right; }
 static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }

@@ -24,8 +24,9 @@ static bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 	if (left->as.fn.return_type == 0 && right->as.fn.return_type) return BT_FALSE;
 	if (left->as.fn.return_type && right->as.fn.return_type == 0) return BT_FALSE;
 
+	// Return types are inferred "backwards", narrow types can bind to wider ones
 	if (left->as.fn.return_type) {
-		if (!left->as.fn.return_type->satisfier(left->as.fn.return_type, right->as.fn.return_type))
+		if (!left->as.fn.return_type->satisfier(right->as.fn.return_type, left->as.fn.return_type))
 			return BT_FALSE;
 	}
 
@@ -392,6 +393,13 @@ bt_Type* bt_make_poly_signature_type(bt_Context* context, const char* name, bt_P
 	result->is_polymorphic = BT_TRUE;
 
 	return result;
+}
+
+bt_Type* bt_signature_get_returned_type(bt_Type* type)
+{
+	if (!bt_type_is_signature(type)) return NULL;
+	if (type->is_polymorphic) return NULL;
+	return type->as.fn.return_type;
 }
 
 bt_Type* bt_make_tableshape_type(bt_Context* context, const char* name, bt_bool sealed)
@@ -781,15 +789,20 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	case BT_TYPE_CATEGORY_TYPE:
 		return BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_TYPE;
 	case BT_TYPE_CATEGORY_SIGNATURE:
-		if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_FN) {
+		switch (BT_OBJECT_GET_TYPE(as_obj)) {
+		case BT_OBJECT_TYPE_FN: {
 			bt_Fn* as_fn = (bt_Fn*)as_obj;
-			return type->satisfier(type, as_fn->signature);
+			return type->satisfier(as_fn->signature, type);
 		}
-		else if (BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_CLOSURE) {
+		case BT_OBJECT_TYPE_CLOSURE: {
 			bt_Closure* cl = (bt_Closure*)as_obj;
-			return type->satisfier(type, cl->fn->signature);
+				return type->satisfier(cl->fn->signature, type);
 		}
-		else {
+		case BT_OBJECT_TYPE_NATIVE_FN: {
+			bt_NativeFn* native = (bt_NativeFn*)as_obj;
+			return type->satisfier(native->type, type);
+		}
+		default:
 			return BT_FALSE;
 		}
 	case BT_TYPE_CATEGORY_TABLESHAPE: {
@@ -999,6 +1012,15 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 
 	return BT_FALSE;
 }
+
+bt_bool bt_type_is_primitive(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_PRIMITIVE; }
+bt_bool bt_type_is_array(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ARRAY; }
+bt_bool bt_type_is_tableshape(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_TABLESHAPE; }
+bt_bool bt_type_is_signature(bt_Type* type) { return type && (type->category == BT_TYPE_CATEGORY_SIGNATURE || type->category == BT_TYPE_CATEGORY_NATIVE_FN); }
+bt_bool bt_type_is_union(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_UNION; }
+bt_bool bt_type_is_enum(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ENUM; }
+
+char* bt_type_get_name(bt_Type* type) { return type ? type->name : NULL; }
 
 bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }
 bt_Type* bt_type_null(bt_Context* context) { return context->types.null; }

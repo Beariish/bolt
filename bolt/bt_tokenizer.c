@@ -247,6 +247,12 @@ eat_whitespace:
 	case '\r':
 		tok->current++;
 		goto eat_whitespace;
+	case '#':
+		// Skip #! shebang line when it appears at the very start of a module
+		if (tok->line == 1 && tok->col == 1 && *(tok->current + 1) == '!') {
+			while (*tok->current && *tok->current != '\n') tok->current++;
+			goto eat_whitespace;
+		}
 	case '/':
 		if (*(tok->current + 1) == '/') {
 			while (*tok->current && *tok->current != '\n') tok->current++;

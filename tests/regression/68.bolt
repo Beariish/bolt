@@ -1,0 +1,33 @@
+import * from "../test"
+
+import math
+
+/*
+Using math.sin as an example for easy reproduction:
+
+import print from core
+import math
+
+let f1 = math.sin as any
+print("f1:", f1)
+let f2 = f1 as type(fn(number): number)!
+
+f1: <Native(0xffff55fda74b32a0): fn(number): number>
+runtime error [ (5:40)]: Operator '!' failed - lhs was null!
+ERROR: Failed to import module 'demo'!
+
+(Currently blocking me from creating an API that returns a table-type table containing native functions, 
+as I can't cast the fields to their correct signatures and call them)
+*/
+
+push_scope("68")
+
+test("cast is successful", fn {
+    let f1 = math.sin as any
+    let f2 = f1 as type(fn(number): number)
+
+    expect(f2 == math.sin, "Expected cast to succeed")
+    expect(typeof(f2) == type(null | fn(number): number), "Expected type inference")
+})
+
+pop_scope()
