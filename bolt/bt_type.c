@@ -1020,6 +1020,8 @@ bt_bool bt_type_is_signature(bt_Type* type) { return type && (type->category == 
 bt_bool bt_type_is_union(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_UNION; }
 bt_bool bt_type_is_enum(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ENUM; }
 
+char* bt_type_get_name(bt_Type* type) { return type ? type->name : NULL; }
+
 bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }
 bt_Type* bt_type_null(bt_Context* context) { return context->types.null; }
 bt_Type* bt_type_number(bt_Context* context) { return context->types.number; }

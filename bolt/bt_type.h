@@ -174,6 +174,9 @@ BOLT_API bt_bool bt_type_is_userdata(bt_Type* type);
 BOLT_API bt_bool bt_type_is_union(bt_Type* type);
 /** Returns whether `type` is an enum type */
 BOLT_API bt_bool bt_type_is_enum(bt_Type* type);
+
+/** Returns a NULL-terminated string containing the type's name, if known */
+BOLT_API char* bt_type_get_name(bt_Type* type);
     
 static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return left && right; }
 static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
