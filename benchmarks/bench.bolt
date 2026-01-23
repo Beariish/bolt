@@ -14,7 +14,7 @@ let log_state = {
 
 if let cli = meta.find_module("cli") {
     let const args = cli.args as type([string])!
-    if args[1] == "-csv" {
+    if args.length() > 1 and args[1] == "-csv" {
         log_state.csv_log += "name,runs,total,avg\n"
         log_state.should_log = true
     }
