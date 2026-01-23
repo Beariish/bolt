@@ -226,19 +226,19 @@ static void format_single_instruction(char* buffer, bt_Op instruction)
 	len += sprintf(buffer + len, op_to_mnemonic[op]);
 	
 	if (is_op_abc(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d, %3d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
+		len += sprintf(buffer + len, "%*s%4d, %4d, %4d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction), BT_GET_C(instruction));
 	}
 	else if (is_op_ab(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction));
+		len += sprintf(buffer + len, "%*s%4d, %4d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction));
 	}
 	else if (is_op_a(op)) {
-		len += sprintf(buffer + len, "%*s%3d", (int)(15 - len), " ", BT_GET_A(instruction));
+		len += sprintf(buffer + len, "%*s%4d", (int)(15 - len), " ", BT_GET_A(instruction));
 	}
 	else if (is_op_aibc(op)) {
-		len += sprintf(buffer + len, "%*s%3d, %3d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
+		len += sprintf(buffer + len, "%*s%4d, %4d", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_IBC(instruction));
 	}
 	else if (is_op_ibc(op)) {
-		len += sprintf(buffer + len, "%*s%3d", (int)(15 - len), " ", BT_GET_IBC(instruction));
+		len += sprintf(buffer + len, "%*s%4d", (int)(15 - len), " ", BT_GET_IBC(instruction));
 	}
 
 	buffer[len] = 0;
