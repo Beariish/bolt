@@ -20,5 +20,6 @@ import "match"
 import "match-expr"
 import "match-let"
 import "do-block"
+import "fn-do"
 
 pop_scope()

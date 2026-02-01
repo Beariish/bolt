@@ -1582,9 +1582,9 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
         has_return = BT_TRUE;
     }
 
-    next = bt_tokenizer_emit(tok);
+    next = bt_tokenizer_peek(tok);
 
-    if (next->type == BT_TOKEN_LEFTBRACE) {
+    if (next->type == BT_TOKEN_LEFTBRACE || next->type == BT_TOKEN_DO) {
         push_scope(parse, BT_TRUE);
 
         if (has_return && identifier) {
@@ -1621,7 +1621,37 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             push_arg(parse, result->as.fn.args.elements + i, result->source);
         }
 
-        parse_block(&result->as.fn.body, parse, NULL);
+        result->as.fn.body = parse_block_or_single(parse, BT_TOKEN_DO, NULL);
+
+        if (next->type == BT_TOKEN_DO) {
+            bt_AstNode* body = result->as.fn.body.length > 0 ? result->as.fn.body.elements[0] : NULL;
+            if (!body) {
+                parse_error_token(parse, "Expected body after 'do'", next);
+                return NULL;
+            }
+
+            bt_Type* expr_type = type_check(parse, body)->resulting_type;
+            if (expr_type) {
+                bt_AstNode* inferred_return = make_node(parse, BT_AST_NODE_RETURN);
+                inferred_return->source = body->source;
+                inferred_return->as.ret.expr = body;
+
+                result->as.fn.body.elements[0] = type_check(parse, inferred_return);;
+            }
+
+            if (!result->as.fn.ret_type) {
+                result->as.fn.ret_type = expr_type;
+            } else {
+                if (!result->as.fn.ret_type->satisfier(result->as.fn.ret_type, expr_type)) {
+                    parse_error_token(parse, "Function body doesn't match explicit return type: '%.*s'", body->source);
+                    return NULL;
+                }
+            }
+        } else {
+            bt_bool has_typeless_return = BT_FALSE;
+            result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, 
+                result->as.fn.ret_type, result->as.fn.ret_type == NULL, &has_typeless_return, 0);
+        }
         
         pop_scope(parse);
     }
@@ -1629,12 +1659,6 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
         parse_error_token(parse, "Expected function body, got '%.*s'", next);
         return NULL;
     }
-
-    bt_bool has_typeless_return = BT_FALSE;
-    result->as.fn.ret_type = infer_return(parse, parse->context, &result->as.fn.body, 
-        result->as.fn.ret_type, result->as.fn.ret_type == NULL, &has_typeless_return, 0);
-    
-    bt_tokenizer_expect(tok, BT_TOKEN_RIGHTBRACE);
 
     if (!(has_return && identifier)) {
         bt_Type* args[16];

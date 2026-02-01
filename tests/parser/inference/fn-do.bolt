@@ -1,0 +1,101 @@
+import * from "../../test"
+
+import print from core // Used for valuless function call
+
+push_scope("fn-do")
+
+test("fn-do single literal", fn {
+    let const f = fn do 10
+
+    expect(f() == 10, "Expected f to return 10")
+    expect(typeof(f) == type(fn: number), "Expected f to have type fn: number")
+})
+
+test("fn-do compound expression", fn {
+    let const f = fn do 10 + 10 * (2 / 10)
+
+    expect(f() == 12, "Expected f to return 12")
+    expect(typeof(f) == type(fn: number), "Expected f to have type fn: number")
+})
+
+test("fn-do explicit return", fn {
+    let const f = fn: number do 10
+
+    expect(f() == 10, "Expected f to return 10")
+    expect(typeof(f) == type(fn: number), "Expected f to have type fn: number")
+})
+
+test("fn-do parameter list", fn {
+    let const f = fn(x: number) do x * 10
+
+    expect(f(2) == 20, "Expected f(2) to return 20")
+    expect(typeof(f) == type(fn(number): number), "Expected f to have type fn(number): number")
+})
+
+test("fn-do parameter list and explicit return", fn {
+    let const f = fn(x: number): number do x * 10
+
+    expect(f(2) == 20, "Expected f(2) to return 20")
+    expect(typeof(f) == type(fn(number): number), "Expected f to have type fn(number): number")
+})
+
+test("fn-do valueless expression", fn {
+    let const f = fn do print("hi")
+
+    expect(typeof(f) == type(fn), "Expected f to have type fn")
+})
+
+test("fn-do explicit valueless expression", fn {
+    let const f = fn: ! do print("hi")
+
+    expect(typeof(f) == type(fn), "Expected f to have type fn")
+})
+
+test("statement fn-do single literal", fn {
+    fn f do 10
+
+    expect(f() == 10, "Expected f to return 10")
+    expect(typeof(f) == type(fn: number), "Expected f to have type fn: number")
+})
+
+test("statement fn-do compound expression", fn {
+    fn f do 10 + 10 * (2 / 10)
+
+    expect(f() == 12, "Expected f to return 12")
+    expect(typeof(f) == type(fn: number), "Expected f to have type fn: number")
+})
+
+test("statement fn-do explicit return", fn {
+    fn f: number do 10
+
+    expect(f() == 10, "Expected f to return 10")
+    expect(typeof(f) == type(fn: number), "Expected f to have type fn: number")
+})
+
+test("statement fn-do parameter list", fn {
+    fn f(x: number) do x * 10
+
+    expect(f(2) == 20, "Expected f(2) to return 20")
+    expect(typeof(f) == type(fn(number): number), "Expected f to have type fn(number): number")
+})
+
+test("statement fn-do parameter list and explicit return", fn {
+    fn f(x: number): number do x * 10
+
+    expect(f(2) == 20, "Expected f(2) to return 20")
+    expect(typeof(f) == type(fn(number): number), "Expected f to have type fn(number): number")
+})
+
+test("statement fn-do valueless expression", fn {
+    fn f do print("hi")
+
+    expect(typeof(f) == type(fn), "Expected f to have type fn")
+})
+
+test("fn-do explicit valueless expression", fn {
+    fn f: ! do print("hi")
+
+    expect(typeof(f) == type(fn), "Expected f to have type fn")
+})
+
+pop_scope()
