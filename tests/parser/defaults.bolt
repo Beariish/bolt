@@ -67,7 +67,7 @@ test("nested tableshape default", fn {
 
 type UTT = unsealed { a: T, b: T }
 test("nested unsealed tableshape default", fn {
-    let x: TT
+    let x: UTT
     expect(x.a.x == 0 and x.a.y == "" and x.b.x == 0 and x.b.y == "", "Expected 'x' to have default nested fields")
 })
 
@@ -113,6 +113,83 @@ test("tableshape with explicit enum defaults", fn {
 
 test("tableshape constructed with partial explicit deaults", fn {
     let x = WithEnumDefault => {}
+    expect(x.x == Enum.C, "Expected 'x' to inherit explicit defaults")
+})
+
+// Default expression keyword
+
+test("explicit any default keyword", fn {
+    let x = default(any)
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("null default keyword", fn {
+    let x = default(null)
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("bool default keyword", fn {
+    let x = default(bool)
+    expect(x == false, "Expected 'x' to be 'false'")
+})
+
+test("number default keyword", fn {
+    let x = default(number)
+    expect(x == 0, "Expected 'x' to be '0'")
+})
+
+test("string default keyword", fn {
+    let x = default(string)
+    expect(x == "", "Expected 'x' to be ''")
+})
+
+test("optional default keyword", fn {
+    let x = default(string?)
+    expect(x == null, "Expected 'x' to be 'null'")
+})
+
+test("union default keyword", fn {
+    let x = default(string | number)
+    expect(x == "", "Expected 'x' to be ''")
+})
+
+test("array default keyword", fn {
+    let x = default([number])
+    expect(x.length() == 0, "Expected 'x' to have a length of '0'")
+})
+
+test("enum default keyword", fn {
+    let x = default(Enum)
+    expect(x == Enum.A, "Expected 'x' to be 'Enum.A'")
+})
+
+test("tableshape default keyword", fn {
+    let x = default(T)
+    expect(x.x == 0 and x.y == "", "Expected 'x' to have default fields")
+})
+
+test("nested tableshape default keyword", fn {
+    let x = default(TT)
+    expect(x.a.x == 0 and x.a.y == "" and x.b.x == 0 and x.b.y == "", "Expected 'x' to have default nested fields")
+})
+
+test("nested unsealed tableshape default keyword", fn {
+    let x = default(UTT)
+    expect(x.a.x == 0 and x.a.y == "" and x.b.x == 0 and x.b.y == "", "Expected 'x' to have default nested fields")
+})
+
+test("tableshape with explicit defaults keyword", fn {
+    let x = default(WithDefaults)
+    expect(x.x == 10 and x.y == "hello!", "Expected 'x' to inherit explicit defaults")
+})
+
+test("tableshape with partial explicit defaults keyword", fn {
+    let x = default(WithPartialDefaults)
+    expect(x.x == 10 and x.y == 0 and x.z == "hello!", "Expected 'x' to inherit explicit defaults")
+})
+
+test("tableshape with explicit enum defaults keyword", fn {
+    let x = default(WithEnumDefault)
     expect(x.x == Enum.C, "Expected 'x' to inherit explicit defaults")
 })
 

@@ -26,6 +26,7 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* parse_match(bt_Parser* parse);
 static bt_AstNode* parse_match_expression(bt_Parser* parse);
 static bt_AstNode* parse_do_expression(bt_Parser* parser);
+static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Token* source);
 
 static void own(bt_Parser* parse, bt_Object* obj)
 {
@@ -1889,6 +1890,16 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
         else if (lhs->type == BT_TOKEN_FOR) {
             lhs_node = parse_for_expression(parse);
             type_check(parse, lhs_node);
+        }
+        else if (lhs->type == BT_TOKEN_DEFAULT) {
+            bt_tokenizer_expect(tok, BT_TOKEN_LEFTPAREN);
+            bt_Type* inner = parse_type(parse, BT_TRUE, NULL);
+            bt_tokenizer_expect(tok, BT_TOKEN_RIGHTPAREN);
+
+            if (inner) {
+                lhs_node = generate_initializer(parse, inner, lhs);
+                lhs_node->resulting_type = inner;
+            }
         }
         else if (prefix_binding_power(lhs)) {
             lhs_node = make_node(parse, BT_AST_NODE_UNARY_OP);
