@@ -1,5 +1,8 @@
 import * from "../../test"
 
+import meta
+import Error from core
+
 push_scope("prototypes")
 
 type T = { a: number }
@@ -68,6 +71,17 @@ test("static virtual function from derived instance inference", fn {
 
 test("virtual function from downcast instance inference", fn {
     expect(typeof(instance3.virtual) == type(fn(T): number), "Expected 'instance3.virtual' to be 'fn(T): number'")
+})
+
+test("overwriting prototype field is invalid", fn {
+    expect(
+        meta.try_compile("
+            type T = {}
+            fn T.thing {}
+            fn T.thing {}
+        ", "overwrite_prototype") is Error, 
+        "Expected double-write to prototype to error"
+    )
 })
 
 pop_scope()

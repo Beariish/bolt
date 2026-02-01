@@ -3088,12 +3088,10 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
             bt_String* name = bt_make_string_hashed_len(parser->context, ident->source.source, ident->source.length);
             own(parser, (bt_Object*)name);
 
-            bt_Type* existing_field = bt_type_get_field_type(parser->context, type, BT_VALUE_OBJECT(name));
-            if (existing_field && bt_type_is_methodic(existing_field, type)) {
-                if (!existing_field->satisfier(existing_field, fn->resulting_type)) {
-                    parse_error_token(parser, "Invalid signature for function '%.*s' already defined in tableshape", ident);
-                    return NULL;
-                }
+            bt_Type* existing_field = bt_type_get_field_type(parser->context, type, BT_VALUE_OBJECT(name), BT_FALSE);
+            if (existing_field) {
+                parse_error_fmt(parser, "Prototype '%s' already contains a field named '%.*s'", ident->line, ident->col, type->name, ident->source.length, ident->source.source);
+                return NULL;
             }
             
             bt_type_add_field(parser->context, type, fn->resulting_type, BT_VALUE_OBJECT(name), BT_VALUE_NULL);

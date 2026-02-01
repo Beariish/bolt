@@ -308,6 +308,8 @@ BOLT_API bt_Table* bt_make_table_from_proto(bt_Context* ctx, bt_Type* prototype)
 BOLT_API bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value);
 /** Get the value at `key` in `tbl`. Returns BT_VALUE_NULL if key wasn't found */
 BOLT_API bt_Value bt_table_get(bt_Table* tbl, bt_Value key);
+/** Get the value at `key` in `tbl`. Returns BT_VALUE_NULL if key wasn't found. Does NOT follow the prototype chain. */
+BOLT_API bt_Value bt_table_get_direct(bt_Table* tbl, bt_Value key);
 /** Returns the numeric index of the `key` in `tbl`. Used internally in the compiler for precomputing hash slots */
 BOLT_API int16_t bt_table_get_idx(bt_Table* tbl, bt_Value key);
 /** Remove the entry for `key` in `tbl` */

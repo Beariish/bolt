@@ -471,12 +471,12 @@ bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_V
 	return BT_TRUE;
 }
 
-bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key)
+bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key, bt_bool allow_parent)
 {
 	if (tshp->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
 	if (!tshp->prototype_types) return BT_FALSE;
 
-	bt_Value type_value = bt_table_get(tshp->prototype_types, key);
+	bt_Value type_value = allow_parent ? bt_table_get(tshp->prototype_types, key) : bt_table_get_direct(tshp->prototype_types, key);
 	if (type_value == BT_VALUE_NULL) return NULL;
 	return (bt_Type*)BT_AS_OBJECT(type_value);
 }

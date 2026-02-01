@@ -285,7 +285,6 @@ bt_Table* bt_make_table_from_proto(bt_Context* ctx, bt_Type* prototype)
 
 bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value value)
 {
-    bt_String* as_str = (bt_String*)BT_VALUE_OBJECT(key);
     for (uint32_t i = 0; i < tbl->length; ++i) {
         bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
@@ -321,17 +320,25 @@ bt_bool bt_table_set(bt_Context* ctx, bt_Table* tbl, bt_Value key, bt_Value valu
 
 bt_Value bt_table_get(bt_Table* tbl, bt_Value key)
 {
+    bt_Value val = bt_table_get_direct(tbl, key);
+    if (val != BT_VALUE_NULL) return val;
+
+    if (tbl && tbl->prototype) {
+        return bt_table_get(tbl->prototype, key);
+    }
+
+    return BT_VALUE_NULL;
+}
+
+bt_Value bt_table_get_direct(bt_Table* tbl, bt_Value key)
+{
     if (!tbl) return BT_VALUE_NULL;
-    
+
     for (uint32_t i = 0; i < tbl->length; ++i) {
         bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
         if (bt_value_is_equal(pair->key, key)) {
             return pair->value;
         }
-    }
-
-    if (tbl->prototype) {
-        return bt_table_get(tbl->prototype, key);
     }
 
     return BT_VALUE_NULL;
