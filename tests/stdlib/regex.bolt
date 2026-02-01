@@ -1,11 +1,8 @@
 import * from "../test"
 
 import regex
-import core
-
-// HACK: Workaround for https://github.com/Beariish/bolt/issues/1
-type Regex = regex.Regex
-type Error = core.Error
+import Regex from regex
+import Error from core
 
 push_scope("regex")
 
