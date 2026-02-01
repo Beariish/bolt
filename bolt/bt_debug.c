@@ -272,8 +272,8 @@ bt_String* bt_debug_dump_fn(bt_Context* ctx, bt_Callable* function)
 		has_debug = function->fn.debug != 0;
 	}
 	else if (BT_OBJECT_GET_TYPE(function) == BT_OBJECT_TYPE_MODULE) {
-		name = BT_STRING_STR(function->module.name);
-		mod_name = BT_STRING_STR(function->module.name);
+		name = function->module.name ? BT_STRING_STR(function->module.name) : "<anonymous>";
+		mod_name = function->module.name ? BT_STRING_STR(function->module.name) : "<anonymous>";
 		stack_size = function->module.stack_size;
 		constants = function->module.constants;
 		instructions = function->module.instructions;

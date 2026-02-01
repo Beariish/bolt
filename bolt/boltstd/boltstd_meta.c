@@ -128,7 +128,7 @@ static bt_Type* btstd_dump_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 {
 	if (argc != 1) return NULL;
 	bt_Type* fn = args[0];
-	if (fn->category != BT_TYPE_CATEGORY_SIGNATURE) return NULL;
+	if (fn->category != BT_TYPE_CATEGORY_SIGNATURE && fn->satisfier(fn, ctx->types.module) == BT_FALSE) return NULL;
 
 	bt_Type* sig = bt_make_signature_type(ctx, ctx->types.string, args, 1);
 
@@ -311,7 +311,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export_native(context, module, "try_compile",       btstd_try_compile,           trycompile_ret, trycompile_args,      2);
 	bt_module_export_native(context, module, "execute_module",    btstd_execute_module,        table,          &mod_type,            1);
 	
-	bt_Type* dump_sig = bt_make_poly_signature_type(context, "dump(fn): string", btstd_dump_type);
+	bt_Type* dump_sig = bt_make_poly_signature_type(context, "dump(T): string", btstd_dump_type);
 	bt_module_export(context, module, dump_sig, BT_VALUE_CSTRING(context, "dump"), BT_VALUE_OBJECT(
 		bt_make_native(context, module, dump_sig, btstd_dump)));
 
