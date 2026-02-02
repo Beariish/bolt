@@ -5,7 +5,7 @@ push_scope("casting")
 test("as-casting primitive types", fn {
     let x = 10 as number
     let y = false as bool
-    let z = null as type(null)
+    let z = null as null
 
     expect(typeof(x) == type(number?), "Expeced 'as' to cast to 'number?'")
     expect(typeof(y) == type(bool?), "Expeced 'as' to cast to 'bool?'")
@@ -89,14 +89,14 @@ test("as-casting to prototypical tableshape", fn {
 
 test("as-casting array types", fn {
     let x = [1, 2, 3 : any]
-    let y = x as type([number])
+    let y = x as [number]
     expect(typeof(y) == type(null | [number]), "Expected 'as' to cast to '[number]?'")
     expect(y is type([number]), "Expected 'as' to cast to '[number]'")
 })
 
 test("as-casting invalid array types", fn {
     let x = [1, 2, 3 : any]
-    let y = x as type([number])
+    let y = x as [number]
     expect(typeof(y) == type(null | [number]), "Expected 'as' to cast to '[number]?'")
     expect(y is type([number]), "Expected 'as' to cast to '[number]'")
 })

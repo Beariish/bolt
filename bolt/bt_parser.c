@@ -1829,6 +1829,14 @@ static void try_parse_annotations(bt_Parser* parse)
     }
 }
 
+static bt_bool op_rhs_is_type(bt_Token* op)
+{
+    switch (op->type) {
+    case BT_TOKEN_AS: return BT_TRUE;
+    default: return BT_FALSE;
+    }
+}
+
 static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power, bt_AstNode* with_lhs)
 {
     try_parse_annotations(parse);
@@ -1943,6 +1951,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
             }
             else if (op->type == BT_TOKEN_LEFTPAREN)
             {
+                // TODO: This is horrific
                 bt_Type* to_call = type_check(parse, lhs_node)->resulting_type;
                 
                 if (!to_call || (to_call->category != BT_TYPE_CATEGORY_SIGNATURE && to_call != parse->context->types.any)) {
@@ -2114,29 +2123,40 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
         }
 
         InfixBindingPower infix_bp = infix_binding_power(op);
-        if (infix_bp.left != 0)
-        {
+        if (infix_bp.left != 0) {
             if (infix_bp.left < min_binding_power) break;
             bt_tokenizer_emit(tok); // consume peeked operator
             
-            bt_AstNode* rhs = parse_expression(parse, infix_bp.right, NULL);
-
             bt_AstNode* lhs = lhs_node;
+            bt_AstNode* rhs = NULL;
+            bt_Type* rhs_type = NULL;
+            
             lhs_node = make_node(parse, BT_AST_NODE_BINARY_OP);
             lhs_node->source = op;
             lhs_node->as.binary_op.accelerated = BT_FALSE;
             lhs_node->as.binary_op.hoistable = BT_FALSE;
             lhs_node->as.binary_op.left = lhs;
-            lhs_node->as.binary_op.right = rhs;
 
-            if (!lhs || !rhs) {
-                if (!lhs) parse_error(parse, "Failed to parse lhs", lhs_node->source->line, lhs_node->source->col);
-                if (!rhs) parse_error(parse, "Failed to parse rhs", lhs_node->source->line, lhs_node->source->col);
+            if (op_rhs_is_type(op)) {
+                rhs_type = parse_type(parse, BT_TRUE, NULL);
+                lhs_node->as.binary_op.right_as_type = rhs_type;
+            } else {
+                rhs = parse_expression(parse, infix_bp.right, NULL);
+                lhs_node->as.binary_op.right = rhs;
+            }
+            
+            // TODO: Error spam?
+            if (!lhs) {
+                parse_error(parse, "Failed to parse lhs", lhs_node->source->line, lhs_node->source->col);
+                break;
+            }
+                    
+            if (!rhs && !rhs_type) {
+                parse_error(parse, "Failed to parse rhs", lhs_node->source->line, lhs_node->source->col);
                 break;
             }
 
             type_check(parse, lhs_node);
-
             continue;
         }
 
@@ -2315,7 +2335,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             return node;
         }
 
-        if (!node->as.binary_op.right) {
+        if (!node->as.binary_op.right && !node->as.binary_op.right_as_type) {
             parse_error_token(parse, "Binary operator '%.*s' is missing right hand operand", node->source);
             return node;
         }
@@ -2393,15 +2413,9 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return node;
             }
 
-            bt_Type* to = type_check(parse, node->as.binary_op.right)->resulting_type;
-            if (to == NULL || to->category != BT_TYPE_CATEGORY_TYPE) {
-                parse_error(parse, "Expected right hand of 'as' to be Type", node->source->line, node->source->col);
-                return node;
-            }
+            bt_Type* type = node->as.binary_op.right_as_type;
 
-            bt_Type* type = resolve_to_type(parse, node->as.binary_op.right);
-            type = bt_type_dealias(type);
-
+            // TODO: Factor this out. 
             if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
                 bt_Table* lhs = from->as.table_shape.layout;
                 bt_Table* rhs = type->as.table_shape.layout;
@@ -2435,7 +2449,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 }
             }
 
-            node->resulting_type = bt_type_make_nullable(parse->context, bt_type_dealias(type));
+            node->resulting_type = bt_type_make_nullable(parse->context, type);
             own(parse, (bt_Object*)node->resulting_type);
         } break;
         // TODO(bearish): This should really be a lot more sophisticated

@@ -12,7 +12,7 @@ type File = io.File
 /** Determines if we're being run as a cli, and if we are, whether we're the main module */
 export fn as_cli_module(name: string): [string] | null {
     if let cli = meta.find_module("cli") {
-        let const args = cli.args as type([string])!
+        let const args = cli.args as [string]!
         if args[0].contains(name) {
             return args
         }

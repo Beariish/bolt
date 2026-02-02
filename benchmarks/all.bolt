@@ -1,5 +1,5 @@
 import "mandel"
-/*import "vec2hoist"
+import "vec2hoist"
 import "loops"
 import "array"
 import "heap"
@@ -10,7 +10,7 @@ import "delta_blue"
 import "fannkuch"
 import "nbodies"
 import "spectral"
-import "alloc"*/
+import "alloc"
 
 import * from "bench"
 import io

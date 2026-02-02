@@ -24,7 +24,7 @@ push_scope("68")
 
 test("cast is successful", fn {
     let f1 = math.sin as any
-    let f2 = f1 as type(fn(number): number)
+    let f2 = f1 as fn(number): number
 
     expect(f2 == math.sin, "Expected cast to succeed")
     expect(typeof(f2) == type(null | fn(number): number), "Expected type inference")

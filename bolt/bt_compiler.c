@@ -899,7 +899,14 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
             }
         }
             
-        uint8_t rhs_loc = can_elide_store ? find_binding_or_compile_to(ctx, rhs, result_loc) : find_binding_or_compile_temp(ctx, rhs);
+        uint8_t rhs_loc = INVALID_BINDING;
+        if (rhs) {
+            rhs_loc = can_elide_store ? find_binding_or_compile_to(ctx, rhs, result_loc) : find_binding_or_compile_temp(ctx, rhs);
+        } else if (expr->as.binary_op.right_as_type) {
+            rhs_loc = push_load(ctx, BT_VALUE_OBJECT(expr->as.binary_op.right_as_type));
+        } else {
+            compile_error_token(ctx->compiler, "Binary operator '%.*s' has no valid rhs", expr->source);
+        }
 
 #define HOISTABLE_OP(unhoisted) \
         if (expr->as.binary_op.hoistable && ctx->compiler->options.allow_method_hoisting) {                                                                        \

@@ -32,13 +32,13 @@ test("doesn't segfault (table)", fn {
 
 test("doesn't segfault ({})", fn {
     let original_table = { a: 10 }
-    let unknown_table = original_table as type(unsealed {})!
+    let unknown_table = original_table as unsealed {}!
     let a = unknown_table["a"] as number
 })
 
 test("doesn't segfault (map)", fn {
     let original_table = { a: 10 }
-    let unknown_table = original_table as type({ ..string: any })!
+    let unknown_table = original_table as { ..string: any }!
     let a = unknown_table["a"] as number
 })
 
