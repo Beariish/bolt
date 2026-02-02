@@ -6,25 +6,21 @@ test("number", fn {
     let a = 10
 
     expect(typeof(a) == number, "Expected a to be 'number'")
-    expect(a is number,         "Expected a to be 'number'")
 })
 
 test("string", fn {
     let b = "string"
     expect(typeof(b) == string, "Expected b to be 'string'")
-    expect(b is string,         "Expected b to be 'string'")
 })
     
 test("bool", fn {
     let c = false
     expect(typeof(c) == bool, "Expected c to be 'bool'")
-    expect(c is bool,         "Expected c to be 'bool'")
 })
     
 test("null", fn {
     let d = null
     expect(typeof(d) == type(null), "Expected d to be 'null'")
-    expect(d is null,         "Expected d to be 'null'")
 })
 
 test("enum", fn {
@@ -33,7 +29,6 @@ test("enum", fn {
     let e = TestEnum.A
 
     expect(typeof(e) == TestEnum, "Expected e to be 'TestEnum'")
-    expect(e is TestEnum,         "Expected e to be 'TestEnum'")
 })
 
 pop_scope()

@@ -4,54 +4,44 @@ push_scope("logical-operators")
 
 test("== operator inference", fn {
     expect(typeof(10 == 10) == bool, "Expected '10 == 10' to be 'bool'")
-    expect((10 == 10) is bool,       "Expected '10 == 10' to be 'bool'")
 })
 
 test("!= operator inference", fn {
     expect(typeof(10 != 10) == bool, "Expected '10 != 10' to be 'bool'")
-    expect((10 != 10) is bool,       "Expected '10 != 10' to be 'bool'")
 })
 
 test("> operator inference", fn {
     expect(typeof(10 > 10) == bool, "Expected '10 > 10' to be 'bool'")
-    expect((10 > 10) is bool,       "Expected '10 > 10' to be 'bool'")
 })
 
 test(">= operator inference", fn {
     expect(typeof(10 >= 10) == bool, "Expected '10 >= 10' to be 'bool'")
-    expect((10 >= 10) is bool,       "Expected '10 >= 10' to be 'bool'")
 })
 
 test("< operator inference", fn {
     expect(typeof(10 < 10) == bool, "Expected '10 < 10' to be 'bool'")
-    expect((10 < 10) is bool,       "Expected '10 < 10' to be 'bool'")
 })
 
 test("<= operator inference", fn {
     expect(typeof(10 <= 10) == bool, "Expected '10 <= 10' to be 'bool'")
-    expect((10 <= 10) is bool,       "Expected '10 <= 10' to be 'bool'")
 })
 
 test("and operator inference", fn {
     expect(typeof(true and true) == bool, "Expected 'true and true' to be 'bool'")
-    expect((true and true) is bool,       "Expected 'true and true' to be 'bool'")
 })
 
 test("or operator inference", fn {
     expect(typeof(true or true) == bool, "Expected 'true or true' to be 'bool'")
-    expect((true or true) is bool,       "Expected 'true or true' to be 'bool'")
 })
 
 test("not operator inference", fn {
     expect(typeof(not true) == bool, "Expected 'not true' to be 'bool'")
-    expect((not true) is bool,       "Expected 'not true' to be 'bool'")
 })
 
 test("is operator inference", fn {
     type T = { a: number }
-    let a = T => { a: 10 }
+    let a: T? = T => { a: 10 }
     expect(typeof(a is T) == bool, "Expected 'a is T' to be 'bool'")
-    expect((a is T) is bool,       "Expected 'a is T' to be 'bool'")
 })
 
 pop_scope()

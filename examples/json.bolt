@@ -135,7 +135,7 @@ fn parse_single(content: string, idx: number): ParseResult {
 
                 match let value = parse_single(content, idx) {
                     is Error { return value }
-                    is ParseSuccess {
+                    else {
                         result.push(value.result)
                         idx = value.remainder
                     }
@@ -173,15 +173,15 @@ fn parse_single(content: string, idx: number): ParseResult {
                 
                 match let key = json_parse_string(content, idx) {
                     is Error { return key }
-                    is ParseSuccess {
+                    else {
                         idx = eat_whitespace(content, key.remainder)
                         if content.length() < idx { return error("Unexpected end of source") }
                         if content.substring(idx, 1) != ":" { return error("Expected colon") }
                         idx = eat_whitespace(content, idx + 1)
 
                         match let value = parse_single(content, idx) {
-                            is Error { return value },
-                            is ParseSuccess {
+                            is Error { return value }
+                            else {
                                 result[key.result as string!] = value.result
                                 idx = eat_whitespace(content, value.remainder)
                                 if content.length() < idx { return error("Unexpected end of source") }
@@ -204,8 +204,8 @@ fn parse_single(content: string, idx: number): ParseResult {
 
 export fn parse(input: string): JsonValue | Error {
     return match let result = parse_single(input, 0) {
-        is Error then result,
         is ParseSuccess then result.result,
+        else result,
     }!
 }
 
@@ -225,13 +225,13 @@ if let args = cli.as_cli_module("json") {
                         print(json)
                     }
 
-                    is Error {
+                    else {
                         print("Parsing failed:", json.what)
                     }
                 }
             }
 
-            is Error {
+            else {
                 print("Couldn't read file:", file.what)
             }
         }

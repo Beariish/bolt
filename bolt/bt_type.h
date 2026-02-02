@@ -106,6 +106,8 @@ BOLT_API bt_Type* bt_make_union(bt_Context* context);
 BOLT_API bt_Type* bt_make_or_extend_union(bt_Context* context, bt_Type* uni, bt_Type* variant);
 /** Create a union type of `types` */
 BOLT_API bt_Type* bt_make_union_from(bt_Context* context, bt_Type** types, size_t type_count);
+/** Make a union without a specific variant from source */
+BOLT_API bt_Type* bt_make_union_without(bt_Context* context, bt_Type* source, bt_Type* to_remove);
 /** Adds a new variant to union `uni` */
 BOLT_API void bt_union_push_variant(bt_Context* context, bt_Type* uni, bt_Type* variant);
 /** Returns the number of variants in union type `uni`, or 0 if it is not a union */

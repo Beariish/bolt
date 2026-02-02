@@ -5,21 +5,18 @@ push_scope("iterators")
 test("numeric for loop iterator type inference", fn {
     for i in 1 {
         expect(typeof(i) == number, "Expected 'i' to be 'number'")
-        expect(i is number,         "Expected 'i' to be 'number'")
     }
 })
 
 test("numeric for loop with start index iterator type inference", fn {
     for i in 1 to 2 {
         expect(typeof(i) == number, "Expected 'i' to be 'number'")
-        expect(i is number,         "Expected 'i' to be 'number'")
     }
 })
 
 test("numeric for loop with start index and step iterator type inference", fn {
     for i in 1 to 2 by 10 {
         expect(typeof(i) == number, "Expected 'i' to be 'number'")
-        expect(i is number,         "Expected 'i' to be 'number'")
     }
 })
 
@@ -32,7 +29,6 @@ test("closure for loop iterator type inference", fn {
     ensure_branch()
     for item in iter {
         expect_branched(typeof(item) == number, "Expected 'item' to be 'number'")
-        expect         (item is number,         "Expected 'item' to be 'number'")
     }
 })
 

@@ -26,9 +26,9 @@ export fn read_file(path: string): string | Error {
     return match let file = io.open(path, "r") {
         is File then match let size = io.get_size(file) {
             is number then io.read(file, size),
-            is Error then size
+            else size
         },
 
-        is Error then file
-    }!
+        else file
+    }
 }

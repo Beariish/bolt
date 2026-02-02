@@ -8,7 +8,6 @@ test("if-let binding type inference", fn {
     ensure_branch()
     if let num = x {
         expect_branched(typeof(num) == number, "Expected 'num' to be 'number'")
-        expect         (num is number,         "Expected 'num' to be 'number'")
     }
 })
 

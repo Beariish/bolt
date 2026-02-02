@@ -483,9 +483,26 @@ bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key
 
 bt_Type* bt_make_array_type(bt_Context* context, bt_Type* inner)
 {
-	bt_Type* result = bt_make_type(context, "array", bt_type_satisfier_array, BT_TYPE_CATEGORY_ARRAY);
+	int32_t name_len = 0;
+	char* new_name = "array";
+
+	if (inner) {
+		name_len = strlen(inner->name);
+		new_name = bt_gc_alloc(context, name_len + 3);
+		new_name[0] = '[';
+		strcpy(new_name + 1, inner->name);
+		new_name[name_len + 1] = ']';
+		new_name[name_len + 2] = '\0';
+	}
+
+	bt_Type* result = bt_make_type(context, new_name, bt_type_satisfier_array, BT_TYPE_CATEGORY_ARRAY);
 	result->as.array.inner = inner;
 	result->prototype = context->types.array;
+
+	if (inner) {
+		bt_gc_free(context, new_name, name_len + 3);
+	}
+	
 	return result;
 }
 
@@ -646,6 +663,21 @@ bt_Type* bt_make_union_from(bt_Context* context, bt_Type** types, size_t type_co
 	return result;
 }
 
+bt_Type* bt_make_union_without(bt_Context* context, bt_Type* source, bt_Type* to_remove)
+{
+	bt_Type* result = NULL;
+	for (uint32_t i = 0; i < bt_union_get_length(source); i++) {
+		bt_Type* variant = bt_union_get_variant(source, i);
+
+		if (bt_type_is_union(to_remove)) {
+			if (bt_union_has_variant(to_remove, variant) != -1) continue;			
+		} else if (bt_type_is_equal(variant, to_remove)) continue;
+
+		result = bt_make_or_extend_union(context, result, variant);
+	}
+
+	return result;
+}
 
 void bt_union_push_variant(bt_Context* context, bt_Type* uni, bt_Type* variant)
 {
@@ -720,6 +752,7 @@ BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant)
 
 bt_bool bt_union_is_subset(bt_Type* subset, bt_Type* set)
 {
+	if (set->ctx->types.any == set) return BT_TRUE; // 'any' is the union of all types
 	if (!bt_type_is_union(subset) || !bt_type_is_union(set)) return BT_FALSE;
 	for (int32_t i = 0; i < bt_union_get_length(subset); i++) {
 		if (!bt_union_has_variant(set, bt_union_get_variant(subset, i))) return BT_FALSE;

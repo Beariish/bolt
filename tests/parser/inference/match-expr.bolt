@@ -8,7 +8,6 @@ test("match expr inference with single branch", fn {
     }
 
     expect(typeof(x) == string, "Expected 'x' to be 'string'")
-    expect(x is string, "Expected 'x' to be 'string'")
 })
 
 test("match expr inference with multiple branches", fn {
@@ -19,7 +18,6 @@ test("match expr inference with multiple branches", fn {
     }
 
     expect(typeof(x) == string, "Expected 'x' to be 'string'")
-    expect(x is string, "Expected 'x' to be 'string'")
 })
 
 test("match expr inference with multiple branches and types", fn {

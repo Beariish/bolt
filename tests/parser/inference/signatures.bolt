@@ -6,7 +6,6 @@ test("function return inference", fn {
     fn f { return 10 }
 
     expect(typeof(f()) == number, "Expceted f() to be 'number'")
-    expect(f() is number, "Expceted f() to be 'number'")
 })
 
 test("branched function return inference", fn {
@@ -18,7 +17,6 @@ test("branched function return inference", fn {
     }
 
     expect(typeof(f()) == bool, "Expceted f() to be 'bool'")
-    expect(f() is bool, "Expceted f() to be 'bool'")
 })
 
 test("union branched function return inference", fn {
@@ -28,49 +26,42 @@ test("union branched function return inference", fn {
     }
 
     expect(typeof(f()) == type(number | bool), "Expceted f() to be 'number | bool'")
-    expect(f() is number | bool, "Expceted f() to be 'number | bool'")
 })
 
 test("empty function signature inference", fn {
     fn f {}
 
     expect(typeof(f) == type(fn), "Expected f to be 'fn'")
-    expect(f is fn, "Expected f to be 'fn'")
 })
 
 test("parameterless function signature inference", fn {
     fn f: number { return 10 }
 
     expect(typeof(f) == type(fn: number), "Expected f to be 'fn: number'")
-    expect(f is fn: number, "Expected f to be 'fn: number'")
 })
 
 test("one-parameter returnless function signature inference", fn {
     fn f(x: number) { let y = x }
 
     expect(typeof(f) == type(fn(number)), "Expected f to be 'fn(number)'")
-    expect(f is fn(number), "Expected f to be 'fn(number)'")
 })
 
 test("one-parameter function signature inference", fn {
     fn f(x: number): number { return x }
 
     expect(typeof(f) == type(fn(number): number), "Expected f to be 'fn(number): number'")
-    expect(f is fn(number): number, "Expected f to be 'fn(number): number'")
 })
 
 test("many-parameter function signature inference", fn {
     fn f(x: number, y: string, z: bool): number { return x }
 
     expect(typeof(f) == type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
-    expect(f is fn(number, string, bool): number, "Expected f to be 'fn(number, string, bool): number'")
 })
 
 test("many-parameter function expression inference", fn {
     let const f = fn(x: number, y: string, z: bool) { return x }
 
     expect(typeof(f) == type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
-    expect(f is fn(number, string, bool): number, "Expected f to be 'fn(number, string, bool): number'")
 })
 
 test("function with ifs signature inference", fn {
@@ -85,7 +76,6 @@ test("function with ifs signature inference", fn {
     }
 
     expect(typeof(f) == type(fn(any, string): string | number | null), "Expected f to be 'fn(any, string): string | number | null'")
-    expect(f is fn(any, string): string | number | null, "Expected f to be 'fn(any, string): string | number | null'")
 })
 
 test("function with ifs returning unions signature inference", fn {
@@ -100,7 +90,6 @@ test("function with ifs returning unions signature inference", fn {
     }
 
     expect(typeof(f) == type(fn(any, string): string | number | null), "Expected f to be 'fn(any, string): string | number | null'")
-    expect(f is fn(any, string): string | number | null, "Expected f to be 'fn(any, string): string | number | null'")
 })
 
 test("function with nested ifs returning unions signature inference", fn {
@@ -121,7 +110,6 @@ test("function with nested ifs returning unions signature inference", fn {
     }
 
     expect(typeof(f) == type(fn(any, string): string | number | bool | null), "Expected f to be 'fn(any, string): string | number | bool | null'")
-    expect(f is fn(any, string): string | number | bool | null, "Expected f to be 'fn(any, string): string | number | bool | null'")
 })
 
 test("function with infinite loop signature inference", fn {
@@ -131,28 +119,24 @@ test("function with infinite loop signature inference", fn {
     }
 
     expect(typeof(f) == type(fn: number | bool), "Expected f to be 'fn: number | bool'")
-    expect(f is fn: number | bool,               "Expected f to be 'fn: number | bool'")
 })
 
 test("function with explicit recurisve return signature inference", fn {
     fn f: ! {}
 
     expect(typeof(f) == type(fn: !), "Expected 'f' to be 'fn: !'")
-    expect(f is fn: !,               "Expected 'f' to be 'fn: !'")
 })
 
 test("function with explicit recurisve return and parameter signature inference", fn {
     fn f(x: number): ! {}
 
     expect(typeof(f) == type(fn(number): !), "Expected 'f' to be 'fn(number): !'")
-    expect(f is fn(number): !,               "Expected 'f' to be 'fn(number): !'")
 })
 
 test("function with implicit no return signature inference", fn {
     fn f {}
 
     expect(typeof(f) == type(fn: !), "Expected 'f' to be 'fn: !'")
-    expect(f is fn: !,               "Expected 'f' to be 'fn: !'")
 })
 
 pop_scope()

@@ -48,7 +48,6 @@ test("strongly typed tableshape type inference", fn {
 
     let a = T => { a: 10 }
     expect(typeof(a) == T, "Expected a to be 'T'")
-    expect(a is T, "Expected a to be 'T'")
 })
 
 test("strongly typed unsealed tableshape type inference", fn {
@@ -56,7 +55,6 @@ test("strongly typed unsealed tableshape type inference", fn {
 
     let a = T => { a: 10, b: 20 }
     expect(typeof(a) == T, "Expected a to be 'T'")
-    expect(a is T, "Expected a to be 'T'")
 })
 
 
@@ -67,7 +65,6 @@ test("strongly typed tables have weak identities", fn {
     let a = A => { a: 10 }
     
     expect(typeof(a) == B, "Expected a to be 'B'")
-    expect(a is B,         "Expected a to be 'B'")
 })
 
 test("strongly typed tables with prototypes have strong identities", fn {
@@ -79,7 +76,6 @@ test("strongly typed tables with prototypes have strong identities", fn {
     let a = A => { a: 10 }
 
     expect(typeof(a) != B, "Expected a to not be 'B'")
-    expect(not (a is B),   "Expected a to not be 'B'")
 })
 
 test("dictionary table type inference", fn {
@@ -119,17 +115,14 @@ test("tableshape key access inference", fn {
     let a = { a: 10 }
 
     expect(typeof(a.a) == number, "Expected a.a to be 'number'")
-    expect(a.a is number,         "Expected a.a to be 'number'")
 })
 
 test("unsealed tableshape key access inference", fn {
     let a = unsealed { a: 10 }
 
     expect(typeof(a.a) == number, "Expected a.a to be 'number'")
-    expect(a.a is number,         "Expected a.a to be 'number'")
     
     expect(typeof(a.b) == any, "Expected a.b to be 'any'")
-    expect(a.b is null,  "Expected a.b to be 'null'")
 })
 
 test("dictionary tableshape key access inference", fn {
@@ -144,7 +137,6 @@ test("bracket access tableshape inference", fn {
     let a = { a: 10 }
 
     expect(typeof(a["a"]) == number, "Expected a[\"a\"] to be 'number'")
-    expect(a["a"] is number,         "Expected a[\"a\"] to be 'number'")
 })
 
 test("expression access tableshape", fn {

@@ -1,5 +1,8 @@
 import * from "../../test"
 
+import meta
+import core
+
 push_scope("type-narrowing")
 
 test("'is' narrows to single type", fn {
@@ -22,19 +25,21 @@ test("'is' narrows to union type", fn {
     }
 })
 
-test("'is' widens to single type", fn {
-    let x = 10
-    if x is any {
-        expect(typeof(x) == any, "Expected 'x' to be 'any'")
-    }
+test("'is' should not widen to single type", fn {
+    expect(meta.try_compile("
+        let x = 10
+        if x is any {
+        }
+    ", "invalid_is") is core.Error, "Expected 'is' to reject widening")
 })
 
-test("'is' widens into union type", fn {
-    let x = 10
+test("'is' should not widen into union type", fn {
+    expect(meta.try_compile("
+        let x = 10
 
-    if x is number | string {
-        expect(typeof(x) == type(number | string), "Expected 'x' to widen into 'number | string'")
-    }
+        if x is number | string {
+        }
+    ", "invalid_is") is core.Error, "Expected 'is' to reject widening")
 })
 
 test("'is' re-widens after scope is closed", fn {
@@ -56,6 +61,109 @@ test("'is' narrows into tableshape type", fn {
     if t is T {
         expect(typeof(t) == T, "Expected 't' to narrow into 'T'")
         expect(t.sum() == 30, "Expected 't' to narrow into 'T'")
+    }
+})
+
+test("'is' narrows in false case", fn {
+    let x: number | string = "10"
+
+    if x is number {
+        expect(false, "'x' should not be 'number'")
+    } else {
+        expect(typeof(x) == string, "'x' should narrow into 'string'")
+        expect(x == "10", "'x' should be '10'")
+    }
+
+    expect(typeof(x) == type(number | string), "'x' should re-widen after block")
+})
+
+test("'is' narrows repeatedly", fn {
+    let x: number | string | bool = true
+
+    if x is number {
+        expect(false, "'x' should not be 'number'")
+    } else if x is string {
+        expect(false, "'x' should not be 'string'")
+    } else {
+        expect(typeof(x) == bool, "'x' should narrow into 'bool'")
+        expect(x == true, "'x' should be 'true'")
+    }
+
+    expect(typeof(x) == type(number | string | bool), "'x' should re-widen after block")
+})
+
+test("'is' narrows only one type", fn {
+    let x: number | string | bool = true
+
+    if x is number {
+        expect(false, "'x' should not be 'number'")
+    } else {
+        expect(typeof(x) == type(string | bool), "'x' should narrow into 'string | bool'")
+        expect(x == true, "'x' should be 'true'")
+    }
+
+    expect(typeof(x) == type(number | string | bool), "'x' should re-widen after block")
+})
+
+test("'is' narrows subsets", fn {
+    let x: number | string | bool = true
+
+    if x is number | string {
+        expect(false, "'x' should not be 'number | string'")
+    } else {
+        expect(typeof(x) == type(bool), "'x' should narrow into 'bool'")
+        expect(x == true, "'x' should be 'true'")
+    }
+
+    expect(typeof(x) == type(number | string | bool), "'x' should re-widen after block")
+})
+
+test("'is' narrows in match branches", fn {
+    let x: number | string = "hello"
+
+    match x {
+        is number { expect(false, "'x' should not be 'number'") }
+        else {
+            expect(typeof(x) == string, "'x' should be narrowed into 'string'")
+            expect(x == "hello", "'x' should be 'hello'")
+        }
+    }
+})
+
+test("'is' narrows in match branches repeatedly", fn {
+    let x: number | string | bool = "hello"
+
+    match x {
+        is number { expect(false, "'x' should not be 'number'") }
+        is bool { expect(false, "'x' should not be 'bool'") }
+        else {
+            expect(typeof(x) == string, "'x' should be narrowed into 'string'")
+            expect(x == "hello", "'x' should be 'hello'")
+        }
+    }
+})
+
+test("'is' narrows in match branches progressively", fn {
+    let x: number | string | bool = "hello"
+
+    match x {
+        is number { expect(false, "'x' should not be 'number'") }
+        else {
+            expect(typeof(x) == type(string | bool), "'x' should be narrowed into 'string | bool'")
+            expect(x == "hello", "'x' should be 'hello'")
+        }
+    }
+})
+
+test("'is' narrows subsets in match branches", fn {
+    let x: number | string | bool = "hello"
+
+    match x {
+        is number | bool { expect(false, "'x' should not be 'number | bool'") }
+        else {
+            expect(typeof(x) == type(string), "'x' should be narrowed into 'string'")
+            expect(x == "hello", "'x' should be 'hello'")
+        }
     }
 })
 

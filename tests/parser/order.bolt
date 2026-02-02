@@ -54,7 +54,7 @@ test("assignment opreator order", fn {
 test("is-ordering", fn {
     type T = { x: number }
 
-    let t = T => { x: 10 }
+    let t: T? = T => { x: 10 }
     
     expect(t is T or false, "is binds tighter than logic")
     expect(t is T == true, "is binds tighter than comparison")

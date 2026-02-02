@@ -27,7 +27,7 @@ test("match let narrows union type", fn {
     fn get_num: number | string { return 10 }
     match let x = get_num() {
         is string { expect(false, "This branch should never be taken") }
-        is number { expect_branched(x == 10, "This branch should never be missed") }
+        else { expect_branched(x == 10, "This branch should never be missed") }
     }
 })
 
@@ -38,7 +38,7 @@ test("match with implicit let narrows union type", fn {
     let x = get_num()
     match x {
         is string { expect(false, "This branch should never be taken") }
-        is number { expect_branched(x == 10, "This branch should never be missed") }
+        else { expect_branched(x == 10, "This branch should never be missed") }
     }
 })
 

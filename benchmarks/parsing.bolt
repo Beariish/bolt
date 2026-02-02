@@ -13,7 +13,7 @@ bench_with_pre_work("Parse 1MB json", 25, fn {
     return fn {
         let result = match let p = parse(content) {
             is JsonValue then p,
-            is Error {
+            else {
                 print("Failed to parse json!")
             }
         }

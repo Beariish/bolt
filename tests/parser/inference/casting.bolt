@@ -163,7 +163,7 @@ test("as-casting to value type", fn {
     b = a as S!
 
     expect(b is number, "Expected 'b' to be 'number'")
-    expect(b is S, "Expected 'b' to be 'S'")
+    expect(typeof(b) == S, "Expected 'b' to be 'S'")
     expect(b == 42, "Expected 'b' to be '42'")
 })
 
