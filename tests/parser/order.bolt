@@ -63,7 +63,7 @@ test("is-ordering", fn {
 test("as-ordering", fn {
     type T = { x: number }
 
-    let t = { x: 10 }
+    let t: T | number = { x: 10 }
     
     expect(t as T is T, "as binds left to right with is")
 })

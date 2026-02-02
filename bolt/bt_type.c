@@ -533,6 +533,75 @@ bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value)
 	return result;
 }
 
+enum {
+	EQUALITY_RESULT_SAME,
+	EQUALITY_RESULT_TYPE_MISMATCH,
+	EQUALITY_RESULT_DIFFERENT,
+};
+
+static int32_t table_loose_equality(bt_Table* lhs, bt_Table* rhs)
+{
+	if (!lhs && !rhs) return EQUALITY_RESULT_SAME;
+	if (!lhs || !rhs) return EQUALITY_RESULT_DIFFERENT;
+	
+	for (uint32_t i = 0; rhs && i < rhs->length; ++i) {
+		bt_TablePair* current = BT_TABLE_PAIRS(rhs) + i;
+		bt_bool found = BT_FALSE;
+
+		for (uint32_t j = 0; j < lhs->length; j++) {
+			bt_TablePair* inner = BT_TABLE_PAIRS(lhs) + j;
+			if (bt_value_is_equal(inner->key, current->key)) {
+				found = BT_TRUE;
+				bt_Type* right = (bt_Type*)BT_AS_OBJECT(current->value);
+				bt_Type* left = (bt_Type*)BT_AS_OBJECT(inner->value);
+
+				if (!right->satisfier(right, left)) {
+					return EQUALITY_RESULT_TYPE_MISMATCH;
+				}
+			}
+		}
+
+		if (!found) {
+			return EQUALITY_RESULT_DIFFERENT;
+		}
+	}
+
+	return EQUALITY_RESULT_SAME;
+}
+
+bt_bool bt_tableshape_is_equivalent(bt_Type* from, bt_Type* to)
+{
+	if (to == to->ctx->types.table) return BT_TRUE;
+	
+	if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && to->category == BT_TYPE_CATEGORY_TABLESHAPE) {
+		if (to->prototype && (from->prototype != to->prototype)) return BT_FALSE;
+		if (table_loose_equality(from->prototype_types, to->prototype_types) != EQUALITY_RESULT_SAME) return BT_FALSE;
+		
+		if (to->as.table_shape.map) {
+			bt_Type* key = to->as.table_shape.key_type;
+			bt_Type* value = to->as.table_shape.value_type;
+
+			bt_Table* layout = from->as.table_shape.layout;
+			
+			for (uint32_t j = 0; j < layout->length; j++) {
+				bt_TablePair* inner = BT_TABLE_PAIRS(layout) + j;
+				if (!bt_can_cast(inner->key, key)) return BT_FALSE;
+				if (!bt_is_cast_possible((bt_Type*)BT_AS_OBJECT(inner->value), value)) return BT_FALSE;
+			}
+
+			return BT_TRUE;
+		}
+		
+		int32_t layout_equality = table_loose_equality(from->as.table_shape.layout, to->as.table_shape.layout);
+		if (layout_equality == EQUALITY_RESULT_DIFFERENT && to->as.table_shape.sealed == BT_FALSE) return BT_TRUE;
+		if (layout_equality != EQUALITY_RESULT_SAME) return BT_FALSE;
+	} else {
+		return BT_FALSE;
+	}
+
+	return BT_TRUE;
+}
+
 bt_Table* bt_type_get_proto(bt_Context* context, bt_Type* tshp)
 {
 	if (tshp->prototype_values == 0 && tshp->as.table_shape.parent) {
@@ -649,6 +718,16 @@ BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant)
 	return -1;
 }
 
+bt_bool bt_union_is_subset(bt_Type* subset, bt_Type* set)
+{
+	if (!bt_type_is_union(subset) || !bt_type_is_union(set)) return BT_FALSE;
+	for (int32_t i = 0; i < bt_union_get_length(subset); i++) {
+		if (!bt_union_has_variant(set, bt_union_get_variant(subset, i))) return BT_FALSE;
+	}
+
+	return BT_TRUE;
+}
+
 bt_Type* bt_make_enum_type(bt_Context* context, bt_StrSlice name, bt_bool is_sealed)
 {
 	bt_String* owned_name = bt_make_string_hashed_len(context, name.source, name.length);
@@ -752,6 +831,56 @@ bt_Value bt_value_cast(bt_Value value, bt_Type* type)
 	}
 	
 	return BT_VALUE_NULL;
+}
+
+bt_bool bt_is_cast_possible(bt_Type* from, bt_Type* to)
+{
+	if (from == from->ctx->types.any || to == from->ctx->types.any) return BT_TRUE;
+	if (bt_type_is_equal(from, to)) return BT_TRUE;
+	if (bt_tableshape_is_equivalent(from, to)) return BT_TRUE;
+	if (bt_type_is_enum(to) && (bt_type_is_enum(from) || from == from->ctx->types.number)) return BT_TRUE;
+	if (to == to->ctx->types.number && bt_type_is_enum(from)) return BT_TRUE;
+	
+	if (bt_type_is_union(from)) {
+		if (bt_union_is_subset(to, from)) return BT_TRUE;
+		for (int32_t variant_idx = 0; variant_idx < bt_union_get_length(from); variant_idx++) {
+			bt_Type* variant = bt_union_get_variant(from, variant_idx);
+			if (bt_is_cast_possible(variant, to)) return BT_TRUE;
+		}	
+	}
+
+	if (bt_type_is_union(to)) {
+		if (bt_union_is_subset(from, to)) return BT_TRUE;
+		for (int32_t variant_idx = 0; variant_idx < bt_union_get_length(to); variant_idx++) {
+			bt_Type* variant = bt_union_get_variant(to, variant_idx);
+			if (bt_is_cast_possible(from, variant)) return BT_TRUE;
+		}
+	}
+
+	if (bt_type_is_array(from) && bt_type_is_array(to)) {
+		return bt_is_cast_possible(from->as.array.inner, to->as.array.inner);
+	}
+
+	if (bt_type_is_signature(from) && bt_type_is_signature(to)) {
+		if (!bt_type_is_assignable(to->as.fn.return_type, from->as.fn.return_type)) return BT_FALSE;
+		if (from->as.fn.args.length != to->as.fn.args.length) return BT_FALSE;
+		for (uint32_t i = 0; i < from->as.fn.args.length; i++) {
+			bt_Type* arg_from = from->as.fn.args.elements[i];
+			bt_Type* arg_to = to->as.fn.args.elements[i];
+			if (!bt_is_cast_possible(arg_to, arg_from)) return BT_FALSE;
+		}
+
+		return BT_TRUE;
+	}
+	
+	return BT_FALSE;
+}
+
+bt_bool bt_type_is_assignable(bt_Type* bind, bt_Type* expr)
+{
+	if (!bind && !expr) return BT_TRUE;
+	if (!bind || !expr) return BT_FALSE;
+	return bind->satisfier(bind, expr);
 }
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
@@ -927,12 +1056,11 @@ bt_Value bt_transmute_type(bt_Value value, bt_Type* type)
 	return BT_VALUE_NULL;
 }
 
+// TODO: Rewrite this with new helpers
 BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 {
 	if (!a && !b) return BT_TRUE;
 	if (!a || !b) return BT_FALSE;
-
-	a = bt_type_dealias(a); b = bt_type_dealias(b);
 
 	if (a == b) return BT_TRUE;
 	
@@ -952,13 +1080,13 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	switch (a->category) {
 	case BT_TYPE_CATEGORY_ARRAY: return bt_type_is_equal(a->as.array.inner, b->as.array.inner);
 	case BT_TYPE_CATEGORY_TABLESHAPE: 
-		if (a->prototype_values) return a->prototype_values == b->prototype_values;
+		if (a->prototype_values || b->prototype_values) return a->prototype_values == b->prototype_values;
 		else if (a->as.table_shape.sealed != b->as.table_shape.sealed) return BT_FALSE;
 		else if (a->as.table_shape.parent != b->as.table_shape.parent) return BT_FALSE;
 		else if (a->as.table_shape.map != b->as.table_shape.map) return BT_FALSE;
 		else if (a->as.table_shape.map) {
 			return bt_type_is_equal(a->as.table_shape.key_type, b->as.table_shape.key_type) && bt_type_is_equal(a->as.table_shape.value_type, b->as.table_shape.value_type);
-		}else {
+		} else {
 			bt_Table* a_layout = a->as.table_shape.layout;
 			bt_Table* b_layout = b->as.table_shape.layout;
 			if (!a_layout && !b_layout) return BT_TRUE;

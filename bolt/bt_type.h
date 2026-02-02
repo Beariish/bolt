@@ -95,7 +95,9 @@ BOLT_API void bt_tableshape_set_field_annotations(bt_Context* context, bt_Type* 
 BOLT_API bt_Annotation* bt_tableshape_get_field_annotations(bt_Type* tshp, bt_Value key);
 /** Creates map type `{ ..key: value }` */
 BOLT_API bt_Type* bt_make_map(bt_Context* context, bt_Type* key, bt_Type* value);
-
+/** Returns whether two tableshape types are interchangable */
+BOLT_API bt_bool bt_tableshape_is_equivalent(bt_Type* from, bt_Type* to);
+    
 /** UNION TYPES */
 
 /** Creates a new empty union type */
@@ -112,13 +114,16 @@ BOLT_API int32_t bt_union_get_length(bt_Type* uni);
 BOLT_API bt_Type* bt_union_get_variant(bt_Type* uni, uint32_t index);
 /** Find `variant` in union type `uni`, returning the index or `-1` on failure */
 BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant);
+/** Returns whether union type `subset` is a subset of `set` */
+BOLT_API bt_bool bt_union_is_subset(bt_Type* subset, bt_Type* set);
+
 /** Convenience function to determine whether a union type contains `null` or `any` */
 BOLT_API bt_bool bt_type_is_optional(bt_Type* type);
 /** Creates a union type of `null` and `to_nullable` if `to_nullable` isn't nullable already */
 BOLT_API bt_Type* bt_type_make_nullable(bt_Context* context, bt_Type* to_nullable);
 /** Returns a new union type containing all variants of `to_unnull` except `null` */
 BOLT_API bt_Type* bt_type_remove_nullable(bt_Context* context, bt_Type* to_unnull);
-
+    
 /** ENUM TYPES */
 
 /** Creates a new enum type with alias `name`. `is_sealed` determines whether numeric values can be cast to/from this type. */
@@ -153,6 +158,10 @@ BOLT_API bt_bool bt_is_alias(bt_Type* type);
 BOLT_API BT_NO_INLINE bt_bool bt_can_cast(bt_Value value, bt_Type* type);
 /** Performs a value-level cast (NO OBJECT TYPES!) on `value`, returning a new boxed value */
 BOLT_API BT_NO_INLINE bt_Value bt_value_cast(bt_Value value, bt_Type* type);
+/** Determines whether type `from` can plausibly cast to `to` */
+BOLT_API BT_NO_INLINE bt_bool bt_is_cast_possible(bt_Type* from, bt_Type* to);
+/** Returns whether a value of type `expr` is valid for a binding of type `bind` */
+BOLT_API BT_NO_INLINE bt_bool bt_type_is_assignable(bt_Type* bind, bt_Type* expr);
 /** Returns whether `value` is of type `type` */
 BOLT_API bt_bool bt_is_type(bt_Value value, bt_Type* type);
 /** Attempt to create a new value of type `type` that is reasonable cast from `value`, returning NULL if not possible */

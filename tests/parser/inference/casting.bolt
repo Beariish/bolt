@@ -1,11 +1,14 @@
 import * from "../../test"
 
+import Error from core
+import meta
+
 push_scope("casting")
 
 test("as-casting primitive types", fn {
-    let x = 10 as number
-    let y = false as bool
-    let z = null as null
+    let x = (10 as any) as number
+    let y = (false as any) as bool
+    let z = (null as any) as null
 
     expect(typeof(x) == type(number?), "Expeced 'as' to cast to 'number?'")
     expect(typeof(y) == type(bool?), "Expeced 'as' to cast to 'bool?'")
@@ -56,35 +59,48 @@ test("as-casting from unsealed enum", fn {
 
 test("as-casting to tableshape", fn {
     type T = { x: number, y: string }
-    let x = { x: 10, y: "hello" } as T
+    let x: T | any = { x: 10, y: "hello" }
+    let y = x as T
 
-    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
-    expect(x is T, "Expected 'as' to cast to 'T'")
+    expect(typeof(y) == type(T?), "Expected 'as' to cast to 'T?'")
+    expect(y is T, "Expected 'as' to cast to 'T'")
 })
 
 test("as-casting to slow tableshape", fn {
     type T = { x: number, y: string }
-    let x = { y: "hello", x: 10 } as T
+    let x: T | any = { y: "hello", x: 10 }
+    let y = x as T
 
-    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
-    expect(x is T, "Expected 'as' to cast to 'T'")
+    expect(typeof(y) == type(T?), "Expected 'as' to cast to 'T?'")
+    expect(y is T, "Expected 'as' to cast to 'T'")
 })
 
 test("as-casting to unsealed tableshape", fn {
     type T = unsealed { x: number, y: string }
     let x = { x: 10, y: "hello" } as T
 
-    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
+    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?'")
     expect(x is T, "Expected 'as' to cast to 'T'")
 })
 
 test("as-casting to prototypical tableshape", fn {
     type T = { x: number, y: string }
     fn T.f {}
-    let x = { x: 10, y: "hello" } as T
 
-    expect(typeof(x) == type(T?), "Expected 'as' to cast to 'T?")
-    expect(x is type(null), "Expected 'as' to cast to 'null'")
+    let x: any = { x: 10, y: "hello" }
+    let y = x as T
+
+    expect(typeof(y) == type(T?), "Expected 'as' to cast to 'T?'")
+    expect(y is type(null), "Expected 'as' to cast to 'null'")
+})
+
+test("as-casting tableshapes care about identity", fn {
+    type T = { x: number }
+    type T2 = { x: number }
+    let x: T = { x: 10 }
+    let y = x as T2
+
+    expect(typeof(y) == type(T2?), "Expected 'as' to cast to 'T2?'")
 })
 
 test("as-casting array types", fn {
@@ -113,7 +129,31 @@ test("as-casting to union type", fn {
     expect(a == "hello", "Expected 'a' to be 'hello'")
 })
 
-test("as-casting to valye type", fn {
+test("as-casting respects union subsets", fn {
+    type U = number | string | bool
+    type S = number | bool
+
+    let a: U = 10
+    let b = a as S
+
+    expect(b == 10, "Expected 'b' to be '10'")
+    expect(b is number, "Expected 'b' to be 'number'")
+    expect(typeof(b) == type(S?), "Expected 'b' to be 'S?'")
+})
+
+test("as-casting respects union subsets when invalid", fn {
+    type U = number | string | bool
+    type S = number | bool
+
+    let a: U = "hello"
+    let b = a as S
+
+    expect(b == null, "Expected 'b' to be 'null'")
+    expect(b is type(null), "Expected 'b' to be 'null'")
+    expect(typeof(b) == type(S?), "Expected 'b' to be 'S?'")
+})
+
+test("as-casting to value type", fn {
     type T = {x: number}
     type S = number | T
 
@@ -125,6 +165,41 @@ test("as-casting to valye type", fn {
     expect(b is number, "Expected 'b' to be 'number'")
     expect(b is S, "Expected 'b' to be 'S'")
     expect(b == 42, "Expected 'b' to be '42'")
+})
+
+test("redundant casts are rejected", fn {
+    expect(meta.try_compile("
+        let x = 10 as number
+    ", "redundant_cast") is Error, "Expected redundant cast to fail")
+})
+
+test("redundant casts are tracked through bindings", fn {
+    expect(meta.try_compile("
+        let x = 10
+        let y = x as number
+    ", "redundant_cast") is Error, "Expected redundant cast to fail")
+})
+
+test("redundant casts are tracked through unions", fn {
+    expect(meta.try_compile("
+        let x: number | bool = 10
+        let y = x as number | bool
+    ", "redundant_cast") is Error, "Expected redundant cast to fail")
+})
+
+test("redundant casts are tracked through tableshapes", fn {
+    expect(meta.try_compile("
+        type T = { x: number }
+        let x: T = { x: 10 } 
+        let y = x as T
+    ", "redundant_cast") is Error, "Expected redundant cast to fail")
+})
+
+test("impossible casts are rejected", fn {
+    expect(meta.try_compile("
+        let x = 10
+        let y = x as string
+    ", "impossible_cast") is Error, "Expected impossible cast to fail")
 })
 
 // TODO: signature casting

@@ -2416,43 +2416,22 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return node;
             }
 
-            bt_Type* type = node->as.binary_op.right_as_type;
-
-            // TODO: Factor this out. 
-            if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && type->category == BT_TYPE_CATEGORY_TABLESHAPE) {
-                bt_Table* lhs = from->as.table_shape.layout;
-                bt_Table* rhs = type->as.table_shape.layout;
-
-                for (uint32_t i = 0; rhs && i < rhs->length; ++i) {
-                    bt_TablePair* current = BT_TABLE_PAIRS(rhs) + i;
-                    bt_bool found = BT_FALSE;
-
-                    for (uint32_t j = 0; j < lhs->length; j++) {
-                        bt_TablePair* inner = BT_TABLE_PAIRS(lhs) + j;
-                        if (bt_value_is_equal(inner->key, current->key)) {
-                            found = BT_TRUE;
-                            bt_Type* right = (bt_Type*)BT_AS_OBJECT(current->value);
-                            bt_Type* left = (bt_Type*)BT_AS_OBJECT(inner->value);
-
-                            if (!right->satisfier(right, left)) {
-                                bt_String* as_str = bt_to_string(parse->context, current->key);
-                                parse_error_fmt(parse, "Field '%.*s' has mismatched types", node->source->line, node->source->col,
-                                    as_str->len, BT_STRING_STR(as_str));
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!found) {
-                        bt_String* as_str = bt_to_string(parse->context, current->key);
-                        parse_error_fmt(parse, "Field '%.*s' missing from rhs", node->source->line, node->source->col,
-                            as_str->len, BT_STRING_STR(as_str));
-                        break;
-                    }
-                }
+            bt_Type* to = node->as.binary_op.right_as_type;
+            bt_bool can_cast = bt_is_cast_possible(from, to);        
+            bt_bool is_cast_redundant = bt_type_is_equal(from, to);
+            if (from->category == BT_TYPE_CATEGORY_TABLESHAPE && to->category == BT_TYPE_CATEGORY_TABLESHAPE && from != to) {
+                is_cast_redundant = BT_FALSE; // Tableshapes are non-redundant by identity
+            }
+            
+            if (is_cast_redundant) {
+                parse_error_fmt(parse, "Cast from '%s' to '%s' is redundant", node->source->line, node->source->col, bt_type_get_name(from), bt_type_get_name(to));    
             }
 
-            node->resulting_type = bt_type_make_nullable(parse->context, type);
+            if (!can_cast) {
+                parse_error_fmt(parse, "Cast from '%s' to '%s' can never succeed", node->source->line, node->source->col, bt_type_get_name(from), bt_type_get_name(to));    
+            }
+            
+            node->resulting_type = bt_type_make_nullable(parse->context, to);
             own(parse, (bt_Object*)node->resulting_type);
         } break;
         // TODO(bearish): This should really be a lot more sophisticated

@@ -3,6 +3,7 @@ import * from "../test"
 import math
 import core
 import strings
+import meta
 
 push_scope("signature-casting")
 
@@ -234,11 +235,10 @@ test("casting to widened parameter signature type", fn {
 })
 
 test("casting to narrowed return signature type", fn {
-    let f1 = fn: number | string { return 10 }
-    let f2 = f1 as fn: number
-
-    expect(f2 == null, "Expected cast not to be valid")
-    expect(typeof(f2) == type(null | fn: number), "Expected inference to be valid")
+    expect(meta.try_compile("
+        let f1 = fn: number | string { return 10 }
+        let f2 = f1 as fn: number
+    ", "invalid_cast") is core.Error, "Expected cast not to be valid")
 })
 
 test("casting to widened return signature type", fn {
@@ -247,6 +247,26 @@ test("casting to widened return signature type", fn {
 
     expect(f2 == f1, "Expected cast to be valid")
     expect(typeof(f2) == type(null | fn: number | string | bool), "Expected inference to be valid")
+})
+
+test("casting from any is callable", fn {
+    let constant = 10
+    fn f(n: number) { return constant + n }
+
+    let a = f as any!
+    let b = a as fn(number): number!
+
+    expect(b(5) == 15, "Expected cast to yield correct function")
+})
+
+test("casting from any can fail", fn {
+    let constant = 10
+    fn f(n: number) { return constant + n }
+
+    let a = f as any!
+    let b = a as fn(): number
+
+    expect(b == null, "Expected cast to fail gracefully")
 })
 
 pop_scope()
