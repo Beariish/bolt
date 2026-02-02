@@ -1053,13 +1053,19 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         load_fn(ctx, expr, fn, result_loc);
     } break;
     case BT_AST_NODE_METHOD: {
-        push_registers(ctx);
         bt_Fn* fn = compile_fn(ctx->compiler, ctx, expr->as.method.fn);
-        uint8_t type_idx = push_load(ctx, BT_VALUE_OBJECT(expr->as.method.containing_type));
-        uint8_t name_idx = push_load(ctx, BT_VALUE_OBJECT(expr->as.method.name));
-        load_fn(ctx, expr->as.method.fn, fn, result_loc);
-        emit_abc(ctx, BT_OP_TSET, type_idx, name_idx, result_loc, BT_FALSE);
-        restore_registers(ctx);
+
+        if (expr->as.method.fn->as.fn.upvals.length == 0) {
+            bt_type_set_field(ctx->context, expr->as.method.containing_type, BT_VALUE_OBJECT(expr->as.method.name), BT_VALUE_OBJECT(fn));
+        } else {
+            // If the function has captures, we need to dynamically load it
+            push_registers(ctx);
+            uint8_t type_idx = push_load(ctx, BT_VALUE_OBJECT(expr->as.method.containing_type));
+            uint8_t name_idx = push_load(ctx, BT_VALUE_OBJECT(expr->as.method.name));
+            load_fn(ctx, expr->as.method.fn, fn, result_loc);
+            emit_abc(ctx, BT_OP_TSET, type_idx, name_idx, result_loc, BT_FALSE);
+            restore_registers(ctx);
+        }
     } break;
     case BT_AST_NODE_TABLE: {
         push_registers(ctx);
