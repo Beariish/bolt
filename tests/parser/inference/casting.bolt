@@ -31,7 +31,7 @@ test("as-casting to enum", fn {
 test("as-casting to enum out of range", fn {
     let x = 10 as Enum
     expect(typeof(x) == type(Enum?), "Expected 'as' to cast to 'Enum?'")
-    expect(x is type(null), "Expeted 'as' to cast to 'null'")
+    expect(x is null, "Expeted 'as' to cast to 'null'")
 })
 
 test("as-casting from enum", fn {
@@ -91,7 +91,7 @@ test("as-casting to prototypical tableshape", fn {
     let y = x as T
 
     expect(typeof(y) == type(T?), "Expected 'as' to cast to 'T?'")
-    expect(y is type(null), "Expected 'as' to cast to 'null'")
+    expect(y is null, "Expected 'as' to cast to 'null'")
 })
 
 test("as-casting tableshapes care about identity", fn {
@@ -107,14 +107,14 @@ test("as-casting array types", fn {
     let x = [1, 2, 3 : any]
     let y = x as [number]
     expect(typeof(y) == type(null | [number]), "Expected 'as' to cast to '[number]?'")
-    expect(y is type([number]), "Expected 'as' to cast to '[number]'")
+    expect(y is [number], "Expected 'as' to cast to '[number]'")
 })
 
 test("as-casting invalid array types", fn {
     let x = [1, 2, 3 : any]
     let y = x as [number]
     expect(typeof(y) == type(null | [number]), "Expected 'as' to cast to '[number]?'")
-    expect(y is type([number]), "Expected 'as' to cast to '[number]'")
+    expect(y is [number], "Expected 'as' to cast to '[number]'")
 })
 
 test("as-casting to union type", fn {
@@ -149,7 +149,7 @@ test("as-casting respects union subsets when invalid", fn {
     let b = a as S
 
     expect(b == null, "Expected 'b' to be 'null'")
-    expect(b is type(null), "Expected 'b' to be 'null'")
+    expect(b is null, "Expected 'b' to be 'null'")
     expect(typeof(b) == type(S?), "Expected 'b' to be 'S?'")
 })
 

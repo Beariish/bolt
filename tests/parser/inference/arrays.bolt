@@ -6,14 +6,14 @@ test("empty array type inference", fn {
     let a = []
 
     expect(typeof(a) == type([any]), "Expected a to be '[any]'")
-    expect(a is type([any]),         "Expected a to be '[any]'")
+    expect(a is [any],         "Expected a to be '[any]'")
 })
 
 test("primitive array type inference", fn {
     let b = [1, 2, 3]
 
     expect(typeof(b) == type([number]), "Expected b to be '[number]'")
-    expect(b is type([number]),         "Expected b to be '[number]'")
+    expect(b is [number],         "Expected b to be '[number]'")
 })
 
 test("object array type inference", fn {
@@ -21,7 +21,7 @@ test("object array type inference", fn {
     let b = [{a: 1}, {a: 2}, {a: 3}]
 
     expect(typeof(b) == type([T]), "Expected b to be '[T]'")
-    expect(b is type([T]),         "Expected b to be '[T]'")
+    expect(b is [T],         "Expected b to be '[T]'")
 })
 
 test("prototype object array type inference", fn {
@@ -31,7 +31,7 @@ test("prototype object array type inference", fn {
     let b = [T => {a: 1}, T => {a: 2}, T => {a: 3}]
 
     expect(typeof(b) == type([T]), "Expected b to be '[T]'")
-    expect(b is type([T]),         "Expected b to be '[T]'")
+    expect(b is [T],         "Expected b to be '[T]'")
 })
 
 test("union type array inference", fn {
@@ -43,9 +43,9 @@ test("union type array inference", fn {
     expect(typeof(b) == type([number?]),                "Expected b to be '[number?]'")
     expect(typeof(c) == type([Type | number]),          "Expected c to be '[Type | number]'")
 
-    expect(a is type([number | string | bool]), "Expected a to be '[number | string | bool]'")
-    expect(b is type([number?]),                "Expected b to be '[number?]'")
-    expect(c is type([Type | number]),          "Expected c to be '[Type | number]'")
+    expect(a is [number | string | bool], "Expected a to be '[number | string | bool]'")
+    expect(b is [number?],                "Expected b to be '[number?]'")
+    expect(c is [Type | number],          "Expected c to be '[Type | number]'")
 })
 
 test("strongly typed array literal inference", fn {
@@ -57,9 +57,9 @@ test("strongly typed array literal inference", fn {
     expect(typeof(b) == type([string]), "Expected b to be '[string]'")
     expect(typeof(c) == type([null]),   "Expected c to be '[null]'")
 
-    expect(a is type([number]), "Expected a to be '[number]'")
-    expect(b is type([string]), "Expected b to be '[string]'")
-    expect(c is type([null]),   "Expected c to be '[null]'")
+    expect(a is [number], "Expected a to be '[number]'")
+    expect(b is [string], "Expected b to be '[string]'")
+    expect(c is [null],   "Expected c to be '[null]'")
 })
 
 test("complex typed array literal inference", fn {
@@ -71,9 +71,9 @@ test("complex typed array literal inference", fn {
     expect(typeof(b) == type([string?]),         "Expected b to be '[string?]'")
     expect(typeof(c) == type([{a: number}]),     "Expected c to be '[{a: number}]'")
 
-    expect(a is type([number | string]), "Expected a to be '[number | string]'")
-    expect(b is type([string?]),         "Expected b to be '[string?]'")
-    expect(c is type([{a: number}]),     "Expected c to be '[{a: number}]'")
+    expect(a is [number | string], "Expected a to be '[number | string]'")
+    expect(b is [string?],         "Expected b to be '[string?]'")
+    expect(c is [{a: number}],     "Expected c to be '[{a: number}]'")
 })
 
 test("typed empty array literal", fn {

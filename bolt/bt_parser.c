@@ -1836,6 +1836,7 @@ static bt_bool op_rhs_is_type(bt_Token* op)
 {
     switch (op->type) {
     case BT_TOKEN_AS: return BT_TRUE;
+    case BT_TOKEN_IS: return BT_TRUE;
     default: return BT_FALSE;
     }
 }
@@ -2404,8 +2405,6 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
             own(parse, (bt_Object*)node->resulting_type);
         } break;
         case BT_TOKEN_IS: {
-            if (!resolve_to_type(parse, node->as.binary_op.right))
-                parse_error(parse, "Expected right hand of 'is' to be Type", node->source->line, node->source->col);
             node->resulting_type = parse->context->types.boolean;
         } break;
         case BT_TOKEN_AS: {
@@ -2770,8 +2769,7 @@ static bt_AstNode* attempt_narrowing(bt_Parser* parser, bt_AstNode* condition)
         bt_AstNode* lhs = condition->as.binary_op.left;
         if (lhs->type != BT_AST_NODE_IDENTIFIER) return NULL;
 
-        bt_AstNode* rhs = condition->as.binary_op.right;
-        bt_Type* rhs_type = resolve_to_type(parser, rhs);
+        bt_Type* rhs_type = condition->as.binary_op.right_as_type;
         if (!rhs_type) return NULL;
 
         bt_AstNode* shadow = make_node(parser, BT_AST_NODE_LET);

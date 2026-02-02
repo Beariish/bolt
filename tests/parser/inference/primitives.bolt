@@ -24,7 +24,7 @@ test("bool", fn {
 test("null", fn {
     let d = null
     expect(typeof(d) == type(null), "Expected d to be 'null'")
-    expect(d is type(null),         "Expected d to be 'null'")
+    expect(d is null,         "Expected d to be 'null'")
 })
 
 test("enum", fn {

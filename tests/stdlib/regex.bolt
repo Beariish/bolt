@@ -42,9 +42,9 @@ test("freestanding groups() gives correct count", fn {
 test("prototype .eval() gives correct match", fn {
     let const expr = regex.compile(email_regex) as Regex!
     let const groups = expr.eval("guy@gmail.com")
-    expect(groups is type([string]), "Expected expression to match!")
+    expect(groups is [string], "Expected expression to match!")
 
-    if groups is type([string]) {
+    if groups is [string] {
         expect(groups.length() == 3, "Expected groups to be `3` elements long!")
         expect(groups[0] == "guy@gmail.com", "Unexpected match 0!")
         expect(groups[1] == "guy", "Unexpected match 1!")
@@ -55,9 +55,9 @@ test("prototype .eval() gives correct match", fn {
 test("freestanding eval() gives correct match", fn {
     let const expr = regex.compile(email_regex) as Regex!
     let const groups = regex.eval(expr, "guy@gmail.com")
-    expect(groups is type([string]), "Expected expression to match!")
+    expect(groups is [string], "Expected expression to match!")
 
-    if groups is type([string]) {
+    if groups is [string] {
         expect(groups.length() == 3, "Expected groups to be `3` elements long!")
         expect(groups[0] == "guy@gmail.com", "Unexpected match 0!")
         expect(groups[1] == "guy", "Unexpected match 1!")
@@ -68,7 +68,7 @@ test("freestanding eval() gives correct match", fn {
 test("eval() fails to match incorrect string", fn {
     let const expr = regex.compile(email_regex) as Regex!
     let const groups = expr.eval("g#uy@gmai#l.com")
-    expect(groups is type(null), "Expected expression not to match!")
+    expect(groups is null, "Expected expression not to match!")
 })
 
 test("prototype .all() gives all correct matches", fn {

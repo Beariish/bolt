@@ -22,27 +22,27 @@ test("import bool type inference", fn {
 
 test("import null type inference", fn {
     expect(typeof(nil) == type(null), "Expected import 'nil' to be 'null'")
-    expect(nil is type(null),         "Expected import 'nil' to be 'null'")
+    expect(nil is null,         "Expected import 'nil' to be 'null'")
 })
 
 test("import array type inference", fn {
     expect(typeof(arr) == type([number]), "Expected import 'arr' to be '[number]'")
-    expect(arr is type([number]),         "Expected import 'arr' to be '[number]'")
+    expect(arr is [number],         "Expected import 'arr' to be '[number]'")
 })
 
 test("import anonymous table type inference", fn {
     expect(typeof(t) == type({a: number, b: string}), "Expected import 't' to be '{a: number, b: string}'")
-    expect(t is type({a: number, b: string}),         "Expected import 't' to be '{a: number, b: string}'")
+    expect(t is {a: number, b: string},         "Expected import 't' to be '{a: number, b: string}'")
 })
 
 test("import function type inference", fn {
     expect(typeof(f) == type(fn(number): number), "Expected import 'f' to be 'fn(number): number'")
-    expect(f is type(fn(number): number),         "Expected import 'f' to be 'fn(number): number'")
+    expect(f is fn(number): number,         "Expected import 'f' to be 'fn(number): number'")
 })
 
 test("import closure type inference", fn {
     expect(typeof(cl) == type(fn: number), "Expected import 'cl' to be 'fn: number'")
-    expect(cl is type(fn: number),         "Expected import 'cl' to be 'fn: number'")
+    expect(cl is fn: number,         "Expected import 'cl' to be 'fn: number'")
 })
 
 test("import enum type type inference", fn {

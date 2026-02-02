@@ -6,21 +6,21 @@ test("for-expr correctly infers type", fn {
     let const x = for i in 10 do i
 
     expect(typeof(x) == type([number]), "Expected x to be `[number]`")
-    expect(x is type([number]), "Expected x to be `[number]`")
+    expect(x is [number], "Expected x to be `[number]`")
 })
 
 test("for-expr correctly infers union type", fn {
     let const x = for i in 10 do if true then "hello!" else false
 
     expect(typeof(x) == type([string | bool]), "Expected x to be `[string | bool]`")
-    expect(x is type([string | bool]), "Expected x to be `[string | bool]`")
+    expect(x is [string | bool], "Expected x to be `[string | bool]`")
 })
 
 test("for-expr correctly infers type with no expression", fn {
     let const x = for i in 10 {}
 
     expect(typeof(x) == type([null]), "Expected x to be `[null]`")
-    expect(x is type([null]), "Expected x to be `[null]`")
+    expect(x is [null], "Expected x to be `[null]`")
 })
 
 pop_scope()

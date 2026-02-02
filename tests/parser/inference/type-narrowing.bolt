@@ -13,11 +13,11 @@ test("'is' narrows to union type", fn {
     let x: any = 10
     let y: any = "str"
 
-    if x is type(number | string) {
+    if x is number | string {
         expect(typeof(x) == type(number | string), "Expected 'x' to narrow into 'number | string'")
     }
 
-    if y is type(number | string) {
+    if y is number | string {
         expect(typeof(y) == type(number | string), "Expected 'y' to narrow into 'number | string'")
     }
 })
@@ -32,7 +32,7 @@ test("'is' widens to single type", fn {
 test("'is' widens into union type", fn {
     let x = 10
 
-    if x is type(number | string) {
+    if x is number | string {
         expect(typeof(x) == type(number | string), "Expected 'x' to widen into 'number | string'")
     }
 })

@@ -13,7 +13,7 @@ fn pretty_print_internal(x: any, indent: string, indent_single: bool): ! {
             print(indent + "}")
         }
 
-        is type([any]) {
+        is [any] {
             print("[")
             for item in x.each() {
                 pretty_print_internal(item, indent + "   ", true)
