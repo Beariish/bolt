@@ -456,15 +456,15 @@ void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 	bt_table_set(context, tshp->prototype_values, name, value);
 }
 
-bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Value* value) {
+bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Value* value, bt_bool allow_parent) {
 	if (tshp->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
 	if (!tshp->prototype_values) return BT_FALSE;
 
-	bt_Value type_value = bt_table_get(tshp->prototype_types, key);
+	bt_Value type_value = allow_parent ? bt_table_get(tshp->prototype_types, key) : bt_table_get_direct(tshp->prototype_types, key);
 	if (type_value == BT_VALUE_NULL) return BT_FALSE;
 
 	bt_Type* type = (bt_Type*)BT_AS_OBJECT(type_value);
-	bt_Value result = bt_table_get(tshp->prototype_values, key);
+	bt_Value result = allow_parent ? bt_table_get(tshp->prototype_values, key) : bt_table_get_direct(tshp->prototype_values, key);
 	if (!bt_is_type(result, type)) return BT_FALSE;
 
 	if (value) *value = result;

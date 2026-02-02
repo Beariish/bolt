@@ -720,7 +720,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
 
             if (!found) {
                 bt_Value literal;
-                if (bt_type_get_field(ctx, type, field->key, &literal)) {
+                if (bt_type_get_field(ctx, type, field->key, &literal, BT_TRUE)) {
                     bt_AstNode* default_field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
                     default_field->source = token;
                     default_field->as.table_field.key = field->key;
@@ -1495,10 +1495,12 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
     return expected;
 }
 
-static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier, bt_Type* prototype)
+static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier, bt_Type* prototype, bt_bool* has_forward_declared)
 {
     bt_Tokenizer* tok = parse->tokenizer;
 
+    if (has_forward_declared) *has_forward_declared = BT_FALSE;
+    
     bt_AstNode* result = make_node(parse, BT_AST_NODE_FUNCTION);
     result->source = bt_tokenizer_peek(parse->tokenizer);
     bt_buffer_empty(&result->as.fn.args);
@@ -1601,7 +1603,8 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
 
             result->resulting_type->annotations = parse->annotation_base;
             parse->annotation_base = parse->annotation_tail = 0;
-            
+
+            if (has_forward_declared) *has_forward_declared = BT_TRUE;
             if (prototype) {
                 // forward-declare fully typed method for recursion in tableshape functions
                 bt_Value name = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, identifier->source.source, identifier->source.length));
@@ -1848,7 +1851,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
     if (lhs_node == NULL) {
         bt_Token* lhs = bt_tokenizer_emit(tok);
         if (lhs->type == BT_TOKEN_FN) {
-            lhs_node = parse_function_literal(parse, NULL, NULL);
+            lhs_node = parse_function_literal(parse, NULL, NULL, NULL);
         }
         else if (lhs->type == BT_TOKEN_LEFTPAREN) {
             lhs_node = parse_expression(parse, 0, NULL);
@@ -2622,7 +2625,7 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
                 entry->as.table_field.key = pair->key;
 
                 bt_Value default_value;
-                if (bt_type_get_field(parse->context, type, pair->key, &default_value)) {
+                if (bt_type_get_field(parse->context, type, pair->key, &default_value, BT_TRUE)) {
                     entry->as.table_field.value_expr = literal_to_node(parse, default_value);
                 } else {
                     entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type, source);
@@ -3093,7 +3096,8 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
             ident = bt_tokenizer_emit(tok);
             if (ident->type != BT_TOKEN_IDENTIFIER) parse_error_token(parser, "Cannot assign to non-identifier", ident);
 
-            bt_AstNode* fn = parse_function_literal(parser, ident, type);
+            bt_bool is_forward_declared;
+            bt_AstNode* fn = parse_function_literal(parser, ident, type, &is_forward_declared);
             if (!fn || (fn->type != BT_AST_NODE_FUNCTION && fn->type != BT_AST_NODE_METHOD)) {
                 parse_error_token(parser, "Expected function literal", ident);
                 return NULL;
@@ -3103,7 +3107,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
             own(parser, (bt_Object*)name);
 
             bt_Type* existing_field = bt_type_get_field_type(parser->context, type, BT_VALUE_OBJECT(name), BT_FALSE);
-            if (existing_field) {
+            if (existing_field && is_forward_declared == BT_FALSE) {
                 parse_error_fmt(parser, "Prototype '%s' already contains a field named '%.*s'", ident->line, ident->col, type->name, ident->source.length, ident->source.source);
                 return NULL;
             }
@@ -3122,7 +3126,7 @@ static bt_AstNode* parse_function_statement(bt_Parser* parser)
         return NULL; 
     }
     
-    bt_AstNode* fn = parse_function_literal(parser, ident, NULL);
+    bt_AstNode* fn = parse_function_literal(parser, ident, NULL, NULL);
     if (fn == NULL || fn->type != BT_AST_NODE_FUNCTION) {
         parse_error_token(parser, "Expected function literal for binding '%.*s'", ident);
         return NULL;

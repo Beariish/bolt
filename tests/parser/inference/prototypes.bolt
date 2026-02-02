@@ -84,4 +84,16 @@ test("overwriting prototype field is invalid", fn {
     )
 })
 
+test("recursive prototype field is allowed", fn {
+    type HasRecursive = {}
+
+    fn HasRecursive.recurse(this, n: number): bool {
+        if n <= 0 { return true }
+        return this.recurse(n - 1)
+    }
+
+    let h = default(HasRecursive)
+    expect(h.recurse(10) == true, "Expected recursive method to resolve")
+})
+
 pop_scope()

@@ -139,7 +139,7 @@ BOLT_API void bt_type_add_field(bt_Context* context, bt_Type* type, bt_Type* val
 /** Sets and overrides an existing prototype field `name` with `value` in `type` */
 BOLT_API void bt_type_set_field(bt_Context* context, bt_Type* type, bt_Value name, bt_Value value);
 /** Attempts to extract `key` from the type's prototype, writing the result to `value` and returning whether it was present */
-BOLT_API bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Value* value);
+BOLT_API bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Value* value, bt_bool allow_parent);
 /** Returns the type of field `key` in `tshp`, or `NULL` if it is not present */
 BOLT_API bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key, bt_bool allow_parent);
 
