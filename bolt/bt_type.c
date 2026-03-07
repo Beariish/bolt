@@ -951,6 +951,14 @@ bt_bool bt_is_cast_possible(bt_Type* from, bt_Type* to)
 
 		return BT_TRUE;
 	}
+
+	if (bt_type_is_weak(to)) {
+		if (bt_type_is_weak(from)) {
+			return bt_is_cast_possible(bt_weak_type_get(from), bt_weak_type_get(to));
+		} else {
+			return bt_is_cast_possible(from, bt_weak_type_get(to));
+		}
+	}
 	
 	return BT_FALSE;
 }
@@ -980,7 +988,13 @@ bt_bool bt_is_type(bt_Value value, bt_Type* type)
 	if (type == type->ctx->types.number) return BT_IS_NUMBER(value);
 	if (type->category == BT_TYPE_CATEGORY_ENUM) return BT_IS_ENUM(value);
 	
+	if (bt_type_is_weak(type)) {
+		bt_Value strong = BT_MAKE_STRONG(value);
+		return strong == BT_VALUE_NULL || bt_is_type(strong, bt_weak_type_get(type));
+	}
+	
 	if (!BT_IS_OBJECT(value)) return BT_FALSE;
+	
 	bt_Object* as_obj = BT_AS_OBJECT(value);
 
 	if (type == type->ctx->types.string && BT_OBJECT_GET_TYPE(as_obj) == BT_OBJECT_TYPE_STRING) return BT_TRUE;

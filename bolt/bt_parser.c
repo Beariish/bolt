@@ -2700,6 +2700,11 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
 
         result->as.enum_literal.value = BT_TABLE_PAIRS(options)->value;
     } break;
+    case BT_TYPE_CATEGORY_WEAK: {
+        result = make_node(parse, BT_AST_NODE_LITERAL);
+        result->resulting_type = bt_type_null(parse->context);
+        result->source = parse->tokenizer->literal_null;
+    } break;
     }
 
     return result;
