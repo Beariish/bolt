@@ -19,7 +19,13 @@ extern "C" {
 
 typedef struct bt_Type bt_Type;
 
-typedef bt_bool (*bt_TypeSatisfier)(bt_Type* left, bt_Type* right);
+typedef enum {
+    BT_TYPE_CHECK_FAIL,         // Types are incompatible
+    BT_TYPE_CHECK_SUCCESS,      // Types are compatible
+    BT_TYPE_CHECK_PROMOTE_WEAK, // Types can be made compatible with weak reference promotion
+} bt_TypeCheckResult;
+    
+typedef bt_TypeCheckResult (*bt_TypeSatisfier)(bt_Type* left, bt_Type* right);
 typedef bt_Type* (*bt_PolySignature)(bt_Context* ctx, bt_Type** args, uint8_t argc);
 
 /** FUNDAMENTAL TYPES */
@@ -137,6 +143,15 @@ BOLT_API bt_Value bt_enum_contains(bt_Context* context, bt_Type* enum_, bt_Value
 /** Get the value mapped to the option named `name`, or `null` if it doesn't exist */
 BOLT_API bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name);
 
+/** WEAK TYPES */
+
+/** Takes type `strong` and wraps it in a weak type container, returns NULL if `strong` isn't representable as weak */
+BOLT_API bt_Type* bt_make_weak_type(bt_Context* context, bt_Type* strong);
+/** Returns the type stored within the `weak` type container */
+BOLT_API bt_Type* bt_weak_type_get(bt_Type* weak);
+/** Returns whether `type` is eligible for weak referencing */
+BOLT_API bt_bool bt_can_type_be_weak(bt_Type* type);
+    
 /** TYPE PROTOTYPES */
 
 /** Gets the prototype value table associated with `type` */
@@ -162,15 +177,17 @@ BOLT_API BT_NO_INLINE bt_bool bt_can_cast(bt_Value value, bt_Type* type);
 BOLT_API BT_NO_INLINE bt_Value bt_value_cast(bt_Value value, bt_Type* type);
 /** Determines whether type `from` can plausibly cast to `to` */
 BOLT_API BT_NO_INLINE bt_bool bt_is_cast_possible(bt_Type* from, bt_Type* to);
-/** Returns whether a value of type `expr` is valid for a binding of type `bind` */
-BOLT_API BT_NO_INLINE bt_bool bt_type_is_assignable(bt_Type* bind, bt_Type* expr);
 /** Returns whether `value` is of type `type` */
 BOLT_API bt_bool bt_is_type(bt_Value value, bt_Type* type);
 /** Attempt to create a new value of type `type` that is reasonable cast from `value`, returning NULL if not possible */
 BOLT_API bt_Value bt_transmute_type(bt_Value value, bt_Type* type);
 /** Returns whether types `a` and `b` are functionally equal */
 BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b);
-
+/** Returns whether `type` has value- or reference-semantics */
+BOLT_API bt_bool bt_is_type_refernece(bt_Type* type);
+/** Returns whether `type` is assignable, depending on whether promotion tactics are allowed */
+BOLT_API bt_TypeCheckResult bt_is_type_assignable_to(bt_Type* target, bt_Type* source, bt_bool allow_prmotion);
+    
 /** Returns whether `type` is in the primitive type set (number, string, bool, null) */
 BOLT_API bt_bool bt_type_is_primitive(bt_Type* type);
 /** Returns whether `type` is an array type */
@@ -185,6 +202,8 @@ BOLT_API bt_bool bt_type_is_userdata(bt_Type* type);
 BOLT_API bt_bool bt_type_is_union(bt_Type* type);
 /** Returns whether `type` is an enum type */
 BOLT_API bt_bool bt_type_is_enum(bt_Type* type);
+/** Returns whether `type` is a weak type container */
+BOLT_API bt_bool bt_type_is_weak(bt_Type* type);
 
 /** Returns a NULL-terminated string containing the type's name, if known */
 BOLT_API char* bt_type_get_name(bt_Type* type);
@@ -202,6 +221,7 @@ typedef enum {
     BT_TYPE_CATEGORY_USERDATA,
     BT_TYPE_CATEGORY_UNION,
     BT_TYPE_CATEGORY_ENUM,
+    BT_TYPE_CATEGORY_WEAK,
 } bt_TypeCategory;
 
 typedef bt_Buffer(bt_Type*) bt_TypeBuffer;
@@ -245,7 +265,7 @@ typedef struct bt_Type {
 
         struct {
             bt_Type* boxed;
-        } type;
+        } type, weak;
 
         struct {
             bt_FieldBuffer fields;

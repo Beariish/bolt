@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 
-static bt_bool bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult bt_type_satisfier_signature(bt_Type* left, bt_Type* right)
 {
 	if (left->category != BT_TYPE_CATEGORY_SIGNATURE || right->category != BT_TYPE_CATEGORY_SIGNATURE)
 		return BT_FALSE;
@@ -62,7 +62,7 @@ bt_bool bt_type_is_optional(bt_Type* type)
 	return bt_union_has_variant(type, bt_type_null(type->ctx)) != -1;
 }
 
-static bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 {
 	if (bt_type_satisfier_same(left, right)) return BT_TRUE;
 
@@ -75,7 +75,7 @@ static bt_bool bt_type_satisfier_array(bt_Type* left, bt_Type* right)
 	return BT_FALSE;
 }
 
-static bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 {
 	if (left == right) return BT_TRUE;
 
@@ -125,7 +125,7 @@ static bt_bool bt_type_satisfier_table(bt_Type* left, bt_Type* right)
 	return BT_TRUE;
 }
 
-static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 {
 	if (left->category != BT_TYPE_CATEGORY_TABLESHAPE || right->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
 	
@@ -152,7 +152,7 @@ static bt_bool bt_type_satisfier_map(bt_Type* left, bt_Type* right)
 	return l_key->satisfier(l_key, right->as.table_shape.key_type) && l_val->satisfier(l_val, right->as.table_shape.value_type);
 }
 
-static bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 {
 	if (!left || !right) return BT_FALSE;
 	if (left->category != BT_TYPE_CATEGORY_UNION) return BT_FALSE;
@@ -194,7 +194,7 @@ static bt_bool bt_type_satisfier_union(bt_Type* left, bt_Type* right)
 	return BT_FALSE;
 }
 
-static bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult type_satisfier_alias(bt_Type* left, bt_Type* right)
 {
 	if (right->category == BT_TYPE_CATEGORY_TYPE) {
 		return left->as.type.boxed->satisfier(left->as.type.boxed, right->as.type.boxed);
@@ -203,9 +203,21 @@ static bt_bool type_satisfier_alias(bt_Type* left, bt_Type* right)
 	return left->as.type.boxed->satisfier(left->as.type.boxed, right);
 }
 
-static bt_bool type_satisfier_type(bt_Type* left, bt_Type* right)
+static bt_TypeCheckResult type_satisfier_type(bt_Type* left, bt_Type* right)
 {
 	return right->category == BT_TYPE_CATEGORY_TYPE;
+}
+
+static bt_TypeCheckResult type_satisfier_weak(bt_Type* left, bt_Type* right)
+{
+	bt_Type* inner = bt_weak_type_get(left);
+	
+	if (bt_type_is_weak(right)) {
+		bt_Type* inner_right = bt_weak_type_get(right);
+		return inner->satisfier(inner, inner_right);
+	}
+	
+	return inner->satisfier(inner, right) ? BT_TYPE_CHECK_PROMOTE_WEAK : BT_TYPE_CHECK_FAIL;
 }
 
 static bt_Type* bt_make_type(bt_Context* context, const char* name, bt_TypeSatisfier satisfier, bt_TypeCategory category)
@@ -796,6 +808,40 @@ bt_Value bt_enum_get(bt_Context* context, bt_Type* enum_, bt_String* name)
 	return bt_table_get(enum_->as.enum_.options, BT_VALUE_OBJECT(name));
 }
 
+bt_Type* bt_make_weak_type(bt_Context* context, bt_Type* strong)
+{
+	if (!bt_can_type_be_weak(strong)) return NULL;
+
+	// TODO: Replace with better name making
+	char* old_name = bt_type_get_name(strong);
+	const char* prefix = "weak ";
+
+	uint32_t new_name_len = strlen(old_name) + strlen(prefix) + 1;
+	char* new_name_buf = bt_gc_alloc(context, new_name_len);
+	strcpy(new_name_buf, prefix);
+	strcpy(new_name_buf + strlen(prefix), old_name);
+
+	bt_Type* weak = bt_make_type(context, new_name_buf, type_satisfier_weak, BT_TYPE_CATEGORY_WEAK);
+	weak->as.weak.boxed = strong;
+	
+	bt_gc_free(context, new_name_buf, new_name_len);
+	return weak;
+}
+
+bt_Type* bt_weak_type_get(bt_Type* weak)
+{
+	if (!weak || !bt_type_is_weak(weak)) return NULL;
+	return weak->as.weak.boxed;
+}
+
+bt_bool bt_can_type_be_weak(bt_Type* type)
+{
+	if (!type) return BT_FALSE;
+	if (!bt_is_type_refernece(type)) return BT_FALSE;
+
+	return BT_TRUE;
+}
+
 bt_Type* bt_type_dealias(bt_Type* type)
 {
 	if (type && type == type->ctx->types.type) return type;
@@ -895,7 +941,7 @@ bt_bool bt_is_cast_possible(bt_Type* from, bt_Type* to)
 	}
 
 	if (bt_type_is_signature(from) && bt_type_is_signature(to)) {
-		if (!bt_type_is_assignable(to->as.fn.return_type, from->as.fn.return_type)) return BT_FALSE;
+		if (!bt_is_type_assignable_to(to->as.fn.return_type, from->as.fn.return_type, BT_FALSE)) return BT_FALSE;
 		if (from->as.fn.args.length != to->as.fn.args.length) return BT_FALSE;
 		for (uint32_t i = 0; i < from->as.fn.args.length; i++) {
 			bt_Type* arg_from = from->as.fn.args.elements[i];
@@ -907,13 +953,6 @@ bt_bool bt_is_cast_possible(bt_Type* from, bt_Type* to)
 	}
 	
 	return BT_FALSE;
-}
-
-bt_bool bt_type_is_assignable(bt_Type* bind, bt_Type* expr)
-{
-	if (!bind && !expr) return BT_TRUE;
-	if (!bind || !expr) return BT_FALSE;
-	return bind->satisfier(bind, expr);
 }
 
 bt_bool bt_is_type(bt_Value value, bt_Type* type)
@@ -1174,12 +1213,39 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 	return BT_FALSE;
 }
 
+bt_bool bt_is_type_refernece(bt_Type* type)
+{
+	if (bt_type_is_union(type)) {
+		for (int32_t i = 0; i < bt_union_get_length(type); i++) {
+			if (!bt_is_type_refernece(bt_union_get_variant(type, i))) return BT_FALSE;
+		}
+
+		return BT_TRUE;
+	}
+	
+	return bt_type_is_array(type) || bt_type_is_tableshape(type) || bt_type_is_signature(type);	
+}
+
+bt_TypeCheckResult bt_is_type_assignable_to(bt_Type* target, bt_Type* source, bt_bool allow_promotion)
+{
+	if (!target && !source) return BT_TYPE_CHECK_SUCCESS;
+	if (!target || !source) return BT_TYPE_CHECK_FAIL;
+
+	bt_TypeCheckResult raw_result = target->satisfier(target, source);
+	if (raw_result > BT_TYPE_CHECK_SUCCESS && !allow_promotion) {
+		return BT_TYPE_CHECK_FAIL;
+	}
+
+	return raw_result;
+}
+
 bt_bool bt_type_is_primitive(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_PRIMITIVE; }
 bt_bool bt_type_is_array(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ARRAY; }
 bt_bool bt_type_is_tableshape(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_TABLESHAPE; }
 bt_bool bt_type_is_signature(bt_Type* type) { return type && (type->category == BT_TYPE_CATEGORY_SIGNATURE || type->category == BT_TYPE_CATEGORY_NATIVE_FN); }
 bt_bool bt_type_is_union(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_UNION; }
 bt_bool bt_type_is_enum(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ENUM; }
+bt_bool bt_type_is_weak(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_WEAK; }
 
 char* bt_type_get_name(bt_Type* type) { return type ? type->name : NULL; }
 

@@ -409,6 +409,8 @@ eat_whitespace:
 		else BT_TEST_KEYWORD("then", token, BT_TOKEN_THEN)
 		else BT_TEST_KEYWORD("match", token, BT_TOKEN_MATCH)
 		else BT_TEST_KEYWORD("default", token, BT_TOKEN_DEFAULT)
+		else BT_TEST_KEYWORD("weak", token, BT_TOKEN_WEAK)
+		else BT_TEST_KEYWORD("pin", token, BT_TOKEN_PIN)
 
 		tok->current += length; tok->col += length;
 		bt_buffer_push(tok->context, &tok->tokens, token);
