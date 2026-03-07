@@ -48,7 +48,7 @@ typedef struct bt_Type bt_Type;
 
 #define BT_IS_WEAK(x) ((BT_IS_OBJECT(x) && ((x) & BT_WEAK_MASK) == 1))
 #define BT_MAKE_WEAK(x) (((x) | BT_WEAK_MASK))
-#define BT_MAKE_STRONG(x) (((x) | (~BT_WEAK_MASK)))
+#define BT_MAKE_STRONG(x) (((x) & (~BT_WEAK_MASK)))
 	
 #define BT_TYPEOF(x) ((x) & BT_TYPE_MASK)
 

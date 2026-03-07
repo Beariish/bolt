@@ -1243,6 +1243,14 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			bt_array_push(context, (bt_Array*)BT_AS_OBJECT(stack[BT_GET_A(op)]), stack[BT_GET_B(op)]);
 			NEXT;
 
+		CASE(REF):
+			if (BT_GET_C(op) == BT_OPFLAG_WEAK) {
+				stack[BT_GET_A(op)] = BT_MAKE_WEAK(stack[BT_GET_B(op)]);
+			} else if (BT_GET_C(op) == BT_OPFLAG_PIN) {
+				stack[BT_GET_A(op)] = BT_MAKE_STRONG(stack[BT_GET_B(op)]);
+			} else BT_ASSUME(0);
+			NEXT;
+
 		CASE(IDX_EXT):;
 #ifndef BOLT_USE_INLINE_THREADING
 #ifdef BT_DEBUG

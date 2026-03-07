@@ -148,6 +148,12 @@ static const char* op_to_mnemonic[] = {
 #undef X
 };
 
+static const char* flag_to_mnemonic[] = {
+#define X(flag) #flag,
+	BT_OPFLAGS_X
+#undef X
+};
+
 static bt_bool is_op_abc(uint8_t op) {
 	switch (op) {
 	case BT_OP_EXPORT: case BT_OP_CLOSE:
@@ -239,6 +245,9 @@ static void format_single_instruction(char* buffer, bt_Op instruction)
 	}
 	else if (is_op_ibc(op)) {
 		len += sprintf(buffer + len, "%*s%4d", (int)(15 - len), " ", BT_GET_IBC(instruction));
+	} else if (op == BT_OP_REF) {
+		bt_OpFlag flag = BT_GET_C(instruction);
+		len += sprintf(buffer + len, "%*s%4d, %4d, %*s", (int)(15 - len), " ", BT_GET_A(instruction), BT_GET_B(instruction), 4, flag_to_mnemonic[flag]);
 	}
 
 	buffer[len] = 0;

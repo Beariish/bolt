@@ -1247,7 +1247,7 @@ bt_bool bt_type_is_union(bt_Type* type) { return type && type->category == BT_TY
 bt_bool bt_type_is_enum(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_ENUM; }
 bt_bool bt_type_is_weak(bt_Type* type) { return type && type->category == BT_TYPE_CATEGORY_WEAK; }
 
-char* bt_type_get_name(bt_Type* type) { return type ? type->name : NULL; }
+char* bt_type_get_name(bt_Type* type) { return type ? type->name : ""; }
 
 bt_Type* bt_type_any(bt_Context* context) { return context->types.any; }
 bt_Type* bt_type_null(bt_Context* context) { return context->types.null; }

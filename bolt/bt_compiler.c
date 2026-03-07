@@ -805,6 +805,12 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
         case BT_TOKEN_NOT: 
             emit_ab(ctx, BT_OP_NOT, result_loc, operand_loc, BT_FALSE);
             break;
+        case BT_TOKEN_WEAK: 
+            emit_abc(ctx, BT_OP_REF, result_loc, operand_loc, BT_OPFLAG_WEAK, BT_FALSE);
+            break;
+        case BT_TOKEN_PIN: 
+            emit_abc(ctx, BT_OP_REF, result_loc, operand_loc, BT_OPFLAG_PIN, BT_FALSE);
+            break;
         default:
             compile_error_token(ctx->compiler, "Invalid unary operator '%*s'", expr->source);
             break;

@@ -54,6 +54,7 @@ extern "C" {
     X(JMPF)        /*  if(R(a) == BT_FALSE) pc += ibc                */             \
     X(RETURN)      /*  R(frame->ret_pos) = R(a)                      */             \
     X(END)         /*  return without value                          */             \
+    X(REF)         /*  R(a) = R(b) + FLAGS[c]                        */             \
                                                                                     \
     /*  Fast opcode extensions. */                                                  \
     /*  These are emitted by the compiler whenever types are strongly known */      \
@@ -76,6 +77,16 @@ typedef enum {
 		BT_OPS_X
 #undef X
 } bt_OpCode;
+
+#define BT_OPFLAGS_X \
+	X(WEAK)          \
+	X(PIN)           
+	
+typedef enum {
+#define X(flag) BT_OPFLAG_##flag,
+	BT_OPFLAGS_X
+#undef X
+} bt_OpFlag;
 
 #ifdef BOLT_BITMASK_OP
 typedef uint32_t bt_Op;

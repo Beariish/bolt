@@ -32,6 +32,9 @@ typedef struct bt_GC {
 	bt_FreeList free_tables;
 	bt_FreeList free_closures;
 	bt_bool enable_freelist;
+
+	/** Pending weak references that need to be checked before collection */
+	bt_Buffer(bt_Value*) pending_weaks;
 	
 	bt_Context* ctx;
 } bt_GC;

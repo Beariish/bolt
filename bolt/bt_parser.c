@@ -27,7 +27,7 @@ static bt_AstNode* parse_match(bt_Parser* parse);
 static bt_AstNode* parse_match_expression(bt_Parser* parse);
 static bt_AstNode* parse_do_expression(bt_Parser* parser);
 static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Token* source);
-static bt_bool attempt_assignment(bt_Type* target, bt_Type* source, bt_AstNode** promotable);
+static bt_bool attempt_assignment(bt_Parser* parser, bt_Type* target, bt_Type* source, bt_AstNode** promotable);
 
 static void own(bt_Parser* parse, bt_Object* obj)
 {
@@ -128,7 +128,7 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
         }
 
         if (lhs->as.table_shape.map) {
-            if (attempt_assignment(lhs->as.table_shape.key_type, indexing_type, NULL)) {
+            if (attempt_assignment(parse, lhs->as.table_shape.key_type, indexing_type, NULL)) {
                 return bt_type_make_nullable(parse->context, lhs->as.table_shape.value_type);
             } else {
                 parse_error_token(parse, "Invalid index type for map table", node->source);
@@ -182,7 +182,7 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
     lhs = bt_type_dealias(lhs);
     if (lhs->category == BT_TYPE_CATEGORY_TABLESHAPE) {
         if (lhs->as.table_shape.map) {
-            if (!attempt_assignment(lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type, NULL)) {
+            if (!attempt_assignment(parse, lhs->as.table_shape.key_type, type_check(parse, node->as.binary_op.right)->resulting_type, NULL)) {
                 parse_error(parse, "Invalid key type", node->source->line, node->source->col);
             }
 
@@ -467,13 +467,18 @@ static bt_AstNode* make_node(bt_Parser* parse, bt_AstNodeType type)
     return new_node;
 }
 
-static bt_bool attempt_assignment(bt_Type* target, bt_Type* source, bt_AstNode** promotable)
+static bt_bool attempt_assignment(bt_Parser* parser, bt_Type* target, bt_Type* source, bt_AstNode** promotable)
 {
     bt_TypeCheckResult result = bt_is_type_assignable_to(target, source, promotable != NULL);
 
     if (result == BT_TYPE_CHECK_PROMOTE_WEAK) {
-        // do weak prmotion
-        __debugbreak();
+        bt_AstNode* promoter = make_node(parser, BT_AST_NODE_UNARY_OP);
+        promoter->source = bt_tokenizer_make_operator(parser->tokenizer, BT_TOKEN_WEAK);
+        promoter->as.unary_op.accelerated = BT_FALSE;
+        promoter->as.unary_op.operand = *promotable;
+        type_check(parser, promoter);
+
+        *promotable = promoter;
     }
 
     return result != BT_TYPE_CHECK_FAIL;
@@ -680,7 +685,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             bt_Type* value_type = field->as.table_field.value_type;
             if (!value_type) {
                 parse_error_token(parse, "Failed to evaluate type of table field '%.*s'", key_expr->source);
-            } else if (expected && !attempt_assignment(expected, value_type, NULL)) {
+            } else if (expected && !attempt_assignment(parse, expected, value_type, NULL)) {
                 parse_error_fmt(parse, "Invalid type for field '%.*s': wanted '%s', got '%s'", key_expr->source->line, key_expr->source->col,
                     key_expr->source->source.length, key_expr->source->source.source, expected->name, value_type->name);
             }
@@ -1076,7 +1081,7 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
                 bt_tokenizer_emit(tok);
                 bt_AstNode* literal = parse_expression(parse, 0, NULL);
                 bt_Value value = node_to_literal_value(parse, literal);
-                if (type && !attempt_assignment(type, type_check(parse, literal)->resulting_type, NULL)) {
+                if (type && !attempt_assignment(parse, type, type_check(parse, literal)->resulting_type, NULL)) {
                     parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
                     return NULL;
                 }
@@ -1229,7 +1234,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
         for (uint32_t i = 0; i < result->as.arr.items.length; i++) {
             bt_AstNode** item = result->as.arr.items.elements + i;
             bt_Type* item_type = type_check(parse, *item)->resulting_type;
-            if (!attempt_assignment(explicit_type, item_type, item)) {
+            if (!attempt_assignment(parse, explicit_type, item_type, item)) {
                 parse_error_token(parse, "Item in array literal doesn't match explicit type: '%.*s'", (*item)->source);
                 return NULL;
             }
@@ -1247,7 +1252,7 @@ static bt_AstNode* parse_array(bt_Parser* parse, bt_Token* source)
 
             // TODO: Cleanup
             if (result->as.arr.inner_type) {
-                if (!attempt_assignment(result->as.arr.inner_type, item_type, NULL)) {
+                if (!attempt_assignment(parse, result->as.arr.inner_type, item_type, NULL)) {
                     result->as.arr.inner_type = bt_make_or_extend_union(parse->context, result->as.arr.inner_type, item_type);
                     own(parse, (bt_Object*)result->as.arr.inner_type);
                 }
@@ -1349,6 +1354,7 @@ static uint8_t prefix_binding_power(bt_Token* token)
     {
     case BT_TOKEN_PLUS: case BT_TOKEN_MINUS: return 13;
     case BT_TOKEN_NOT: return 14;
+    case BT_TOKEN_WEAK: case BT_TOKEN_PIN: return 15;
     default:
         return 0;
     }
@@ -1463,7 +1469,7 @@ static bt_Type* infer_return(bt_Parser* parse, bt_Context* ctx, bt_AstBuffer* bo
                 own(parse, (bt_Object*)expected);
             }
 
-            if (expected && !attempt_assignment(expected, expr->resulting_type, is_inferable ? NULL : (body->elements + i))) {
+            if (expected && !attempt_assignment(parse, expected, expr->resulting_type, is_inferable ? NULL : (body->elements + i))) {
                 if (is_inferable) {
                     expected = bt_make_or_extend_union(ctx, expected, expr->resulting_type);
                     own(parse, (bt_Object*)expected);
@@ -1568,7 +1574,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
                 bt_tokenizer_emit(tok);
                 this_arg.type = parse_type(parse, BT_TRUE, NULL);
                 if (result->as.fn.args.length == 0 && prototype) {
-                    if (attempt_assignment(this_arg.type, prototype, NULL)) {
+                    if (attempt_assignment(parse, this_arg.type, prototype, NULL)) {
                         is_methodic = BT_TRUE;
                     }
                 }
@@ -1673,7 +1679,7 @@ static bt_AstNode* parse_function_literal(bt_Parser* parse, bt_Token* identifier
             if (!result->as.fn.ret_type) {
                 result->as.fn.ret_type = expr_type;
             } else {
-                if (!attempt_assignment(result->as.fn.ret_type, expr_type, NULL)) {
+                if (!attempt_assignment(parse, result->as.fn.ret_type, expr_type, NULL)) {
                     parse_error_token(parse, "Function body doesn't match explicit return type: '%.*s'", body->source);
                     return NULL;
                 }
@@ -2001,7 +2007,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                         bt_Type* first_arg = to_call->as.fn.args.length ? args_ref->elements[0] : NULL;
 
                         bt_Type* lhs_type = type_check(parse, lhs_node->as.binary_op.left)->resulting_type;
-                        if (first_arg && attempt_assignment(first_arg, lhs_type, NULL)) {
+                        if (first_arg && attempt_assignment(parse, first_arg, lhs_type, NULL)) {
                             args[max_arg++] = lhs_node->as.binary_op.left;
                             self_arg = 1;
                         }
@@ -2100,7 +2106,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                     
                     if (i < to_call->as.fn.args.length) {
                         bt_Type* fn_type = to_call->as.fn.args.elements[i];
-                        if (!arg_type || !attempt_assignment(fn_type, arg_type, args + i)) {
+                        if (!arg_type || !attempt_assignment(parse, fn_type, arg_type, args + i)) {
                             parse_error_token(parse, "Invalid argument type: '%.*s'", args[i]->source);
                             return NULL;
                         }
@@ -2109,7 +2115,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
                         }
                     }
                     else {
-                        if (!attempt_assignment(to_call->as.fn.varargs_type, arg_type, args + i)) {
+                        if (!attempt_assignment(parse, to_call->as.fn.varargs_type, arg_type, args + i)) {
                             parse_error_token(parse, "Invalid argument type: '%.*s'", args[i]->source);
                             return NULL;
                         }
@@ -2336,24 +2342,46 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         }
         break;
     case BT_AST_NODE_UNARY_OP: {
+        bt_Type* operand_type = type_check(parse, node->as.unary_op.operand)->resulting_type;
         switch (node->source->type) {
         case BT_TOKEN_QUESTION:
-            if (!bt_type_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
+            if (!bt_type_is_optional(operand_type)) {
                 parse_error(parse, "Unary operator ? can only be applied to nullable types", node->source->line, node->source->col);
             }
-            node->resulting_type = parse->context->types.boolean;
+            node->resulting_type = bt_type_bool(parse->context);
             break;
         case BT_TOKEN_BANG:
-            if (!bt_type_is_optional(type_check(parse, node->as.unary_op.operand)->resulting_type)) {
+            if (!bt_type_is_optional(operand_type)) {
                 parse_error(parse, "Unary operator ! can only be applied to nullable types", node->source->line, node->source->col);
             }
-            node->resulting_type = node->as.unary_op.operand->resulting_type ? bt_type_remove_nullable(parse->context, node->as.unary_op.operand->resulting_type) : NULL;
+            node->resulting_type = operand_type ? bt_type_remove_nullable(parse->context, operand_type) : NULL;
             break;
         case BT_TOKEN_MINUS:
-            if (type_check(parse, node->as.unary_op.operand)->resulting_type == parse->context->types.number) {
+            if (operand_type == bt_type_number(parse->context)) {
                 node->as.unary_op.accelerated = BT_TRUE;
             }
-            node->resulting_type = node->as.unary_op.operand->resulting_type;
+            node->resulting_type = operand_type;
+            break;
+        case BT_TOKEN_WEAK:
+            if (bt_type_is_weak(operand_type)) {
+                parse_error_fmt(parse, "Cannot make type '%s' weak, since it already is", node->source->line, node->source->col, bt_type_get_name(operand_type));
+                return node;
+            }
+
+            if (!bt_can_type_be_weak(operand_type)) {
+                parse_error_fmt(parse, "Cannot make type '%s' weak, since it is not a reference type", node->source->line, node->source->col, bt_type_get_name(operand_type));
+                return node;
+            }
+
+            node->resulting_type = bt_make_weak_type(parse->context, operand_type);
+            break;
+        case BT_TOKEN_PIN:
+            if (!bt_type_is_weak(operand_type)) {
+                parse_error_fmt(parse, "Cannot pin type '%s', since it is not weak", node->source->line, node->source->col, bt_type_get_name(operand_type));
+                return node;
+            }
+
+            node->resulting_type = bt_type_make_nullable(parse->context, bt_weak_type_get(operand_type));
             break;
         default:
             node->resulting_type = node->as.unary_op.operand ? type_check(parse, node->as.unary_op.operand)->resulting_type : NULL;
@@ -2577,7 +2605,7 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
                 return NULL;
             }
 
-            if (!attempt_assignment(node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type, NULL)) {
+            if (!attempt_assignment(parse, node->resulting_type, type_check(parse, node->as.binary_op.right)->resulting_type, NULL)) {
                 parse_error(parse, "Mismatched types for binary operator", node->source->line, node->source->col);
                 return NULL;
             }
@@ -2724,7 +2752,7 @@ static bt_AstNode* parse_let(bt_Parser* parse)
         node->as.let.initializer = rhs;
 
         if (node->resulting_type) {
-            if (!attempt_assignment(node->resulting_type, type_check(parse, rhs)->resulting_type, &rhs)) {
+            if (!attempt_assignment(parse, node->resulting_type, type_check(parse, rhs)->resulting_type, &node->as.let.initializer)) {
                 parse_error_token(parse, "Assignment doesn't match explicit binding type", node->source);
                 return NULL;
             }

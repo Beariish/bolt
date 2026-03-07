@@ -281,6 +281,7 @@ void bt_make_gc(bt_Context* ctx)
 	bt_GC result = { 0 };
 	result.ctx = ctx;
 	bt_buffer_empty(&result.active_parsers);
+	bt_buffer_empty(&result.pending_weaks);
 
 	setup_freelist(&result, &result.free_strings, BT_FREELIST_STRING_LEN);
 	setup_freelist(&result, &result.free_tables, BT_FREELIST_TABLE_LEN);
@@ -431,6 +432,17 @@ static void grey(bt_GC* gc, bt_Object* obj) {
 	gc->greys[gc->grey_count++] = obj;
 }
 
+static void ref_or_weak(bt_GC* gc, bt_Value* val)
+{
+	if (BT_IS_OBJECT(*val)) {
+		if (BT_IS_WEAK(*val)) {
+			bt_buffer_push(gc->ctx, &gc->pending_weaks, val);
+		} else {
+			grey(gc, BT_AS_OBJECT((*val)));
+		}
+	}
+}
+
 void bt_grey_obj(bt_Context* ctx, bt_Object* obj)
 {
 	grey(&ctx->gc, obj);
@@ -491,6 +503,9 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 				grey(gc, (bt_Object*)as_type->as.enum_.name);
 				grey(gc, (bt_Object*)as_type->as.enum_.options);
 		} break;
+		case BT_TYPE_CATEGORY_WEAK: {
+				grey(gc, (bt_Object*)as_type->as.weak.boxed);
+		} break;
 		}	
 	} break;
 	case BT_OBJECT_TYPE_MODULE: {
@@ -517,7 +532,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_ModuleImport* import = (bt_ModuleImport*)obj;
 		grey(gc, (bt_Object*)import->type);
 		grey(gc, (bt_Object*)import->name);
-		if(BT_IS_OBJECT(import->value)) grey(gc, BT_AS_OBJECT(import->value));
+		ref_or_weak(gc, &import->value);
 	} break;
 	case BT_OBJECT_TYPE_FN: {
 		bt_Fn* fn = (bt_Fn*)obj;
@@ -534,8 +549,8 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		bt_Closure* cl = (bt_Closure*)obj;
 		grey(gc, (bt_Object*)cl->fn);
 		for (uint32_t i = 0; i < cl->num_upv; ++i) {
-			bt_Value upval = BT_CLOSURE_UPVALS(cl)[i];
-			if (BT_IS_OBJECT(upval)) grey(gc, BT_AS_OBJECT(upval));
+			bt_Value* upval = BT_CLOSURE_UPVALS(cl) + i;
+			ref_or_weak(gc, upval);
 		};
 	} break;
 	case BT_OBJECT_TYPE_NATIVE_FN: {
@@ -547,8 +562,8 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 		grey(gc, (bt_Object*)tbl->prototype);
 		for (uint32_t i = 0; i < tbl->length; i++) {
 			bt_TablePair* pair = BT_TABLE_PAIRS(tbl) + i;
-			if (BT_IS_OBJECT(pair->key))   grey(gc, BT_AS_OBJECT(pair->key));
-			if (BT_IS_OBJECT(pair->value)) grey(gc, BT_AS_OBJECT(pair->value));
+			if (BT_IS_OBJECT(pair->key)) grey(gc, BT_AS_OBJECT(pair->key));
+			ref_or_weak(gc, &pair->value);
 		}
 	} break;
 	case BT_OBJECT_TYPE_USERDATA: {
@@ -558,7 +573,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 	case BT_OBJECT_TYPE_ARRAY: {
 		bt_Array* arr = (bt_Array*)obj;
 		for (uint32_t i = 0; i < arr->length; i++) {
-			if (BT_IS_OBJECT(arr->items[i])) grey(gc, BT_AS_OBJECT(arr->items[i]));
+			ref_or_weak(gc, arr->items + i);
 		}
 	} break;
 	case BT_OBJECT_TYPE_ANNOTATION: {
@@ -654,13 +669,13 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		}
 
 		for (uint32_t i = 0; i < top; ++i) {
-			bt_Value val = thr->stack[i];
-			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
+			bt_Value* val = thr->stack + i;
+			ref_or_weak(gc, val);
 		}
 
 		for (uint32_t i = user_bottom; i < user_top; ++i) {
-			bt_Value val = thr->stack[i];
-			if (BT_IS_OBJECT(val)) grey(gc, BT_AS_OBJECT(val));
+			bt_Value* val = thr->stack + i;
+			ref_or_weak(gc, val);
 		}
 
 		grey(gc, (bt_Object*)gc->ctx->current_thread->last_error);
@@ -689,6 +704,19 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 	#ifdef BT_DEBUG
 	assert(gc->freelist_size == 0 && "Expxected freelist to be empty!");
 	#endif
+
+	// Before we start collecting, nil all weak references that refer to unmarked objects
+	for (uint32_t i = 0; i < gc->pending_weaks.length; i++) {
+		bt_Value* weak_ref = gc->pending_weaks.elements[i];
+		bt_Value strong_ref = BT_MAKE_STRONG(*weak_ref);
+		bt_Object* as_object = BT_AS_OBJECT(strong_ref);
+
+		if (!BT_OBJECT_GET_MARK(as_object)) {
+			*weak_ref = BT_VALUE_NULL;
+		}
+	}
+
+	bt_buffer_destroy(gc->ctx, &gc->pending_weaks);
 	
 	uint32_t n_collected = 0;
 
