@@ -16,7 +16,6 @@ test("pin weak T inference", fn {
 test("if-let pin inference", fn {
     let t = weak T => { x: 10, y: "hello" }
 
-
     ensure_branch()
     if let st = pin t {
         expect_branched(typeof(st) == type(T), "Expected 'st' to be 'T'")

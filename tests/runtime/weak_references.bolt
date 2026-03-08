@@ -1,0 +1,57 @@
+import * from "../test"
+
+import meta
+
+type T = { x: number, y: string }
+type TW = { t: weak T }
+
+push_scope("weak-references")
+
+test("default initialized weak reference is null", fn {
+    let t: weak T
+
+    expect(t == null, "Expected 't' to be 'null")
+})
+
+test("default initialized weak reference is null when pinned", fn {
+    let t: weak T
+
+    expect(pin t == null, "Expected 'pin t' to be 'null")
+})
+
+test("weak reference becomes storng when pinned", fn {
+    let t = weak T => { x: 10, y: "hello" }
+
+    let pt = pin t
+    expect(pt != null, "Expected 'pt' to not be null")
+})
+
+test("weak reference is nulled after gc", fn {
+    let t = weak T => { x: 10, y: "hello" }
+
+    for i in 5 do meta.gc()
+    
+    let pt = pin t
+    expect(pt == null, "Expected 'pt' to be null")
+})
+
+test("strong reference prevents weak reference from being nulled after gc", fn {
+    let t = weak T => { x: 10, y: "hello" }
+    let pt = pin t
+
+    for i in 5 do meta.gc()
+    
+    let pt2 = pin t
+    expect(pt2 != null, "Expected 'pt' to not be null")
+})
+
+test("weak field reference is cleared", fn {
+    let t = TW => { t: T => { x: 10, y: "hello" } }
+
+    for i in 5 do meta.gc()
+    
+    let pt2 = pin t.t
+    expect(pt2 == null, "Expected 'pt' to be null")
+})
+
+pop_scope()

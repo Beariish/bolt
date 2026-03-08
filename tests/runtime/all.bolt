@@ -8,5 +8,6 @@ import "short_circuit"
 import "soft_casting"
 import "signature_casting"
 import "virtual/all"
+import "weak_references"
 
 pop_scope()
