@@ -210,6 +210,8 @@ static bt_TypeCheckResult type_satisfier_type(bt_Type* left, bt_Type* right)
 
 static bt_TypeCheckResult type_satisfier_weak(bt_Type* left, bt_Type* right)
 {
+	if (right == bt_type_null(left->ctx)) return BT_TYPE_CHECK_SUCCESS;
+	
 	bt_Type* inner = bt_weak_type_get(left);
 	
 	if (bt_type_is_weak(right)) {
@@ -1222,6 +1224,10 @@ BOLT_API bt_bool bt_type_is_equal(bt_Type* a, bt_Type* b)
 		}
 
 		return BT_TRUE;
+
+	case BT_TYPE_CATEGORY_WEAK:
+		if (!bt_type_is_weak(b)) return BT_FALSE;
+		return bt_type_is_equal(bt_weak_type_get(a), bt_weak_type_get(b));
 	}
 
 	return BT_FALSE;

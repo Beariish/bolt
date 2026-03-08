@@ -2812,6 +2812,8 @@ static bt_bool can_start_expression(bt_Token* token)
     case BT_TOKEN_IF:
     case BT_TOKEN_FOR:
     case BT_TOKEN_MATCH:
+    case BT_TOKEN_WEAK:
+    case BT_TOKEN_PIN:
         return BT_TRUE;
     }
 

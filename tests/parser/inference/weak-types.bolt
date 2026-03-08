@@ -1,0 +1,127 @@
+import * from "../../test"
+
+push_scope("weak-types")
+
+type T  = { x: number, y: string }
+type T2 = { z: bool, w: null }
+
+type TU = T | T2
+
+test("weak type binding with no initiazlier", fn {
+    let t: weak T
+
+    expect(typeof(t) == type(weak T), "Expected 't' to be 'weak T'")
+})
+
+test("weak type binding with explicit null initiazlier", fn {
+    let t: weak T = null
+
+    expect(typeof(t) == type(weak T), "Expected 't' to be 'weak T'")
+})
+
+test("weak type binding with explicit T initiazlier", fn {
+    let t: weak T = T => { x: 10, y: "hello" }
+
+    expect(typeof(t) == type(weak T), "Expected 't' to be 'weak T'")
+})
+
+test("weak type binding with explicit weak T initiazlier", fn {
+    let t: weak T = weak T => { x: 10, y: "hello" }
+
+    expect(typeof(t) == type(weak T), "Expected 't' to be 'weak T'")
+})
+
+test("inferred binding with explicit weak T initiazlier", fn {
+    let t = weak T => { x: 10, y: "hello" }
+
+    expect(typeof(t) == type(weak T), "Expected 't' to be 'weak T'")
+})
+
+test("weak type binding with union type and no initializer", fn {
+    let tu: weak TU
+
+    expect(typeof(tu) == type(weak TU), "Expected 'tu' to be 'weak TU'")
+})
+
+test("weak type binding with union type and explicit null initiazlier", fn {
+    let tu: weak TU = null
+
+    expect(typeof(tu) == type(weak TU), "Expected 'tu' to be 'weak TU'")
+})
+
+test("weak type binding with union type and explicit TU initiazlier", fn {
+    let tu: weak TU = T => { x: 10, y: "hello" }
+
+    expect(typeof(tu) == type(weak TU), "Expected 'tu' to be 'weak TU'")
+})
+
+test("weak type binding with union type and explicit weak TU initiazlier", fn {
+    let tu: weak TU = weak T => { x: 10, y: "hello" }
+
+    expect(typeof(tu) == type(weak TU), "Expected 'tu' to be 'weak TU'")
+})
+
+test("weak type binding with inline union type and explicit weak TU initiazlier", fn {
+    let tu: weak T | T2 = weak T => { x: 10, y: "hello" }
+
+    expect(typeof(tu) == type(weak TU), "Expected 'tu' to be 'weak TU'")
+})
+
+test("weak type modifier correctly groups right hand side types", fn {
+    expect(type(weak T | T2) == type(weak TU), "Expected 'weak' to bind to the entire union")
+})
+
+test("weak array type with no initializer inference", fn {
+    let a: weak [number]
+    
+    expect(typeof(a) == type(weak [number]), "Expected 'a' to be 'weak [number]'")
+})
+
+test("inferred weak array type with initializer", fn {
+    let a = weak [1, 2, 3]
+    
+    expect(typeof(a) == type(weak [number]), "Expected 'a' to be 'weak [number]'")
+})
+
+test("weak function type with no initializer inference", fn {
+    let f: weak fn(number, string): string
+    
+    expect(typeof(f) == type(weak fn(number, string): string), "Expected 'f' to be 'weak fn(number, string): string'")
+})
+
+test("inferred weak function type with initializer", fn {
+    let f = weak fn(n: number, s: string) {
+        let result = ""
+        for i in n {
+            result += s
+        }
+        return result
+    }
+    
+    expect(typeof(f) == type(weak fn(number, string): string), "Expected 'f' to be 'weak fn(number, string): string'")
+})
+
+test("inferred weak function return type", fn {
+    fn temp {
+        return weak T => { x: 10, y: "hello" }
+    }
+    
+    expect(typeof(temp) == type(fn: weak T), "Expected 'temp' to be 'fn: weak T'")
+    expect(typeof(temp()) == type(weak T), "Expected 'temp()' to be 'weak T'")
+})
+
+test("inferred weak parameter type", fn {
+    fn takes_weak(t: weak T) { }
+
+    let weak_t = weak T => { x: 10, y: "hello" }
+    takes_weak(weak_t)
+})
+
+test("inferred weak parameter type from strong reference", fn {
+    fn takes_weak(t: weak T) { }
+
+    let strong_t = T => { x: 10, y: "hello" }
+    takes_weak(strong_t)
+})
+
+pop_scope()

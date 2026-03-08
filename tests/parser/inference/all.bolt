@@ -21,5 +21,7 @@ import "match-expr"
 import "match-let"
 import "do-block"
 import "fn-do"
+import "weak-types"
+import "pinning"
 
 pop_scope()
