@@ -238,6 +238,11 @@ BOLT_API bt_String* bt_get_or_make_interned(bt_Context* ctx, const char* str, ui
 /** Evict a string from the deduplication table */
 BOLT_API void bt_remove_interned(bt_Context* ctx, bt_String* str);
 
+/** Mark the current thread as suspended, used for recursive thread spawning (eg like in core.protect()), ensures objects in suspended thread aren't collected */
+BOLT_API void bt_suspend_thread(bt_Context* ctx, bt_Thread* thread);
+/** Unsuspend `thread`, meaning it will be considered for collection again */
+BOLT_API void bt_unsuspend_thread(bt_Context* ctx, bt_Thread* thread);
+	
 #if __cplusplus
 }
 #endif

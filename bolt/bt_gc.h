@@ -35,6 +35,9 @@ typedef struct bt_GC {
 
 	/** Pending weak references that need to be checked before collection */
 	bt_Buffer(bt_Value*) pending_weaks;
+
+	/** Currently suspended threads to consider for marking */
+	bt_Buffer(bt_Thread*) suspended_threads;
 	
 	bt_Context* ctx;
 } bt_GC;

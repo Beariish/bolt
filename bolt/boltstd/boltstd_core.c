@@ -148,6 +148,8 @@ static void bt_protect(bt_Context* ctx, bt_Thread* thread)
 	bt_Thread* new_thread = bt_make_thread(ctx);
 	new_thread->should_report = BT_FALSE;
 
+	bt_suspend_thread(ctx, thread);
+
 	bt_bool success = bt_execute_with_args(ctx, new_thread, to_call, 
 		thread->stack + thread->top + 1, bt_argc(thread) - 1);
 	
@@ -170,6 +172,7 @@ static void bt_protect(bt_Context* ctx, bt_Thread* thread)
 	}
 	
 	bt_destroy_thread(ctx, new_thread);
+	bt_unsuspend_thread(ctx, thread);
 }
 
 static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)

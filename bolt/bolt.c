@@ -761,6 +761,27 @@ void bt_remove_interned(bt_Context* ctx, bt_String* str)
 	}
 }
 
+void bt_suspend_thread(bt_Context* ctx, bt_Thread* thread)
+{
+	for (int32_t i = 0; i < ctx->gc.suspended_threads.length; i++) {
+		bt_Thread* elem = ctx->gc.suspended_threads.elements[i];
+		if (thread == elem) return;
+	}
+
+	bt_buffer_push(ctx, &ctx->gc.suspended_threads, thread);
+}
+
+void bt_unsuspend_thread(bt_Context* ctx, bt_Thread* thread)
+{
+	for (int32_t i = 0; i < ctx->gc.suspended_threads.length; i++) {
+		bt_Thread* elem = ctx->gc.suspended_threads.elements[i];
+		if (thread == elem) {
+			ctx->gc.suspended_threads.elements[i] = ctx->gc.suspended_threads.elements[ctx->gc.suspended_threads.length - 1];
+			bt_buffer_pop(&ctx->gc.suspended_threads);
+		}
+	}
+}
+
 #define XSTR(x) #x
 #define ARITH_MF(name)                                                                               \
 if (BT_IS_OBJECT(lhs)) {																			 \

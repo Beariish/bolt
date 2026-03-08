@@ -282,6 +282,7 @@ void bt_make_gc(bt_Context* ctx)
 	result.ctx = ctx;
 	bt_buffer_empty(&result.active_parsers);
 	bt_buffer_empty(&result.pending_weaks);
+	bt_buffer_empty(&result.suspended_threads);
 
 	setup_freelist(&result, &result.free_strings, BT_FREELIST_STRING_LEN);
 	setup_freelist(&result, &result.free_tables, BT_FREELIST_TABLE_LEN);
@@ -306,6 +307,10 @@ void bt_make_gc(bt_Context* ctx)
 void bt_destroy_gc(bt_Context* ctx, bt_GC* gc)
 {
 	bt_gc_free(ctx, gc->greys, gc->grey_cap * sizeof(bt_Object*));
+	
+	bt_buffer_destroy(ctx, &gc->active_parsers);
+	bt_buffer_destroy(ctx, &gc->pending_weaks);
+	bt_buffer_destroy(ctx, &gc->suspended_threads);
 }
 
 size_t bt_gc_get_next_cycle(bt_Context* ctx)
@@ -480,6 +485,7 @@ static void blacken(bt_GC* gc, bt_Object* obj)
 				grey(gc, (bt_Object*)as_type->as.table_shape.parent);
 				grey(gc, (bt_Object*)as_type->as.table_shape.key_type);
 				grey(gc, (bt_Object*)as_type->as.table_shape.value_type);
+				grey(gc, (bt_Object*)as_type->as.table_shape.field_annotations);
 		} break;
 		case BT_TYPE_CATEGORY_TYPE: {
 				grey(gc, (bt_Object*)as_type->as.type.boxed);
@@ -608,6 +614,34 @@ static void clear_freelist(bt_GC* gc, bt_FreeList* list)
 	}
 }
 
+static void grey_thread(bt_GC* gc, bt_Thread* thr)
+{
+	if (!thr) return;
+	
+	uint32_t user_bottom = thr->top + BT_STACKFRAME_GET_SIZE(thr->callstack[thr->depth - 1]);
+	uint32_t user_top = user_bottom + BT_STACKFRAME_GET_USER_TOP(thr->callstack[thr->depth - 1]);
+
+	bt_Callable* current = BT_STACKFRAME_GET_CALLABLE(thr->callstack[thr->depth - 1]);
+	uint32_t top = thr->top + bt_get_top_at(current, thr->ip);
+		
+	for (uint32_t i = 0; i < thr->depth; ++i) {
+		bt_StackFrame stck = thr->callstack[i];
+		grey(gc, (bt_Object*)BT_STACKFRAME_GET_CALLABLE(stck));
+	}
+
+	for (uint32_t i = 0; i < top; ++i) {
+		bt_Value* val = thr->stack + i;
+		ref_or_weak(gc, val);
+	}
+
+	for (uint32_t i = user_bottom; i < user_top; ++i) {
+		bt_Value* val = thr->stack + i;
+		ref_or_weak(gc, val);
+	}
+
+	grey(gc, (bt_Object*)gc->ctx->current_thread->last_error);
+}
+
 uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 {
 	if (gc->pause_count > 0) {
@@ -654,33 +688,13 @@ uint32_t bt_collect(bt_GC* gc, uint32_t max_collect)
 		}
 	}
 	
-	if (gc->ctx->current_thread) {
-		bt_Thread* thr = gc->ctx->current_thread;
-		
-		uint32_t user_bottom = thr->top + BT_STACKFRAME_GET_SIZE(thr->callstack[thr->depth - 1]);
-		uint32_t user_top = user_bottom + BT_STACKFRAME_GET_USER_TOP(thr->callstack[thr->depth - 1]);
+	grey_thread(gc, gc->ctx->current_thread);
 
-		bt_Callable* current = BT_STACKFRAME_GET_CALLABLE(thr->callstack[thr->depth - 1]);
-		uint32_t top = thr->top + bt_get_top_at(current, thr->ip);
-		
-		for (uint32_t i = 0; i < thr->depth; ++i) {
-			bt_StackFrame stck = thr->callstack[i];
-			grey(gc, (bt_Object*)BT_STACKFRAME_GET_CALLABLE(stck));
-		}
-
-		for (uint32_t i = 0; i < top; ++i) {
-			bt_Value* val = thr->stack + i;
-			ref_or_weak(gc, val);
-		}
-
-		for (uint32_t i = user_bottom; i < user_top; ++i) {
-			bt_Value* val = thr->stack + i;
-			ref_or_weak(gc, val);
-		}
-
-		grey(gc, (bt_Object*)gc->ctx->current_thread->last_error);
+	for (uint32_t i = 0; i < gc->suspended_threads.length; ++i) {
+		bt_Thread* thr = gc->suspended_threads.elements[i];
+		grey_thread(gc, thr);
 	}
-
+	
 	while (gc->grey_count) {
 		bt_Object* obj = gc->greys[--gc->grey_count];
 		blacken(gc, obj);
