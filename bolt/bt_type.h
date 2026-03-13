@@ -208,8 +208,8 @@ BOLT_API bt_bool bt_type_is_weak(bt_Type* type);
 /** Returns a NULL-terminated string containing the type's name, if known */
 BOLT_API char* bt_type_get_name(bt_Type* type);
     
-static inline bt_bool bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return left && right; }
-static inline bt_bool bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
+static inline bt_TypeCheckResult bt_type_satisfier_any(bt_Type* left, bt_Type* right) { return left && right; }
+static inline bt_TypeCheckResult bt_type_satisfier_same(bt_Type* left, bt_Type* right) { return left == right; }
 
 typedef enum {
     BT_TYPE_CATEGORY_TYPE,
