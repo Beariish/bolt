@@ -91,7 +91,8 @@ static bt_Object* attempt_from_freelist(bt_Context* context, uint32_t full_size,
 		return get_from_list_lin(&context->gc, &context->gc.free_strings, len);
 	}
 	case BT_OBJECT_TYPE_TABLE: {
-		size_t len = ((full_size - sizeof(bt_Table)) / sizeof(bt_TablePair)) + 1;
+		// Add one value since first pair is aliased
+		size_t len = ((full_size - sizeof(bt_Table) + sizeof(bt_Value)) / sizeof(bt_TablePair));
 		if (len > BT_FREELIST_TABLE_LEN) return NULL;
 		return get_from_list_lin(&context->gc, &context->gc.free_tables, len);
 	}

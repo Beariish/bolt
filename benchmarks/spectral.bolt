@@ -151,11 +151,6 @@ fn spectral_precomp(n: number) {
     return sqrt(vbv / vv)
 }
 
-import core
-import meta
-
-core.print(meta.dump(eval_a_times_u_precomp))
-/*
 bench("spectral(50)", 100, fn {
     spectral(50)
 })
@@ -182,4 +177,4 @@ bench("spectral_inline(500)", 10, fn {
 
 bench("spectral_precomp(500)", 10, fn {
     spectral_precomp(500)
-})*/
+})
