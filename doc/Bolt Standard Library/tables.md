@@ -22,7 +22,7 @@ type Pair<K, V> = {
         z: "hello"
     }
 
-    for const pair in tables.pairs(t) {
+    for pair in tables.pairs(t) {
         print(typeof(pair.key))   // type(any)
         print(typeof(pair.value)) // type(any)
         print(pair.key)           // "x", "y", "z"
@@ -35,7 +35,7 @@ type Pair<K, V> = {
         z: 30
     }
 
-    for const pair in tables.pairs(t) {
+    for pair in tables.pairs(t) {
         print(typeof(pair.key))   // type(string)
         print(typeof(pair.value)) // type(number)
         print(pair.key)           // "x", "y", "z"

@@ -41,10 +41,10 @@ fn T.@format(this) {
 }
 
 test("meta @add", fn {
-    let const t1 = T => { x: 5, y: 5 }
-    let const t2 = T => { x: 10, y: 10 }
+    let t1 = T => { x: 5, y: 5 }
+    let t2 = T => { x: 10, y: 10 }
 
-    let const t3 = t1 + t2
+    let t3 = t1 + t2
     expect(t3.x == 15, "A correct new object is returned")
     expect(t3.y == 15, "A correct new object is returned")
 
@@ -53,7 +53,7 @@ test("meta @add", fn {
 
 test("meta @add assign", fn {
     let t1 = T => { x: 5, y: 5 }
-    let const t2 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 10, y: 10 }
 
     t1 += t2
     expect(t1.x == 15, "A correct new object is returned")
@@ -63,10 +63,10 @@ test("meta @add assign", fn {
 })
 
 test("meta @sub", fn {
-    let const t1 = T => { x: 10, y: 10 }
-    let const t2 = T => { x: 5, y: 5 }
+    let t1 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 5, y: 5 }
 
-    let const t3 = t1 - t2
+    let t3 = t1 - t2
     expect(t3.x == 5, "A correct new object is returned")
     expect(t3.y == 5, "A correct new object is returned")
 
@@ -75,7 +75,7 @@ test("meta @sub", fn {
 
 test("meta @sub assign", fn {
     let t1 = T => { x: 15, y: 15 }
-    let const t2 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 10, y: 10 }
 
     t1 -= t2
     expect(t1.x == 5, "A correct new object is returned")
@@ -85,10 +85,10 @@ test("meta @sub assign", fn {
 })
 
 test("meta @mul", fn {
-    let const t1 = T => { x: 10, y: 10 }
-    let const t2 = T => { x: 5, y: 5 }
+    let t1 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 5, y: 5 }
 
-    let const t3 = t1 * t2
+    let t3 = t1 * t2
     expect(t3.x == 50, "A correct new object is returned")
     expect(t3.y == 50, "A correct new object is returned")
 
@@ -97,7 +97,7 @@ test("meta @mul", fn {
 
 test("meta @mul assign", fn {
     let t1 = T => { x: 15, y: 15 }
-    let const t2 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 10, y: 10 }
 
     t1 *= t2
     expect(t1.x == 150, "A correct new object is returned")
@@ -107,10 +107,10 @@ test("meta @mul assign", fn {
 })
 
 test("meta @div", fn {
-    let const t1 = T => { x: 10, y: 10 }
-    let const t2 = T => { x: 5, y: 5 }
+    let t1 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 5, y: 5 }
 
-    let const t3 = t1 / t2
+    let t3 = t1 / t2
     expect(t3.x == 2, "A correct new object is returned")
     expect(t3.y == 2, "A correct new object is returned")
 
@@ -119,7 +119,7 @@ test("meta @div", fn {
 
 test("meta @div assign", fn {
     let t1 = T => { x: 15, y: 15 }
-    let const t2 = T => { x: 10, y: 10 }
+    let t2 = T => { x: 10, y: 10 }
 
     t1 /= t2
     expect(t1.x == 1.5, "A correct new object is returned")

@@ -17,7 +17,7 @@ This doesn't:
 import print from core
 import tables
 
-let const k = 42
+let k = 42
 let a = {k: "haha"}
 print(tables.length(a))  // Invalid argument type: 'a'
 */

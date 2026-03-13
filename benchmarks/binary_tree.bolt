@@ -12,7 +12,7 @@ type Tree = final {
 
 fn Tree.new(item: number, depth: number): Tree {
     if depth > 0 {
-        let const item2 = item + item
+        let item2 = item + item
         depth -= 1
 
         return Tree => {
@@ -29,20 +29,18 @@ fn Tree.new(item: number, depth: number): Tree {
     }
 }
 
-fn Tree.check(this): number {
-    let const left = this.left
-    return if left? 
+fn Tree.check(this): number do 
+    if let left = this.left 
         then this.item + left.check() - this.right!.check() 
         else this.item
-}
 
 fn do_tree(min: number, max: number) {
-    let const min_depth = min
-    let const max_depth = max
-    let const stretch_depth = max_depth + 1
+    let min_depth = min
+    let max_depth = max
+    let stretch_depth = max_depth + 1
 
-    let const stretch_check = Tree.new(0, stretch_depth).check()
-    let const long_tree = Tree.new(0, max_depth)
+    let stretch_check = Tree.new(0, stretch_depth).check()
+    let long_tree = Tree.new(0, max_depth)
 
     let iterations = pow(2, max_depth)
 
@@ -56,7 +54,7 @@ fn do_tree(min: number, max: number) {
         iterations /= 4
     }
 
-    let const long_check = long_tree.check()
+    let long_check = long_tree.check()
 }
 
 bench("tree(2, 6)", 100, fn {

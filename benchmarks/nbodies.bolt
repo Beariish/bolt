@@ -27,11 +27,11 @@ fn combinations(bodies: [Body]): [BodyPair] {
     return result
 }
 
-let const pi = math.pi
-let const sqrt = math.sqrt
-let const pow = math.pow
-let const solar_mass = 4 * pi * pi
-let const days_per_year = 365.24
+let pi = math.pi
+let sqrt = math.sqrt
+let pow = math.pow
+let solar_mass = 4 * pi * pi
+let days_per_year = 365.24
 
 fn make_system(): [Body] {
     let result: [Body]

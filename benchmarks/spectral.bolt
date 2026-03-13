@@ -35,6 +35,54 @@ fn eval_ata_times_u(u: [number]) {
     return eval_at_times_u(eval_a_times_u(u))
 }
 
+fn eval_a_times_u_noalloc(u: [number], r: [number]) {
+    for i in u.length() {
+        let sum = 0
+
+        for j in u.length() {
+            let ij = i + j
+            sum += (1 / (ij * (ij + 1) / 2 + i + 1)) * u[j]
+        }
+
+        r[i] = sum
+    }
+}
+
+fn eval_at_times_u_noalloc(u: [number], r: [number]) {
+    for i in u.length() {
+        let sum = 0
+
+        for j in u.length() {
+            let ij = i + j
+            sum += (1 / (ij * (ij + 1) / 2 + j + 1)) * u[j]
+        }
+
+        r[i] = sum
+    }
+}
+
+fn eval_ata_times_u_noalloc(u: [number], scratch: [number], r: [number]) {
+    eval_a_times_u_noalloc(u, scratch)
+    eval_at_times_u_noalloc(scratch, r)
+}
+
+fn eval_a_times_u_precomp(u: [number], r: [number], ij: [[number]]) {
+    for i in u.length() {
+        let sum = 0
+
+        for j in u.length() {
+            sum += ij[i][j] * u[j]
+        }
+
+        r[i] = sum
+    }
+}
+
+fn eval_ata_times_u_precomp(u: [number], scratch: [number], r: [number], ij: [[number]], ji: [[number]]) {
+    eval_a_times_u_precomp(u, scratch, ij)
+    eval_a_times_u_precomp(scratch, r, ji)
+}
+
 fn spectral(n: number) {
     let u = for i in n do 1
     let v: [number]
@@ -56,6 +104,58 @@ fn spectral(n: number) {
     return sqrt(vbv / vv)
 }
 
+fn spectral_inline(n: number) {
+    let u = for i in n do 1
+    let scratch = for i in n do 0
+    let v = for i in n do 1
+    
+    for _ in 10 {
+        eval_ata_times_u_noalloc(u, scratch, v)
+        eval_ata_times_u_noalloc(v, scratch, u)
+    }
+
+    let vbv = 0
+    let vv = 0
+
+    for i in u.length() {
+        let lv = v[i]
+        vbv += u[i] * lv
+        vv += lv * lv
+    }
+
+    return sqrt(vbv / vv)
+}
+
+let ij = for i in 500 do for j in 500 do eval_a(i, j)
+let ji = for i in 500 do for j in 500 do eval_a(i, j)
+
+fn spectral_precomp(n: number) {
+    let u = for i in n do 1
+    let scratch = for i in n do 0
+    let v = for i in n do 1
+
+    for _ in 10 {
+        eval_ata_times_u_precomp(u, scratch, v, ij, ji)
+        eval_ata_times_u_precomp(v, scratch, u, ij, ji)
+    }
+
+    let vbv = 0
+    let vv = 0
+
+    for i in u.length() {
+        let lv = v[i]
+        vbv += u[i] * lv
+        vv += lv * lv
+    }
+
+    return sqrt(vbv / vv)
+}
+
+import core
+import meta
+
+core.print(meta.dump(eval_a_times_u_precomp))
+/*
 bench("spectral(50)", 100, fn {
     spectral(50)
 })
@@ -67,3 +167,19 @@ bench("spectral(250)", 25, fn {
 bench("spectral(500)", 10, fn {
     spectral(500)
 })
+
+bench("spectral_inline(50)", 100, fn {
+    spectral_inline(50)
+})
+
+bench("spectral_inline(250)", 25, fn {
+    spectral_inline(250)
+})
+
+bench("spectral_inline(500)", 10, fn {
+    spectral_inline(500)
+})
+
+bench("spectral_precomp(500)", 10, fn {
+    spectral_precomp(500)
+})*/

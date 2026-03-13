@@ -39,50 +39,50 @@ test("'and' completes if first operand is true", fn {
 })
 
 test("'or' shorts as an expression correctly", fn {
-    let const x = true or false
+    let x = true or false
     expect(x, "right hand side was not to be evaluated")
 })
 
 test("'or' completes as an expression correctly", fn {
-    let const x = false or true
+    let x = false or true
     expect(x, "right hand side was not to be evaluated")
 })
 
 test("'and' shorts as an expression correctly", fn {
-    let const x = false and true
+    let x = false and true
     expect(not x, "right hand side was not to be evaluated")
 })
 
 test("'and' completes as an expression correctly", fn {
-    let const x = true and false
+    let x = true and false
     expect(not x, "right hand side was not to be evaluated")
 })
 
 test("'or' shorts as a complex expression correctly", fn {
-    let const x = 10 + 5 == 20 - 5 or 10 * 5 < 5 * 5
+    let x = 10 + 5 == 20 - 5 or 10 * 5 < 5 * 5
     expect(x, "right hand side was not to be evaluated")
 })
 
 test("'or' completes as a complex expression correctly", fn {
-    let const x = 10 * 5 < 5 * 5 or 10 + 5 == 20 - 5
+    let x = 10 * 5 < 5 * 5 or 10 + 5 == 20 - 5
     expect(x, "right hand side was not to be evaluated")
 })
 
 test("'and' shorts as a complex expression correctly", fn {
-    let const x = 10 * 5 < 5 * 5 and 10 + 5 == 20 - 5
+    let x = 10 * 5 < 5 * 5 and 10 + 5 == 20 - 5
     expect(not x, "right hand side was not to be evaluated")
 })
 
 test("'and' completes as a complex expression correctly", fn {
-    let const x = 10 + 5 == 20 - 5 and 10 * 5 < 5 * 5
+    let x = 10 + 5 == 20 - 5 and 10 * 5 < 5 * 5
     expect(not x, "right hand side was not to be evaluated")
 })
 
 test("'and' and 'or' play nice together", fn {
-    let const x = (false or false) and (false or true)
+    let x = (false or false) and (false or true)
     expect(not x, "nested expression evaluates correctly")
 
-    let const y = (false or true) and (false or true)
+    let y = (false or true) and (false or true)
     expect(y, "nested expression evaluates correctly")
 })
 

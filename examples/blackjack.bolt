@@ -6,7 +6,7 @@ type Suit = enum {
     Hearts, Diamonds, Spades, Clubs
 }
 
-let const suit_symbols: { ..Suit: string } = {
+let suit_symbols: { ..Suit: string } = {
     Suit.Hearts: "H"//"♥"
     Suit.Diamonds: "D"//"♦"
     Suit.Spades: "S"//"♠"

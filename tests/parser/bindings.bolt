@@ -8,16 +8,10 @@ test("let", fn {
     let z = 3
 })
 
-test("let const", fn {
-    let const x = 1
-    let const y = 2
-    let const z = 3
-})
-
 test("let with type annotation", fn {
-    let const x: number = 1
-    let const y: number = 2
-    let const z: number = 3
+    let x: number = 1
+    let y: number = 2
+    let z: number = 3
 })
 
 test("shadowing, nested let", fn {
@@ -25,17 +19,6 @@ test("shadowing, nested let", fn {
 
     if true {
         let x = 2
-        expect(x == 2, "We aren't seeing nested x")
-    }
-
-    expect(x == 1, "We aren't seeing top-level x")
-})
-
-test("shadowing, nested let const", fn {
-    let x = 1
-
-    if true {
-        let const x = 2
         expect(x == 2, "We aren't seeing nested x")
     }
 

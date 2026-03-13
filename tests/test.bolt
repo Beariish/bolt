@@ -63,9 +63,9 @@ fn run_scope(scope: TestScope): ! {
 }
 
 export fn run {
-    let const start = time()
+    let start = time()
     run_scope(state.root)
-    let const end = time()
+    let end = time()
 
     if state.failures.length() > 0 {
         print("Tests Failed (" + to_string(state.failures.length()) + "):")
@@ -77,7 +77,7 @@ export fn run {
         }
     }
 
-    let const n_passed = state.total_tests - state.failures.length()
+    let n_passed = state.total_tests - state.failures.length()
     print("DONE: " + to_string(n_passed) + "/" + to_string(state.total_tests) + " tests passed!")
     print("All tests completed in " + to_string((end - start) / 1000) + "ms")
 }
@@ -88,7 +88,7 @@ export fn push_scope(name: string) {
     if new_name.length() > 0 { new_name += "." }
     new_name += name
 
-    let const new_scope = TestScope => {
+    let new_scope = TestScope => {
         name: new_name,
         tests: [:TestCase],
         subscopes: [:TestScope],

@@ -33,15 +33,15 @@ fn Strength.weakest(this, other: Strength) {
     return if this.weaker(other) then this else other 
 }
 
-let const REQURIED         = Strength.new(0, "required")
-let const STRONG_PREFERRED = Strength.new(1, "strongPreferred")
-let const PREFERRED        = Strength.new(2, "preferred")
-let const STRONG_DEFAULT   = Strength.new(3, "strongDefault")
-let const NORMAL           = Strength.new(4, "normal")
-let const WEAK_DEFAULT     = Strength.new(5, "weakDefault")
-let const WEAKEST          = Strength.new(6, "weakest")
+let REQURIED         = Strength.new(0, "required")
+let STRONG_PREFERRED = Strength.new(1, "strongPreferred")
+let PREFERRED        = Strength.new(2, "preferred")
+let STRONG_DEFAULT   = Strength.new(3, "strongDefault")
+let NORMAL           = Strength.new(4, "normal")
+let WEAK_DEFAULT     = Strength.new(5, "weakDefault")
+let WEAKEST          = Strength.new(6, "weakest")
 
-let const ORDERED = [
+let ORDERED = [
     WEAKEST, WEAK_DEFAULT, NORMAL, STRONG_DEFAULT, PREFERRED, STRONG_PREFERRED
 ]
 

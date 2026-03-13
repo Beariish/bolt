@@ -2,11 +2,11 @@
 
 import core
 
-let const numchars: { ..string: bool } = {
+let numchars: { ..string: bool } = {
     "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true
 }
 
-let const symchars: { ..string: bool } = {
+let symchars: { ..string: bool } = {
     "a": true, "b": true, "c": true, "d": true, "e": true, "f": true,
     "g": true, "h": true, "i": true, "j": true, "k": true, "l": true,
     "m": true, "n": true, "o": true, "p": true, "q": true, "r": true,
@@ -17,7 +17,7 @@ let const symchars: { ..string: bool } = {
     "6": true, "7": true, "8": true, "9": true, "-": true,
 }
 
-let const opchars: { ..string: bool } = {
+let opchars: { ..string: bool } = {
     "+": true, "-": true, "*": true, "/": true, "=": true, 
     "!": true, "@": true, "#": true, "$": true, "%": true, 
     "^": true, "&": true, "|": true 
@@ -409,7 +409,7 @@ fn Evaluator.eval(this, env: Object, obj: Object): Object? {
 
 fn Evaluator.new() { return Evaluator => { eval_proc: Evaluator.eval, trace: false } }
 
-let const e = Evaluator.new()
+let e = Evaluator.new()
 
 fn prim_quote(env: Object, list: Object) {
     if list_length(list) != 1 { error("Quote expected one arg") }

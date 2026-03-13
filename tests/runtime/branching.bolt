@@ -3,7 +3,7 @@ import * from "../test"
 push_scope("branching")
 
 test("single branch", fn {
-    let const x = 10
+    let x = 10
 
     ensure_branch()
     if x > 5 {
@@ -12,7 +12,7 @@ test("single branch", fn {
 })
 
 test("single branch with else", fn {
-    let const x = 10
+    let x = 10
 
     ensure_branch()
     if x < 5 {
@@ -23,7 +23,7 @@ test("single branch with else", fn {
 })
 
 test("branch with if-else chain", fn {
-    let const x = "hello"
+    let x = "hello"
     
     ensure_branch()
     if x == "bye" {
@@ -38,14 +38,14 @@ test("branch with if-else chain", fn {
 })
 
 test("single branch using 'then'", fn {
-    let const x = 10
+    let x = 10
 
     ensure_branch()
     if x > 5 then expect_branched(true, "This branch should be taken")
 })
 
 test("single branch with else using 'then'", fn {
-    let const x = 10
+    let x = 10
 
     ensure_branch()
     if x < 5 then expect_branched(false, "This branch should never be taken")
@@ -53,7 +53,7 @@ test("single branch with else using 'then'", fn {
 })
 
 test("branch with if-else chain using 'then'", fn {
-    let const x = "hello"
+    let x = "hello"
     
     ensure_branch()
     if x == "bye" then expect_branched(false, "This branch should never be taken")

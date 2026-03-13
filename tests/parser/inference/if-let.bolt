@@ -3,7 +3,7 @@ import * from "../../test"
 push_scope("if-let")
 
 test("if-let binding type inference", fn {
-    let const x: number | null = 10
+    let x: number | null = 10
 
     ensure_branch()
     if let num = x {
@@ -12,7 +12,7 @@ test("if-let binding type inference", fn {
 })
 
 test("if-let binding with union type inference", fn {
-    let const x: number | string | null = 10
+    let x: number | string | null = 10
 
     ensure_branch()
     if let num = x {

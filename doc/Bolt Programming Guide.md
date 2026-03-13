@@ -155,16 +155,6 @@ a // 0
 let b: string
 b // ""
 ```
-In order to render a binding immutable, `const` can be supplied after `let`.
-```ts
-let const a = 10
-a += 10 // Error!
-```
-And unlike many other high level languages, `const` in Bolt prohibits interior mutability as well.
-```ts
-let const a = { x: 10 }
-a.x += 10 // Error!
-```
 Bolt also allows for bindings to "shadow" other bindings with the same name, as long as they're in a deeper scope.
 ```ts
 let x = 10
@@ -322,7 +312,7 @@ let n = t?.x.y // n is number | null
 ## 9. If, if else, and else
 If-statements provide a mechanism to express conditional execution in Bolt, and they function almost identically to most other languages. It's important to note that Bolt doesn't have any "truthy" values, though, and all expressions *must* evaluate to the `bool` type.
 ```ts
-let const x = 10
+let x = 10
 if x > 5 {
     // do things
 }
@@ -330,7 +320,7 @@ if x > 5 {
 
 Optionally, an else-expression can follow the block.
 ```ts
-let const x = 10
+let x = 10
 if x < 5 {
     // never happens
 } else {
@@ -340,7 +330,7 @@ if x < 5 {
 
 Any number of if-else chains can follow as well.
 ```ts
-let const x = "hello"
+let x = "hello"
 if x == "bye" {
     // never happens
 } else if x == "goodbye" {
@@ -354,12 +344,12 @@ if x == "bye" {
 
 If the block following an if-statement consists of a single expression, the `then` keyword can be used in place of a pair of braces.
 ```ts
-let const x = 10
+let x = 10
 if x == 10 then print("x is ten!")
 ```
 Additionally, a single expression is allowed to immediately follow `else`
 ```ts
-let const x = 10
+let x = 10
 if x > 10 then print("x is large!")
 else print("x is small!")
 ```
@@ -450,9 +440,9 @@ for i in 100 to 1000 by 250 {
 
 The values provided can of course also come from any expression, and not just numeric literals:
 ```ts
-let const min = 0
-let const max = 10
-let const step = 2
+let min = 0
+let max = 10
+let step = 2
 
 for i in min to max by step {
     print(i) // 0 2 4 6 8
@@ -498,14 +488,6 @@ for item in arr.each() {
     print(item) // 10 20 30 40
 }
 ```
-
-The `const` keyword can also be added to prevent mutability of the iteratee.
-```ts
-let arr = [{x: 10}, {x: 20}, {x: 30}]
-for const item in arr.each() {
-    item.x *= 2 // Error, `item` is const!
-}
-``` 
 
 ### 11.5. Continue and break
 Loop evaluation can be manually altered through the use of the `continue` and `break` keywords. 
@@ -714,7 +696,7 @@ fn add(a: number, b: number): number {
 Just like explicitly typed bindings, the type of each argument is supplied after a colon, and a colon after the argument list is where the return type of the function is specified. The `fn` keyword at a statement level like this is actually just syntactic sugar for making a constant binding, meaning the below is exactly equivalent:
 
 ```ts
-let const add = fn(a: number, b: number): number {
+let add = fn(a: number, b: number): number {
     return a + b
 }
 ```
@@ -746,7 +728,7 @@ fn get_ten: number {
 
 The simplest possible Bolt function, that takes no arguments, returns nothing, and does nothing looks like this:
 ```ts
-let const does_nothing = fn {}
+let does_nothing = fn {}
 ```
 
 ### 14.1. Return type inference
@@ -868,8 +850,8 @@ type NumberOperator = fn(number, number): number
 
 // All of these are valid
 fn add(a: number, b: number) { return a + b }
-let const sub = fn(a: number, b: number) { return a - b }
-let const mul: NumberOperator = fn(a: number, b: number) { return a * b }
+let sub = fn(a: number, b: number) { return a - b }
+let mul: NumberOperator = fn(a: number, b: number) { return a * b }
 
 fn apply(a: number, b: number, op: NumberOperator) {
     return op(a, b)

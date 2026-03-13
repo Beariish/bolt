@@ -59,7 +59,7 @@ test("many-parameter function signature inference", fn {
 })
 
 test("many-parameter function expression inference", fn {
-    let const f = fn(x: number, y: string, z: bool) { return x }
+    let f = fn(x: number, y: string, z: bool) { return x }
 
     expect(typeof(f) == type(fn(number, string, bool): number), "Expected f to be 'fn(number, string, bool): number'")
 })

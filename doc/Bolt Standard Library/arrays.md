@@ -27,7 +27,7 @@ arrays.reserve(arr: [T], n: number)
 // Produces an iterator closure that returns each element of `arr` in sequence, followed by `null`.
 /** Example:
     let arr = [1, 2, 3]
-    for const item in arr.each() {
+    for item in arr.each() {
         print(item) // 1, 2, 3
     }
 */

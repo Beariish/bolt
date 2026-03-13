@@ -21,8 +21,8 @@ test("numeric for loop with start index and step iterator type inference", fn {
 })
 
 test("closure for loop iterator type inference", fn {
-    let const arr = [1]
-    let const iter = arr.each()
+    let arr = [1]
+    let iter = arr.each()
 
     expect(typeof(iter) == type(fn: number?), "Expected 'iter' to be 'fn: number?'")
 

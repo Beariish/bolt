@@ -79,7 +79,7 @@ test("strongly typed tables with prototypes have strong identities", fn {
 })
 
 test("dictionary table type inference", fn {
-    let const a = {
+    let a = {
         1: true,
         2: false,
         3: false
@@ -90,7 +90,7 @@ test("dictionary table type inference", fn {
 })
 
 test("dictionary table with complex values type inference", fn {
-    let const a = {
+    let a = {
         1: true,
         2: "string",
         3: 10
@@ -101,7 +101,7 @@ test("dictionary table with complex values type inference", fn {
 })
 
 test("dictionary table with complex keys type inference", fn {
-    let const a = {
+    let a = {
         1: 1,
         "string": 2,
         true: 3

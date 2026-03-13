@@ -16,11 +16,11 @@ type ParseSuccess = {
 
 type ParseResult = ParseSuccess | Error
 
-let const whitespace: { ..string: bool } = {
+let whitespace: { ..string: bool } = {
     " ": true, "\n": true, "\t": true, "\r": true
 }
 
-let const numchars: { ..string: bool } = {
+let numchars: { ..string: bool } = {
     "0": true, "1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "7": true, "8": true, "9": true, ".": true, "-": true
 }
 
@@ -80,7 +80,7 @@ fn json_parse_string(content: string, idx: number): ParseResult {
         }
     }
 
-    let const strlen = length - last_eaten
+    let strlen = length - last_eaten
     if strlen > 0 {
         result += content.substring(idx + last_eaten, strlen)
     }

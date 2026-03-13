@@ -13,7 +13,7 @@ test("length as freestanding", fn {
 })
 
 test("length as prototype", fn {
-    let const arr = [1, 2, 3]
+    let arr = [1, 2, 3]
     expect(arr.length() == 3, "Expected length to be '3'")
 
     expect([1, 2, 3].length() == 3, "Expected length to be '3'")
@@ -29,7 +29,7 @@ test("pop as freestanding", fn {
 })
 
 test("pop as prototype", fn {
-    let const arr = [1, 2, 3]
+    let arr = [1, 2, 3]
     expect(arr.pop() == 3, "Expected last element to be '3'")
 
     expect([1, 2, 3].pop() == 3, "Expected last element to be '3'")
@@ -59,7 +59,7 @@ test("push as prototype", fn {
 })
 
 test("each as freestanding", fn {
-    let const arr1 = [1, 2, 3]
+    let arr1 = [1, 2, 3]
     let iter1 = arrays.each(arr1)
     expect(typeof(iter1) == type(fn: number?), "Expected type of iter to be 'fn: number?'")
     expect(iter1() == 1, "Expected first iteration to be '1'")
@@ -68,7 +68,7 @@ test("each as freestanding", fn {
     expect(iter1() == null, "Expected fourth iteration to be 'null'")
     expect(iter1() == null, "Expected fifth iteration to be 'null'")
 
-    let const arr2 = [1, true, "str"]
+    let arr2 = [1, true, "str"]
     let iter2 = arrays.each(arr2)
     expect(typeof(iter2) == type(fn: number | bool | string | null), "Expected type of iter to be 'fn: number | bool | string | null'")
     expect(iter2() == 1, "Expected first iteration to be '1'")
@@ -79,7 +79,7 @@ test("each as freestanding", fn {
 })
 
 test("each as prototype", fn {
-    let const arr1 = [1, 2, 3]
+    let arr1 = [1, 2, 3]
     let iter1 = arr1.each()
     expect(typeof(iter1) == type(fn: number?), "Expected type of iter to be 'fn: number?'")
     expect(iter1() == 1, "Expected first iteration to be '1'")
@@ -88,7 +88,7 @@ test("each as prototype", fn {
     expect(iter1() == null, "Expected fourth iteration to be 'null'")
     expect(iter1() == null, "Expected fifth iteration to be 'null'")
 
-    let const arr2 = [1, true, "str"]
+    let arr2 = [1, true, "str"]
     let iter2 = arr2.each()
     expect(typeof(iter2) == type(fn: number | bool | string | null), "Expected type of iter to be 'fn: number | bool | string | null'")
     expect(iter2() == 1, "Expected first iteration to be '1'")
@@ -99,8 +99,8 @@ test("each as prototype", fn {
 })
 
 test("clone as freestanding", fn {
-    let const arr = [1, 2, 3]
-    let const copy = arrays.clone(arr)
+    let arr = [1, 2, 3]
+    let copy = arrays.clone(arr)
 
     expect(arr != copy, "Expected arrays to be separate instances")
     expect(arr.length() == copy.length(), "Expected arrays to have equal length")
@@ -110,8 +110,8 @@ test("clone as freestanding", fn {
 })
 
 test("clone as prototype", fn {
-    let const arr = [1, 2, 3]
-    let const copy = arr.clone()
+    let arr = [1, 2, 3]
+    let copy = arr.clone()
 
     expect(arr != copy, "Expected arrays to be separate instances")
     expect(arr.length() == copy.length(), "Expected arrays to have equal length")
@@ -121,27 +121,27 @@ test("clone as prototype", fn {
 })
 
 test("reverse as freestanding", fn {
-    let const arr = arrays.reverse([1, 2, 3])
+    let arr = arrays.reverse([1, 2, 3])
     expect(arr.pop() == 1, "Expected last element to be '1'")
     expect(arr.pop() == 2, "Expected second element to be '2'")
     expect(arr.pop() == 3, "Expected first element to be '3'")
 })
 
 test("reverse as prototype", fn {
-    let const arr = [1, 2, 3].reverse()
+    let arr = [1, 2, 3].reverse()
     expect(arr.pop() == 1, "Expected last element to be '1'")
     expect(arr.pop() == 2, "Expected second element to be '2'")
     expect(arr.pop() == 3, "Expected first element to be '3'")
 })
 
 test("map as freestanding", fn {
-    let const arr1 = arrays.map([1, 2, 3], fn (x: number) { return x * 2 })
+    let arr1 = arrays.map([1, 2, 3], fn (x: number) { return x * 2 })
     expect(typeof(arr1) == type([number]), "Expected 'arr1' to be '[number]")
     expect(arr1.pop() == 6, "Expected last element to be '6'")
     expect(arr1.pop() == 4, "Expected second element to be '4'")
     expect(arr1.pop() == 2, "Expected first element to be '2'")
 
-    let const arr2 = arrays.map([1, 2, 3], fn (x: number) { return core.to_string(x) })
+    let arr2 = arrays.map([1, 2, 3], fn (x: number) { return core.to_string(x) })
     expect(typeof(arr2) == type([string]), "Expected 'arr2' to be '[string]")
     expect(arr2.pop() == "3", "Expected last element to be '3'")
     expect(arr2.pop() == "2", "Expected last element to be '2'")
@@ -149,13 +149,13 @@ test("map as freestanding", fn {
 })
 
 test("map as prototype", fn {
-    let const arr1 = [1, 2, 3].map(fn (x: number) { return x * 2 })
+    let arr1 = [1, 2, 3].map(fn (x: number) { return x * 2 })
     expect(typeof(arr1) == type([number]), "Expected 'arr1' to be '[number]")
     expect(arr1.pop() == 6, "Expected last element to be '6'")
     expect(arr1.pop() == 4, "Expected second element to be '4'")
     expect(arr1.pop() == 2, "Expected first element to be '2'")
 
-    let const arr2 = [1, 2, 3].map(fn (x: number) { return core.to_string(x) })
+    let arr2 = [1, 2, 3].map(fn (x: number) { return core.to_string(x) })
     expect(typeof(arr2) == type([string]), "Expected 'arr2' to be '[string]")
     expect(arr2.pop() == "3", "Expected last element to be '3'")
     expect(arr2.pop() == "2", "Expected last element to be '2'")
@@ -163,13 +163,13 @@ test("map as prototype", fn {
 })
 
 test("reserve as freestanding", fn {
-    let const arr = [1, 2, 3, 4, 5, 6, 7, 8]
+    let arr = [1, 2, 3, 4, 5, 6, 7, 8]
     expect(arrays.reserve(arr, 6) == 8, "Expected reserve of smaller size not to allocate")
     expect(arrays.reserve(arr, 128) == 128, "Expected reserve of larger size to allocate")
 })
 
 test("reserve as prototype", fn {
-    let const arr = [1, 2, 3, 4, 5, 6, 7, 8]
+    let arr = [1, 2, 3, 4, 5, 6, 7, 8]
     expect(arr.reserve(6) == 8, "Expected reserve of smaller size not to allocate")
     expect(arr.reserve(128) == 128, "Expected reserve of larger size to allocate")
 })
@@ -205,13 +205,13 @@ test("concatenate as prototype", fn {
 })
 
 test("flatten as freestanding", fn {
-    let const sources = [
+    let sources = [
         [1, 2, 3],
         [4, 5, 6],
         [7, 8, 9]
     ]
 
-    let const flat = arrays.flatten(sources)
+    let flat = arrays.flatten(sources)
 
     expect(sources.length() == 3, "Original array should be untouched")
     expect(flat.length() == 9, "Expected flat to have length 9")
@@ -221,13 +221,13 @@ test("flatten as freestanding", fn {
 })
 
 test("flatten as prototype", fn {
-    let const sources = [
+    let sources = [
         [1, 2, 3],
         [4, 5, 6],
         [7, 8, 9]
     ]
 
-    let const flat = sources.flatten()
+    let flat = sources.flatten()
 
     expect(sources.length() == 3, "Original array should be untouched")
     expect(flat.length() == 9, "Expected flat to have length 9")
@@ -237,8 +237,8 @@ test("flatten as prototype", fn {
 })
 
 test("filter as freestanding", fn {
-    let const source = for i in 10 do i
-    let const filtered = arrays.filter(source, fn(n: number) { return math.mod(n, 2) == 0 })
+    let source = for i in 10 do i
+    let filtered = arrays.filter(source, fn(n: number) { return math.mod(n, 2) == 0 })
 
     expect(source.length() == 10, "Expected source arary to be untouched")
     expect(filtered.length() == 5, "Expected filtered to have length 5")
@@ -248,8 +248,8 @@ test("filter as freestanding", fn {
 })
 
 test("filter as prototype", fn {
-    let const source = for i in 10 do i
-    let const filtered = source.filter(fn(n: number) { return math.mod(n, 2) == 0 })
+    let source = for i in 10 do i
+    let filtered = source.filter(fn(n: number) { return math.mod(n, 2) == 0 })
 
     expect(source.length() == 10, "Expected source arary to be untouched")
     expect(filtered.length() == 5, "Expected filtered to have length 5")
@@ -259,8 +259,8 @@ test("filter as prototype", fn {
 })
 
 test("slice as freestanding", fn {
-    let const source = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    let const sliced = arrays.slice(source, 2, 3)
+    let source = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    let sliced = arrays.slice(source, 2, 3)
 
     expect(source.length() == 9, "Expected source array to be untouched")
     expect(sliced.length() == 3, "Expected sliced to have length 3")
@@ -270,8 +270,8 @@ test("slice as freestanding", fn {
 })
 
 test("slice as prototype", fn {
-    let const source = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    let const sliced = source.slice(2, 3)
+    let source = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    let sliced = source.slice(2, 3)
 
     expect(source.length() == 9, "Expected source array to be untouched")
     expect(sliced.length() == 3, "Expected sliced to have length 3")
@@ -281,8 +281,8 @@ test("slice as prototype", fn {
 })
 
 test("sort(numeric) as freestanding", fn {
-    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
-    let const sorted = arrays.sort(source)
+    let source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let sorted = arrays.sort(source)
     
     expect(source == sorted, "Expected source array to be sorted")
     expect(sorted.length() == 9, "Expected sorted to have length 9")
@@ -292,8 +292,8 @@ test("sort(numeric) as freestanding", fn {
 })
 
 test("sort(numeric) as prototype", fn {
-    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
-    let const sorted = source.sort()
+    let source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let sorted = source.sort()
 
     expect(source == sorted, "Expected source array to be sorted")
     expect(sorted.length() == 9, "Expected sorted to have length 9")
@@ -303,8 +303,8 @@ test("sort(numeric) as prototype", fn {
 })
 
 test("sort(custom) as freestanding", fn {
-    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
-    let const sorted = arrays.sort(source, fn(a: number, b: number) { return b < a })
+    let source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let sorted = arrays.sort(source, fn(a: number, b: number) { return b < a })
     
     expect(source == sorted, "Expected source array to be sorted")
     expect(sorted.length() == 9, "Expected sorted to have length 9")
@@ -314,8 +314,8 @@ test("sort(custom) as freestanding", fn {
 })
 
 test("sort(custom) as prototype", fn {
-    let const source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
-    let const sorted = source.sort(fn(a: number, b: number) { return b < a })
+    let source = [3, 1, 7, 4, 6, 5, 9, 8, 2]
+    let sorted = source.sort(fn(a: number, b: number) { return b < a })
 
     expect(source == sorted, "Expected source array to be sorted")
     expect(sorted.length() == 9, "Expected sorted to have length 9")
