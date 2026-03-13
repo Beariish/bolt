@@ -1105,7 +1105,7 @@ static bt_bool compile_expression(FunctionContext* ctx, bt_AstNode* expr, uint8_
 
         for (uint32_t i = 0; i < fields->length; ++i) {
             bt_AstNode* entry = fields->elements[i];
-            compile_expression(ctx, entry->as.table_field.value_expr, val_loc);
+            compile_expression(ctx, entry->as.table_field.value, val_loc);
 
             if (expr->as.table.typed && ctx->compiler->options.predict_hash_slots && expr->resulting_type->as.table_shape.sealed) {
                 bt_Table* layout = resulting->as.table_shape.layout;

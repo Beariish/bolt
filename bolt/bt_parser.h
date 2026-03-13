@@ -192,9 +192,8 @@ typedef struct bt_AstNode {
 		} arr;
 
 		struct {
-			bt_Type* value_type;
 			bt_Value key;
-			bt_AstNode* value_expr;
+			bt_AstNode* value;
 		} table_field;
 
 		struct {

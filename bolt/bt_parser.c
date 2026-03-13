@@ -672,29 +672,28 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
             return NULL;
         }
 
-        field->as.table_field.value_expr = value_expr;
-        bt_AstNode* value_checked = type_check(parse, value_expr);
-        field->as.table_field.value_type = value_checked ? value_checked->resulting_type : NULL;
-
+        field->as.table_field.value = type_check(parse, value_expr);
+        
         if (type) {
             bt_Type* expected = type->as.table_shape.layout ? (bt_Type*)BT_AS_OBJECT(bt_table_get(type->as.table_shape.layout, key)) : 0;
             if (!expected && type->as.table_shape.sealed) {
                 parse_error_token(parse, "Unexpected field '%.*s' in sealed table literal", key_expr->source);
             }
 
-            bt_Type* value_type = field->as.table_field.value_type;
+            bt_Type* value_type = field->as.table_field.value->resulting_type;
             if (!value_type) {
                 parse_error_token(parse, "Failed to evaluate type of table field '%.*s'", key_expr->source);
-            } else if (expected && !attempt_assignment(parse, expected, value_type, NULL)) {
+            } else if (expected && !attempt_assignment(parse, expected, value_type, &field->as.table_field.value)) {
                 parse_error_fmt(parse, "Invalid type for field '%.*s': wanted '%s', got '%s'", key_expr->source->line, key_expr->source->col,
                     key_expr->source->source.length, key_expr->source->source.source, expected->name, value_type->name);
             }
         }
         else {
             bt_Type* key_type = key_expr->type == BT_AST_NODE_IDENTIFIER ? ctx->types.string : type_check(parse, key_expr)->resulting_type;
-            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, to_storable_type(parse, field->as.table_field.value_type));
+            bt_tableshape_add_layout(ctx, result->resulting_type, key_type, key, to_storable_type(parse, field->as.table_field.value->resulting_type));
 
-            bt_Type* value_type = to_storable_type(parse, value_checked ? value_checked->resulting_type : NULL);
+
+            bt_Type* value_type = to_storable_type(parse, field->as.table_field.value ? field->as.table_field.value->resulting_type : NULL);
 
             map_key_type = bt_make_or_extend_union(parse->context, map_key_type, key_type);
             own(parse, (bt_Object*)map_key_type);
@@ -742,8 +741,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
                     bt_AstNode* default_field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
                     default_field->source = token;
                     default_field->as.table_field.key = field->key;
-                    default_field->as.table_field.value_type = (bt_Type*)BT_AS_OBJECT(field->value);
-                    default_field->as.table_field.value_expr = literal_to_node(parse, literal);
+                    default_field->as.table_field.value = type_check(parse, literal_to_node(parse, literal));
                     bt_buffer_push(ctx, &result->as.table.fields, default_field);
                 } else {
                     bt_String* field_name = bt_to_string(ctx, field->key);
@@ -2671,17 +2669,16 @@ static bt_AstNode* generate_initializer(bt_Parser* parse, bt_Type* type, bt_Toke
                 bt_TablePair* pair = BT_TABLE_PAIRS(items) + idx;
                 
                 bt_AstNode* entry = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
-                entry->as.table_field.value_type = (bt_Type*)BT_AS_OBJECT(pair->value);
                 entry->as.table_field.key = pair->key;
 
                 bt_Value default_value;
                 if (bt_type_get_field(parse->context, type, pair->key, &default_value, BT_TRUE)) {
-                    entry->as.table_field.value_expr = literal_to_node(parse, default_value);
+                    entry->as.table_field.value = type_check(parse, literal_to_node(parse, default_value));
                 } else {
-                    entry->as.table_field.value_expr = generate_initializer(parse, entry->as.table_field.value_type, source);
+                    entry->as.table_field.value = type_check(parse, generate_initializer(parse, (bt_Type*)BT_AS_OBJECT(pair->value), source));
                 }
 
-                if (!entry->as.table_field.value_expr) {
+                if (!entry->as.table_field.value) {
                     bt_String* as_str = bt_to_string(parse->context, pair->key);
                     parse_error_fmt(parse, "Failed to generate initializer for table field '%.*s'", source->line, source->col, as_str->len, BT_STRING_STR(as_str));
                 }
