@@ -4,5 +4,6 @@ import "_scope"
 import "core"
 import "arrays"
 import "regex"
+import "strings"
 
 pop_scope()

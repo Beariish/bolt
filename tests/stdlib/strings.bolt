@@ -1,0 +1,340 @@
+import * from "../test"
+
+import strings
+import protect, Error from core
+
+type FormatMe = enum { Please, OrElse }
+
+push_scope("strings")
+
+test("string.length() returns correct value", fn {
+    expect("hello".length() == 5, "Expected 'hello' to be 5 charaters long")
+    expect("hello there".length() == 11, "Expected 'hello there' to be 11 charaters long")
+})
+
+test("string.length() on empty string", fn {
+    expect("".length() == 0, "Expected '' to be 0 charaters long")
+})
+
+test("string.substring() can start from beginning of string", fn {
+    expect("hello".substring(0, 2) == "he", "Expected string 'he'")
+    expect("hello there".substring(0, 10) == "hello ther", "Expected string 'hello ther'")
+})
+
+test("string.substring() can go to end of string", fn {
+    expect("hello".substring(3, 2) == "lo", "Expected string 'lo'")
+    expect("hello there".substring(6, 5) == "there", "Expected string 'there'")
+})
+
+test("string.substring() can extract middle of string", fn {
+    expect("hello".substring(1, 2) == "el", "Expected string 'el'")
+    expect("hello there".substring(5, 1) == " ", "Expected string ' '")
+})
+
+test("string.substring() errors if starting out of bounds", fn {
+    expect(protect(fn {
+        "hello".substring(-1, 4)
+    }) is Error, "Expected invalid substring to error")
+
+    expect(protect(fn {
+        "hello".substring(10, 4)
+    }) is Error, "Expected invalid substring to error")
+})
+
+test("string.substring() errors if ending out of bounds", fn {
+    expect(protect(fn {
+        "hello".substring(0, 6)
+    }) is Error, "Expected invalid substring to error")
+
+    expect(protect(fn {
+        "hello".substring(0, -1)
+    }) is Error, "Expected invalid substring to error")
+})
+
+test("string.remainder() works as expected", fn {
+    expect("hello".remainder(1) == "ello", "Expected string 'ello'")
+    expect("hello there".remainder(6) == "there", "Expected string 'ello'")
+})
+
+test("string.remainder() errors if out of bounds", fn {
+    expect(protect(fn {
+        "hello".remainder(-1)
+    }) is Error, "Expected invalid remainder to error")
+
+    expect(protect(fn {
+        "hello".remainder(10)
+    }) is Error, "Expected invalid remainder to error")
+})
+
+test("string.concat() with no additional arguments", fn {
+    expect("hello".concat() == "hello", "Expected source string to be returned")
+})
+
+test("string.concat() with one additional argument", fn {
+    expect("hello".concat(" there") == "hello there", "Expected concatenated string")
+})
+
+test("string.concat() with multiple additional arguments", fn {
+    expect("h".concat("e", "l", "l", "o") == "hello", "Expected concatenated string")
+})
+
+test("strings.concat() from module scope", fn {
+    expect(strings.concat("h", "e", "l", "l", "o") == "hello", "Expected concatenated string")
+})
+
+test("string.format() with no format specifiers", fn {
+    expect("hello".format() == "hello", "Expected source string back")
+})
+
+test("string.format() with no format specifiers and trailing arguments", fn {
+    expect("hello".format(true, 10, " there") == "hello", "Expected source string back")
+})
+
+test("string.format() with escapes percentage sign", fn {
+    expect("hello %% there".format(true, 10, " there") == "hello % there", "Expected percentage to be deduplicated")
+})
+
+test("string.format() with integer format specifier", fn {
+    expect("hello %d".format(1) == "hello 1", "Expected formatted string")
+    expect("hello %d".format(2) == "hello 2", "Expected formatted string")
+    expect("hello %d".format(3) == "hello 3", "Expected formatted string")
+
+    expect("hello %i".format(1) == "hello 1", "Expected formatted string")
+    expect("hello %i".format(2) == "hello 2", "Expected formatted string")
+    expect("hello %i".format(3) == "hello 3", "Expected formatted string")
+})
+
+test("string.format() with integer format specifier and invalid argument", fn {
+    expect("hello %d".format(true) == "hello <invalid>", "Expected invalid formatted string")
+})
+
+test("string.format() with float format specifier", fn {
+    expect("hello %f".format(1) == "hello 1.000000", "Expected formatted string")
+    expect("hello %f".format(2) == "hello 2.000000", "Expected formatted string")
+    expect("hello %f".format(3) == "hello 3.000000", "Expected formatted string")
+})
+
+test("string.format() with float format specifier and invalid argument", fn {
+    expect("hello %f".format(true) == "hello <invalid>", "Expected invalid formatted string")
+})
+
+test("string.format() with string format specifier", fn {
+    expect("hello %s".format(1) == "hello 1", "Expected formatted string")
+    expect("hello %s".format(true) == "hello true", "Expected formatted string")
+    expect("hello %s".format(null) == "hello null", "Expected formatted string")
+    expect("hello %s".format("hello") == "hello hello", "Expected formatted string")
+})
+
+test("string.format() with value format specifier", fn {
+    expect("hello %v".format(1) == "hello 1", "Expected formatted string")
+    expect("hello %v".format(true) == "hello true", "Expected formatted string")
+    expect("hello %v".format(null) == "hello null", "Expected formatted string")
+    expect("hello %v".format("hello") == "hello hello", "Expected formatted string")
+})
+
+test("string.format() with enum", fn {
+    expect("hello %v".format(FormatMe.Please) == "hello 0", "Expected formatted string")
+    expect("hello %v".format(FormatMe.OrElse) == "hello 1", "Expected formatted string")
+})
+
+test("string.format() with missing format arguments", fn {
+    expect("hello %s %s %s".format(FormatMe.Please) == "hello 0 null null", "Expected formatted string")
+    expect("hello %d %d %d".format(FormatMe.Please) == "hello <invalid> <invalid> <invalid>", "Expected formatted string")
+})
+
+test("string.format() with multiple format arguments", fn {
+    expect("hello %s %s %s".format("one", "two", "three") == "hello one two three", "Expected formatted string")
+    expect("hello %d %f %v".format(5, 10, true) == "hello 5 10.000000 true", "Expected formatted string")
+})
+
+test("string.find() works as expected", fn {
+    expect("hello".find("ell") == 1, "Expected to find substring")
+    expect("hello".find("o") == 4, "Expected to find substring")
+})
+
+test("string.find() cannot find strings larger than source", fn {
+    expect("hello".find("elloo") == -1, "Expected not to find substring")
+    expect("hello".find("this is very long") == -1, "Expected not to find substring")
+})
+
+test("string.find() cannot find missing strings", fn {
+    expect("hello".find("p") == -1, "Expected not to find substring")
+    expect("hello".find("h ell") == -1, "Expected not to find substring")
+})
+
+test("string.find() matches empty string", fn {
+    expect("hello".find("") == 0, "Expected to find substring")
+})
+
+test("string.contains() works as expected", fn {
+    expect("hello".contains("ell") == true, "Expected to find substring")
+    expect("hello".contains("o") == true, "Expected to find substring")
+})
+
+test("string.contains() cannot find strings larger than source", fn {
+    expect("hello".contains("elloo") == false, "Expected not to find substring")
+    expect("hello".contains("this is very long") == false, "Expected not to find substring")
+})
+
+test("string.contains() cannot find missing strings", fn {
+    expect("hello".contains("p") == false, "Expected not to find substring")
+    expect("hello".contains("h ell") == false, "Expected not to find substring")
+})
+
+test("string.contains() matches empty string", fn {
+    expect("hello".contains("") == true, "Expected to find substring")
+})
+
+test("string.replace() works as expected", fn {
+    expect("hello".replace("el", "po") == "hpolo", "Expected substring to be replaced")
+    expect("hello there".replace(" ", "@") == "hello@there", "Expected substring to be replaced")
+})
+
+test("string.replace() can extend string", fn {
+    expect("hello".replace("el", "poooooo") == "hpoooooolo", "Expected substring to be replaced")
+    expect("hello there".replace(" ", " everyone ") == "hello everyone there", "Expected substring to be replaced")
+})
+
+test("string.replace() can shorten string", fn {
+    expect("hello".replace("el", "l") == "hllo", "Expected substring to be replaced")
+    expect("hello there".replace(" ", "") == "hellothere", "Expected substring to be replaced")
+})
+
+test("string.replace() does nothing if source string not found", fn {
+    expect("hello".replace("p", "l") == "hello", "Expected source string to be returned")
+    expect("hello there".replace("guys", "eveyone") == "hello there", "Expected source string to be returned")
+})
+
+test("string.replace() errors if source is empty", fn {
+    expect(protect(fn {
+        "hello".replace("", "hello")
+    }) is Error, "Expected invalid replacement to error")
+})
+
+test("string.reverse() works as expected", fn {
+    expect("hello".reverse() == "olleh", "Expected reversed string")
+    expect("hello there".reverse() == "ereht olleh", "Expected reversed string")
+})
+
+test("string.reverse() on empty string", fn {
+    expect("".reverse() == "", "Expected source string")
+})
+
+test("string.byte_at() works as expected", fn {
+    expect("hello".byte_at(0) == 104, "Expected correct value")
+    expect("hello there".byte_at(5) == 32, "Expected correct value")
+})
+
+test("string.byte_at() errors out of bounds", fn {
+    expect(protect(fn {
+        "hello".byte_at(-1)
+    }) is Error, "Expected invalid index to error")
+
+    expect(protect(fn {
+        "hello".byte_at(10)
+    }) is Error, "Expected invalid index to error")
+})
+
+test("strings.from_byte() works as expected", fn {
+    expect(strings.from_byte(104) == "h", "Expected correct value")
+    expect(strings.from_byte(32) == " ", "Expected correct value")
+})
+
+test("string.starts_with() works as expected", fn {
+    expect("hello".starts_with("hel") == true, "Expected to find substring")
+    expect("hello there".starts_with("hello ") == true, "Expected to find substring")
+    expect("hello there".starts_with("there") == false, "Expected to find substring")
+    expect("hello there".starts_with("there guys and everyone") == false, "Expected to find substring")
+})
+
+test("string.starts_with() with empty substring", fn {
+    expect("hello".starts_with("") == true, "All strings start with the empty string")
+})
+
+test("string.ends_with() works as expected", fn {
+    expect("hello".ends_with("hel") == false, "Expected to find substring")
+    expect("hello there".ends_with("hello ") == false, "Expected to find substring")
+    expect("hello there".ends_with("there") == true, "Expected to find substring")
+    expect("hello there".ends_with("there guys and everyone") == false, "Expected to find substring")
+})
+
+test("string.ends_with() with empty substring", fn {
+    expect("hello".ends_with("") == true, "All strings end with the empty string")
+})
+
+test("string.compare_at() works as expected", fn {
+    expect("hello".compare_at("el", 1) == true, "Expected comparison to be true")
+    expect("hello there".compare_at("there", 6) == true, "Expected comparison to be true")
+    expect("hello there".compare_at("there guys", 6) == false, "Expected comparison to be true")
+})
+
+test("string.compare_at() errors out of bounds", fn {
+    expect(protect(fn {
+        "hello".compare_at("el", -1)
+    }) is Error, "Expected invalid index to error")
+
+    expect(protect(fn {
+        "hello".compare_at("el", 10)
+    }) is Error, "Expected invalid index to error")
+})
+
+test("string.chars() works as expected", fn {
+    let str = "hello"
+    let iter = str.chars()
+
+    expect(typeof(iter) == type(fn: string?), "Expected iterator type to be correct")
+
+    let idx = -1
+    for it in iter {
+        idx += 1
+        expect(it == match idx {
+            0 then "h",
+            1 then "e",
+            2, 3 then "l",
+            else "o"
+        }, "Expected characters in order")
+    }
+
+    expect(idx == 4, "Expected each character exactly once")
+})
+
+test("string.@iter() is the same as string.chars()", fn {
+    let str = "hello"
+
+    expect(str.@iter == str.chars, "Expected @iter to be chars")
+
+    let idx = -1
+    for it in str {
+        idx += 1
+        expect(it == match idx {
+            0 then "h",
+            1 then "e",
+            2, 3 then "l",
+            else "o"
+        }, "Expected characters in order")
+    }
+
+    expect(idx == 4, "Expected each character exactly once")
+})
+
+test("string.bytes() works as expected", fn {
+    let str = "hello"
+    let iter = str.bytes()
+
+    expect(typeof(iter) == type(fn: number?), "Expected iterator type to be correct")
+
+    let idx = -1
+    for it in iter {
+        idx += 1
+        expect(it == match idx {
+            0 then 104,
+            1 then 101,
+            2, 3 then 108,
+            else 111
+        }, "Expected characters in order")
+    }
+
+    expect(idx == 4, "Expected each character exactly once")
+})
+
+pop_scope()

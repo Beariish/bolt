@@ -475,7 +475,6 @@ void bt_reset_thread(bt_Thread* thread)
 	thread->depth = 0;
 	thread->native_depth = 0;
 	thread->top = 0;
-	thread->should_report = BT_TRUE;
 	thread->last_error = 0;
 
 	thread->native_stack[thread->native_depth].return_loc = 0;

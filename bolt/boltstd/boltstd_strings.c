@@ -2,9 +2,11 @@
 
 #include "../bt_embedding.h"
 
-#include <memory.h>
 #include <string.h>
 #include <stdio.h>
+
+bt_Value CHARS_ITER_STORAGE_IDX;
+bt_Value BYTES_ITER_STORAGE_IDX;
 
 static void bt_str_length(bt_Context* ctx, bt_Thread* thread)
 {
@@ -91,6 +93,7 @@ static void sprint_uint64_t(bt_Context* ctx, bt_StringBuffer* output, bt_Value v
 		return;
 	}
 
+	// TODO: Magic number
 	char buf[128];
 	int32_t len = sprintf(buf, "%llu", (uint64_t)BT_AS_NUMBER(value));
 
@@ -104,6 +107,7 @@ static void sprint_float(bt_Context* ctx, bt_StringBuffer* output, bt_Value valu
 		return;
 	}
 
+	// TODO: Magic number, let user set precision
 	char buf[128];
 	int32_t len = sprintf(buf, "%f", BT_AS_NUMBER(value));
 
@@ -171,7 +175,7 @@ static void bt_string_find(bt_Context* ctx, bt_Thread* thread)
 	bt_String* source = (bt_String*)bt_object(bt_arg(thread, 0));
 	bt_String* needle = (bt_String*)bt_object(bt_arg(thread, 1));
 
-	for (uint32_t i = 0; i < (source->len - needle->len) + 1; ++i) {
+	for (int32_t i = 0; i < ((int32_t)source->len - (int32_t)needle->len) + 1; ++i) {
 		const char* start = BT_STRING_STR(source) + i;
 
 		int32_t found = (int32_t)i;
@@ -196,7 +200,7 @@ static void bt_string_contains(bt_Context* ctx, bt_Thread* thread)
 	bt_String* source = (bt_String*)bt_object(bt_arg(thread, 0));
 	bt_String* needle = (bt_String*)bt_object(bt_arg(thread, 1));
 
-	for (uint32_t i = 0; i < (source->len - needle->len) + 1; ++i) {
+	for (int32_t i = 0; i < ((int32_t)source->len - (int32_t)needle->len) + 1; ++i) {
 		const char* start = BT_STRING_STR(source) + i;
 
 		int32_t found = (int32_t)i;
@@ -237,7 +241,7 @@ static void bt_string_replace(bt_Context* ctx, bt_Thread* thread)
 		ins = tmp + len_rep;
 	}
 
-	bt_String* result = bt_make_string_empty(ctx, orig_str->len + (uint32_t)(len_with - len_rep) * count + 1);
+	bt_String* result = bt_make_string_empty(ctx, orig_str->len + ((int32_t)len_with - (int32_t)len_rep) * count);
 	tmp = BT_STRING_STR(result);
 
 	int64_t len_front;
@@ -271,6 +275,8 @@ static void bt_string_byte_at(bt_Context* ctx, bt_Thread* thread) {
 	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 0));
 	bt_number idx = bt_get_number(bt_arg(thread, 1));
 
+	if (idx < 0 || idx >= (bt_number)bt_string_length(arg)) bt_runtime_error(thread, "String index out of bounds", 0);
+	
 	unsigned char byte = BT_STRING_STR(arg)[(size_t)idx];
 
 	bt_return(thread, bt_make_number(byte));
@@ -281,7 +287,7 @@ static void bt_string_from_byte(bt_Context* ctx, bt_Thread* thread) {
 
 	char byte = (char)byte_num;
 
-	bt_String* result = bt_make_string_len(ctx, &byte ,1);
+	bt_String* result = bt_make_string_len(ctx, &byte,1);
 	
 	bt_return(thread, bt_value((bt_Object*)result));
 }
@@ -307,7 +313,7 @@ static void bt_string_ends_with(bt_Context* ctx, bt_Thread* thread) {
 		return;
 	}
 
-	bt_return(thread, bt_make_bool(strncmp(bt_string_get(self) + bt_string_length(self) - 1 - bt_string_length(arg), bt_string_get(arg), bt_string_length(arg)) == 0));
+	bt_return(thread, bt_make_bool(strncmp(bt_string_get(self) + bt_string_length(self) - bt_string_length(arg), bt_string_get(arg), bt_string_length(arg)) == 0));
 }
 
 static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
@@ -315,6 +321,8 @@ static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
 	bt_String* arg = (bt_String*)bt_object(bt_arg(thread, 1));
 	bt_number fidx = bt_get_number(bt_arg(thread, 2));
 	uint32_t idx = (uint32_t)fidx;
+
+	if (fidx < 0 || fidx >= (bt_number)bt_string_length(self)) bt_runtime_error(thread, "String index out of bounds", 0);
 	
 	if (bt_string_length(self) < bt_string_length(arg) + idx) {
 		bt_return(thread, bt_make_bool(0));
@@ -324,10 +332,65 @@ static void bt_string_compare_at(bt_Context* ctx, bt_Thread* thread) {
 	bt_return(thread, bt_make_bool(strncmp(bt_string_get(self) + idx, bt_string_get(arg), bt_string_length(arg)) == 0));
 }
 
+static void bt_string_chars(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Module* this_module = bt_get_module(thread);
+	bt_Value chars_iter = bt_module_get_storage(this_module, CHARS_ITER_STORAGE_IDX);
+	
+	bt_push(thread, chars_iter);
+	bt_push(thread, bt_arg(thread, 0));
+	bt_push(thread, bt_make_number(0));
+
+	bt_return(thread, bt_make_closure(thread, 2));
+}
+
+static void bt_string_chars_iter(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_String* str = (bt_String*)BT_AS_OBJECT(bt_getup(thread, 0));
+	uint64_t idx = (uint64_t)BT_AS_NUMBER(bt_getup(thread, 1));
+
+	if (idx >= bt_string_length(str)) {
+		bt_return(thread, BT_VALUE_NULL);
+	}
+	else {
+		bt_return(thread, bt_value((bt_Object*)bt_make_string_len(ctx, bt_string_get(str) + idx, 1)));
+		bt_setup(thread, 1, bt_make_number((bt_number)(idx + 1)));
+	}
+}
+
+static void bt_string_bytes(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_Module* this_module = bt_get_module(thread);
+	bt_Value bytes_iter = bt_module_get_storage(this_module, BYTES_ITER_STORAGE_IDX);
+	
+	bt_push(thread, bytes_iter);
+	bt_push(thread, bt_arg(thread, 0));
+	bt_push(thread, bt_make_number(0));
+
+	bt_return(thread, bt_make_closure(thread, 2));
+}
+
+static void bt_string_bytes_iter(bt_Context* ctx, bt_Thread* thread)
+{
+	bt_String* str = (bt_String*)BT_AS_OBJECT(bt_getup(thread, 0));
+	uint64_t idx = (uint64_t)BT_AS_NUMBER(bt_getup(thread, 1));
+
+	if (idx >= bt_string_length(str)) {
+		bt_return(thread, BT_VALUE_NULL);
+	}
+	else {
+		bt_return(thread, bt_make_number(*(bt_string_get(str) + idx)));
+		bt_setup(thread, 1, bt_make_number((bt_number)(idx + 1)));
+	}
+}
+
 void boltstd_open_strings(bt_Context* context)
 {
 	bt_Module* module = bt_make_module(context);
 
+	CHARS_ITER_STORAGE_IDX = bt_make_enum_val(0);
+	BYTES_ITER_STORAGE_IDX = bt_make_enum_val(1);
+	
 	bt_Type* string = bt_type_string(context);
 	bt_Type* number = bt_type_number(context);
 	bt_Type* any = bt_type_any(context);
@@ -417,6 +480,25 @@ void boltstd_open_strings(bt_Context* context)
 	fn_ref = bt_make_native(context, module, compare_at_sig, bt_string_compare_at);
 	bt_type_add_field(context, string, compare_at_sig, BT_VALUE_CSTRING(context, "compare_at"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, compare_at_sig, BT_VALUE_CSTRING(context, "compare_at"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* chars_iter_sig = bt_make_signature_type(context, bt_type_make_nullable(context, string), NULL, 0);
+	bt_Value chars_iter_fn = bt_value((bt_Object*)bt_make_native(context, module, NULL, bt_string_chars_iter));
+	bt_module_set_storage(module, CHARS_ITER_STORAGE_IDX, chars_iter_fn);
+
+	bt_Type* chars_sig = bt_make_signature_type(context, chars_iter_sig, &string, 1);
+	fn_ref = bt_make_native(context, module, chars_sig, bt_string_chars);
+	bt_type_add_field(context, string, chars_sig, BT_VALUE_CSTRING(context, "chars"), BT_VALUE_OBJECT(fn_ref));
+	bt_type_add_field(context, string, chars_sig, BT_VALUE_CSTRING(context, "@iter"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, chars_sig, BT_VALUE_CSTRING(context, "chars"), BT_VALUE_OBJECT(fn_ref));
+
+	bt_Type* bytes_iter_sig = bt_make_signature_type(context, bt_type_make_nullable(context, number), NULL, 0);
+	bt_Value bytes_iter_fn = bt_value((bt_Object*)bt_make_native(context, module, NULL, bt_string_bytes_iter));
+	bt_module_set_storage(module, BYTES_ITER_STORAGE_IDX, bytes_iter_fn);
+
+	bt_Type* bytes_sig = bt_make_signature_type(context, bytes_iter_sig, &string, 1);
+	fn_ref = bt_make_native(context, module, chars_sig, bt_string_bytes);
+	bt_type_add_field(context, string, bytes_sig, BT_VALUE_CSTRING(context, "bytes"), BT_VALUE_OBJECT(fn_ref));
+	bt_module_export(context, module, bytes_sig, BT_VALUE_CSTRING(context, "bytes"), BT_VALUE_OBJECT(fn_ref));
 	
 	bt_register_module(context, BT_VALUE_CSTRING(context, "strings"), module);
 }
