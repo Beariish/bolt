@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <memory.h>
 
+bt_Value EACH_ITER_STORAGE_IDX;
+
 static void bt_arr_length(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Value arg = bt_arg(thread, 0);
@@ -48,11 +50,11 @@ static bt_Type* bt_arr_push_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	return sig;
 }
 
-static bt_Value bt_arr_each_iter_fn;
-
 static void bt_arr_each(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_push(thread, bt_arr_each_iter_fn);
+	bt_Module* this_module = bt_get_module(thread);
+	bt_Value each_iter = bt_module_get_storage(this_module, EACH_ITER_STORAGE_IDX);
+	bt_push(thread, each_iter);
 	bt_push(thread, bt_arg(thread, 0));
 	bt_push(thread, BT_VALUE_NUMBER(0));
 
@@ -435,6 +437,8 @@ void boltstd_open_arrays(bt_Context* context)
 	bt_Module* module = bt_make_module(context);
 	bt_Type* array = context->types.array;
 
+	EACH_ITER_STORAGE_IDX = bt_make_enum_val(0);
+	
 	bt_Type* length_sig = bt_make_signature_type(context, context->types.number, &context->types.array, 1);
 	bt_NativeFn* fn_ref = bt_make_native(context, module, length_sig, bt_arr_length);
 	bt_type_add_field(context, array, length_sig, BT_VALUE_CSTRING(context, "length"), BT_VALUE_OBJECT(fn_ref));
@@ -450,13 +454,14 @@ void boltstd_open_arrays(bt_Context* context)
 	bt_type_add_field(context, array, arr_push_sig, BT_VALUE_CSTRING(context, "push"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_push_sig, BT_VALUE_CSTRING(context, "push"), BT_VALUE_OBJECT(fn_ref));
 
-	bt_arr_each_iter_fn = BT_VALUE_OBJECT(bt_make_native(context, module, NULL, bt_arr_each_iter));
+	bt_Value each_iter_fn = bt_value((bt_Object*)bt_make_native(context, module, NULL, bt_arr_each_iter));
+	bt_module_set_storage(module, EACH_ITER_STORAGE_IDX, each_iter_fn);
+
 	bt_Type* arr_each_sig = bt_make_poly_signature_type(context, "each([T]): fn: T?", bt_arr_each_type);
 	fn_ref = bt_make_native(context, module, arr_each_sig, bt_arr_each);
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "@iter"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
-	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "$_each_iter"), bt_arr_each_iter_fn);
 
 	bt_Type* arr_clone_sig = bt_make_poly_signature_type(context, "clone([T]): [T]", bt_arr_clone_type);
 	fn_ref = bt_make_native(context, module, arr_clone_sig, bt_arr_clone);

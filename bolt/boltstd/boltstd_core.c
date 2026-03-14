@@ -59,6 +59,7 @@ static void bt_write(bt_Context* ctx, bt_Thread* thread)
 
 static void bt_readline(bt_Context* ctx, bt_Thread* thread)
 {
+	// TODO: This is bad
 	char line[256];
 	int matched = scanf("%255[^\n]%*c", line);
 
