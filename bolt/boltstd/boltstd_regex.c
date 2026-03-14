@@ -8,6 +8,8 @@
 
 static const char* regex_type_name = "Regex";
 
+bt_Value ALL_ITER_STORAGE_IDX;
+
 typedef struct btregex_Regex {
     pm_Regex* regex;
     pm_Group* capture_groups;
@@ -92,14 +94,14 @@ static void btregex_match(bt_Context* ctx, bt_Thread* thread)
     bt_return(thread, bt_make_null());
 }
 
-static bt_Value bt_regex_all_iter_fn;
-
 static void btregex_all(bt_Context* ctx, bt_Thread* thread)
 {
     bt_Value regex = bt_arg(thread, 0);
     bt_Value pattern = bt_arg(thread, 1);
-    
-    bt_push(thread, bt_regex_all_iter_fn);
+
+    bt_Module* module = bt_get_module(thread);
+    bt_Value all_iter = bt_module_get_storage(module, ALL_ITER_STORAGE_IDX);
+    bt_push(thread, all_iter);
     bt_push(thread, regex);
     bt_push(thread, pattern);
     bt_push(thread, bt_make_number(0));
@@ -137,6 +139,8 @@ void boltstd_open_regex(bt_Context* context)
 {
     bt_Module* module = bt_make_module(context);
 
+    ALL_ITER_STORAGE_IDX = bt_make_enum_val(0);
+    
     bt_Type* regex_type = bt_make_userdata_type(context, regex_type_name);
     bt_userdata_type_set_finalizer(regex_type, btregex_regex_finalizer);
     bt_module_export(context, module, bt_type_type(context), BT_VALUE_CSTRING(context, regex_type_name), BT_VALUE_OBJECT(regex_type));
@@ -170,8 +174,8 @@ void boltstd_open_regex(bt_Context* context)
     bt_module_export(context, module, match_sig, BT_VALUE_CSTRING(context, "eval"), BT_VALUE_OBJECT(match_ref));
 
     bt_Type* all_iter_sig = bt_make_signature_type(context, match_return, NULL, 0);
-    bt_regex_all_iter_fn = bt_value((bt_Object*)bt_make_native(context, module, all_iter_sig, bt_regex_all_iter));
-    bt_type_add_field(context, regex_type, all_iter_sig, BT_VALUE_CSTRING(context, "$_all_iter"), bt_regex_all_iter_fn);
+    bt_Value all_iter_fn = bt_value((bt_Object*)bt_make_native(context, module, all_iter_sig, bt_regex_all_iter));
+    bt_module_set_storage(module, ALL_ITER_STORAGE_IDX, all_iter_fn);
     
     bt_Type* all_sig = bt_make_signature_type(context, all_iter_sig, match_args, 2);
     bt_NativeFn* all_ref = bt_make_native(context, module, all_sig, btregex_all);
