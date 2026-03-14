@@ -22,7 +22,7 @@ static bt_AstNode* parse_expression(bt_Parser* parse, uint32_t min_binding_power
 static bt_Type* find_binding(bt_Parser* parse, bt_AstNode* ident);
 static bt_StrSlice this_str = { "this", 4 };
 static void try_parse_annotations(bt_Parser* parse);
-static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node);
+static bt_Value node_to_value(bt_Parser* parse, bt_AstNode* node);
 static bt_AstNode* parse_match(bt_Parser* parse);
 static bt_AstNode* parse_match_expression(bt_Parser* parse);
 static bt_AstNode* parse_do_expression(bt_Parser* parser);
@@ -139,7 +139,7 @@ static bt_Type* resolve_index_type(bt_Parser* parse, bt_Type* lhs, bt_AstNode* n
         }
     }
 
-    bt_Value rhs_key = node_to_key(parse, node->as.binary_op.right);
+    bt_Value rhs_key = node_to_value(parse, node->as.binary_op.right);
 
     bt_Type* base_lhs = bt_type_dealias(lhs);
     bt_Table* proto = base_lhs->prototype_types;
@@ -467,6 +467,23 @@ static bt_AstNode* make_node(bt_Parser* parse, bt_AstNodeType type)
     return new_node;
 }
 
+static bt_AstNode* generate_indexer(bt_Parser* parse, bt_AstNode* to_index, bt_String* index_by)
+{
+    bt_AstNode* indexer = make_node(parse, BT_AST_NODE_BINARY_OP);
+    indexer->source = bt_tokenizer_make_operator(parse->tokenizer, BT_TOKEN_PERIOD);
+    indexer->as.binary_op.left = to_index;
+
+    const char* source = bt_string_get(index_by);
+    uint64_t length = bt_string_length(index_by);
+    
+    // TODO: We shouldn't need to dup these allocations
+    indexer->as.binary_op.right = make_node(parse, BT_AST_NODE_IDENTIFIER);
+    indexer->as.binary_op.right->source = bt_tokenizer_make_identifier(parse->tokenizer, (bt_StrSlice) { source, (uint16_t)length });
+    indexer->as.binary_op.key = bt_value((bt_Object*)index_by);
+
+    return indexer;
+}
+
 static bt_bool attempt_assignment(bt_Parser* parser, bt_Type* target, bt_Type* source, bt_AstNode** promotable)
 {
     bt_TypeCheckResult result = bt_is_type_assignable_to(target, source, promotable != NULL);
@@ -529,7 +546,7 @@ static void destroy_subobj(bt_Context* ctx, bt_AstNode* node)
     }
 }
 
-static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
+static bt_Value node_to_value(bt_Parser* parse, bt_AstNode* node)
 {
     bt_Value result = BT_VALUE_NULL;
 
@@ -561,43 +578,6 @@ static bt_Value node_to_key(bt_Parser* parse, bt_AstNode* node)
     } break;
 
     default: parse_error_token(parse, "Failed to make table key from '%.*s'", node->source);
-    }
-
-    return result;
-}
-
-static bt_Value node_to_literal_value(bt_Parser* parse, bt_AstNode* node)
-{
-    bt_Value result = BT_VALUE_NULL;
-
-    switch (node->type) {
-    case BT_AST_NODE_LITERAL: {
-            switch (node->source->type) {
-            case BT_TOKEN_IDENTIFIER_LITERAL: case BT_TOKEN_IDENTIFIER: {
-                    result = BT_VALUE_OBJECT(bt_make_string_hashed_len(parse->context, node->source->source.source, node->source->source.length));
-                    own(parse, BT_AS_OBJECT(result));
-            } break;
-            case BT_TOKEN_STRING_LITERAL: {
-                    // Cut off the quotes!
-                    result = BT_VALUE_OBJECT(bt_make_string_hashed_len_escape(parse->context, node->source->source.source + 1, node->source->source.length - 2));
-                    own(parse, BT_AS_OBJECT(result));
-            } break;
-            case BT_TOKEN_NUMBER_LITERAL: {
-                    bt_Literal* lit = parse->tokenizer->literals.elements + node->source->idx;
-                    result = BT_VALUE_NUMBER(lit->as_num);
-            } break;
-            case BT_TOKEN_TRUE_LITERAL: result = BT_VALUE_TRUE; break;
-            case BT_TOKEN_FALSE_LITERAL: result = BT_VALUE_FALSE; break;
-            case BT_TOKEN_NULL_LITERAL: result = BT_VALUE_NULL; break;
-            default: parse_error_token(parse, "Internal parser error: Unhandled token literal type '%.*s'", node->source);
-            }
-    } break;
-
-    case BT_AST_NODE_ENUM_LITERAL: {
-            result = node->as.enum_literal.value;
-    } break;
-
-    default: parse_error_token(parse, "'%.*s' is not a literal value", node->source);
     }
 
     return result;
@@ -656,7 +636,7 @@ static bt_AstNode* parse_table(bt_Parser* parse, bt_Token* source, bt_Type* type
         
         bt_AstNode* field = make_node(parse, BT_AST_NODE_TABLE_ENTRY);
 
-        bt_Value key = node_to_key(parse, key_expr);
+        bt_Value key = node_to_value(parse, key_expr);
         field->as.table_field.key = key;
         field->source = token;
 
@@ -1078,7 +1058,7 @@ static bt_Type* parse_type_single(bt_Parser* parse, bt_bool recurse, bt_AstNode*
             if (token->type == BT_TOKEN_ASSIGN) {
                 bt_tokenizer_emit(tok);
                 bt_AstNode* literal = parse_expression(parse, 0, NULL);
-                bt_Value value = node_to_literal_value(parse, literal);
+                bt_Value value = node_to_value(parse, literal);
                 if (type && !attempt_assignment(parse, type, type_check(parse, literal)->resulting_type, NULL)) {
                     parse_error(parse, "Table value initializer doesn't match annotated type", token->line, token->col);
                     return NULL;
@@ -2301,7 +2281,7 @@ static bt_Type* resolve_to_type(bt_Parser* parse, bt_AstNode* node)
                 if (import) {
                     bt_Object* table = BT_AS_OBJECT(import->value);
                     if (BT_OBJECT_GET_TYPE(table) == BT_OBJECT_TYPE_TABLE) {
-                        bt_Value key = node_to_literal_value(parse, node->as.binary_op.right);
+                        bt_Value key = node_to_value(parse, node->as.binary_op.right);
                         bt_Value type = bt_get(parse->context, table, key);
                         if (BT_IS_OBJECT(type)) {
                             bt_Object* as_obj = BT_AS_OBJECT(type);
@@ -2338,6 +2318,33 @@ static bt_AstNode* type_check(bt_Parser* parse, bt_AstNode* node)
         if (node->resulting_type == NULL) {
             parse_error_token(parse, "Failed to determine type of literal '%.*s'", node->source);
         }
+        break;
+    case BT_AST_NODE_CALL:
+        bt_AstNode* fn = type_check(parse, node->as.call.fn);
+
+        if (!fn || !bt_type_is_signature(fn->resulting_type)) {
+            parse_error_token(parse, "Attempting to call non-signature type '%.*s'", node->source);
+            return NULL;
+        }
+        
+        bt_Type* to_call = fn->resulting_type;
+        // TODO: We desperately need to homogenize this
+        if (to_call->is_polymorphic) {
+            // TODO(bearish): bad magic number
+            bt_Type* arg_types[16];
+            for (uint32_t i = 0; i < node->as.call.args.length; ++i) {
+                arg_types[i] = type_check(parse, node->as.call.args.elements[i])->resulting_type;
+
+                if (!node->as.call.args.elements[i] || !arg_types[i]) {
+                    parse_error_fmt(parse, "Failed to determine type of arg %d", fn->source->line, fn->source->col, i + 1);
+                    return NULL;
+                }
+            }
+
+            to_call = to_call->as.poly_fn.applicator(parse->context, arg_types, (uint8_t)node->as.call.args.length);
+        }
+
+        node->resulting_type = bt_signature_get_returned_type(to_call);
         break;
     case BT_AST_NODE_UNARY_OP: {
         bt_Type* operand_type = type_check(parse, node->as.unary_op.operand)->resulting_type;
@@ -3484,10 +3491,28 @@ static bt_AstNode* parse_for(bt_Parser* parse)
         return result;
     }
     else if (generator_type->category != BT_TYPE_CATEGORY_SIGNATURE) {
-        parse_error_fmt(parse, "Expected iterator to be function, got %s", iterator->source->line, iterator->source->col,
-            generator_type->name);
-        return NULL;
+        // Attempt to promote through @iter
+        // TODO: Reduce allocations here
+        bt_Value mf_key = bt_value((bt_Object*)parse->context->meta_names.iter);
+        bt_Type* iter_type = bt_type_get_field_type(parse->context, generator_type, mf_key, BT_TRUE);
+
+        if (iter_type) {
+            bt_AstNode* mf_call = make_node(parse, BT_AST_NODE_CALL);
+            mf_call->source = iterator->source;
+            mf_call->as.call.fn = generate_indexer(parse, iterator, parse->context->meta_names.iter);
+            mf_call->as.call.is_methodcall = BT_TRUE;
+            bt_buffer_empty(&mf_call->as.call.args);
+            bt_buffer_push(parse->context, &mf_call->as.call.args, iterator);
+
+            generator_type = type_check(parse, mf_call)->resulting_type;
+            iterator = mf_call;
+        } else {
+            parse_error_fmt(parse, "Cannot generate iterator from '%s'", iterator->source->line, iterator->source->col, generator_type->name);
+            return NULL;
+        }
     }
+
+    // TODO: Confirm type of iterator
 
     bt_Type* generated_type = generator_type->as.fn.return_type;
     if (!bt_type_is_optional(generated_type)) {

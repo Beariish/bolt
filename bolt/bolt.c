@@ -86,6 +86,7 @@ void bt_open(bt_Context** context, bt_Handlers* handlers)
 	ctx->meta_names.eq = bt_make_string_hashed_len(ctx, "@eq", 3);
 	ctx->meta_names.neq = bt_make_string_hashed_len(ctx, "@neq", 4);
 	ctx->meta_names.format = bt_make_string_hashed_len(ctx, "@format", 7);
+	ctx->meta_names.iter = bt_make_string_hashed_len(ctx, "@iter", 5);
 
 	ctx->compiler_options.generate_debug_info = BT_TRUE;
 	ctx->compiler_options.accelerate_arithmetic = BT_TRUE;

@@ -470,15 +470,23 @@ void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 	bt_table_set(context, tshp->prototype_values, name, value);
 }
 
+// TODO: Why are we typechecking here?
 bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Value* value, bt_bool allow_parent) {
-	if (tshp->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
-	if (!tshp->prototype_values) return BT_FALSE;
+	bt_Table* types = tshp->prototype_types;
+	bt_Table* values = tshp->prototype_values;
+	while (!types && allow_parent && tshp->prototype) {
+		types = tshp->prototype->prototype_types;
+		values = tshp->prototype->prototype_values;
+		tshp = tshp->prototype;
+	}
 
-	bt_Value type_value = allow_parent ? bt_table_get(tshp->prototype_types, key) : bt_table_get_direct(tshp->prototype_types, key);
+	if (!types) return BT_FALSE;
+
+	bt_Value type_value = allow_parent ? bt_table_get(types, key) : bt_table_get_direct(types, key);
 	if (type_value == BT_VALUE_NULL) return BT_FALSE;
 
 	bt_Type* type = (bt_Type*)BT_AS_OBJECT(type_value);
-	bt_Value result = allow_parent ? bt_table_get(tshp->prototype_values, key) : bt_table_get_direct(tshp->prototype_values, key);
+	bt_Value result = allow_parent ? bt_table_get(values, key) : bt_table_get_direct(values, key);
 	if (!bt_is_type(result, type)) return BT_FALSE;
 
 	if (value) *value = result;
@@ -487,10 +495,15 @@ bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_V
 
 bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key, bt_bool allow_parent)
 {
-	if (tshp->category != BT_TYPE_CATEGORY_TABLESHAPE) return BT_FALSE;
-	if (!tshp->prototype_types) return BT_FALSE;
+	bt_Table* types = tshp->prototype_types;
+	while (!types && allow_parent && tshp->prototype) {
+		types = tshp->prototype->prototype_types;
+		tshp = tshp->prototype;
+	}
 
-	bt_Value type_value = allow_parent ? bt_table_get(tshp->prototype_types, key) : bt_table_get_direct(tshp->prototype_types, key);
+	if (!types) return NULL;
+
+	bt_Value type_value = allow_parent ? bt_table_get(types, key) : bt_table_get_direct(types, key);
 	if (type_value == BT_VALUE_NULL) return NULL;
 	return (bt_Type*)BT_AS_OBJECT(type_value);
 }

@@ -454,6 +454,7 @@ void boltstd_open_arrays(bt_Context* context)
 	bt_Type* arr_each_sig = bt_make_poly_signature_type(context, "each([T]): fn: T?", bt_arr_each_type);
 	fn_ref = bt_make_native(context, module, arr_each_sig, bt_arr_each);
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
+	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "@iter"), BT_VALUE_OBJECT(fn_ref));
 	bt_module_export(context, module, arr_each_sig, BT_VALUE_CSTRING(context, "each"), BT_VALUE_OBJECT(fn_ref));
 	bt_type_add_field(context, array, arr_each_sig, BT_VALUE_CSTRING(context, "$_each_iter"), bt_arr_each_iter_fn);
 
