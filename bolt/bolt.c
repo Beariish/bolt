@@ -1103,7 +1103,7 @@ static void call(bt_Context* __restrict context, bt_Thread* __restrict thread, b
 			bt_set(context, BT_AS_OBJECT(stack[BT_GET_A(op)]), constants[BT_GET_B(op)], stack[BT_GET_C(op)]);
 			NEXT;
 
-		CASE(LOAD_PROTO): stack[BT_GET_A(op)] = bt_table_get(((bt_Table*)BT_AS_OBJECT(stack[BT_GET_B(op)]))->prototype, constants[BT_GET_C(op)]); NEXT;
+		CASE(LOAD_PROTO): stack[BT_GET_A(op)] = bt_table_get(bt_get_prototype(context, stack[BT_GET_B(op)]), constants[BT_GET_C(op)]); NEXT;
 
 		CASE(EXPECT):   stack[BT_GET_A(op)] = stack[BT_GET_B(op)]; if (stack[BT_GET_A(op)] == BT_VALUE_NULL) bt_runtime_error(thread, "Operator '!' failed - lhs was null!", ip); NEXT;
 		CASE(COALESCE): stack[BT_GET_A(op)] = stack[BT_GET_B(op)] == BT_VALUE_NULL ? stack[BT_GET_C(op)] : stack[BT_GET_B(op)]; NEXT;

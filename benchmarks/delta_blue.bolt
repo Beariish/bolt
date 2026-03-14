@@ -159,7 +159,7 @@ fn Plan.add(this, con: Constraint) {
 fn Plan.size(this) { return this.constraints.length() }
 
 fn Plan.execute(this) {
-    for con in this.constraints.each() do con.execute()
+    for con in this.constraints do con.execute()
 }
 
 /************************************* PLANNER ****************************************************/
@@ -194,12 +194,12 @@ fn Planner.remove_propagate_from(out: Variable) {
     for todo.length() > 0 {
         let last = todo.pop()!
 
-        for con in last.constraints.each() {
+        for con in last.constraints {
             if not con.is_satisfied() then unsatisfied.push(con)
         }
 
         let determine = last.determined_by
-        for next in last.constraints.each() {
+        for next in last.constraints {
             if next != determine and next.is_satisfied() {
                 next.recalculate()
                 todo.push(next.get_output()!)
@@ -219,7 +219,7 @@ fn Planner.incremental_remove(this, con: Constraint) {
     let strength = REQURIED
 
     for {
-        for u in unsatisfied.each() {
+        for u in unsatisfied {
             if u.strength == strength then this.incremental_add(u)
         }
 
@@ -230,7 +230,7 @@ fn Planner.incremental_remove(this, con: Constraint) {
 
 fn Planner.add_constraint_consuming_to(v: Variable, cons: [Constraint]) {
     let determine = v.determined_by
-    for con in v.constraints.each() {
+    for con in v.constraints {
         if con != determine and con.is_satisfied() {
             cons.push(con)
         }
@@ -273,7 +273,7 @@ fn Planner.make_plan(this, sources: [Constraint]) {
 
 fn Planner.extract_plan(this, cons: [Constraint]) {
     let sources: [Constraint]
-    for con in cons.each() {
+    for con in cons {
         if con.is_input() and con.is_satisfied() then sources.push(con)
     }
 

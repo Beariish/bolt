@@ -32,7 +32,7 @@ fn run_scope(scope: TestScope): ! {
     let n_total = scope.tests.length()
     let n_success = 0
 
-    for test in scope.tests.each() {
+    for test in scope.tests {
         state.current_test = test
         state.total_tests += 1
 
@@ -57,7 +57,7 @@ fn run_scope(scope: TestScope): ! {
         print("[" + scope.name + "] " + to_string(n_success) + "/" + to_string(n_total) + " tests successful!")
     }
 
-    for subscope in scope.subscopes.each() {
+    for subscope in scope.subscopes {
         run_scope(subscope)
     }
 }
@@ -69,9 +69,9 @@ export fn run {
 
     if state.failures.length() > 0 {
         print("Tests Failed (" + to_string(state.failures.length()) + "):")
-        for test in state.failures.each() {
+        for test in state.failures {
             print("[" + test.scope_name + "]: " + test.name)
-            for message in test.failures.each() {
+            for message in test.failures {
                 print("-    " + message)
             }
         }

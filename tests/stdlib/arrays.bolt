@@ -98,6 +98,20 @@ test("each as prototype", fn {
     expect(iter2() == null, "Expected fifth iteration to be 'null'")
 })
 
+test("@iter is each", fn {
+    let arr = [1, 2, 3]
+
+    expect(arr.@iter == arr.each, "Expected @iter and each to be the same")
+
+    let compare_to = 1
+    for item in arr {
+        expect(typeof(item) == number, "Expected type of item to be 'number'")
+        expect(item == compare_to, "Expected array elements to be equal")
+
+        compare_to += 1
+    }
+})
+
 test("clone as freestanding", fn {
     let arr = [1, 2, 3]
     let copy = arrays.clone(arr)

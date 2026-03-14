@@ -29,5 +29,5 @@ let arr = [:number]
 for i in 10000000 { arr.push(i) }
 
 bench("10m native iterator", 10, fn {
-    for item in arr.each() {}
+    for item in arr {}
 })

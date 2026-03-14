@@ -32,6 +32,7 @@ arrays.reserve(arr: [T], n: number)
     }
 */
 arrays.each(arr: [T]): fn: T?
+arrays.@iter = arrays.each
 
 // Creates a perfect copy of the input array.
 arrays.clone(arr: [T]): [T]

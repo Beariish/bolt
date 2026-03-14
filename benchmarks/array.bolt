@@ -63,7 +63,7 @@ bench("mapping 1m array", 20, fn {
 
 bench("manual mapping 1m array", 20, fn {
     let res = [:number]
-    for n in to_probe.each() { res.push(n * 2) }
+    for n in to_probe { res.push(n * 2) }
 })
 
 bench("clone and map 1m array", 20, fn {

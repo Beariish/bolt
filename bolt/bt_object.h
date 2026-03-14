@@ -414,7 +414,9 @@ BOLT_API bt_Annotation* bt_annotation_next(bt_Context* ctx, bt_Annotation* annot
 BOLT_API bt_Value bt_get(bt_Context* ctx, bt_Object* obj, bt_Value key);
 /** Attempt to set index `key` in `obj` to `value` regardless of type. Raises a runtime error on invalid operation */
 BOLT_API void bt_set(bt_Context* ctx, bt_Object* obj, bt_Value key, bt_Value value);
-
+/** Find the suitable prototype for object `obj`, or NULL if none */
+BOLT_API bt_Table* bt_get_prototype(bt_Context* ctx, bt_Value obj);
+	
 #if __cplusplus
 }
 #endif

@@ -484,7 +484,7 @@ for true { /* Never exits */ }
 The final looping construct in Bolt is the iterator loop. We'll cover how to actually implement an iterator function later on, but for now know it simply produces a series of values when called.
 ```ts
 let arr = [10, 20, 30, 40]
-for item in arr.each() {
+for item in arr {
     print(item) // 10 20 30 40
 }
 ```
@@ -664,7 +664,7 @@ print(evens) // 0 2 4 6 8 10 12 14 16 18
 The loop body can be any length, and include things like `continue` and `break` while working as expected.
 
 ```ts
-let filtered = for n in nums.each() {
+let filtered = for n in nums {
     if ispow2(n) { continue }
     if n > 1000 { break }
     n / 2

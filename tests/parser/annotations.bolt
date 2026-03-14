@@ -134,7 +134,7 @@ fn test_annotations(name: string, annos: [meta.Annotation], expected: { ..string
         for exp in tables.pairs(expected) {
             let found = false
             
-            for anno in annos.each() {
+            for anno in annos {
                 if anno.name == exp.key {
                     expect(anno.args.length() == exp.value.length(), "Wrong number of arguments for annotation " + to_string(anno.name))
                     found = true

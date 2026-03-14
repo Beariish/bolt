@@ -74,7 +74,7 @@ fn get_hand_value(cards: [Card]): number {
     let total_value = 0
     let num_aces = 0
 
-    for card in cards.each() {
+    for card in cards {
         if card.representation == "A" {
             num_aces += 1
         } else {
@@ -96,7 +96,7 @@ fn get_hand_value(cards: [Card]): number {
 fn print_cards(cards: [Card], flip_first: bool) {
     let rows = for i in 5 do ""
 
-    for card in cards.each() {
+    for card in cards {
         rows[0] += " ___  "
         if flip_first {
             rows[1] += "|## | "
@@ -111,7 +111,7 @@ fn print_cards(cards: [Card], flip_first: bool) {
     }
 
 
-    for row in rows.each() {
+    for row in rows {
         print(row)
     }
 }

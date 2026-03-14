@@ -40,6 +40,18 @@ fn T.@format(this) {
     return "x: " + to_string(this.x) + ", y: " + to_string(this.y)
 }
 
+fn T.@iter(this) {
+    let state = -1
+    return fn {
+        state += 1
+        return match state {
+            0 then this.x,
+            1 then this.y,
+            2 then null
+        }
+    }
+}
+
 test("meta @add", fn {
     let t1 = T => { x: 5, y: 5 }
     let t2 = T => { x: 10, y: 10 }
@@ -177,6 +189,23 @@ test("meta @neq", fn {
 test("meta @format", fn {
     let t1 = T => { x: 5, y: 5 }
     expect(to_string(t1) == "x: 5, y: 5", "Expected t1 to be given custom format")
+})
+
+test("meta @iter", fn {
+    let t = T => { x: 5, y: 10 }
+    
+    let idx = 0
+    for item in t {
+        if idx == 0 {
+            expect(item == t.x, "Expected first item to be t.x")
+        } else if idx == 1 {
+            expect(item == t.y, "Expected first item to be t.y")
+        }
+
+        idx += 1
+    }
+
+    expect(idx == 2, "Expected two iteratons of the loop")
 })
 
 pop_scope()

@@ -19,7 +19,7 @@ fn Circle.area(this) { return math.pi * this.r * this.r }
 
 fn total_area(shapes: [Shape]) {
     let sum = 0
-    for shape in shapes.each() {
+    for shape in shapes {
         sum += shape.area()
     }
 
