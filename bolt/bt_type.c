@@ -474,7 +474,7 @@ void bt_type_set_field(bt_Context* context, bt_Type* tshp, bt_Value name, bt_Val
 bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_Value* value, bt_bool allow_parent) {
 	bt_Table* types = tshp->prototype_types;
 	bt_Table* values = tshp->prototype_values;
-	while (!types && allow_parent && tshp->prototype) {
+	while (!types && allow_parent && tshp->prototype && tshp->prototype != tshp) {
 		types = tshp->prototype->prototype_types;
 		values = tshp->prototype->prototype_values;
 		tshp = tshp->prototype;
@@ -496,7 +496,7 @@ bt_bool bt_type_get_field(bt_Context* context, bt_Type* tshp, bt_Value key, bt_V
 bt_Type* bt_type_get_field_type(bt_Context* context, bt_Type* tshp, bt_Value key, bt_bool allow_parent)
 {
 	bt_Table* types = tshp->prototype_types;
-	while (!types && allow_parent && tshp->prototype) {
+	while (!types && allow_parent && tshp->prototype && tshp->prototype != tshp) {
 		types = tshp->prototype->prototype_types;
 		tshp = tshp->prototype;
 	}
