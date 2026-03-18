@@ -771,7 +771,7 @@ BOLT_API int32_t bt_union_has_variant(bt_Type* uni, bt_Type* variant)
 	if (uni->category != BT_TYPE_CATEGORY_UNION) return -1;
 	
 	for (uint32_t i = 0; i < uni->as.selector.types.length; ++i) {
-		if (uni->as.selector.types.elements[i] == variant) return i;
+		if (bt_type_is_equal(uni->as.selector.types.elements[i], variant)) return i;
 	}
 
 	return -1;

@@ -119,7 +119,7 @@ void boltstd_open_math(bt_Context* context)
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "pi"), BT_VALUE_NUMBER(M_PI));
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "tau"), BT_VALUE_NUMBER(M_PI*2.0));
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "huge"), BT_VALUE_NUMBER(1e+300));
-	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "infinity"), BT_VALUE_NUMBER(INFINITY));
+	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "infinity"), BT_VALUE_NUMBER(INFINITY*INFINITY));
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "nan"), BT_VALUE_NUMBER(NAN));
 
 	bt_module_export(context, module, context->types.number, BT_VALUE_CSTRING(context, "e"), BT_VALUE_NUMBER(M_E));

@@ -1,8 +1,181 @@
 import * from "../test"
 
-import Error, error from core
+import * from core
+import math
 
 push_scope("core")
+
+test("throw() raises a runtime error with expected string", fn {
+    let result = protect(fn {
+        throw("I'm throwing!")
+    })
+
+    if result is Error {
+        expect(result.what == "I'm throwing!", "Expected correct string to be thrown")
+    } else {
+        expect(false, "Expected result to be Error")
+    }
+})
+
+test("to_string() returns identity for empty strings", fn {
+    expect(to_string("") == "", "Expected empty string to be equal")
+})
+
+test("to_string() returns identity for strings", fn {
+    expect(to_string("Hello") == "Hello", "Expected strings to be equal")
+    expect(to_string("Hello there") == "Hello there", "Expected strings to be equal")
+})
+
+test("to_string() correctly converts null", fn {
+    expect(to_string(null) == "null", "Expected correct string literal")
+})
+
+test("to_string() correctly converts bool", fn {
+    expect(to_string(true) == "true", "Expected correct string literal")
+    expect(to_string(false) == "false", "Expected correct string literal")
+})
+
+test("to_string() correctly converts integers", fn {
+    expect(to_string(0) == "0", "Expected integer string")
+    expect(to_string(5) == "5", "Expected integer string")
+    expect(to_string(1337) == "1337", "Expected integer string")
+})
+
+test("to_string() correctly converts floats", fn {
+    expect(to_string(0.1) == "0.100000000", "Expected 9-decimal float string")
+    expect(to_string(5.5) == "5.500000000", "Expected 9-decimal float string")
+    expect(to_string(10.57239458) == "10.572394580", "Expected 9-decimal float string")
+})
+
+test("to_string() correctly rounds floats", fn {
+    expect(to_string(10.5723945888) == "10.572394589", "Expected rounding up")
+    expect(to_string(10.5723945882) == "10.572394588", "Expected rounding down")
+})
+
+test("to_string() correctly converts enums", fn {
+    type E = enum { A B C }
+
+    expect(to_string(E.A) == "0", "Expected enum-to-integer conversion")
+    expect(to_string(E.B) == "1", "Expected enum-to-integer conversion")
+    expect(to_string(E.C) == "2", "Expected enum-to-integer conversion")
+})
+
+test("to_string() correctly converts arrays", fn {
+    expect(to_string([]).contains("array[0]"), "Expected array component of returned string")
+    expect(to_string([1, 2, 3]).contains("array[3]"), "Expected array component of returned string")
+    expect(to_string([1, 2, 3, 4, 5]).contains("array[5]"), "Expected array component of returned string")
+    expect(to_string(for i in 10000 do i).contains("array[10000]"), "Expected array component of returned string")
+})
+
+test("to_string() correctly converts tables", fn {
+    expect(to_string({}).contains("table"), "Expected table component of returned string")
+    expect(to_string({ x: 10, y: 20 }).contains("table"), "Expected table component of returned string")
+    expect(to_string({ hello: "world" }).contains("table"), "Expected table component of returned string")
+})
+
+test("to_string() correctly converts tables with @format", fn {
+    type T = { x: string }
+    fn T.@format(this) do this.x
+
+    expect(to_string(T => { x: "formatted"}) == "formatted", "Expected @format metamethod to be invoked")
+})
+
+test("to_string() correctly converts type names", fn {
+    type AType = {}
+    expect(to_string(AType) == "AType", "Expected type name back")
+})
+
+test("to_string() correctly converts function signatures", fn {
+    fn do_thing(x: number, y: string): number? {
+        return if y.length() < 5 then null else x * 2 
+    }
+
+    expect(to_string(do_thing).contains("fn(number, string): number | null"), "Expected fully qualified function signature back")
+})
+
+test("to_string() correctly converts function signatures with no arguments", fn {
+    fn do_thing: number? {
+        let x = 0
+        return if x < 5 then null else x * 2 
+    }
+
+    expect(to_string(do_thing).contains("fn: number | null"), "Expected fully qualified function signature back")
+})
+
+test("to_string() correctly converts function signatures with no return type", fn {
+    fn do_thing(x: number, y: string) {
+        for i in x do print(y)
+    }
+
+    expect(to_string(do_thing).contains("fn(number, string)"), "Expected fully qualified function signature back")
+})
+
+test("to_string() correctly converts closure signatures", fn {
+    let z = 0
+    fn do_thing(x: number, y: string): number? {
+        return if y.length() < 5 then null else x * z 
+    }
+
+    expect(to_string(do_thing).contains("fn(number, string): number | null"), "Expected fully qualified function signature back")
+})
+
+test("to_string() correctly converts native signatures", fn {
+    expect(to_string(to_string).contains("fn(any): string"), "Expected fully qualified function signature back")
+    expect(to_string(to_string).contains("Native("), "Expected fully qualified function signature back")
+})
+
+test("to_number() returns numbers for valid strings", fn {
+    expect(to_number("0") == 0, "Expected correct number back")
+    expect(to_number("10") == 10, "Expected correct number back")
+    expect(to_number("0.1") == 0.1, "Expected correct number back")
+    expect(to_number("0.000001") == 0.000001, "Expected correct number back")
+    expect(to_number("12.3456789") == 12.3456789, "Expected correct number back")
+})
+
+test("to_number() returns numbers with leading whitespace", fn {
+    expect(to_number("   0") == 0, "Expected correct number back")
+    expect(to_number("      10") == 10, "Expected correct number back")
+    expect(to_number("          0.1") == 0.1, "Expected correct number back")
+    expect(to_number("      \n0.000001") == 0.000001, "Expected correct number back")
+    expect(to_number("  \n  \n  12.3456789") == 12.3456789, "Expected correct number back")
+})
+
+test("to_number() returns numbers with leading sign", fn {
+    expect(to_number("+0") == 0, "Expected correct number back")
+    expect(to_number("-10") == -10, "Expected correct number back")
+    expect(to_number("+0.1") == 0.1, "Expected correct number back")
+    expect(to_number("-0.000001") == -0.000001, "Expected correct number back")
+    expect(to_number("+12.3456789") == 12.3456789, "Expected correct number back")
+})
+
+test("to_number() returns numbers in hexadecimal", fn {
+    expect(to_number("0x0") == 0, "Expected correct number back")
+    expect(to_number("0X10") == 16, "Expected correct number back")
+    expect(to_number("0xff") == 255, "Expected correct number back")
+    expect(to_number("0xff.ff") == 255.996093750, "Expected correct number back")
+    expect(to_number("0xff.bap-1") == 127.863281250, "Expected correct number back")
+})
+
+test("to_number() returns numbers for special cases", fn {
+    expect(to_number("inf") == math.infinity, "Expected infinity back")
+    expect(to_number("infinity") == math.infinity, "Expected infinity back")
+    expect(to_number("nan") == math.nan, "Expected nan back")
+    expect(to_number("nanhello_there") == math.nan, "Expected nan back")
+})
+
+test("to_number() returns null for invalid strings", fn {
+    expect(to_number("i'm not a number") == null, "Expected null back")
+    expect(to_number("neither am I") == null, "Expected null back")
+    expect(to_number("+but i look like one") == null, "Expected null back")
+})
+
+test("time() is monotonic", fn {
+    let t1 = time()
+    for i in 1000 {}
+    let t2 = time()
+
+    expect(t2 > t1, "Expected time to progress")
+})
 
 test("Can construct Error through error", fn {
     let err: Error? = error("Test error")
@@ -14,6 +187,57 @@ test("Can construct Error through code", fn {
     let err: Error? = Error => { what: "Test error" }
     expect(err is Error, "Expected construction to work")
     expect(err!.what == "Test error", "Expected field to be set")
+})
+
+test("protect() forwards result on success", fn {
+    let result = protect(fn {
+        return 10
+    })
+
+    expect(result is number, "Expected result to be number")
+    expect(result == 10, "Expected correct value back")
+})
+
+test("protect() forwards arguments", fn {
+    let result = protect(fn(x: number, y: string) {
+        let internal_result = ""
+        for i in x { internal_result += y }
+        return internal_result
+    }, 5, "a")
+
+    expect(result is string, "Expected result to be string")
+    expect(result == "aaaaa", "Expected correct value back")
+})
+
+test("protect() raises Error on failure", fn {
+    let result = protect(fn {
+        throw("error")
+    })
+
+    if result is Error {
+        expect(result.what == "error", "Expected correct description back")
+    } else {
+        expect(false, "Expected result to be Error")
+    }
+})
+
+fn can_error(x: number) do if x > 5 then error("x too big") else x
+
+test("assert() unwraps on success", fn {
+    let result = assert(can_error(0), "Function errored")
+    expect(result == 0, "Expected unwrapped result")
+})
+
+test("assert() errors on failure", fn {
+    let result = protect(fn {
+        assert(can_error(10), "Function errored")
+    })
+
+    if result is Error {
+        expect(result.what == "Function errored: x too big", "Expected asser to combine error strings")
+    } else {
+        expect(false, "Expected error result")
+    }
 })
 
 pop_scope()

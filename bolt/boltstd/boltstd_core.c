@@ -166,7 +166,7 @@ static void bt_protect(bt_Context* ctx, bt_Thread* thread)
 		bt_return(thread, BT_VALUE_OBJECT(result));
 	}
 	else if (return_type) {
-		bt_return(thread, bt_get_returned(new_thread));
+		bt_return(thread, bt_pop(new_thread));
 	}
 	else {
 		bt_return(thread, BT_VALUE_NULL);
@@ -184,25 +184,18 @@ static bt_Type* bt_assert_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
 	bt_Module* module = bt_find_module(ctx, BT_VALUE_CSTRING(ctx, "core"), BT_FALSE);
 	bt_Type* error_type = (bt_Type*)bt_object(bt_module_get_storage(module, BT_VALUE_CSTRING(ctx, bt_error_type_name)));
 	
-	if (arg->category != BT_TYPE_CATEGORY_UNION) return NULL;
-	if (!bt_union_has_variant(arg, error_type)) return NULL;
-	if (argc == 2 && bt_type_dealias(args[1]) != ctx->types.string) return NULL;
+	if (!bt_type_is_union(arg)) return NULL;
+	if (bt_union_has_variant(arg, error_type) == -1) return NULL;
+	if (argc == 2 && !bt_type_is_equal(args[1], bt_type_string(ctx))) return NULL;
 
 	bt_Type* return_type;
-	if (arg->as.selector.types.length > 2) {
-		return_type = bt_make_union(ctx);
-	
-		for (uint8_t i = 0; i < arg->as.selector.types.length; ++i) {
-			bt_Type* next = arg->as.selector.types.elements[i];
-			if (next == error_type) continue;
-
-			bt_union_push_variant(ctx, return_type, next);
-		}
+	if (bt_union_get_length(arg) > 2) {
+		return_type = bt_make_union_without(ctx, arg, error_type);
 	}
 	else {
-		return_type = arg->as.selector.types.elements[0];
-		if (return_type == error_type) {
-			return_type = arg->as.selector.types.elements[1];
+		return_type = bt_union_get_variant(arg, 0);
+		if (bt_type_is_equal(return_type, error_type)) {
+			return_type = bt_union_get_variant(arg, 1);
 		}
 	}
 
