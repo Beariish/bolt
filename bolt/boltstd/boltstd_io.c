@@ -274,7 +274,8 @@ void boltstd_open_io(bt_Context* context)
 	
 	bt_Type* io_file_type = bt_make_userdata_type(context, io_file_type_name);
 	bt_userdata_type_set_finalizer(io_file_type, btio_file_finalizer);
-
+	
+	// TODO: Update to module storage index key
 	bt_module_export(context, module, bt_make_alias_type(context, io_file_type_name, io_file_type),
 		BT_VALUE_CSTRING(context, io_file_type_name), bt_value((bt_Object*)io_file_type));
 	bt_module_set_storage(module, BT_VALUE_CSTRING(context, io_file_type_name), bt_value((bt_Object*)io_file_type));

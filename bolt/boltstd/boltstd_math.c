@@ -96,7 +96,7 @@ static void bt_ispow2(bt_Context* ctx, bt_Thread* thread)
 	bt_number num = BT_AS_NUMBER(bt_arg(thread, 0));
 	uint64_t as_int = (uint64_t)num;
 
-	bt_return(thread, BT_VALUE_BOOL(((as_int + 1) & as_int) == 0));
+	bt_return(thread, BT_VALUE_BOOL(((as_int) & (as_int - 1)) == 0));
 }
 
 #define COMPLEX_OP(name, op)                              \

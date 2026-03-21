@@ -1,0 +1,87 @@
+import * from "../test"
+
+import math
+
+push_scope("math")
+
+test("epsilon is enough to differntiate", fn {
+    expect((1 + math.epsilon) != 1, "Expected epsilon to invalidate equality")
+})
+
+test("returning to zero leaves less than epsilon", fn {
+    expect((1 - 1) < math.epsilon, "Expected epsilon to be larger")
+    expect((100 - 100) < math.epsilon, "Expected epsilon to be larger")
+    expect((1000000000 - 1000000000) < math.epsilon, "Expected epsilon to be larger")
+})
+
+test("math.min() with a single argument", fn {
+    expect(math.min(1) == 1, "Expected to get argument back")
+    expect(math.min(100) == 100, "Expected to get argument back")
+    expect(math.min(1000000000) == 1000000000, "Expected to get argument back")
+})
+
+test("math.min() with many arguments", fn {
+    expect(math.min(1, 2, 3) == 1, "Expected to get smallest argument back")
+    expect(math.min(100, 5, 69) == 5, "Expected to get smallest argument back")
+    expect(math.min(1000000000, 1000000, 0) == 0, "Expected to get smallest argument back")
+})
+
+test("math.min() with negative arguments", fn {
+    expect(math.min(1, 2, -3) == -3, "Expected to get smallest argument back")
+    expect(math.min(-100, 5, 69) == -100, "Expected to get smallest argument back")
+    expect(math.min(1000000000, -1000000, 0) == -1000000, "Expected to get smallest argument back")
+})
+
+test("math.max() with a single argument", fn {
+    expect(math.max(1) == 1, "Expected to get argument back")
+    expect(math.max(100) == 100, "Expected to get argument back")
+    expect(math.max(1000000000) == 1000000000, "Expected to get argument back")
+})
+
+test("math.max() with many arguments", fn {
+    expect(math.max(1, 2, 3) == 3, "Expected to get largest argument back")
+    expect(math.max(100, 5, 69) == 100, "Expected to get largest argument back")
+    expect(math.max(1000000000, 1000000, 0) == 1000000000, "Expected to get largest argument back")
+})
+
+test("math.max() with negative arguments", fn {
+    expect(math.max(1, 2, -3) == 2, "Expected to get largest argument back")
+    expect(math.max(-100, 5, 69) == 69, "Expected to get largest argument back")
+    expect(math.max(1000000000, -1000000, 0) == 1000000000, "Expected to get largest argument back")
+})
+
+test("math.ispow2() correctly identifies powers of two", fn {
+    expect(math.ispow2(1), "1 is the 0th power of 2")
+    expect(math.ispow2(2), "2 is the 1st power of 2")
+    expect(math.ispow2(1024), "1024 is a power of 2")
+    expect(math.ispow2(8192), "8192 is a power of 2")
+})
+
+test("math.ispow2() correctly identifies non-powers of two", fn {
+    expect(not math.ispow2(100), "100 is not a power of 2")
+    expect(not math.ispow2(511), "511 is not a power of 2")
+    expect(not math.ispow2(16389), "16389 is not a power of 2")
+    expect(not math.ispow2(1827512857815), "1827512857815 is not a power of 2")
+})
+
+test("math.random() always gives a new number", fn {
+    let numbers = for i in 100 do math.random()
+
+    for i in numbers.length() {
+        for j in i + 1 to numbers.length() {
+            expect(numbers[i] != numbers[j], "Expected no two numbers to be the same")
+        }
+    }
+})
+
+test("math.random_seed() always sets seed correctly", fn {
+    math.random_seed(42069)
+    let first = math.random()
+
+    math.random_seed(42069)
+    let second = math.random()
+
+    expect(first == second, "Expected same number back after resetting seed")
+})
+
+pop_scope()
