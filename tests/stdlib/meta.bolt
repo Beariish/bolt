@@ -1,0 +1,143 @@
+import * from "../test"
+
+import meta
+import core
+
+push_scope("meta")
+
+test("meta.gc() returns number of objects collected", fn {
+    // allocate some temps
+    for i in 100 {
+        let x = { x: 10, y: "hello", z: [1, 2, 3] }
+    }
+
+    expect(meta.gc() > 0, "Expected number of objects to be returned")
+})
+
+test("meta.gc() return zero when no objects left to collect", fn {
+    // allocate some temps
+    for i in 100 {
+        let x = { x: 10, y: "hello", z: [1, 2, 3] }
+    }
+
+    meta.gc()
+    expect(meta.gc() == 0, "Expected no objects left to collect")
+})
+
+test("meta.mem_size() returns current memory size", fn {
+    expect(meta.mem_size() > 0, "We should be using memory")  
+})
+
+test("meta.next_cycle() is always in the future", fn {
+    expect(meta.next_cycle() > meta.mem_size(), "Next collection is in the future")  
+})
+
+test("meta.find_type() finds all fundamental types", fn {
+    expect(meta.find_type("number") == number,     "Expected to find number type")
+    expect(meta.find_type("string") == string,     "Expected to find string type")
+    expect(meta.find_type("bool")   == bool,       "Expected to find boolean type")
+    expect(meta.find_type("null")   == type(null), "Expected to find null type")
+    expect(meta.find_type("table")  == table,      "Expected to find table type")
+    expect(meta.find_type("any")    == any,        "Expected to find any type")
+    expect(meta.find_type("array")  == array,      "Expected to find array type")
+    expect(meta.find_type("module") == module,     "Expected to find module type")
+    expect(meta.find_type("Type")   == Type,       "Expected to find Type type")
+})
+
+test("meta.get_enum_name() returns name of valid options", fn {
+    type E = enum { A, B, C }
+    
+    expect(meta.get_enum_name(E, E.A) == "A", "Expected enum option name back")
+    expect(meta.get_enum_name(E, E.B) == "B", "Expected enum option name back")
+    expect(meta.get_enum_name(E, E.C) == "C", "Expected enum option name back")
+})
+
+test("meta.get_enum_name() returns null for invalid options", fn {
+    type E = enum { A, B, C }
+    type OE = enum { A, B, C, D, E, F }
+    
+    expect(meta.get_enum_name(E, OE.D) == null, "Expected null")
+    expect(meta.get_enum_name(E, OE.E) == null, "Expected null")
+    expect(meta.get_enum_name(E, OE.F) == null, "Expected null")
+})
+
+test("meta.get_enum_name() returns null for non-enums options", fn {
+    type E = enum { A, B, C }
+    
+    expect(meta.get_enum_name(number, E.A) == null, "Expected null")
+})
+
+test("meta.get_union_size() returns 1 for non-unions", fn {
+    expect(meta.get_union_size(number) == 1, "Expected non-union to return 1")
+    expect(meta.get_union_size(string) == 1, "Expected non-union to return 1")
+    expect(meta.get_union_size(Type) == 1, "Expected non-union to return 1")
+})
+
+test("meta.get_union_size() returns correct sizes", fn {
+    expect(meta.get_union_size(type(number?)) == 2, "Expected optional type to return 2")
+    expect(meta.get_union_size(type(number | string | bool)) == 3, "Expected union length")
+    expect(meta.get_union_size(type(Type | null | [number] | { ..string: number })) == 4, "Expected union length")
+})
+
+test("meta.get_union_entry() works for non-unions", fn {
+    expect(meta.get_union_entry(number, 0) == number, "Expected type back")
+    expect(meta.get_union_entry(string, 0) == string, "Expected type back")
+    expect(meta.get_union_entry(Type, 0) == Type, "Expected type back")
+})
+
+test("meta.get_union_entry() works for unions", fn {
+    expect(meta.get_union_entry(type(number?), 0) == number, "Expected type back")
+    expect(meta.get_union_entry(type(number?), 1) == type(null), "Expected type back")
+    
+    expect(meta.get_union_entry(type(Type | null | [number] | { ..string: number }), 0) == Type, "Expected type back")
+    expect(meta.get_union_entry(type(Type | null | [number] | { ..string: number }), 1) == type(null), "Expected type back")
+    expect(meta.get_union_entry(type(Type | null | [number] | { ..string: number }), 2) == type([number]), "Expected type back")
+    expect(meta.get_union_entry(type(Type | null | [number] | { ..string: number }), 3) == type({ ..string: number }), "Expected type back")
+})
+
+test("meta.get_union_entry() returns null when out of bounds", fn {
+    expect(meta.get_union_entry(type(number?), -1) == null, "Expected null back")
+    expect(meta.get_union_entry(type(number?), 2) == null, "Expected null back")
+
+    expect(meta.get_union_entry(number, 1) == null, "Expected null back")
+})
+
+test("meta.find_module() can find loaded modules", fn {
+    expect(meta.find_module("core") != null, "Expected core module to be found")
+    expect(meta.find_module("math") != null, "Expected math module to be found")
+})
+
+test("meta.find_module() gracefully returns null with bogus modules", fn {
+    expect(meta.find_module("lksjflkajsflkaf") == null, "Expected not to find module")
+})
+
+test("meta.try_compile() can compile valid code", fn {
+    let mod = meta.try_compile("
+        export let var = 10
+    ", "test")
+
+    expect(mod is module, "Expected module compilation to succeed")
+})
+
+test("meta.try_compile() errors gracefully on invalid code", fn {
+    let mod = meta.try_compile("
+        export let var (= 10
+    ", "test")
+
+    expect(mod is core.Error, "Expected module compilation to fail")
+})
+
+test("meta.execute_module() correctly returns module export table for valid module", fn {
+    let mod = meta.try_compile("
+        export let var = 10
+    ", "test")
+
+    if mod is module {
+        let exports = meta.execute_module(mod)
+        expect(exports.var == 10, "Expected executed module to export")
+    } else {
+        expect(false, "Expected module compilation to succeed")
+    }
+})
+
+pop_scope()

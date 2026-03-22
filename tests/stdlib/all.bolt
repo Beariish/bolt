@@ -6,5 +6,6 @@ import "arrays"
 import "regex"
 import "strings"
 import "math"
+import "meta"
 
 pop_scope()

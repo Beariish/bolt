@@ -87,13 +87,15 @@ static void btstd_get_enum_name(bt_Context* ctx, bt_Thread* thread)
 	bt_Value value = bt_arg(thread, 1);
 
 	if (enum_->category != BT_TYPE_CATEGORY_ENUM) {
-		bt_runtime_error(thread, "meta.get_enum_name: Type provided was not enum!", NULL);
+		bt_return(thread, bt_make_null());
+		return;
 	}
 
 	bt_Value result = bt_enum_contains(ctx, enum_, value);
 
-	if (result == BT_VALUE_NULL) {
-		bt_runtime_error(thread, "meta.get_enum_name: enum did not contain provided option", NULL);
+	if (bt_is_null(result)) {
+		bt_return(thread, bt_make_null());
+		return;
 	}
 
 	bt_return(thread, result);
@@ -109,19 +111,36 @@ static void btstd_add_module_path(bt_Context* ctx, bt_Thread* thread)
 static void btstd_get_union_size(bt_Context* ctx, bt_Thread* thread)
 {
 	bt_Type* u = bt_type_dealias((bt_Type*)BT_AS_OBJECT(bt_arg(thread, 0)));
-	if (u->category != BT_TYPE_CATEGORY_UNION) bt_runtime_error(thread, "Non-union type passed to function!", NULL);
+	
+	if (!bt_type_is_union(u)) {
+		bt_return(thread, bt_make_number(1));
+		return;
+	}
 
-	bt_return(thread, BT_VALUE_NUMBER(u->as.selector.types.length));
+	bt_return(thread, bt_make_number(bt_union_get_length(u)));
 }
 
 static void btstd_get_union_entry(bt_Context* ctx, bt_Thread* thread)
 {
-	bt_Type* u = bt_type_dealias((bt_Type*)BT_AS_OBJECT(bt_arg(thread, 0)));
-	bt_number idx = BT_AS_NUMBER(bt_arg(thread, 1));
-	if (u->category != BT_TYPE_CATEGORY_UNION) bt_runtime_error(thread, "Non-union type passed to function!", NULL);
-	if (idx < 0 || idx >= u->as.selector.types.length) bt_runtime_error(thread, "Union index out of bounds!", NULL);
+	bt_Type* u = bt_type_dealias((bt_Type*)bt_object(bt_arg(thread, 0)));
+	int32_t idx = (int32_t)bt_get_number(bt_arg(thread, 1));
 
-	bt_return(thread, BT_VALUE_OBJECT(u->as.selector.types.elements[(uint64_t)idx]));
+	if (!bt_type_is_union(u)) {
+		if (idx != 0) {
+			bt_return(thread, bt_make_null());
+		} else {
+			bt_return(thread, bt_value((bt_Object*)u));
+		}
+		
+		return;
+	}
+
+	if (idx < 0 || idx >= bt_union_get_length(u)) {
+		bt_return(thread, bt_make_null());
+		return;
+	}
+
+	bt_return(thread, bt_value((bt_Object*)bt_union_get_variant(u, idx)));
 }
 
 static bt_Type* btstd_dump_type(bt_Context* ctx, bt_Type** args, uint8_t argc)
@@ -252,8 +271,9 @@ static void btstd_execute_module(bt_Context* ctx, bt_Thread* thread)
 	bt_Value module = bt_arg(thread, 0);
 	bt_Module* mod = (bt_Module*)bt_object(module);
 
-	bt_execute_on_thread(ctx, thread, (bt_Callable*)mod);
-
+	bt_push(thread, module);
+	bt_call(thread, 0);
+	
 	bt_return(thread, mod->exports ? bt_value((bt_Object*)mod->exports) : bt_value((bt_Object*)bt_make_table(ctx, 0)));
 }
 
@@ -281,6 +301,7 @@ void boltstd_open_meta(bt_Context* context)
 	bt_Type* findtype_ret = bt_type_make_nullable(context, type);
 	bt_Type* findmodule_ret = bt_type_make_nullable(context, table);
 	bt_Type* annotation_arr = bt_make_array_type(context, annotation_type);
+	bt_Type* enum_name_ret = bt_type_make_nullable(context, string);
 
 	bt_Type* trycompile_ret_types[] = { bt_type_module(context), boltstd_get_error_type(context) };
 	bt_Type* trycompile_ret = bt_make_union_from(context, trycompile_ret_types, 2);
@@ -301,10 +322,10 @@ void boltstd_open_meta(bt_Context* context)
 	bt_module_export_native(context, module, "next_cycle",        btstd_nextcycle,             number,         NULL,                 0);
 	bt_module_export_native(context, module, "register_type",     btstd_register_type,         NULL,           regtype_args,         2);
 	bt_module_export_native(context, module, "find_type",         btstd_find_type,             findtype_ret,   &string,              1);
-	bt_module_export_native(context, module, "get_enum_name",     btstd_get_enum_name,         string,         getenumname_args,     2);
+	bt_module_export_native(context, module, "get_enum_name",     btstd_get_enum_name,         enum_name_ret,  getenumname_args,     2);
 	bt_module_export_native(context, module, "add_module_path",   btstd_add_module_path,       NULL,           &string,              1);
 	bt_module_export_native(context, module, "get_union_size",    btstd_get_union_size,        number,         &type,                1);
-	bt_module_export_native(context, module, "get_union_entry",   btstd_get_union_entry,       type,           get_union_entry_args, 2);
+	bt_module_export_native(context, module, "get_union_entry",   btstd_get_union_entry,       findtype_ret,   get_union_entry_args, 2);
 	bt_module_export_native(context, module, "annotations",       btstd_get_annotations,       annotation_arr, &any,                 1);
 	bt_module_export_native(context, module, "field_annotations", btstd_get_field_annotations, annotation_arr, field_anno_args,      2);
 	bt_module_export_native(context, module, "find_module",       btstd_find_module,           findmodule_ret, &string,              1);
